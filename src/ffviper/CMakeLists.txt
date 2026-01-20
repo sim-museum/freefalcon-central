@@ -5,35 +5,7 @@
 # Create the main entry point
 if(FF_PLATFORM_LINUX)
     # Linux main entry point
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/main_linux.cpp
-"// FFViper Linux main entry point
-#include <cstdio>
-#include <cstdlib>
-
-// Forward declarations for initialization functions
-// These would normally be called from WinMain
-
-int main(int argc, char** argv) {
-    (void)argc;
-    (void)argv;
-
-    printf(\"FreeFalcon Linux Port\\n\");
-    printf(\"Build: %s %s\\n\", __DATE__, __TIME__);
-    printf(\"\\n\");
-    printf(\"Status: Libraries compiled successfully!\\n\");
-    printf(\"\\n\");
-    printf(\"To complete the port, the following is needed:\\n\");
-    printf(\"  1. SDL2 window/event loop integration\\n\");
-    printf(\"  2. OpenGL rendering backend\\n\");
-    printf(\"  3. OpenAL audio backend\\n\");
-    printf(\"  4. Linux-specific main initialization\\n\");
-    printf(\"  5. Game data files in the correct location\\n\");
-    printf(\"\\n\");
-
-    return 0;
-}
-")
-    set(FFVIPER_MAIN ${CMAKE_CURRENT_BINARY_DIR}/main_linux.cpp)
+    set(FFVIPER_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/main_linux.cpp)
 else()
     # Windows uses WinMain from ui library
     file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/main_stub.cpp
