@@ -3,10 +3,10 @@
 
 // SYSTEM INCLUDES
 #include <cISO646>
-#include <StdIO.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <WinSock.h>
-#include <WinBase.h>
+#include <winsock.h>
+#include <winbase.h>
 // END OF SYSTEM INCLUDES
 
 
@@ -18,10 +18,10 @@
 
 
 // SIM INCLUDES
-#include "CAPI.h"
-#include "CapiOpt.h"
-#include "CapiPriv.h"
-#include "WsProtos.h"
+#include "capi.h"
+#include "capiopt.h"
+#include "capipriv.h"
+#include "wsprotos.h"
 // END OF SIM INCLUDES
 
 

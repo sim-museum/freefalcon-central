@@ -1,6 +1,7 @@
 #include <cISO646>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include "capiopt.h"
 #include "capi.h"
@@ -496,7 +497,11 @@ unsigned short com_API_get_peer_receive_port(com_API_handle c)
 unsigned long com_API_get_peer_IP(com_API_handle c)
 {
     // we send to this address, so this is his IP
+#ifdef WIN32
     return CAPI_ntohl(((ComIP*)c)->sendAddress.sin_addr.S_un.S_addr);
+#else
+    return CAPI_ntohl(((ComIP*)c)->sendAddress.sin_addr.s_addr);
+#endif
 }
 
 unsigned long com_API_get_peer_ID(com_API_handle c)

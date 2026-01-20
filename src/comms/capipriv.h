@@ -4,6 +4,8 @@
 
 #if WIN32
 #include <winsock.h>
+#else
+#include <winsock2.h>
 #endif
 #include "capi.h"
 
@@ -36,8 +38,8 @@ extern "C" {
 #define GAME_NAME_LENGTH 4
 
     /* extern GLOBAL WSA startup reference count, defined in  WS2Init() */
-#if WIN32
     extern int windows_sockets_connections;
+#if WIN32
     extern HINSTANCE  h_windows_sockets_DLL;
 #endif
 

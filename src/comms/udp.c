@@ -472,7 +472,7 @@ void ComUDPClose(com_API_handle c)
             {
             }
 
-#ifdef LOAD_DLLS
+#if defined(WIN32) && defined(LOAD_DLLS)
             FreeLibrary(h_windows_sockets_DLL);
             h_windows_sockets_DLL = 0;
 #endif
@@ -688,7 +688,11 @@ int ComUDPSendDummy(com_API_handle c, unsigned long ip, unsigned short port)
     struct sockaddr_in to;
     memset(&to, 0, sizeof(to));
     to.sin_family = AF_INET;
+#ifdef WIN32
     to.sin_addr.S_un.S_addr = CAPI_htonl(ip);
+#else
+    to.sin_addr.s_addr = CAPI_htonl(ip);
+#endif
     to.sin_port = CAPI_htons(port);
     return CAPI_sendto(
                com->send_sock, (const void*)&dummyBlk, sizeof(int), 0, (struct sockaddr*)&to, sizeof(to)

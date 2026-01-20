@@ -889,7 +889,7 @@ void ComTCPClose(com_API_handle c)
             sockerror = CAPI_WSAGetLastError();
         }
 
-#ifdef LOAD_DLLS
+#if defined(WIN32) && defined(LOAD_DLLS)
         FreeLibrary(h_windows_sockets_DLL);
         h_windows_sockets_DLL = 0;
 #endif
