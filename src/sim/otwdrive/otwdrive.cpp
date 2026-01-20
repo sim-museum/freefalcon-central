@@ -1,22 +1,22 @@
 #include <time.h>
 #include "otwdrive.h"
-#include "Graphics/Include/Setup.h"
-#include "Graphics/Include/TimeMgr.h"
-#include "Graphics/Include/TOD.h"
-#include "Graphics/Include/tviewpnt.h"
-#include "Graphics/Include/RenderOW.h"
-#include "Graphics/Include/canvas3d.h"
-#include "Graphics/Include/drawsgmt.h"
-#include "Graphics/Include/objlist.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/drawpnt.h"
-#include "Graphics/Include/drawGuys.h"
-#include "Graphics/Include/drawGrnd.h"
-#include "Graphics/Include/RViewPnt.h"
-#include "Graphics/Include/TerrTex.h" // JB 010616
+#include "graphics/include/setup.h"
+#include "graphics/include/timemgr.h"
+#include "graphics/include/tod.h"
+#include "graphics/include/tviewpnt.h"
+#include "graphics/include/renderow.h"
+#include "graphics/include/canvas3d.h"
+#include "graphics/include/drawsgmt.h"
+#include "graphics/include/objlist.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/drawpnt.h"
+#include "graphics/include/drawguys.h"
+#include "graphics/include/drawgrnd.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/terrtex.h" // JB 010616
 #include "resource.h"
 #include "stdhdr.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "graphics/dxengine/dxvbmanager.h"
 
 extern bool g_bUse_DX_Engine;
 
@@ -39,10 +39,10 @@ extern bool g_bUse_DX_Engine;
 #include "ui/include/falcuser.h"
 #include "sinput.h"
 #include "dispcfg.h"
-#include "Graphics/Include/Loader.h"
-#include "ThreadMgr.h"
+#include "graphics/include/loader.h"
+#include "threadmgr.h"
 #include "playerop.h"
-#include "SoundFX.h"
+#include "soundfx.h"
 #include "sms.h"
 #include "rwr.h"
 #include "aircrft.h"
@@ -52,15 +52,15 @@ extern bool g_bUse_DX_Engine;
 #include "fakerand.h"
 #include "dispopts.h"
 #include "Ground.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "popmenu.h"
 #include "flight.h"
 #include "lantirn.h"
 #include "IVibeData.h"
 #include "Weather.h"
-#include "DrawParticleSys.h"
+#include "drawparticlesys.h"
 
-#include "SimIO.h" // Retro 9Jan2004
+#include "simio.h" // Retro 9Jan2004
 
 #include "radiosubtitle.h" // Retro 16Dec2003
 #include "falcsnd/winampfrontend.h" // Retro 3Jan2004
@@ -169,11 +169,11 @@ OTWDriverClass OTWDriver;
 
 DrawableBSP *endDialogObject;
 
-HANDLE gSharedMemHandle;
+HANDLE gSharedMemHandle = NULL;
 void* gSharedMemPtr = NULL;
 // JPO - for the new hardware
-HANDLE gIntellivibeShared;
-void *gSharedIntellivibe;
+HANDLE gIntellivibeShared = NULL;
+void *gSharedIntellivibe = NULL;
 IntellivibeData g_intellivibeData;
 
 OTWDriverClass::OTWDriverClass(void)
@@ -358,7 +358,7 @@ OTWDriverClass::OTWDriverClass(void)
     bVCockZBuffering = FALSE;
 
     // Create Shared Memory object for data output
-    gSharedMemHandle = CreateFileMapping((HANDLE)0xFFFFFFFF, NULL, PAGE_READWRITE,
+    gSharedMemHandle = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
                                          0, sizeof(FlightData), "FalconSharedMemoryArea");
 
     if (gSharedMemHandle)
@@ -368,11 +368,10 @@ OTWDriverClass::OTWDriverClass(void)
     else
     {
         MonoPrint("CreateFileMapping for shared data failed\n");
-        CloseHandle(gSharedMemHandle);
     }
 
     // Create Shared Memory object for other output
-    gIntellivibeShared = CreateFileMapping((HANDLE)0xFFFFFFFF, NULL, PAGE_READWRITE,
+    gIntellivibeShared = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
                                            0, sizeof(IntellivibeData), "FalconIntellivibeSharedMemoryArea");
 
     if (gIntellivibeShared)
@@ -421,7 +420,11 @@ OTWDriverClass::~OTWDriverClass(void)
         gSharedMemPtr = NULL;
     }
 
-    CloseHandle(gSharedMemHandle);
+    if (gSharedMemHandle)
+    {
+        CloseHandle(gSharedMemHandle);
+        gSharedMemHandle = NULL;
+    }
 
     if (gSharedIntellivibe)
     {
@@ -429,7 +432,11 @@ OTWDriverClass::~OTWDriverClass(void)
         gSharedIntellivibe = NULL;
     }
 
-    CloseHandle(gIntellivibeShared);
+    if (gIntellivibeShared)
+    {
+        CloseHandle(gIntellivibeShared);
+        gIntellivibeShared = NULL;
+    }
 
     ClearSfxLists();
 
@@ -2505,7 +2512,7 @@ void OTWDriverClass::Enter(void)
         displaceCamera = false; // Retro 25Dec2003
 
     // Retro 16Dec2003 - wipes internal structs clear of messages of last mission
-    // 'drawSubTitles' doesn´t destroy or create the radiolabel class - it just governs if the labels are created
+    // 'drawSubTitles' doesnï¿½t destroy or create the radiolabel class - it just governs if the labels are created
     // with this variable the user can temporarily kill the subtitles, however if he wants them off alltogether he
     // has to do this in the UI
     if ((PlayerOptions.getSubtitles()) and (radioLabel))
