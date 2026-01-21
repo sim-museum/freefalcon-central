@@ -75,9 +75,9 @@ extern void BuildAscii();
 // Default data directory - can be overridden with -d flag or env var
 #define DEFAULT_DATA_DIR "/home/g/ese/SAT/WP/drive_c/FreeFalcon6"
 
-// Window settings - conservative defaults for stability
-#define WINDOW_WIDTH 640
-#define WINDOW_HEIGHT 480
+// Window settings - must match UI resolution (1024x768 for HiRes UI)
+#define WINDOW_WIDTH 1024
+#define WINDOW_HEIGHT 768
 #define WINDOW_TITLE "Free Falcon 6 Linux Port"
 
 // External globals from falclib
@@ -146,6 +146,379 @@ bool ProcessGameMessages();
 
 // Post a message without locking (for use inside ProcessGameMessages)
 static std::vector<GameMessage> g_pendingMessages;
+
+// =============================================================================
+// FALLBACK MENU SYSTEM
+// Simple OpenGL-based menu when UI95 rendering isn't working
+// =============================================================================
+static bool g_useFallbackMenu = true;  // Enable fallback menu by default
+static Uint32 g_menuActiveTime = 0;    // Time when menu became active (to ignore phantom clicks)
+
+struct MenuButton {
+    const char* label;
+    float x, y, w, h;
+    void (*callback)();
+};
+
+// Callback declarations
+static void FallbackExit();
+static void FallbackDogfight();
+static void FallbackCampaign();
+static void FallbackSetup();
+static void FallbackComms();
+static void FallbackACMI();
+static void FallbackLogbook();
+static void FallbackInstantAction();
+
+// Menu buttons - positioned at bottom of screen like the real menu
+static MenuButton g_menuButtons[] = {
+    {"EXIT",      20,  720, 80, 30, FallbackExit},
+    {"LOGBOOK",   110, 720, 90, 30, FallbackLogbook},
+    {"ACMI",      210, 720, 70, 30, FallbackACMI},
+    {"SETUP",     290, 720, 80, 30, FallbackSetup},
+    {"COMMS",     380, 720, 80, 30, FallbackComms},
+    {"INSTANT",   560, 720, 90, 30, FallbackInstantAction},
+    {"DOGFIGHT",  750, 720, 100, 30, FallbackDogfight},
+    {"CAMPAIGN",  920, 720, 100, 30, FallbackCampaign},
+};
+static const int g_numMenuButtons = sizeof(g_menuButtons) / sizeof(g_menuButtons[0]);
+static int g_hoveredButton = -1;
+
+// Simple bitmap font rendering using OpenGL lines
+static void DrawChar(float x, float y, char c, float scale) {
+    // Simple 5x7 bitmap font represented as line segments
+    glBegin(GL_LINES);
+
+    switch(c) {
+        case 'A':
+            glVertex2f(x, y+7*scale); glVertex2f(x+2.5f*scale, y);
+            glVertex2f(x+2.5f*scale, y); glVertex2f(x+5*scale, y+7*scale);
+            glVertex2f(x+1*scale, y+4*scale); glVertex2f(x+4*scale, y+4*scale);
+            break;
+        case 'B':
+            glVertex2f(x, y); glVertex2f(x, y+7*scale);
+            glVertex2f(x, y); glVertex2f(x+4*scale, y);
+            glVertex2f(x+4*scale, y); glVertex2f(x+5*scale, y+1*scale);
+            glVertex2f(x+5*scale, y+1*scale); glVertex2f(x+5*scale, y+3*scale);
+            glVertex2f(x+5*scale, y+3*scale); glVertex2f(x+4*scale, y+3.5f*scale);
+            glVertex2f(x, y+3.5f*scale); glVertex2f(x+4*scale, y+3.5f*scale);
+            glVertex2f(x+4*scale, y+3.5f*scale); glVertex2f(x+5*scale, y+4.5f*scale);
+            glVertex2f(x+5*scale, y+4.5f*scale); glVertex2f(x+5*scale, y+6*scale);
+            glVertex2f(x+5*scale, y+6*scale); glVertex2f(x+4*scale, y+7*scale);
+            glVertex2f(x, y+7*scale); glVertex2f(x+4*scale, y+7*scale);
+            break;
+        case 'C':
+            glVertex2f(x+5*scale, y+1*scale); glVertex2f(x+4*scale, y);
+            glVertex2f(x+4*scale, y); glVertex2f(x+1*scale, y);
+            glVertex2f(x+1*scale, y); glVertex2f(x, y+1*scale);
+            glVertex2f(x, y+1*scale); glVertex2f(x, y+6*scale);
+            glVertex2f(x, y+6*scale); glVertex2f(x+1*scale, y+7*scale);
+            glVertex2f(x+1*scale, y+7*scale); glVertex2f(x+4*scale, y+7*scale);
+            glVertex2f(x+4*scale, y+7*scale); glVertex2f(x+5*scale, y+6*scale);
+            break;
+        case 'D':
+            glVertex2f(x, y); glVertex2f(x, y+7*scale);
+            glVertex2f(x, y); glVertex2f(x+3*scale, y);
+            glVertex2f(x+3*scale, y); glVertex2f(x+5*scale, y+2*scale);
+            glVertex2f(x+5*scale, y+2*scale); glVertex2f(x+5*scale, y+5*scale);
+            glVertex2f(x+5*scale, y+5*scale); glVertex2f(x+3*scale, y+7*scale);
+            glVertex2f(x, y+7*scale); glVertex2f(x+3*scale, y+7*scale);
+            break;
+        case 'E':
+            glVertex2f(x, y); glVertex2f(x, y+7*scale);
+            glVertex2f(x, y); glVertex2f(x+5*scale, y);
+            glVertex2f(x, y+3.5f*scale); glVertex2f(x+4*scale, y+3.5f*scale);
+            glVertex2f(x, y+7*scale); glVertex2f(x+5*scale, y+7*scale);
+            break;
+        case 'F':
+            glVertex2f(x, y); glVertex2f(x, y+7*scale);
+            glVertex2f(x, y); glVertex2f(x+5*scale, y);
+            glVertex2f(x, y+3.5f*scale); glVertex2f(x+4*scale, y+3.5f*scale);
+            break;
+        case 'G':
+            glVertex2f(x+5*scale, y+1*scale); glVertex2f(x+4*scale, y);
+            glVertex2f(x+4*scale, y); glVertex2f(x+1*scale, y);
+            glVertex2f(x+1*scale, y); glVertex2f(x, y+1*scale);
+            glVertex2f(x, y+1*scale); glVertex2f(x, y+6*scale);
+            glVertex2f(x, y+6*scale); glVertex2f(x+1*scale, y+7*scale);
+            glVertex2f(x+1*scale, y+7*scale); glVertex2f(x+4*scale, y+7*scale);
+            glVertex2f(x+4*scale, y+7*scale); glVertex2f(x+5*scale, y+6*scale);
+            glVertex2f(x+5*scale, y+6*scale); glVertex2f(x+5*scale, y+4*scale);
+            glVertex2f(x+5*scale, y+4*scale); glVertex2f(x+3*scale, y+4*scale);
+            break;
+        case 'H':
+            glVertex2f(x, y); glVertex2f(x, y+7*scale);
+            glVertex2f(x+5*scale, y); glVertex2f(x+5*scale, y+7*scale);
+            glVertex2f(x, y+3.5f*scale); glVertex2f(x+5*scale, y+3.5f*scale);
+            break;
+        case 'I':
+            glVertex2f(x+1*scale, y); glVertex2f(x+4*scale, y);
+            glVertex2f(x+2.5f*scale, y); glVertex2f(x+2.5f*scale, y+7*scale);
+            glVertex2f(x+1*scale, y+7*scale); glVertex2f(x+4*scale, y+7*scale);
+            break;
+        case 'K':
+            glVertex2f(x, y); glVertex2f(x, y+7*scale);
+            glVertex2f(x+5*scale, y); glVertex2f(x, y+3.5f*scale);
+            glVertex2f(x, y+3.5f*scale); glVertex2f(x+5*scale, y+7*scale);
+            break;
+        case 'L':
+            glVertex2f(x, y); glVertex2f(x, y+7*scale);
+            glVertex2f(x, y+7*scale); glVertex2f(x+5*scale, y+7*scale);
+            break;
+        case 'M':
+            glVertex2f(x, y+7*scale); glVertex2f(x, y);
+            glVertex2f(x, y); glVertex2f(x+2.5f*scale, y+3*scale);
+            glVertex2f(x+2.5f*scale, y+3*scale); glVertex2f(x+5*scale, y);
+            glVertex2f(x+5*scale, y); glVertex2f(x+5*scale, y+7*scale);
+            break;
+        case 'N':
+            glVertex2f(x, y+7*scale); glVertex2f(x, y);
+            glVertex2f(x, y); glVertex2f(x+5*scale, y+7*scale);
+            glVertex2f(x+5*scale, y+7*scale); glVertex2f(x+5*scale, y);
+            break;
+        case 'O':
+            glVertex2f(x+1*scale, y); glVertex2f(x+4*scale, y);
+            glVertex2f(x+4*scale, y); glVertex2f(x+5*scale, y+1*scale);
+            glVertex2f(x+5*scale, y+1*scale); glVertex2f(x+5*scale, y+6*scale);
+            glVertex2f(x+5*scale, y+6*scale); glVertex2f(x+4*scale, y+7*scale);
+            glVertex2f(x+4*scale, y+7*scale); glVertex2f(x+1*scale, y+7*scale);
+            glVertex2f(x+1*scale, y+7*scale); glVertex2f(x, y+6*scale);
+            glVertex2f(x, y+6*scale); glVertex2f(x, y+1*scale);
+            glVertex2f(x, y+1*scale); glVertex2f(x+1*scale, y);
+            break;
+        case 'P':
+            glVertex2f(x, y); glVertex2f(x, y+7*scale);
+            glVertex2f(x, y); glVertex2f(x+4*scale, y);
+            glVertex2f(x+4*scale, y); glVertex2f(x+5*scale, y+1*scale);
+            glVertex2f(x+5*scale, y+1*scale); glVertex2f(x+5*scale, y+3*scale);
+            glVertex2f(x+5*scale, y+3*scale); glVertex2f(x+4*scale, y+4*scale);
+            glVertex2f(x+4*scale, y+4*scale); glVertex2f(x, y+4*scale);
+            break;
+        case 'R':
+            glVertex2f(x, y); glVertex2f(x, y+7*scale);
+            glVertex2f(x, y); glVertex2f(x+4*scale, y);
+            glVertex2f(x+4*scale, y); glVertex2f(x+5*scale, y+1*scale);
+            glVertex2f(x+5*scale, y+1*scale); glVertex2f(x+5*scale, y+3*scale);
+            glVertex2f(x+5*scale, y+3*scale); glVertex2f(x+4*scale, y+4*scale);
+            glVertex2f(x+4*scale, y+4*scale); glVertex2f(x, y+4*scale);
+            glVertex2f(x+2*scale, y+4*scale); glVertex2f(x+5*scale, y+7*scale);
+            break;
+        case 'S':
+            glVertex2f(x+5*scale, y+1*scale); glVertex2f(x+4*scale, y);
+            glVertex2f(x+4*scale, y); glVertex2f(x+1*scale, y);
+            glVertex2f(x+1*scale, y); glVertex2f(x, y+1*scale);
+            glVertex2f(x, y+1*scale); glVertex2f(x, y+3*scale);
+            glVertex2f(x, y+3*scale); glVertex2f(x+1*scale, y+3.5f*scale);
+            glVertex2f(x+1*scale, y+3.5f*scale); glVertex2f(x+4*scale, y+3.5f*scale);
+            glVertex2f(x+4*scale, y+3.5f*scale); glVertex2f(x+5*scale, y+4.5f*scale);
+            glVertex2f(x+5*scale, y+4.5f*scale); glVertex2f(x+5*scale, y+6*scale);
+            glVertex2f(x+5*scale, y+6*scale); glVertex2f(x+4*scale, y+7*scale);
+            glVertex2f(x+4*scale, y+7*scale); glVertex2f(x+1*scale, y+7*scale);
+            glVertex2f(x+1*scale, y+7*scale); glVertex2f(x, y+6*scale);
+            break;
+        case 'T':
+            glVertex2f(x, y); glVertex2f(x+5*scale, y);
+            glVertex2f(x+2.5f*scale, y); glVertex2f(x+2.5f*scale, y+7*scale);
+            break;
+        case 'U':
+            glVertex2f(x, y); glVertex2f(x, y+6*scale);
+            glVertex2f(x, y+6*scale); glVertex2f(x+1*scale, y+7*scale);
+            glVertex2f(x+1*scale, y+7*scale); glVertex2f(x+4*scale, y+7*scale);
+            glVertex2f(x+4*scale, y+7*scale); glVertex2f(x+5*scale, y+6*scale);
+            glVertex2f(x+5*scale, y+6*scale); glVertex2f(x+5*scale, y);
+            break;
+        case 'X':
+            glVertex2f(x, y); glVertex2f(x+5*scale, y+7*scale);
+            glVertex2f(x+5*scale, y); glVertex2f(x, y+7*scale);
+            break;
+        case 'Y':
+            glVertex2f(x, y); glVertex2f(x+2.5f*scale, y+3.5f*scale);
+            glVertex2f(x+5*scale, y); glVertex2f(x+2.5f*scale, y+3.5f*scale);
+            glVertex2f(x+2.5f*scale, y+3.5f*scale); glVertex2f(x+2.5f*scale, y+7*scale);
+            break;
+        case ' ':
+            break;
+        default:
+            // Draw a box for unknown chars
+            glVertex2f(x, y); glVertex2f(x+5*scale, y);
+            glVertex2f(x+5*scale, y); glVertex2f(x+5*scale, y+7*scale);
+            glVertex2f(x+5*scale, y+7*scale); glVertex2f(x, y+7*scale);
+            glVertex2f(x, y+7*scale); glVertex2f(x, y);
+            break;
+    }
+    glEnd();
+}
+
+static void DrawString(float x, float y, const char* str, float scale) {
+    float charWidth = 6 * scale;
+    while (*str) {
+        DrawChar(x, y, *str, scale);
+        x += charWidth;
+        str++;
+    }
+}
+
+static void DrawFallbackMenu() {
+    // Set up 2D orthographic projection
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, WINDOW_WIDTH, WINDOW_HEIGHT, 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_TEXTURE_2D);
+    glLineWidth(2.0f);
+
+    // Dark background
+    glColor3f(0.15f, 0.2f, 0.25f);
+    glBegin(GL_QUADS);
+    glVertex2f(0, 0);
+    glVertex2f(WINDOW_WIDTH, 0);
+    glVertex2f(WINDOW_WIDTH, WINDOW_HEIGHT);
+    glVertex2f(0, WINDOW_HEIGHT);
+    glEnd();
+
+    // Title
+    glColor3f(1.0f, 0.9f, 0.3f);  // Gold
+    DrawString(350, 100, "FREE FALCON", 4.0f);
+
+    glColor3f(0.7f, 0.7f, 0.8f);  // Silver
+    DrawString(380, 160, "LINUX PORT", 3.0f);
+
+    // Instructions
+    glColor3f(0.6f, 0.8f, 0.6f);  // Light green
+    DrawString(300, 300, "CLICK A BUTTON BELOW", 2.0f);
+    DrawString(350, 340, "OR PRESS ESC TO EXIT", 2.0f);
+
+    // Draw buttons
+    for (int i = 0; i < g_numMenuButtons; i++) {
+        MenuButton& btn = g_menuButtons[i];
+
+        // Button background
+        if (i == g_hoveredButton) {
+            glColor3f(0.3f, 0.5f, 0.7f);  // Highlighted
+        } else {
+            glColor3f(0.2f, 0.25f, 0.3f);  // Normal
+        }
+        glBegin(GL_QUADS);
+        glVertex2f(btn.x, btn.y);
+        glVertex2f(btn.x + btn.w, btn.y);
+        glVertex2f(btn.x + btn.w, btn.y + btn.h);
+        glVertex2f(btn.x, btn.y + btn.h);
+        glEnd();
+
+        // Button border
+        if (i == g_hoveredButton) {
+            glColor3f(1.0f, 1.0f, 0.5f);  // Yellow highlight
+        } else {
+            glColor3f(0.5f, 0.5f, 0.6f);
+        }
+        glBegin(GL_LINE_LOOP);
+        glVertex2f(btn.x, btn.y);
+        glVertex2f(btn.x + btn.w, btn.y);
+        glVertex2f(btn.x + btn.w, btn.y + btn.h);
+        glVertex2f(btn.x, btn.y + btn.h);
+        glEnd();
+
+        // Button text
+        glColor3f(1.0f, 1.0f, 1.0f);
+        float textX = btn.x + 5;
+        float textY = btn.y + 8;
+        DrawString(textX, textY, btn.label, 1.5f);
+    }
+
+    // Restore matrices
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+}
+
+static int GetButtonAtPosition(int x, int y) {
+    for (int i = 0; i < g_numMenuButtons; i++) {
+        MenuButton& btn = g_menuButtons[i];
+        if (x >= btn.x && x <= btn.x + btn.w &&
+            y >= btn.y && y <= btn.y + btn.h) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void HandleFallbackMenuClick(int x, int y) {
+    // Ignore clicks in the first 2 seconds to avoid phantom clicks on window focus
+    Uint32 now = SDL_GetTicks();
+    if (g_menuActiveTime == 0) {
+        g_menuActiveTime = now;
+    }
+    if (now - g_menuActiveTime < 2000) {
+        fprintf(stderr, "[FallbackMenu] Ignoring early click (menu active for %u ms)\n", now - g_menuActiveTime);
+        fflush(stderr);
+        return;
+    }
+
+    int btn = GetButtonAtPosition(x, y);
+    if (btn >= 0 && g_menuButtons[btn].callback) {
+        fprintf(stderr, "[FallbackMenu] Button clicked: %s\n", g_menuButtons[btn].label);
+        fflush(stderr);
+        g_menuButtons[btn].callback();
+        fprintf(stderr, "[FallbackMenu] Callback returned, g_running=%d\n", g_running ? 1 : 0);
+        fflush(stderr);
+    }
+}
+
+static void HandleFallbackMenuHover(int x, int y) {
+    g_hoveredButton = GetButtonAtPosition(x, y);
+}
+
+// Fallback menu callbacks
+static void FallbackExit() {
+    fprintf(stderr, "[FallbackMenu] EXIT selected - shutting down\n");
+    fflush(stderr);
+    g_running = false;
+}
+
+static void FallbackDogfight() {
+    fprintf(stderr, "[FallbackMenu] DOGFIGHT selected\n");
+    // TODO: Implement dogfight mode
+}
+
+static void FallbackCampaign() {
+    fprintf(stderr, "[FallbackMenu] CAMPAIGN selected\n");
+    // TODO: Implement campaign mode
+}
+
+static void FallbackSetup() {
+    fprintf(stderr, "[FallbackMenu] SETUP selected\n");
+    // TODO: Implement setup screen
+}
+
+static void FallbackComms() {
+    fprintf(stderr, "[FallbackMenu] COMMS selected\n");
+    // TODO: Implement comms/multiplayer
+}
+
+static void FallbackACMI() {
+    fprintf(stderr, "[FallbackMenu] ACMI selected\n");
+    // TODO: Implement ACMI viewer
+}
+
+static void FallbackLogbook() {
+    fprintf(stderr, "[FallbackMenu] LOGBOOK selected\n");
+    // TODO: Implement logbook
+}
+
+static void FallbackInstantAction() {
+    fprintf(stderr, "[FallbackMenu] INSTANT ACTION selected\n");
+    // TODO: Implement instant action
+}
+
+// =============================================================================
+// END FALLBACK MENU SYSTEM
+// =============================================================================
 
 // Signal handler for clean shutdown when process is killed
 static volatile sig_atomic_t g_signalReceived = 0;
@@ -599,32 +972,73 @@ static bool init_game_core(void) {
 }
 
 static void cleanup(void) {
-    printf("\nCleaning up...\n");
+    fprintf(stderr, "\n[cleanup] Starting cleanup...\n");
+    fflush(stderr);
+
+    // First, destroy the window immediately so it disappears
+    // This provides visual feedback that the app is shutting down
+    fprintf(stderr, "[cleanup] Destroying SDL window first for immediate visual feedback...\n");
+    fflush(stderr);
+
+    if (g_GLContext) {
+        SDL_GL_DeleteContext(g_GLContext);
+        g_GLContext = nullptr;
+    }
+    if (g_SDLWindow) {
+        SDL_DestroyWindow(g_SDLWindow);
+        g_SDLWindow = nullptr;
+    }
+    fprintf(stderr, "[cleanup] Window destroyed.\n");
+    fflush(stderr);
 
     // Cleanup game systems (in reverse order of initialization)
+    // These may block, but at least the window is gone
     if (g_gameInitialized) {
-        printf("  Shutting down game systems...\n");
+        fprintf(stderr, "[cleanup] Shutting down game systems...\n");
+        fflush(stderr);
 
-        // Stop campaign
-        printf("  Stopping campaign...\n");
+        // Stop campaign - this can block on threading issues
+        fprintf(stderr, "[cleanup] Stopping campaign (may take a moment)...\n");
+        fflush(stderr);
         Camp_Exit();
+        fprintf(stderr, "[cleanup] Campaign stopped.\n");
+        fflush(stderr);
 
-        // Stop simulation loop
-        printf("  Stopping simulation loop...\n");
-        SimulationLoopControl::StopSim();
+        // Only stop simulation loop if we were actually in simulation mode
+        // StopSim() has a blocking wait for RunningSim state that will hang
+        // if we're just in UI mode (which uses the fallback menu)
+        if (SimulationLoopControl::InSim()) {
+            fprintf(stderr, "[cleanup] Stopping simulation loop...\n");
+            fflush(stderr);
+            SimulationLoopControl::StopSim();
+            fprintf(stderr, "[cleanup] Simulation loop stopped.\n");
+            fflush(stderr);
+        } else {
+            fprintf(stderr, "[cleanup] Skipping StopSim (not in simulation mode)\n");
+            fflush(stderr);
+        }
 
         // Cleanup particle system
+        fprintf(stderr, "[cleanup] Unloading particle system...\n");
+        fflush(stderr);
         DrawableParticleSys::UnloadParameters();
+        fprintf(stderr, "[cleanup] Particle system unloaded.\n");
+        fflush(stderr);
     }
 
     // Cleanup D3D/DXEngine
     if (g_graphicsInitialized) {
-        printf("  Releasing DXEngine...\n");
+        fprintf(stderr, "[cleanup] Releasing DXEngine...\n");
+        fflush(stderr);
         TheDXEngine.Release();
         g_graphicsInitialized = false;
+        fprintf(stderr, "[cleanup] DXEngine released.\n");
+        fflush(stderr);
     }
 
     // Release D3D interfaces
+    fprintf(stderr, "[cleanup] Releasing D3D interfaces...\n");
+    fflush(stderr);
     if (g_pD3DDevice) {
         g_pD3DDevice->Release();
         g_pD3DDevice = nullptr;
@@ -637,8 +1051,12 @@ static void cleanup(void) {
         g_pD3D->Release();
         g_pD3D = nullptr;
     }
+    fprintf(stderr, "[cleanup] D3D interfaces released.\n");
+    fflush(stderr);
 
     // Cleanup audio
+    fprintf(stderr, "[cleanup] Cleaning up audio...\n");
+    fflush(stderr);
     if (g_alContext) {
         alcMakeContextCurrent(nullptr);
         alcDestroyContext(g_alContext);
@@ -648,22 +1066,25 @@ static void cleanup(void) {
         alcCloseDevice(g_alDevice);
         g_alDevice = nullptr;
     }
-
-    // Cleanup graphics
-    if (g_GLContext) {
-        SDL_GL_DeleteContext(g_GLContext);
-        g_GLContext = nullptr;
-    }
-    if (g_SDLWindow) {
-        SDL_DestroyWindow(g_SDLWindow);
-        g_SDLWindow = nullptr;
-    }
+    fprintf(stderr, "[cleanup] Audio cleaned up.\n");
+    fflush(stderr);
 
     // Cleanup SDL
+    fprintf(stderr, "[cleanup] Quitting SDL...\n");
+    fflush(stderr);
     SDL_Quit();
+    fprintf(stderr, "[cleanup] SDL quit.\n");
+    fflush(stderr);
 
     // Cleanup resource manager
+    fprintf(stderr, "[cleanup] Cleaning up resource manager...\n");
+    fflush(stderr);
     ResExit();
+    fprintf(stderr, "[cleanup] Resource manager cleaned up.\n");
+    fflush(stderr);
+
+    fprintf(stderr, "[cleanup] Cleanup complete!\n");
+    fflush(stderr);
 }
 
 // Convert SDL events to Windows-style messages
@@ -699,36 +1120,58 @@ static void handle_sdl_events(void) {
 
             case SDL_MOUSEBUTTONDOWN:
                 {
-                    // Scale mouse coordinates from SDL window (640x480) to UI surface (1024x768)
-                    int scaledX = event.button.x * 1024 / WINDOW_WIDTH;
-                    int scaledY = event.button.y * 768 / WINDOW_HEIGHT;
-                    if (event.button.button == SDL_BUTTON_LEFT) {
-                        PostGameMessage(WM_LBUTTONDOWN, 0, MAKELPARAM(scaledX, scaledY));
-                    } else if (event.button.button == SDL_BUTTON_RIGHT) {
-                        PostGameMessage(WM_RBUTTONDOWN, 0, MAKELPARAM(scaledX, scaledY));
+                    int x = event.button.x;
+                    int y = event.button.y;
+                    // Handle fallback menu clicks
+                    if (g_useFallbackMenu && doUI && event.button.button == SDL_BUTTON_LEFT) {
+                        HandleFallbackMenuClick(x, y);
+                        // Check if we need to exit immediately after click
+                        if (!g_running) {
+                            fprintf(stderr, "[SDL_EVENT] g_running=false after button click, returning from event loop\n");
+                            fflush(stderr);
+                            return;  // Exit event handling immediately
+                        }
+                    } else {
+                        // Scale mouse coordinates for UI95 system
+                        int scaledX = x * 1024 / WINDOW_WIDTH;
+                        int scaledY = y * 768 / WINDOW_HEIGHT;
+                        if (event.button.button == SDL_BUTTON_LEFT) {
+                            PostGameMessage(WM_LBUTTONDOWN, 0, MAKELPARAM(scaledX, scaledY));
+                        } else if (event.button.button == SDL_BUTTON_RIGHT) {
+                            PostGameMessage(WM_RBUTTONDOWN, 0, MAKELPARAM(scaledX, scaledY));
+                        }
                     }
                 }
                 break;
 
             case SDL_MOUSEBUTTONUP:
                 {
-                    // Scale mouse coordinates from SDL window (640x480) to UI surface (1024x768)
-                    int scaledX = event.button.x * 1024 / WINDOW_WIDTH;
-                    int scaledY = event.button.y * 768 / WINDOW_HEIGHT;
-                    if (event.button.button == SDL_BUTTON_LEFT) {
-                        PostGameMessage(WM_LBUTTONUP, 0, MAKELPARAM(scaledX, scaledY));
-                    } else if (event.button.button == SDL_BUTTON_RIGHT) {
-                        PostGameMessage(WM_RBUTTONUP, 0, MAKELPARAM(scaledX, scaledY));
+                    int x = event.button.x;
+                    int y = event.button.y;
+                    if (!g_useFallbackMenu || !doUI) {
+                        int scaledX = x * 1024 / WINDOW_WIDTH;
+                        int scaledY = y * 768 / WINDOW_HEIGHT;
+                        if (event.button.button == SDL_BUTTON_LEFT) {
+                            PostGameMessage(WM_LBUTTONUP, 0, MAKELPARAM(scaledX, scaledY));
+                        } else if (event.button.button == SDL_BUTTON_RIGHT) {
+                            PostGameMessage(WM_RBUTTONUP, 0, MAKELPARAM(scaledX, scaledY));
+                        }
                     }
                 }
                 break;
 
             case SDL_MOUSEMOTION:
                 {
-                    // Scale mouse coordinates from SDL window (640x480) to UI surface (1024x768)
-                    int scaledX = event.motion.x * 1024 / WINDOW_WIDTH;
-                    int scaledY = event.motion.y * 768 / WINDOW_HEIGHT;
-                    PostGameMessage(WM_MOUSEMOVE, 0, MAKELPARAM(scaledX, scaledY));
+                    int x = event.motion.x;
+                    int y = event.motion.y;
+                    // Handle fallback menu hover
+                    if (g_useFallbackMenu && doUI) {
+                        HandleFallbackMenuHover(x, y);
+                    } else {
+                        int scaledX = x * 1024 / WINDOW_WIDTH;
+                        int scaledY = y * 768 / WINDOW_HEIGHT;
+                        PostGameMessage(WM_MOUSEMOVE, 0, MAKELPARAM(scaledX, scaledY));
+                    }
                 }
                 break;
 
@@ -874,6 +1317,14 @@ bool ProcessGameMessages() {
 }
 
 static void render_frame(void) {
+    // Use fallback menu if enabled (temporary workaround for UI95 issues)
+    if (g_useFallbackMenu && doUI) {
+        glClear(GL_COLOR_BUFFER_BIT);
+        DrawFallbackMenu();
+        SDL_GL_SwapWindow(g_SDLWindow);
+        return;
+    }
+
     // When in UI mode (doUI=1), the UI has been drawn to the primary DirectDraw surface
     // We need to present that surface via OpenGL
     if (doUI) {
@@ -936,6 +1387,13 @@ static void main_loop(void) {
         // Handle SDL events and convert to game messages
         handle_sdl_events();
 
+        // Check if we should exit after event handling
+        if (!g_running) {
+            fprintf(stderr, "[main_loop] g_running set to false, breaking out of loop\n");
+            fflush(stderr);
+            break;
+        }
+
         // Process game message queue
         if (!ProcessGameMessages()) {
             break;
@@ -971,7 +1429,8 @@ static void main_loop(void) {
         }
     }
 
-    printf("\nExiting main loop...\n");
+    fprintf(stderr, "\n[main_loop] Exiting main loop...\n");
+    fflush(stderr);
 }
 
 int main(int argc, char** argv) {
