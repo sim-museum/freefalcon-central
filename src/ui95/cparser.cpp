@@ -1,6 +1,7 @@
 #include "falclib.h"
 #include "chandler.h"
 #include "ui/include/textids.h"
+#include <cctype>  // For tolower
 
 extern bool g_bHiResUI; // M.N.
 extern bool g_bLogUiErrors; // JPO
@@ -516,6 +517,7 @@ void C_Parser::LoadIDTable(char *filename)
             if (Perror_)
                 fprintf(Perror_, "LoadIDTable load failed (%s)\n", filename);
         }
+        return;  // Must return here, was missing!
     }
 
     size = UI_FILESIZE(ifp);
@@ -542,7 +544,7 @@ void C_Parser::LoadIDTable(char *filename)
         }
 
         UI_CLOSE(ifp);
-        delete idfile;
+        delete[] idfile;
         return;
     }
 
@@ -580,7 +582,7 @@ void C_Parser::LoadIDTable(char *filename)
         }
     }
 
-    delete idfile;
+    delete[] idfile;
 }
 
 void C_Parser::LoadIDList(char *filename)
@@ -632,7 +634,7 @@ void C_Parser::LoadIDList(char *filename)
 
     if (UI_READ(listfile, size, 1, ifp) not_eq 1)
     {
-        delete listfile;
+        delete[] listfile;
         UI_CLOSE(ifp);
         return;
     }
@@ -674,12 +676,12 @@ void C_Parser::LoadIDList(char *filename)
         }
     }
 
-    delete listfile;
+    delete[] listfile;
 }
 
 long C_Parser::FindID(char *token)
 {
-    return(TokenOrder_->FindTextID(token));
+    return TokenOrder_->FindTextID(token);
 }
 
 long C_Parser::FindToken(char *token)
@@ -760,73 +762,181 @@ BOOL C_Parser::LoadScript(char *filename)
     return(TRUE);
 }
 
+#ifdef FF_LINUX
+// Case-insensitive file open function for Linux
+extern "C" FILE* fopen_nocase(const char* filepath, const char* mode);
+
+// Check if path already ends with /art or /art1024
+static bool path_ends_with_art(const char* path) {
+    if (!path) return false;
+    size_t len = strlen(path);
+    if (len >= 4) {
+        // Check for /art or \art at end
+        const char* suffix = path + len - 4;
+        if ((suffix[0] == '/' || suffix[0] == '\\') &&
+            tolower(suffix[1]) == 'a' && tolower(suffix[2]) == 'r' && tolower(suffix[3]) == 't') {
+            return true;
+        }
+    }
+    if (len >= 8) {
+        // Check for /art1024 or \art1024 at end
+        const char* suffix = path + len - 8;
+        if ((suffix[0] == '/' || suffix[0] == '\\') &&
+            tolower(suffix[1]) == 'a' && tolower(suffix[2]) == 'r' && tolower(suffix[3]) == 't' &&
+            suffix[4] == '1' && suffix[5] == '0' && suffix[6] == '2' && suffix[7] == '4') {
+            return true;
+        }
+    }
+    return false;
+}
+#endif
+
 UI_HANDLE C_Parser::OpenArtFile(char *filename, const char *thrdir, const char *maindir, int hirescapable)
 {
     UI_HANDLE ifp;
 
-    // absolute path
+    // absolute path (Windows style with drive letter)
     if (isalpha(filename[0]) and filename[1] == ':' and filename[2] == '\\')
     {
         return UI_OPEN(filename, "rb");
     }
 
+#ifdef FF_LINUX
+    // Check for Linux-style absolute path that may have Windows backslashes mixed in
+    // This happens when sound/resource files have embedded absolute paths
+    if (filename[0] == '/') {
+        // This is already an absolute path - normalize backslashes and open directly
+        char normalizedPath[1024];
+        strncpy(normalizedPath, filename, sizeof(normalizedPath) - 1);
+        normalizedPath[sizeof(normalizedPath) - 1] = '\0';
+        // Convert backslashes to forward slashes
+        for (char* p = normalizedPath; *p; p++) {
+            if (*p == '\\') *p = '/';
+        }
+        return fopen_nocase(normalizedPath, "rb");
+    }
+#endif
+
+#ifdef FF_LINUX
+    // Use forward slashes and case-insensitive open for Linux
+    #define PATH_SEP "/"
+
+    // Strip leading "art\" or "art/" from filename if directory already ends with /art
+    // This handles .lst files that have paths like "art\main\file.id" when FalconUIArtThrDirectory
+    // is already "/path/to/FreeFalcon6/art"
+    const char* adjustedFilename = filename;
+    if (path_ends_with_art(thrdir)) {
+        if ((filename[0] == 'a' || filename[0] == 'A') &&
+            (filename[1] == 'r' || filename[1] == 'R') &&
+            (filename[2] == 't' || filename[2] == 'T') &&
+            (filename[3] == '\\' || filename[3] == '/')) {
+            adjustedFilename = filename + 4;  // Skip "art\" or "art/"
+        }
+    }
+#else
+    const char* adjustedFilename = filename;
+    #define PATH_SEP "\\"
+#endif
+
     // try theater first
     strcpy(filebuf, thrdir); // FreeFalcon thr root dir
 
+#ifdef FF_LINUX
+    // Don't add /art if path already ends with /art (FalconUIArtThrDirectory already has it)
+    bool thrdir_has_art = path_ends_with_art(thrdir);
+    if (hirescapable && !thrdir_has_art)
+#else
     if (hirescapable)
+#endif
     {
         // sfr: unset for old UI
 #define NIGHTFALCON_UI 1
 
 #if NIGHTFALCON_UI
-        strcat(filebuf, "\\art");
+        strcat(filebuf, PATH_SEP "art");
 #else
 
         if (g_bHiResUI)
         {
-            strcat(filebuf, "\\art1024"); // HiResUI
+            strcat(filebuf, PATH_SEP "art1024"); // HiResUI
         }
         else
         {
-            strcat(filebuf, "\\art"); // LoResUI
+            strcat(filebuf, PATH_SEP "art"); // LoResUI
         }
 
 #endif
     }
 
-    strcat(filebuf, "\\");
+    strcat(filebuf, PATH_SEP);
+#ifdef FF_LINUX
+    strcat(filebuf, adjustedFilename);
+    ifp = fopen_nocase(filebuf, "rb");
+#else
     strcat(filebuf, filename);
     ifp = UI_OPEN(filebuf, "rb");
+#endif
 
     if (ifp not_eq NULL)
     {
         return ifp;    // got the main one
     }
 
-    // try main dir
+    // try main dir (only if maindir is not empty)
+#ifdef FF_LINUX
+    if (maindir && maindir[0] != '\0') {
+        // Reset adjustedFilename for maindir - it might have different art suffix
+        adjustedFilename = filename;
+        if (path_ends_with_art(maindir)) {
+            if ((filename[0] == 'a' || filename[0] == 'A') &&
+                (filename[1] == 'r' || filename[1] == 'R') &&
+                (filename[2] == 't' || filename[2] == 'T') &&
+                (filename[3] == '\\' || filename[3] == '/')) {
+                adjustedFilename = filename + 4;
+            }
+        }
+#endif
     strcpy(filebuf, maindir); // FreeFalcon main root dir
 
+#ifdef FF_LINUX
+    // Don't add /art if path already ends with /art
+    bool maindir_has_art = path_ends_with_art(maindir);
+    if (hirescapable && !maindir_has_art)
+#else
     if (hirescapable)
+#endif
     {
 #if NIGHTFALCON_UI
-        strcat(filebuf, "\\art");
+        strcat(filebuf, PATH_SEP "art");
 #else
 
         if (g_bHiResUI)
         {
-            strcat(filebuf, "\\art1024"); // HiResUI
+            strcat(filebuf, PATH_SEP "art1024"); // HiResUI
         }
         else
         {
-            strcat(filebuf, "\\art"); // LoResUI
+            strcat(filebuf, PATH_SEP "art"); // LoResUI
         }
 
 #endif
     }
 
-    strcat(filebuf, "\\");
+    strcat(filebuf, PATH_SEP);
+#ifdef FF_LINUX
+    strcat(filebuf, adjustedFilename);
+    ifp = fopen_nocase(filebuf, "rb");
+    return ifp;
+    } else {
+        // maindir is empty, return NULL
+        return NULL;
+    }
+#else
     strcat(filebuf, filename);
     return UI_OPEN(filebuf, "rb");
+#endif
+
+#undef PATH_SEP
 }
 
 BOOL C_Parser::LoadWindowList(char *filename)
@@ -891,7 +1001,7 @@ BOOL C_Parser::LoadWindowList(char *filename)
                 fprintf(Perror_, "LoadWindowList read failed (%s)\n", filename);
         }
 
-        delete listfile;
+        delete[] listfile;
         UI_CLOSE(ifp);
         return(FALSE);
     }
@@ -938,7 +1048,6 @@ BOOL C_Parser::LoadWindowList(char *filename)
                 }
                 else
                 {
-
                     if (g_bLogUiErrors)
                     {
 
@@ -958,7 +1067,7 @@ BOOL C_Parser::LoadWindowList(char *filename)
         }
     }
 
-    delete listfile;
+    delete[] listfile;
     return(TRUE);
 }
 
@@ -1019,7 +1128,7 @@ BOOL C_Parser::LoadPopupMenuList(char *filename)
                 fprintf(Perror_, "LoadPopupMenuList read failed (%s)\n", filename);
         }
 
-        delete listfile;
+        delete[] listfile;
         UI_CLOSE(ifp);
         return(FALSE);
     }
@@ -1076,7 +1185,7 @@ BOOL C_Parser::LoadPopupMenuList(char *filename)
         }
     }
 
-    delete listfile;
+    delete[] listfile;
     return(TRUE);
 }
 
@@ -1136,7 +1245,7 @@ BOOL C_Parser::LoadImageList(char *filename)
                 fprintf(Perror_, "LoadImageList read failed (%s)\n", filename);
         }
 
-        delete listfile;
+        delete[] listfile;
         UI_CLOSE(ifp);
         return(FALSE);
     }
@@ -1175,7 +1284,7 @@ BOOL C_Parser::LoadImageList(char *filename)
         }
     }
 
-    delete listfile;
+    delete[] listfile;
     return(TRUE);
 }
 
@@ -1235,7 +1344,7 @@ BOOL C_Parser::LoadSoundList(char *filename)
                 fprintf(Perror_, "LoadSoundList read failed (%s)\n", filename);
         }
 
-        delete listfile;
+        delete[] listfile;
         UI_CLOSE(ifp);
         return(FALSE);
     }
@@ -1275,7 +1384,7 @@ BOOL C_Parser::LoadSoundList(char *filename)
         }
     }
 
-    delete listfile;
+    delete[] listfile;
     return(TRUE);
 }
 
@@ -1335,7 +1444,7 @@ BOOL C_Parser::LoadStringList(char *filename)
                 fprintf(Perror_, "LoadStringList read failed (%s)\n", filename);
         }
 
-        delete listfile;
+        delete[] listfile;
         UI_CLOSE(ifp);
         return(FALSE);
     }
@@ -1374,7 +1483,7 @@ BOOL C_Parser::LoadStringList(char *filename)
         }
     }
 
-    delete listfile;
+    delete[] listfile;
     return(TRUE);
 }
 
@@ -1434,7 +1543,7 @@ BOOL C_Parser::LoadMovieList(char *filename)
                 fprintf(Perror_, "LoadMovieList read failed (%s)\n", filename);
         }
 
-        delete listfile;
+        delete[] listfile;
         UI_CLOSE(ifp);
         return(FALSE);
     }
@@ -1476,7 +1585,7 @@ BOOL C_Parser::LoadMovieList(char *filename)
         }
     }
 
-    delete listfile;
+    delete[] listfile;
     return(TRUE);
 }
 
@@ -1758,7 +1867,6 @@ C_Base *C_Parser::ControlParser()
                             if (Control_) delete Control_;
 
                             Control_ = new C_VersionText;
-                            break;
                             break;
 
                         case CPARSE_EDITBOX:
@@ -2670,8 +2778,9 @@ C_Window *C_Parser::ParseWindow(char *filename)
     long Done = 0, Comment = 0, Found = 0, InString = 0; //,Finished=0;;
     long TokenID = 0, Section = 0, TokenType = 0;
 
-    if (LoadScript(filename) == FALSE)
+    if (LoadScript(filename) == FALSE) {
         return(FALSE);
+    }
 
     Idx_ = 0;
     P_Idx_ = 0;

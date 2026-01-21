@@ -153,7 +153,7 @@ public:
     void SetName(char *name)
     {
         if (name) strcpy(name_, name);
-        else memset(name, 0, 32);
+        else memset(name_, 0, 32);
     }
     void SetHeight(long height)
     {

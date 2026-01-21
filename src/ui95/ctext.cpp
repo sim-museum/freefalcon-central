@@ -77,6 +77,9 @@ void C_Text::SetFixedWidth(long w)
     // AFTER assigning a string to the control
     // THIS is a BIG NO NO... unless it started out as fixed width PRIOR to SetText, bitand the string size
     // is just being changed
+    if ( not Text_)
+        return;
+
     if ( not (Flags_ bitand C_BIT_FIXEDSIZE))
     {
         F4Assert( not Text_->GetText());
@@ -255,6 +258,12 @@ void C_VersionText::Setup(long id, short type)
 {
     C_Text::Setup(id, type);
 
+#ifdef FF_LINUX
+    // On Linux, just use a hardcoded version string
+    // Windows version API (GetFileVersionInfo, VerQueryValue) not available
+    sprintf(g_sVersion, "FFViper : 7.0.0 Linux");
+    C_Text::SetText(g_sVersion);
+#else
     // query file version
     // get size of version info
     BYTE *lpVersionData;
@@ -295,6 +304,7 @@ void C_VersionText::Setup(long id, short type)
     //sprintf(sVersion,"FFViper MP version");
 
     C_Text::SetText(g_sVersion);
+#endif
 }
 
 #ifdef _UI95_PARSER_
