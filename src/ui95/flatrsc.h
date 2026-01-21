@@ -1,6 +1,8 @@
 #ifndef _FLAT_RSC_H_
 #define _FLAT_RSC_H_
 
+#include <stdint.h>
+
 //
 // This class is TIED to the C_Resmgr class (which holds the actual sound data)
 //
@@ -8,6 +10,7 @@
 //
 
 // First item MUST be     short Type
+// NOTE: Must use int32_t for all "long" fields to match Windows 32-bit binary file format
 class FlatHeader
 {
 #ifdef USE_SH_POOLS
@@ -23,10 +26,10 @@ public:
     };
 #endif
 public:
-    long  Type;
-    char  ID[32];
-    long  offset;
-    long  size;
+    int32_t Type;         // Must be 32-bit for binary file compatibility
+    char    ID[32];
+    int32_t offset;       // Must be 32-bit for binary file compatibility
+    int32_t size;         // Must be 32-bit for binary file compatibility
 };
 
 class FLAT_RSC

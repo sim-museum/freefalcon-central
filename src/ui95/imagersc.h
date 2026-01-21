@@ -1,6 +1,8 @@
 #ifndef _IMAGE_RSC_H_
 #define _IMAGE_RSC_H_
 
+#include <stdint.h>
+
 //
 // This class is TIED to the C_Resmgr class (which holds the actual image data)
 //
@@ -9,6 +11,7 @@
 
 
 // First item MUST be     short Type
+// NOTE: Must use int32_t for all "long" fields to match Windows 32-bit binary file format
 class ImageHeader
 {
 #ifdef USE_SH_POOLS
@@ -24,16 +27,16 @@ public:
     };
 #endif
 public:
-    long  Type;
-    char  ID[32];
-    long  flags;
-    short centerx;
-    short centery;
-    short w;
-    short h;
-    long  imageoffset;
-    long  palettesize;
-    long  paletteoffset;
+    int32_t Type;         // Must be 32-bit for binary file compatibility
+    char    ID[32];
+    int32_t flags;        // Must be 32-bit for binary file compatibility
+    int16_t centerx;
+    int16_t centery;
+    int16_t w;
+    int16_t h;
+    int32_t imageoffset;  // Must be 32-bit for binary file compatibility
+    int32_t palettesize;  // Must be 32-bit for binary file compatibility
+    int32_t paletteoffset;// Must be 32-bit for binary file compatibility
 };
 
 class IMAGE_RSC

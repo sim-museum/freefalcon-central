@@ -136,6 +136,14 @@ long C_Hash::AddText(const _TCHAR *string)
     C_HASHNODE *cur, *newhash;
     _TCHAR *data;
 
+    static int addCount = 0;
+    addCount++;
+    bool trace = (addCount <= 5 || (string && strstr(string, "MAIN") != NULL));
+
+    if (trace) {
+        fprintf(stderr, "[AddText #%d] string='%s'\n", addCount, string ? string : "(null)");
+    }
+
     if ( not TableSize_ or not Table_ or not string) return(-1);
 
     ID = 0;
@@ -287,6 +295,10 @@ long C_Hash::FindTextID(_TCHAR *string)
     unsigned long ID;
     C_HASHNODE *cur;
 
+    static int findCount = 0;
+    findCount++;
+    bool trace = (findCount <= 5 || (string && strstr(string, "MAIN") != NULL));
+
     if ( not TableSize_ or not Table_ or not string) return(-1);
 
     ID = 0;
@@ -297,14 +309,25 @@ long C_Hash::FindTextID(_TCHAR *string)
 
     idx = ID % TableSize_;
 
+    if (trace) {
+        fprintf(stderr, "[FindTextID #%d] string='%s' hash=%lu bucket=%lu\n", findCount, string, ID, idx);
+    }
+
     cur = Table_[idx].Root_;
 
     while (cur)
     {
+        if (trace) {
+            fprintf(stderr, "[FindTextID #%d]   checking record='%s' ID=%ld\n", findCount, (_TCHAR *)cur->Record, cur->ID);
+        }
         if (_tcscmp(string, (_TCHAR *)cur->Record) == 0)
             return(cur->ID);
 
         cur = cur->Next;
+    }
+
+    if (trace) {
+        fprintf(stderr, "[FindTextID #%d]   NOT FOUND\n", findCount);
     }
 
     return(-1);
