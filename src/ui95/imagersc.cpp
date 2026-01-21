@@ -49,7 +49,7 @@ void IMAGE_RSC::Blit8BitFast(WORD *dest)
     sptr = (unsigned char *)(Owner->Data_ + Header->imageoffset);
     dptr = dest;
     count = Header->w * Header->h;
-#if 0
+#if !defined(_MSC_VER)
 
     while (count--)
         *dptr++ = Palette[*sptr++];
@@ -409,7 +409,7 @@ void IMAGE_RSC::Blit16BitFast(WORD *dest)
     sptr = (WORD *)(Owner->Data_ + Header->imageoffset);
     dptr = dest;
     count = Header->w * Header->h;
-#if 0
+#if !defined(_MSC_VER)
 
     while (count--)
         *dptr++ = *sptr++;
@@ -435,7 +435,7 @@ void IMAGE_RSC::Blit16BitTransparentFast(WORD *dest)
     sptr = (WORD *)(Owner->Data_ + Header->imageoffset);
     dptr = dest;
     count = Header->w * Header->h;
-#if 0
+#if !defined(_MSC_VER)
 
     while (count--)
     {
@@ -491,7 +491,7 @@ void IMAGE_RSC::Blit16Bit(long doffset, long dwidth, WORD *dest)
     dptr = dest + doffset;
 
     dadd = dwidth - Header->w;
-#if 0
+#if !defined(_MSC_VER)
 
     while (sptr < srcsize)
     {
@@ -699,7 +699,7 @@ void IMAGE_RSC::Blit16BitTransparent(long doffset, long dwidth, WORD *dest)
     dptr = dest + doffset;
 
     dadd = dwidth - Header->w;
-#if 0
+#if !defined(_MSC_VER)
 
     while (sptr < srcsize)
     {
@@ -782,7 +782,7 @@ void IMAGE_RSC::Blit16BitPart(long soffset, long scopy, long ssize, long doffset
     while (sptr < srcsize)
     {
         i = scopy;
-#if 0
+#if !defined(_MSC_VER)
 
         while (i--)
             *dptr++ = *sptr++;
@@ -1730,14 +1730,34 @@ void IMAGE_RSC::Blit(SCREEN *surface, long sx, long sy, long sw, long sh, long d
 {
     long soff, doff, ssize;
 
-    if ( not Owner)
-        return;
+    static int blitCount = 0;
+    blitCount++;
 
-    if ( not Owner->Data_)
+    if ( not Owner) {
+        if (blitCount <= 5) fprintf(stderr, "[IMAGE_RSC::Blit #%d] No Owner, returning\n", blitCount);
         return;
+    }
 
-    if (sx >= Header->w or sy >= Header->h)
+    if ( not Owner->Data_) {
+        if (blitCount <= 5) fprintf(stderr, "[IMAGE_RSC::Blit #%d] No Data_, returning\n", blitCount);
         return;
+    }
+
+    if (sx >= Header->w or sy >= Header->h) {
+        if (blitCount <= 5) fprintf(stderr, "[IMAGE_RSC::Blit #%d] Out of bounds, returning\n", blitCount);
+        return;
+    }
+
+    // Safety check: ensure surface memory is valid
+    if ( not surface or not surface->mem) {
+        fprintf(stderr, "[IMAGE_RSC::Blit #%d] NULL surface or mem, skipping draw\n", blitCount);
+        return;
+    }
+
+    if (blitCount <= 5) {
+        fprintf(stderr, "[IMAGE_RSC::Blit #%d] Drawing to surface: w=%d h=%d bpp=%d, mem=%p, img %dx%d at (%ld,%ld)\n",
+                blitCount, surface->width, surface->height, surface->bpp, (void*)surface->mem, Header->w, Header->h, dx, dy);
+    }
 
     if ( not sx and not sy and sw >= Header->w and sh >= Header->h)
     {
@@ -1859,10 +1879,14 @@ void IMAGE_RSC::Blend(SCREEN *surface, long sx, long sy, long sw, long sh, long 
 {
     long soff, doff, ssize;
 
-    if ( not Owner->Data_)
+    if ( not Owner or not Owner->Data_)
         return;
 
     if (sx >= Header->w or sy >= Header->h)
+        return;
+
+    // Safety check: ensure surface memory is valid
+    if ( not surface or not surface->mem)
         return;
 
     if ( not sx and not sy and sw >= Header->w and sh >= Header->h)
@@ -1952,6 +1976,10 @@ void IMAGE_RSC::ScaleDown8(SCREEN *surface, long *Rows, long *Cols, long dx, lon
     if ( not Owner->Data_)
         return;
 
+    // Safety check: ensure surface memory is valid
+    if ( not surface or not surface->mem)
+        return;
+
     sptr = (unsigned char *)(Owner->Data_ + Header->imageoffset);
     Palette = (WORD*)(Owner->Data_ + Header->paletteoffset);
 
@@ -1990,6 +2018,10 @@ void IMAGE_RSC::ScaleDown8Overlay(SCREEN *surface, long *Rows, long *Cols, long 
     WORD *dptr, *dline;
     int i, j, count;
     long palno, overidx;
+
+    // Safety check: ensure surface memory is valid
+    if ( not surface or not surface->mem or not Owner or not Owner->Data_)
+        return;
 
     sptr = (unsigned char *)(Owner->Data_ + Header->imageoffset);
 
@@ -2039,6 +2071,10 @@ void IMAGE_RSC::ScaleUp8(SCREEN *surface, long *Rows, long *Cols, long dx, long 
     long i, j, rval, count;
     DWORD* cpyline2;
 
+    // Safety check: ensure surface memory is valid
+    if ( not surface or not surface->mem or not Owner or not Owner->Data_)
+        return;
+
     sptr = (unsigned char *)(Owner->Data_ + Header->imageoffset);
     Palette = (WORD*)(Owner->Data_ + Header->paletteoffset);
 
@@ -2060,6 +2096,7 @@ void IMAGE_RSC::ScaleUp8(SCREEN *surface, long *Rows, long *Cols, long dx, long 
         {
             if (Rows[i] == rval)
             {
+#if defined(_MSC_VER)
                 __asm
                 {
                     mov ECX, count
@@ -2067,6 +2104,9 @@ void IMAGE_RSC::ScaleUp8(SCREEN *surface, long *Rows, long *Cols, long dx, long 
                     mov EDI, dline
                     rep movsd
                 };
+#else
+                memcpy(dline, cpyline2, count * sizeof(DWORD));
+#endif
             }
             else if (Rows[i] not_eq Rows[i + 1])
             {
@@ -2081,6 +2121,7 @@ void IMAGE_RSC::ScaleUp8(SCREEN *surface, long *Rows, long *Cols, long dx, long 
                     cpyline2[count++] = RGB565toRGB8(Palette[sline[Cols[j + 1]]]);
 
                 rval = Rows[i];
+#if defined(_MSC_VER)
                 __asm
                 {
                     mov ECX, count
@@ -2088,6 +2129,9 @@ void IMAGE_RSC::ScaleUp8(SCREEN *surface, long *Rows, long *Cols, long dx, long 
                     mov EDI, dline
                     rep movsd
                 };
+#else
+                memcpy(dline, cpyline2, count * sizeof(DWORD));
+#endif
             }
 
             dline += surface->width * 2;
@@ -2097,6 +2141,7 @@ void IMAGE_RSC::ScaleUp8(SCREEN *surface, long *Rows, long *Cols, long dx, long 
             //16bits
             if (Rows[i] == rval)
             {
+#if defined(_MSC_VER)
                 __asm
                 {
                     mov ECX, count
@@ -2104,7 +2149,9 @@ void IMAGE_RSC::ScaleUp8(SCREEN *surface, long *Rows, long *Cols, long dx, long 
                     mov EDI, dline
                     rep movsw
                 };
-                // memcpy(&dline[first],cpyline,count*sizeof(WORD));
+#else
+                memcpy(dline, cpyline, count * sizeof(WORD));
+#endif
             }
             else if (Rows[i] not_eq Rows[i + 1])
             {
@@ -2119,6 +2166,7 @@ void IMAGE_RSC::ScaleUp8(SCREEN *surface, long *Rows, long *Cols, long dx, long 
                     cpyline[count++] = Palette[sline[Cols[j + 1]]];
 
                 rval = Rows[i];
+#if defined(_MSC_VER)
                 __asm
                 {
                     mov ECX, count
@@ -2126,7 +2174,9 @@ void IMAGE_RSC::ScaleUp8(SCREEN *surface, long *Rows, long *Cols, long dx, long 
                     mov EDI, dline
                     rep movsw
                 };
-                // memcpy(&dline[first],cpyline,count*sizeof(WORD));
+#else
+                memcpy(dline, cpyline, count * sizeof(WORD));
+#endif
             }
 
             dline += surface->width;
@@ -2145,6 +2195,10 @@ void IMAGE_RSC::ScaleUp8Overlay(SCREEN *surface, long *Rows, long *Cols, long dx
     long i, j, rval, count;
     long palno;
     DWORD* cpyline2;
+
+    // Safety check: ensure surface memory is valid
+    if ( not surface or not surface->mem or not Owner or not Owner->Data_)
+        return;
 
     sptr = (unsigned char *)(Owner->Data_ + Header->imageoffset);
 
@@ -2167,6 +2221,7 @@ void IMAGE_RSC::ScaleUp8Overlay(SCREEN *surface, long *Rows, long *Cols, long dx
         {
             if (Rows[i] == rval)
             {
+#if defined(_MSC_VER)
                 __asm
                 {
                     mov ECX, count
@@ -2174,6 +2229,9 @@ void IMAGE_RSC::ScaleUp8Overlay(SCREEN *surface, long *Rows, long *Cols, long dx
                     mov EDI, dline
                     rep movsd
                 };
+#else
+                memcpy(dline, cpyline2, count * sizeof(DWORD));
+#endif
             }
             else if (Rows[i] not_eq Rows[i + 1])
             {
@@ -2194,6 +2252,7 @@ void IMAGE_RSC::ScaleUp8Overlay(SCREEN *surface, long *Rows, long *Cols, long dx
                 }
 
                 rval = Rows[i];
+#if defined(_MSC_VER)
                 __asm
                 {
                     mov ECX, count
@@ -2201,6 +2260,9 @@ void IMAGE_RSC::ScaleUp8Overlay(SCREEN *surface, long *Rows, long *Cols, long dx
                     mov EDI, dline
                     rep movsd
                 };
+#else
+                memcpy(dline, cpyline2, count * sizeof(DWORD));
+#endif
 
             }
 
@@ -2211,6 +2273,7 @@ void IMAGE_RSC::ScaleUp8Overlay(SCREEN *surface, long *Rows, long *Cols, long dx
             //16bits
             if (Rows[i] == rval)
             {
+#if defined(_MSC_VER)
                 __asm
                 {
                     mov ECX, count
@@ -2218,7 +2281,9 @@ void IMAGE_RSC::ScaleUp8Overlay(SCREEN *surface, long *Rows, long *Cols, long dx
                     mov EDI, dline
                     rep movsw
                 };
-                // memcpy(&dline[first],cpyline,count*sizeof(WORD));
+#else
+                memcpy(dline, cpyline, count * sizeof(WORD));
+#endif
             }
             else if (Rows[i] not_eq Rows[i + 1])
             {
@@ -2239,6 +2304,7 @@ void IMAGE_RSC::ScaleUp8Overlay(SCREEN *surface, long *Rows, long *Cols, long dx
                 }
 
                 rval = Rows[i];
+#if defined(_MSC_VER)
                 __asm
                 {
                     mov ECX, count
@@ -2246,7 +2312,9 @@ void IMAGE_RSC::ScaleUp8Overlay(SCREEN *surface, long *Rows, long *Cols, long dx
                     mov EDI, dline
                     rep movsw
                 };
-                // memcpy(&dline[first],cpyline,count*sizeof(WORD));
+#else
+                memcpy(dline, cpyline, count * sizeof(WORD));
+#endif
             }
 
             dline += surface->width;
