@@ -72,6 +72,7 @@ extern int LoadTactics(char *name);
 extern void InitVU();
 extern void BuildAscii();
 
+
 // Default data directory - can be overridden with -d flag or env var
 #define DEFAULT_DATA_DIR "/home/g/ese/SAT/WP/drive_c/FreeFalcon6"
 
@@ -152,7 +153,8 @@ static std::vector<GameMessage> g_pendingMessages;
 // Simple OpenGL-based menu when UI95 rendering isn't working
 // =============================================================================
 static bool g_useFallbackMenu = true;  // Enable fallback menu by default
-static Uint32 g_menuActiveTime = 0;    // Time when menu became active (to ignore phantom clicks)
+static const char* g_menuStatusMessage = nullptr;  // Status message to display
+static Uint32 g_menuStatusTime = 0;  // When the status message was set
 
 struct MenuButton {
     const char* label;
@@ -430,6 +432,19 @@ static void DrawFallbackMenu() {
         DrawString(textX, textY, btn.label, 1.5f);
     }
 
+    // Draw status message if present (fades out after 3 seconds)
+    if (g_menuStatusMessage) {
+        Uint32 elapsed = SDL_GetTicks() - g_menuStatusTime;
+        if (elapsed < 3000) {
+            // Fade out effect
+            float alpha = 1.0f - (elapsed / 3000.0f);
+            glColor3f(1.0f * alpha, 0.5f * alpha, 0.5f * alpha);  // Red-ish
+            DrawString(300, 400, g_menuStatusMessage, 2.0f);
+        } else {
+            g_menuStatusMessage = nullptr;
+        }
+    }
+
     // Restore matrices
     glMatrixMode(GL_MODELVIEW);
     glPopMatrix();
@@ -449,17 +464,6 @@ static int GetButtonAtPosition(int x, int y) {
 }
 
 static void HandleFallbackMenuClick(int x, int y) {
-    // Ignore clicks in the first 2 seconds to avoid phantom clicks on window focus
-    Uint32 now = SDL_GetTicks();
-    if (g_menuActiveTime == 0) {
-        g_menuActiveTime = now;
-    }
-    if (now - g_menuActiveTime < 2000) {
-        fprintf(stderr, "[FallbackMenu] Ignoring early click (menu active for %u ms)\n", now - g_menuActiveTime);
-        fflush(stderr);
-        return;
-    }
-
     int btn = GetButtonAtPosition(x, y);
     if (btn >= 0 && g_menuButtons[btn].callback) {
         fprintf(stderr, "[FallbackMenu] Button clicked: %s\n", g_menuButtons[btn].label);
@@ -474,6 +478,14 @@ static void HandleFallbackMenuHover(int x, int y) {
     g_hoveredButton = GetButtonAtPosition(x, y);
 }
 
+// Helper to show a status message on the fallback menu
+static void ShowMenuStatus(const char* message) {
+    g_menuStatusMessage = message;
+    g_menuStatusTime = SDL_GetTicks();
+    fprintf(stderr, "[FallbackMenu] Status: %s\n", message);
+    fflush(stderr);
+}
+
 // Fallback menu callbacks
 static void FallbackExit() {
     fprintf(stderr, "[FallbackMenu] EXIT selected - shutting down\n");
@@ -482,38 +494,31 @@ static void FallbackExit() {
 }
 
 static void FallbackDogfight() {
-    fprintf(stderr, "[FallbackMenu] DOGFIGHT selected\n");
-    // TODO: Implement dogfight mode
+    ShowMenuStatus("DOGFIGHT - Not yet implemented");
 }
 
 static void FallbackCampaign() {
-    fprintf(stderr, "[FallbackMenu] CAMPAIGN selected\n");
-    // TODO: Implement campaign mode
+    ShowMenuStatus("CAMPAIGN - Not yet implemented");
 }
 
 static void FallbackSetup() {
-    fprintf(stderr, "[FallbackMenu] SETUP selected\n");
-    // TODO: Implement setup screen
+    ShowMenuStatus("SETUP - Not yet implemented");
 }
 
 static void FallbackComms() {
-    fprintf(stderr, "[FallbackMenu] COMMS selected\n");
-    // TODO: Implement comms/multiplayer
+    ShowMenuStatus("COMMS - Not yet implemented");
 }
 
 static void FallbackACMI() {
-    fprintf(stderr, "[FallbackMenu] ACMI selected\n");
-    // TODO: Implement ACMI viewer
+    ShowMenuStatus("ACMI - Not yet implemented");
 }
 
 static void FallbackLogbook() {
-    fprintf(stderr, "[FallbackMenu] LOGBOOK selected\n");
-    // TODO: Implement logbook
+    ShowMenuStatus("LOGBOOK - Not yet implemented");
 }
 
 static void FallbackInstantAction() {
-    fprintf(stderr, "[FallbackMenu] INSTANT ACTION selected\n");
-    // TODO: Implement instant action
+    ShowMenuStatus("INSTANT ACTION - Not yet implemented");
 }
 
 // =============================================================================
