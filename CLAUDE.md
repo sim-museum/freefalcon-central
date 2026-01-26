@@ -192,6 +192,23 @@ The main menu code is organized as follows:
 - `DF_MAIN_CTRL` (20003) - Dogfight button
 - `IA_MAIN_CTRL` (10003) - Instant Action button
 
+## Issues Resolved
+
+### BUG-001: UI95 Button Race Condition (Fixed January 26, 2026)
+
+**Symptom:** Main menu buttons "appear then disappear" - buttons rendered briefly, then vanished.
+
+**Root Cause:** Race condition between `OutputLoop` background thread and `FM_TIMER_UPDATE` handler, both calling `Update()` and `CopyToPrimary()` simultaneously.
+
+**Fix:**
+1. Disabled `OutputLoop` thread on Linux (`#ifndef FF_LINUX` around `StartOutputThread()`)
+2. Added NULL safety check for `WakeOutput_` event handle
+
+**Files Modified:**
+- `src/ui95/chandler.cpp` - Lines 271, 1354-1357
+
+**Details:** See `BUG-001-RESOLUTION.md` for full analysis.
+
 ## Known Issues
 
 ### Diagnostic Code
@@ -207,6 +224,19 @@ The UI uses a custom "UI95" windowing system with these key components:
 - `C_Bitmap` / `O_Output` - Image rendering
 - `C_Resmgr` - Resource manager for .idx/.rsc files
 - `C_Image` / `gImageMgr` - Global image manager
+
+### Threading Model (Windows vs Linux)
+
+**Windows:** Uses background threads for UI updates:
+- `OutputLoop` thread: Calls `Update()` and `CopyToPrimary()` every ~40ms
+- `ControlLoop` thread: Handles timer controls
+- Synchronization via `EnterCritical()`/`LeaveCritical()` (critical sections)
+
+**Linux:** Single-threaded UI updates:
+- `OutputLoop` thread is DISABLED (`#ifndef FF_LINUX`)
+- `FM_TIMER_UPDATE` in main loop handles all UI updates
+- This avoids race conditions with the main event loop
+- `WakeOutput_` event handle is NULL on Linux (requires NULL checks)
 
 ### Resource File Format
 - `.idx` files - Index files containing headers for images/sounds/flat resources
@@ -1395,3 +1425,97 @@ jobs:
    - Screenshot regression tests
    - Full campaign scenario tests
    - Performance benchmarks
+
+---
+
+### Session: January 26, 2026 - UI95→OpenGL Display Fix (BUG-001)
+
+#### Problem: UI95 Content Not Displaying via OpenGL
+
+**Symptom:** When the fallback menu was disabled, the screen showed black/empty even though UI95 was drawing correctly to the DirectDraw surface.
+
+**Root Cause Analysis:**
+The display architecture uses ImageBuffer with front/back buffers. The key configuration is `bWillCallSwapBuffer`:
+- When `TRUE` (Sim mode): `m_pBltTarget = m_pDDSBack`, requires SwapBuffers call
+- When `FALSE` (UI mode): `m_pBltTarget = m_pDDSFront`, direct blit to primary
+
+In `dispcfg.cpp:320`, UI mode sets `bWillCallSwapBuffer = (newMode == Sim)` which evaluates to `FALSE`.
+
+**First Attempted Fix (WRONG):**
+Added `SwapBuffers()` call after `gMainHandler->Update()`. This caused:
+- BltFast #1: empty data
+- BltFast #2: good data (2,243,829 non-zero bytes)
+- BltFast #3: SwapBuffers overwrites with zeros!
+
+**Correct Fix:**
+Removed the `SwapBuffers()` call entirely. In UI mode, `CopyToPrimary()` calls `Compose()` which blits directly to the front surface (g_pPrimarySurface). No SwapBuffers needed.
+
+**Verification:**
+```
+Screenshot content: 87.4% non-zero bytes (687,479 / 786,432)
+Frame data: 92-95% non-zero pixels
+```
+
+**Files Modified:**
+- `src/ffviper/main_linux.cpp` - Removed unnecessary SwapBuffers call
+- `src/compat/d3d_gl.cpp` - Cleaned up verbose debug output
+
+**Display Pipeline Summary (UI Mode):**
+```
+UI95 draws to Front_ ImageBuffer
+    ↓
+CopyToPrimary() calls Primary_->Compose(Front_, ...)
+    ↓
+Compose() blits to m_pBltTarget = m_pDDSFront (the primary surface)
+    ↓
+FF_PresentPrimarySurface() uploads to OpenGL texture
+    ↓
+OpenGL renders textured quad to screen
+```
+
+**Additional Fix Required - glPushAttrib Breaking Texture Rendering:**
+
+After the SwapBuffers fix, the UI surface data was correct but still showed a blank (dark blue) screen. Further investigation revealed that `glPushAttrib(GL_ALL_ATTRIB_BITS)` was breaking texture rendering.
+
+**Symptoms:**
+- Dark blue clear color was visible (glClear worked)
+- Test colored rectangles drawn without textures didn't appear
+- Screenshot showed 91% non-zero pixels (data was present)
+
+**Root Cause:**
+The `glPushAttrib(GL_ALL_ATTRIB_BITS)` call was interfering with OpenGL state in a way that prevented subsequent drawing from appearing. The exact mechanism is unclear but may be related to how the NVIDIA driver handles attribute stack operations.
+
+**Final Fix:**
+Rewrote `FF_PresentPrimarySurface()` to use simple matrix push/pop without `glPushAttrib`:
+```cpp
+void FF_PresentPrimarySurface() {
+    // Set up 2D orthographic projection
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, surf->width, surf->height, 0, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+
+    // Minimal state setup
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_LIGHTING);
+    glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+
+    // Texture setup and draw quad
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, surf->glTexture);
+    glTexImage2D(..., surf->pixelData);
+    glBegin(GL_QUADS); ... glEnd();
+
+    // Restore matrices
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+}
+```
+
+**Result:** BUG-001 is **FIXED**. UI content now displays correctly via OpenGL.

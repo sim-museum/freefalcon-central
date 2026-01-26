@@ -268,7 +268,11 @@ void C_Handler::Setup(HWND hwnd, ImageBuffer *, ImageBuffer *Primary)
     Root_ = NULL;
     rectcount_ = 0;
     UI_Critical = F4CreateCriticalSection("UI_Critical");
+#ifndef FF_LINUX
+    // On Windows, use the background OutputLoop thread for UI updates
     StartOutputThread();
+#endif
+    // On Linux, UI updates are handled directly by FM_TIMER_UPDATE in the main loop
     StartControlThread(80);
 }
 
@@ -1024,6 +1028,7 @@ void C_Handler::Fill(SCREEN *surface, COLORREF Color, UI95_RECT *dst)
 
         while (i < dst->bottom)
         {
+#if defined(_MSC_VER)
             __asm
             {
                 mov eax, color
@@ -1032,6 +1037,13 @@ void C_Handler::Fill(SCREEN *surface, COLORREF Color, UI95_RECT *dst)
                 add edi, start
                 rep stosd
             };
+#else
+            /* Portable C equivalent of rep stosd */
+            DWORD* fillPtr = (DWORD*)((char*)dest + start);
+            for (long j = 0; j < len; j++) {
+                fillPtr[j] = color;
+            }
+#endif
 
             i++;
             start += surface->width * sizeof(DWORD);
@@ -1053,6 +1065,7 @@ void C_Handler::Fill(SCREEN *surface, COLORREF Color, UI95_RECT *dst)
 
         while (i < dst->bottom)
         {
+#if defined(_MSC_VER)
             __asm
             {
                 mov AX, color
@@ -1061,6 +1074,13 @@ void C_Handler::Fill(SCREEN *surface, COLORREF Color, UI95_RECT *dst)
                 add EDI, start
                 rep stosw
             };
+#else
+            /* Portable C equivalent of rep stosw */
+            WORD* fillPtr = (WORD*)((char*)dest + start);
+            for (long j = 0; j < len; j++) {
+                fillPtr[j] = color;
+            }
+#endif
 
             i++;
             start += surface->width * sizeof(WORD);
@@ -1335,8 +1355,10 @@ void C_Handler::UpdateTimerControls(void)
         cur = cur->Next;
     }
 
-    if (UpdateFlag bitand (C_DRAW_REFRESH bitor C_DRAW_REFRESHALL))
-        SetEvent(WakeOutput_);
+    if (UpdateFlag bitand (C_DRAW_REFRESH bitor C_DRAW_REFRESHALL)) {
+        if (WakeOutput_)  // NULL check for Linux (thread disabled)
+            SetEvent(WakeOutput_);
+    }
 }
 
 void C_Handler::EnableGroup(long ID)
@@ -1675,7 +1697,7 @@ void C_Handler::DoOutputLoop()
 
             EnterCritical();
 
-            if (UpdateFlag bitand C_DRAW_REFRESH)
+            if ((UpdateFlag bitand C_DRAW_REFRESH) and DrawFlags)
                 Update();
 
             if (UpdateFlag bitand C_DRAW_COPYWINDOW)
@@ -2192,6 +2214,9 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
             MouseX = LOWORD(lParam);
             MouseY = HIWORD(lParam);
             overme = GetWindow(MouseX, MouseY);
+            fprintf(stderr, "[LBUTTONDOWN] at (%d,%d) -> window=%p", MouseX, MouseY, (void*)overme);
+            if (overme) fprintf(stderr, " ID=%ld", overme->GetID());
+            fprintf(stderr, "\n");
 
             if (overme == NULL)
             {
@@ -2217,6 +2242,7 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
 
             if (GrabItem(MouseX, MouseY, overme, MessageType))
             {
+                fprintf(stderr, "[LBUTTONDOWN] GrabItem found control ID=%ld type=%d\n", Grab_.ID_, Grab_.Control_ ? Grab_.Control_->GetType() : -1);
                 if (MouseCallback_)
                 {
                     ret = (*MouseCallback_)(Grab_.Control_, MouseX, MouseY, overme, (short)MessageType); //
@@ -2235,6 +2261,7 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
             }
             else
             {
+                fprintf(stderr, "[LBUTTONDOWN] GrabItem found NO control\n");
                 overme->DeactivateControl();
 
                 if (MouseCallback_)
@@ -2258,9 +2285,11 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
             MouseX = LOWORD(lParam);
             MouseY = HIWORD(lParam);
             overme = GetWindow(MouseX, MouseY);
+            fprintf(stderr, "[LBUTTONUP] at (%d,%d) -> window=%p Grab_.Control_=%p\n", MouseX, MouseY, (void*)overme, (void*)Grab_.Control_);
 
             if (overme == NULL)
             {
+                fprintf(stderr, "[LBUTTONUP] No window found!\n");
                 retval = 0;
                 break;
             }
@@ -2282,6 +2311,7 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
 
             if (Grab_.Control_)
             {
+                fprintf(stderr, "[LBUTTONUP] Grab_.Control_ found: ID=%ld type=%d\n", Grab_.ID_, Grab_.Control_->GetType());
                 if (this not_eq gMainHandler)
                 {
                     ret = TRUE;
@@ -2322,6 +2352,7 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
                         );
                     }
 
+                    fprintf(stderr, "[LBUTTONUP] Calling Process(ID=%ld, type=%d)\n", Grab_.ID_, MessageType);
                     Grab_.Control_->Process(Grab_.ID_, (short)MessageType); //
 
                     if (DblClk and Grab_.Control_)
@@ -2340,6 +2371,7 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
             }
             else
             {
+                fprintf(stderr, "[LBUTTONUP] NO Grab_.Control_ - deactivating\n");
                 overme->DeactivateControl();
 
                 if (MouseCallback_)
