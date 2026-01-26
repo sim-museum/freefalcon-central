@@ -261,7 +261,7 @@ void C_VersionText::Setup(long id, short type)
 #ifdef FF_LINUX
     // On Linux, just use a hardcoded version string
     // Windows version API (GetFileVersionInfo, VerQueryValue) not available
-    sprintf(g_sVersion, "FFViper : 7.0.0 Linux");
+    snprintf(g_sVersion, sizeof(g_sVersion), "FFViper : 7.0.0 Linux");
     C_Text::SetText(g_sVersion);
 #else
     // query file version
@@ -294,14 +294,14 @@ void C_VersionText::Setup(long id, short type)
     //perform the query
     LPVOID lpData;
     char strBlockName[100];
-    sprintf(strBlockName, "\\StringFileInfo\\%08lx\\FileVersion", dwLangCharset);
+    snprintf(strBlockName, sizeof(strBlockName), "\\StringFileInfo\\%08lx\\FileVersion", dwLangCharset);
     VerQueryValue((void **)lpVersionData, strBlockName, &lpData, &nQuerySize);
 
     //format the version string
     //char sVersion[100];
     // sfr: using MP version right now
-    sprintf(g_sVersion, "FFViper : %s", (char *)lpData);
-    //sprintf(sVersion,"FFViper MP version");
+    snprintf(g_sVersion, sizeof(g_sVersion), "FFViper : %s", (char *)lpData);
+    //snprintf(sVersion, sizeof(sVersion), "FFViper MP version");
 
     C_Text::SetText(g_sVersion);
 #endif

@@ -190,7 +190,7 @@ FILE *C_Resmgr::OpenResFile(const char *name, const char *sfx, const char *mode)
         adjustedName = normalizedName + 4;  // Skip "art/"
     }
 
-    sprintf(filename, "%s/%s.%s", FalconUIArtThrDirectory, adjustedName, sfx);
+    snprintf(filename, sizeof(filename), "%s/%s.%s", FalconUIArtThrDirectory, adjustedName, sfx);
     if ((fp = fopen_nocase(filename, mode)) != NULL)
         return fp;
 
@@ -208,15 +208,15 @@ FILE *C_Resmgr::OpenResFile(const char *name, const char *sfx, const char *mode)
         adjustedName = normalizedName + 4;
     }
 
-    sprintf(filename, "%s/%s.%s", FalconUIArtDirectory, adjustedName, sfx);
+    snprintf(filename, sizeof(filename), "%s/%s.%s", FalconUIArtDirectory, adjustedName, sfx);
     return fopen_nocase(filename, mode);
 #else
-    sprintf(filename, "%s\\%s.%s", FalconUIArtThrDirectory, name, sfx);
+    snprintf(filename, sizeof(filename), "%s\\%s.%s", FalconUIArtThrDirectory, name, sfx);
 
     if ((fp = fopen(filename, mode)) not_eq NULL)
         return fp;
 
-    sprintf(filename, "%s\\%s.%s", FalconUIArtDirectory, name, sfx);
+    snprintf(filename, sizeof(filename), "%s\\%s.%s", FalconUIArtDirectory, name, sfx);
     return fopen(filename, mode);
 #endif
 }
@@ -234,36 +234,18 @@ void C_Resmgr::LoadIndex()
     SOUND_RSC *srec = NULL;
     FLAT_RSC  *frec = NULL;
 
-    static int loadIndexCount = 0;
-    loadIndexCount++;
-
     strcpy(buffer, name_);
     strcat(buffer, ".idx");
-
-    if (loadIndexCount <= 500) {
-        fprintf(stderr, "[LoadIndex #%d] name_=%s\n", loadIndexCount, name_);
-    }
 
     fp = OpenResFile(name_, "idx", "rb");
 
     if ( not fp)
     {
-        if (loadIndexCount <= 500) {
-            fprintf(stderr, "[LoadIndex #%d] FAILED to open idx file for %s\n", loadIndexCount, name_);
-        }
         MonoPrint("Error opening index file (%s)\n", buffer);
         return;
     }
 
-    if (loadIndexCount <= 500) {
-        fprintf(stderr, "[LoadIndex #%d] Opened idx file for %s\n", loadIndexCount, name_);
-    }
-
     fread(&size, sizeof(int32_t), 1, fp);
-
-    if (loadIndexCount <= 500) {
-        fprintf(stderr, "[LoadIndex #%d] idx size=%d (0x%x)\n", loadIndexCount, size, size);
-    }
 
     if ( not size)
     {
@@ -321,10 +303,6 @@ void C_Resmgr::LoadIndex()
 
                 recID = IDTable_->FindTextID(irec->Header->ID);
 
-                if (loadIndexCount <= 500) {
-                    fprintf(stderr, "[LoadIndex #%d] Image='%s' recID=%ld\n", loadIndexCount, irec->Header->ID, recID);
-                }
-
                 if (recID >= 0)
                 {
                     irec->ID = recID;
@@ -339,15 +317,8 @@ void C_Resmgr::LoadIndex()
                 }
                 else
                 {
-                    if (loadIndexCount <= 500) {
-                        fprintf(stderr, "[LoadIndex #%d] Adding new ID for '%s'\n", loadIndexCount, irec->Header->ID);
-                    }
                     gMainParser->AddNewID(irec->Header->ID, 100);
                     recID = IDTable_->FindTextID(irec->Header->ID);
-
-                    if (loadIndexCount <= 500) {
-                        fprintf(stderr, "[LoadIndex #%d] After AddNewID: recID=%ld\n", loadIndexCount, recID);
-                    }
 
                     if (recID)
                     {
@@ -465,9 +436,6 @@ void C_Resmgr::LoadData()
     FILE *fp;
     char buffer[MAX_PATH];
 
-    static int loadDataCount = 0;
-    loadDataCount++;
-
     if ( not Index_)
         return;
 
@@ -477,30 +445,15 @@ void C_Resmgr::LoadData()
     strcpy(buffer, name_);
     strcat(buffer, ".rsc");
 
-    if (loadDataCount <= 500) {
-        fprintf(stderr, "[LoadData #%d] name_=%s\n", loadDataCount, name_);
-    }
-
     fp = OpenResFile(name_, "rsc", "rb");
 
     if ( not fp)
     {
-        if (loadDataCount <= 500) {
-            fprintf(stderr, "[LoadData #%d] FAILED to open rsc file for %s\n", loadDataCount, name_);
-        }
         MonoPrint("Error: Can't open Datafile (%s)\n", buffer);
         return;
     }
 
-    if (loadDataCount <= 500) {
-        fprintf(stderr, "[LoadData #%d] Opened rsc file for %s\n", loadDataCount, name_);
-    }
-
     fread(&size, sizeof(int32_t), 1, fp);
-
-    if (loadDataCount <= 500) {
-        fprintf(stderr, "[LoadData #%d] rsc size=%d (0x%x)\n", loadDataCount, size, size);
-    }
 
     if ( not size)
     {
@@ -514,10 +467,6 @@ void C_Resmgr::LoadData()
         ResDataVersion_ = version;
     }
     // F4Assert(ResIndexVersion_ == ResDataVersion_); // MLR 1/21/2004 - This Asserts every time, so obviously it serves no purpose.
-
-    if (loadDataCount <= 500) {
-        fprintf(stderr, "[LoadData #%d] Allocating %d bytes for rsc data\n", loadDataCount, size);
-    }
 
 #ifdef USE_SH_POOLS
     Data_ = (char*)MemAllocPtr(UI_Pools[UI_ART_POOL], sizeof(char) * (size), FALSE);

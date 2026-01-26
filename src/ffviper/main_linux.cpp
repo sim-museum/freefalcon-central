@@ -9,6 +9,9 @@
 #include <fenv.h>
 #include <signal.h>
 
+// Linux port debug configuration
+#include "ff_linux_debug.h"
+
 // SDL2
 #include <SDL2/SDL.h>
 
@@ -57,6 +60,10 @@
 #include "ui95/chandler.h"
 #include "ui/include/falcuser.h"
 
+// Simulation input (for IO structure and joystick data)
+#include "sim/include/simio.h"
+#include "sim/include/sinput.h"
+
 // External initialization functions
 extern void LoadTheaterList();
 extern void FF_PresentPrimarySurface();  // Present DirectDraw primary surface via OpenGL
@@ -91,13 +98,25 @@ extern char FalconPictureDirectory[];
 extern char FalconObjectDataDir[];
 extern char Falcon3DDataDir[];
 
+// Sound-related directories (defined in winmain.cpp, we just reference them)
+extern char FalconSoundThrDirectory[];
+extern char FalconUISoundDirectory[];
+extern char FalconCockpitThrDirectory[];
+extern char FalconZipsThrDirectory[];
+extern char FalconTacrefThrDirectory[];
+extern char FalconSplashThrDirectory[];
+extern char FalconMovieDirectory[];
+extern char FalconMovieMode[];
+extern char FalconUIArtDirectory[];
+extern char FalconUIArtThrDirectory[];
+
 // Global SDL objects - these replace Windows HWND etc.
 SDL_Window* g_SDLWindow = nullptr;
 SDL_GLContext g_GLContext = nullptr;
 
-// OpenAL
-static ALCdevice* g_alDevice = nullptr;
-static ALCcontext* g_alContext = nullptr;
+// OpenAL - global for DirectSound compatibility layer
+ALCdevice* g_alDevice = nullptr;
+ALCcontext* g_alContext = nullptr;
 
 // D3D7 interfaces (OpenGL-backed)
 static IDirect3D7* g_pD3D = nullptr;
@@ -147,6 +166,299 @@ bool ProcessGameMessages();
 
 // Post a message without locking (for use inside ProcessGameMessages)
 static std::vector<GameMessage> g_pendingMessages;
+
+// =============================================================================
+// SDL TO DIRECTINPUT SCANCODE TRANSLATION
+// SDL scancodes differ from DirectInput DIK_* codes - build a translation table
+// =============================================================================
+
+// SDL joystick globals
+static SDL_Joystick* g_SDLJoystick = nullptr;
+static int g_JoystickIndex = -1;
+static int g_JoystickNumAxes = 0;
+static int g_JoystickNumButtons = 0;
+static int g_JoystickNumHats = 0;
+
+// Axis value cache (raw SDL values)
+static int16_t g_JoystickAxes[16] = {0};
+
+// SDL scancode to DIK code translation table
+static int SDL_to_DIK[SDL_NUM_SCANCODES] = {0};
+
+// Initialize the SDL to DIK translation table
+static void InitScancodeTranslation() {
+    memset(SDL_to_DIK, 0, sizeof(SDL_to_DIK));
+
+    // Escape and function keys
+    SDL_to_DIK[SDL_SCANCODE_ESCAPE] = DIK_ESCAPE;
+    SDL_to_DIK[SDL_SCANCODE_F1] = DIK_F1;
+    SDL_to_DIK[SDL_SCANCODE_F2] = DIK_F2;
+    SDL_to_DIK[SDL_SCANCODE_F3] = DIK_F3;
+    SDL_to_DIK[SDL_SCANCODE_F4] = DIK_F4;
+    SDL_to_DIK[SDL_SCANCODE_F5] = DIK_F5;
+    SDL_to_DIK[SDL_SCANCODE_F6] = DIK_F6;
+    SDL_to_DIK[SDL_SCANCODE_F7] = DIK_F7;
+    SDL_to_DIK[SDL_SCANCODE_F8] = DIK_F8;
+    SDL_to_DIK[SDL_SCANCODE_F9] = DIK_F9;
+    SDL_to_DIK[SDL_SCANCODE_F10] = DIK_F10;
+    SDL_to_DIK[SDL_SCANCODE_F11] = DIK_F11;
+    SDL_to_DIK[SDL_SCANCODE_F12] = DIK_F12;
+
+    // Number row
+    SDL_to_DIK[SDL_SCANCODE_1] = DIK_1;
+    SDL_to_DIK[SDL_SCANCODE_2] = DIK_2;
+    SDL_to_DIK[SDL_SCANCODE_3] = DIK_3;
+    SDL_to_DIK[SDL_SCANCODE_4] = DIK_4;
+    SDL_to_DIK[SDL_SCANCODE_5] = DIK_5;
+    SDL_to_DIK[SDL_SCANCODE_6] = DIK_6;
+    SDL_to_DIK[SDL_SCANCODE_7] = DIK_7;
+    SDL_to_DIK[SDL_SCANCODE_8] = DIK_8;
+    SDL_to_DIK[SDL_SCANCODE_9] = DIK_9;
+    SDL_to_DIK[SDL_SCANCODE_0] = DIK_0;
+    SDL_to_DIK[SDL_SCANCODE_MINUS] = DIK_MINUS;
+    SDL_to_DIK[SDL_SCANCODE_EQUALS] = DIK_EQUALS;
+    SDL_to_DIK[SDL_SCANCODE_BACKSPACE] = DIK_BACK;
+
+    // Top row letters
+    SDL_to_DIK[SDL_SCANCODE_TAB] = DIK_TAB;
+    SDL_to_DIK[SDL_SCANCODE_Q] = DIK_Q;
+    SDL_to_DIK[SDL_SCANCODE_W] = DIK_W;
+    SDL_to_DIK[SDL_SCANCODE_E] = DIK_E;
+    SDL_to_DIK[SDL_SCANCODE_R] = DIK_R;
+    SDL_to_DIK[SDL_SCANCODE_T] = DIK_T;
+    SDL_to_DIK[SDL_SCANCODE_Y] = DIK_Y;
+    SDL_to_DIK[SDL_SCANCODE_U] = DIK_U;
+    SDL_to_DIK[SDL_SCANCODE_I] = DIK_I;
+    SDL_to_DIK[SDL_SCANCODE_O] = DIK_O;
+    SDL_to_DIK[SDL_SCANCODE_P] = DIK_P;
+    SDL_to_DIK[SDL_SCANCODE_LEFTBRACKET] = DIK_LBRACKET;
+    SDL_to_DIK[SDL_SCANCODE_RIGHTBRACKET] = DIK_RBRACKET;
+    SDL_to_DIK[SDL_SCANCODE_RETURN] = DIK_RETURN;
+
+    // Home row letters
+    SDL_to_DIK[SDL_SCANCODE_CAPSLOCK] = DIK_CAPITAL;
+    SDL_to_DIK[SDL_SCANCODE_A] = DIK_A;
+    SDL_to_DIK[SDL_SCANCODE_S] = DIK_S;
+    SDL_to_DIK[SDL_SCANCODE_D] = DIK_D;
+    SDL_to_DIK[SDL_SCANCODE_F] = DIK_F;
+    SDL_to_DIK[SDL_SCANCODE_G] = DIK_G;
+    SDL_to_DIK[SDL_SCANCODE_H] = DIK_H;
+    SDL_to_DIK[SDL_SCANCODE_J] = DIK_J;
+    SDL_to_DIK[SDL_SCANCODE_K] = DIK_K;
+    SDL_to_DIK[SDL_SCANCODE_L] = DIK_L;
+    SDL_to_DIK[SDL_SCANCODE_SEMICOLON] = DIK_SEMICOLON;
+    SDL_to_DIK[SDL_SCANCODE_APOSTROPHE] = DIK_APOSTROPHE;
+    SDL_to_DIK[SDL_SCANCODE_GRAVE] = DIK_GRAVE;
+
+    // Bottom row letters
+    SDL_to_DIK[SDL_SCANCODE_LSHIFT] = DIK_LSHIFT;
+    SDL_to_DIK[SDL_SCANCODE_BACKSLASH] = DIK_BACKSLASH;
+    SDL_to_DIK[SDL_SCANCODE_Z] = DIK_Z;
+    SDL_to_DIK[SDL_SCANCODE_X] = DIK_X;
+    SDL_to_DIK[SDL_SCANCODE_C] = DIK_C;
+    SDL_to_DIK[SDL_SCANCODE_V] = DIK_V;
+    SDL_to_DIK[SDL_SCANCODE_B] = DIK_B;
+    SDL_to_DIK[SDL_SCANCODE_N] = DIK_N;
+    SDL_to_DIK[SDL_SCANCODE_M] = DIK_M;
+    SDL_to_DIK[SDL_SCANCODE_COMMA] = DIK_COMMA;
+    SDL_to_DIK[SDL_SCANCODE_PERIOD] = DIK_PERIOD;
+    SDL_to_DIK[SDL_SCANCODE_SLASH] = DIK_SLASH;
+    SDL_to_DIK[SDL_SCANCODE_RSHIFT] = DIK_RSHIFT;
+
+    // Modifiers and space
+    SDL_to_DIK[SDL_SCANCODE_LCTRL] = DIK_LCONTROL;
+    SDL_to_DIK[SDL_SCANCODE_LALT] = DIK_LMENU;
+    SDL_to_DIK[SDL_SCANCODE_SPACE] = DIK_SPACE;
+    SDL_to_DIK[SDL_SCANCODE_RALT] = DIK_RMENU;
+    SDL_to_DIK[SDL_SCANCODE_RCTRL] = DIK_RCONTROL;
+
+    // Navigation keys
+    SDL_to_DIK[SDL_SCANCODE_INSERT] = DIK_INSERT;
+    SDL_to_DIK[SDL_SCANCODE_HOME] = DIK_HOME;
+    SDL_to_DIK[SDL_SCANCODE_PAGEUP] = DIK_PRIOR;
+    SDL_to_DIK[SDL_SCANCODE_DELETE] = DIK_DELETE;
+    SDL_to_DIK[SDL_SCANCODE_END] = DIK_END;
+    SDL_to_DIK[SDL_SCANCODE_PAGEDOWN] = DIK_NEXT;
+
+    // Arrow keys
+    SDL_to_DIK[SDL_SCANCODE_UP] = DIK_UP;
+    SDL_to_DIK[SDL_SCANCODE_DOWN] = DIK_DOWN;
+    SDL_to_DIK[SDL_SCANCODE_LEFT] = DIK_LEFT;
+    SDL_to_DIK[SDL_SCANCODE_RIGHT] = DIK_RIGHT;
+
+    // Numpad
+    SDL_to_DIK[SDL_SCANCODE_NUMLOCKCLEAR] = DIK_NUMLOCK;
+    SDL_to_DIK[SDL_SCANCODE_KP_DIVIDE] = DIK_DIVIDE;
+    SDL_to_DIK[SDL_SCANCODE_KP_MULTIPLY] = DIK_MULTIPLY;
+    SDL_to_DIK[SDL_SCANCODE_KP_MINUS] = DIK_SUBTRACT;
+    SDL_to_DIK[SDL_SCANCODE_KP_7] = DIK_NUMPAD7;
+    SDL_to_DIK[SDL_SCANCODE_KP_8] = DIK_NUMPAD8;
+    SDL_to_DIK[SDL_SCANCODE_KP_9] = DIK_NUMPAD9;
+    SDL_to_DIK[SDL_SCANCODE_KP_PLUS] = DIK_ADD;
+    SDL_to_DIK[SDL_SCANCODE_KP_4] = DIK_NUMPAD4;
+    SDL_to_DIK[SDL_SCANCODE_KP_5] = DIK_NUMPAD5;
+    SDL_to_DIK[SDL_SCANCODE_KP_6] = DIK_NUMPAD6;
+    SDL_to_DIK[SDL_SCANCODE_KP_1] = DIK_NUMPAD1;
+    SDL_to_DIK[SDL_SCANCODE_KP_2] = DIK_NUMPAD2;
+    SDL_to_DIK[SDL_SCANCODE_KP_3] = DIK_NUMPAD3;
+    SDL_to_DIK[SDL_SCANCODE_KP_ENTER] = DIK_NUMPADENTER;
+    SDL_to_DIK[SDL_SCANCODE_KP_0] = DIK_NUMPAD0;
+    SDL_to_DIK[SDL_SCANCODE_KP_PERIOD] = DIK_DECIMAL;
+
+    // Lock keys
+    SDL_to_DIK[SDL_SCANCODE_SCROLLLOCK] = DIK_SCROLL;
+    SDL_to_DIK[SDL_SCANCODE_PRINTSCREEN] = DIK_SYSRQ;
+
+    // Windows keys
+    SDL_to_DIK[SDL_SCANCODE_LGUI] = DIK_LWIN;
+    SDL_to_DIK[SDL_SCANCODE_RGUI] = DIK_RWIN;
+    SDL_to_DIK[SDL_SCANCODE_APPLICATION] = DIK_APPS;
+}
+
+// Convert SDL scancode to DIK code
+static int ConvertSDLToDIK(SDL_Scancode scancode) {
+    if (scancode >= 0 && scancode < SDL_NUM_SCANCODES) {
+        return SDL_to_DIK[scancode];
+    }
+    return 0;
+}
+
+// =============================================================================
+// SDL JOYSTICK SUPPORT
+// Initialize, poll, and convert joystick data to FreeFalcon format
+// =============================================================================
+
+// Initialize SDL joystick subsystem and open first available joystick
+static void InitSDLJoystick() {
+    // Initialize joystick subsystem if not already done
+    if (SDL_WasInit(SDL_INIT_JOYSTICK) == 0) {
+        if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) < 0) {
+            FF_ERROR("Failed to initialize joystick subsystem: %s\n", SDL_GetError());
+            return;
+        }
+    }
+
+    int numJoysticks = SDL_NumJoysticks();
+    FF_DEBUG_JOYSTICK("Found %d joystick(s)\n", numJoysticks);
+
+    if (numJoysticks > 0) {
+        // Open the first joystick
+        g_SDLJoystick = SDL_JoystickOpen(0);
+        if (g_SDLJoystick) {
+            g_JoystickIndex = 0;
+            g_JoystickNumAxes = SDL_JoystickNumAxes(g_SDLJoystick);
+            g_JoystickNumButtons = SDL_JoystickNumButtons(g_SDLJoystick);
+            g_JoystickNumHats = SDL_JoystickNumHats(g_SDLJoystick);
+
+            FF_DEBUG_JOYSTICK("Opened joystick 0: %s\n", SDL_JoystickName(g_SDLJoystick));
+            FF_DEBUG_JOYSTICK("  Axes: %d, Buttons: %d, Hats: %d\n",
+                    g_JoystickNumAxes, g_JoystickNumButtons, g_JoystickNumHats);
+
+            // Enable joystick events
+            SDL_JoystickEventState(SDL_ENABLE);
+        } else {
+            FF_ERROR("Failed to open joystick 0: %s\n", SDL_GetError());
+        }
+    }
+}
+
+// Cleanup SDL joystick
+static void CleanupSDLJoystick() {
+    if (g_SDLJoystick) {
+        SDL_JoystickClose(g_SDLJoystick);
+        g_SDLJoystick = nullptr;
+        g_JoystickIndex = -1;
+        FF_DEBUG_JOYSTICK("Joystick closed\n");
+    }
+}
+
+// Convert SDL hat value to DirectInput POV angle (hundredths of degrees)
+// SDL_HAT_CENTERED=0, SDL_HAT_UP=1, SDL_HAT_RIGHT=2, SDL_HAT_DOWN=4, SDL_HAT_LEFT=8
+static DWORD ConvertSDLHatToPOV(Uint8 hat) {
+    switch (hat) {
+        case SDL_HAT_UP:        return 0;       // 0 degrees
+        case SDL_HAT_RIGHTUP:   return 4500;    // 45 degrees
+        case SDL_HAT_RIGHT:     return 9000;    // 90 degrees
+        case SDL_HAT_RIGHTDOWN: return 13500;   // 135 degrees
+        case SDL_HAT_DOWN:      return 18000;   // 180 degrees
+        case SDL_HAT_LEFTDOWN:  return 22500;   // 225 degrees
+        case SDL_HAT_LEFT:      return 27000;   // 270 degrees
+        case SDL_HAT_LEFTUP:    return 31500;   // 315 degrees
+        default:                return (DWORD)-1; // Centered
+    }
+}
+
+// Poll joystick and update IO structure for simulation
+// NOTE: Currently unused - we use event-driven input (SDL_JOYAXISMOTION etc.)
+// This function is kept for potential future use if polling is preferred.
+#if 0
+static void PollSDLJoystick() {
+    if (!g_SDLJoystick) return;
+
+    // Update joystick state (needed if not using event loop for all input)
+    SDL_JoystickUpdate();
+
+    // Read axis values (SDL: -32768 to 32767)
+    // FreeFalcon expects -10000 to 10000 for bipolar axes, 0 to 15000 for unipolar
+    for (int i = 0; i < g_JoystickNumAxes && i < 16; i++) {
+        g_JoystickAxes[i] = SDL_JoystickGetAxis(g_SDLJoystick, i);
+    }
+
+    // Map SDL joystick axes to FreeFalcon IO structure
+    // Common joystick mapping:
+    //   Axis 0: X axis (roll/aileron)
+    //   Axis 1: Y axis (pitch/elevator)
+    //   Axis 2: Z axis or throttle
+    //   Axis 3: Rudder (Rz on some sticks)
+
+    // Convert and store in IO structure
+    // SDL range: -32768 to 32767
+    // FreeFalcon bipolar range: -10000 to 10000
+
+    if (g_JoystickNumAxes >= 1) {
+        // Roll (X axis)
+        IO.analog[AXIS_ROLL].ioVal = (int)(g_JoystickAxes[0] * 10000 / 32767);
+        IO.analog[AXIS_ROLL].engrValue = (float)IO.analog[AXIS_ROLL].ioVal / 10000.0f;
+        IO.analog[AXIS_ROLL].isUsed = true;
+    }
+
+    if (g_JoystickNumAxes >= 2) {
+        // Pitch (Y axis) - note: may need inversion depending on joystick
+        IO.analog[AXIS_PITCH].ioVal = (int)(g_JoystickAxes[1] * 10000 / 32767);
+        IO.analog[AXIS_PITCH].engrValue = (float)IO.analog[AXIS_PITCH].ioVal / 10000.0f;
+        IO.analog[AXIS_PITCH].isUsed = true;
+    }
+
+    if (g_JoystickNumAxes >= 3) {
+        // Throttle (Z axis) - unipolar, 0 to 15000
+        // SDL: -32768 (full forward) to 32767 (full back)
+        // Invert and map to 0-15000
+        int rawZ = g_JoystickAxes[2];
+        int throttleVal = (32767 - rawZ) * 15000 / 65535;
+        IO.analog[AXIS_THROTTLE].ioVal = throttleVal;
+        IO.analog[AXIS_THROTTLE].engrValue = (float)throttleVal / 15000.0f;
+        IO.analog[AXIS_THROTTLE].isUsed = true;
+    }
+
+    if (g_JoystickNumAxes >= 4) {
+        // Yaw/Rudder (Rz or axis 3)
+        IO.analog[AXIS_YAW].ioVal = (int)(g_JoystickAxes[3] * 10000 / 32767);
+        IO.analog[AXIS_YAW].engrValue = (float)IO.analog[AXIS_YAW].ioVal / 10000.0f;
+        IO.analog[AXIS_YAW].isUsed = true;
+    }
+
+    // Read button states
+    for (int i = 0; i < g_JoystickNumButtons && i < SIMLIB_MAX_DIGITAL; i++) {
+        IO.digital[i] = SDL_JoystickGetButton(g_SDLJoystick, i) ? TRUE : FALSE;
+    }
+
+    // Read POV hat
+    for (int i = 0; i < g_JoystickNumHats && i < SIMLIB_MAX_POV; i++) {
+        Uint8 hat = SDL_JoystickGetHat(g_SDLJoystick, i);
+        IO.povHatAngle[i] = ConvertSDLHatToPOV(hat);
+    }
+}
+#endif
 
 // =============================================================================
 // FALLBACK MENU SYSTEM
@@ -608,13 +920,27 @@ static bool init_game_paths(void) {
     printf("Setting up game paths...\n");
 
     // Set up derived paths (using forward slashes for Linux)
+    // Note: FalconTerrainDataDir needs to include the theater name (default: "korea")
+    // because DeviceIndependentGraphicsSetup is called before theater loading
     snprintf(FalconCampaignSaveDirectory, _MAX_PATH, "%s/campaign/save", FalconDataDirectory);
     snprintf(FalconCampUserSaveDirectory, _MAX_PATH, "%s/campaign/save", FalconDataDirectory);
-    snprintf(FalconTerrainDataDir, _MAX_PATH, "%s/terrdata", FalconDataDirectory);
+    snprintf(FalconTerrainDataDir, _MAX_PATH, "%s/terrdata/korea", FalconDataDirectory);  // Include default theater
     snprintf(FalconMiscTexDataDir, _MAX_PATH, "%s/terrdata/misctex", FalconDataDirectory);
     snprintf(FalconPictureDirectory, _MAX_PATH, "%s/pictures", FalconDataDirectory);
     snprintf(FalconObjectDataDir, _MAX_PATH, "%s/terrdata/objects", FalconDataDirectory);
     snprintf(Falcon3DDataDir, _MAX_PATH, "%s/terrdata/objects", FalconDataDirectory);
+
+    // Sound-related directories (using forward slashes for Linux)
+    snprintf(FalconSoundThrDirectory, _MAX_PATH, "%s/sounds", FalconDataDirectory);
+    snprintf(FalconUISoundDirectory, _MAX_PATH, "%s/sounds", FalconDataDirectory);
+    snprintf(FalconCockpitThrDirectory, _MAX_PATH, "%s/art/ckptart", FalconDataDirectory);
+    snprintf(FalconZipsThrDirectory, _MAX_PATH, "%s/zips", FalconDataDirectory);
+    snprintf(FalconTacrefThrDirectory, _MAX_PATH, "%s/tacref", FalconDataDirectory);
+    snprintf(FalconSplashThrDirectory, _MAX_PATH, "%s/art/splash", FalconDataDirectory);
+    snprintf(FalconMovieDirectory, _MAX_PATH, "%s/movies", FalconDataDirectory);
+    snprintf(FalconMovieMode, _MAX_PATH, "normals");  // Default movie mode
+    snprintf(FalconUIArtDirectory, _MAX_PATH, "%s/art", FalconDataDirectory);
+    snprintf(FalconUIArtThrDirectory, _MAX_PATH, "%s/art", FalconDataDirectory);
 
     // Create picture directory if it doesn't exist
     mkdir(FalconPictureDirectory, 0755);
@@ -622,6 +948,7 @@ static bool init_game_paths(void) {
     printf("  Campaign saves: %s\n", FalconCampaignSaveDirectory);
     printf("  Terrain data: %s\n", FalconTerrainDataDir);
     printf("  Object data: %s\n", FalconObjectDataDir);
+    printf("  Sound directory: %s\n", FalconSoundThrDirectory);
 
     return true;
 }
@@ -700,6 +1027,14 @@ static bool init_sdl(bool fullscreen) {
     mainMenuWnd = mainAppWnd;
 
     printf("  Window created: %dx%d\n", WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    // Initialize keyboard scancode translation table
+    InitScancodeTranslation();
+    printf("  Keyboard scancode translation initialized.\n");
+
+    // Initialize joystick support
+    InitSDLJoystick();
+
     return true;
 }
 
@@ -950,7 +1285,15 @@ static bool init_game_core(void) {
     TheTimeManager.Setup(2004, 300);  // Year 2004, day 300 (late October)
     fprintf(stderr, "  [main_linux] TheTimeManager.Setup() returned\n");
 
-    // Start sound system
+    // Initialize sound system (creates gSoundDriver and calls InstallDSound)
+    fprintf(stderr, "  Initializing sound manager...\n");
+    if (InitSoundManager(FalconDisplay.appWin, 0, FalconDataDirectory)) {
+        fprintf(stderr, "  [main_linux] InitSoundManager() succeeded\n");
+    } else {
+        fprintf(stderr, "  [main_linux] InitSoundManager() failed - sounds disabled\n");
+    }
+
+    // Start sound system (resumes playback if initialized)
     fprintf(stderr, "  Starting sound system...\n");
     F4SoundStart();
     fprintf(stderr, "  [main_linux] F4SoundStart() returned\n");
@@ -977,13 +1320,13 @@ static bool init_game_core(void) {
 }
 
 static void cleanup(void) {
-    fprintf(stderr, "\n[cleanup] Starting cleanup...\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("Starting cleanup...\n");
+    FF_DEBUG_FLUSH();
 
     // First, destroy the window immediately so it disappears
     // This provides visual feedback that the app is shutting down
-    fprintf(stderr, "[cleanup] Destroying SDL window first for immediate visual feedback...\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("Destroying SDL window first for immediate visual feedback...\n");
+    FF_DEBUG_FLUSH();
 
     if (g_GLContext) {
         SDL_GL_DeleteContext(g_GLContext);
@@ -993,57 +1336,57 @@ static void cleanup(void) {
         SDL_DestroyWindow(g_SDLWindow);
         g_SDLWindow = nullptr;
     }
-    fprintf(stderr, "[cleanup] Window destroyed.\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("Window destroyed.\n");
+    FF_DEBUG_FLUSH();
 
     // Cleanup game systems (in reverse order of initialization)
     // These may block, but at least the window is gone
     if (g_gameInitialized) {
-        fprintf(stderr, "[cleanup] Shutting down game systems...\n");
-        fflush(stderr);
+        FF_DEBUG_CLEANUP("Shutting down game systems...\n");
+        FF_DEBUG_FLUSH();
 
         // Stop campaign - this can block on threading issues
-        fprintf(stderr, "[cleanup] Stopping campaign (may take a moment)...\n");
-        fflush(stderr);
+        FF_DEBUG_CLEANUP("Stopping campaign...\n");
+        FF_DEBUG_FLUSH();
         Camp_Exit();
-        fprintf(stderr, "[cleanup] Campaign stopped.\n");
-        fflush(stderr);
+        FF_DEBUG_CLEANUP("Campaign stopped.\n");
+        FF_DEBUG_FLUSH();
 
         // Only stop simulation loop if we were actually in simulation mode
         // StopSim() has a blocking wait for RunningSim state that will hang
         // if we're just in UI mode (which uses the fallback menu)
         if (SimulationLoopControl::InSim()) {
-            fprintf(stderr, "[cleanup] Stopping simulation loop...\n");
-            fflush(stderr);
+            FF_DEBUG_CLEANUP("Stopping simulation loop...\n");
+            FF_DEBUG_FLUSH();
             SimulationLoopControl::StopSim();
-            fprintf(stderr, "[cleanup] Simulation loop stopped.\n");
-            fflush(stderr);
+            FF_DEBUG_CLEANUP("Simulation loop stopped.\n");
+            FF_DEBUG_FLUSH();
         } else {
-            fprintf(stderr, "[cleanup] Skipping StopSim (not in simulation mode)\n");
-            fflush(stderr);
+            FF_DEBUG_CLEANUP("Skipping StopSim (not in simulation mode)\n");
+            FF_DEBUG_FLUSH();
         }
 
         // Cleanup particle system
-        fprintf(stderr, "[cleanup] Unloading particle system...\n");
-        fflush(stderr);
+        FF_DEBUG_CLEANUP("Unloading particle system...\n");
+        FF_DEBUG_FLUSH();
         DrawableParticleSys::UnloadParameters();
-        fprintf(stderr, "[cleanup] Particle system unloaded.\n");
-        fflush(stderr);
+        FF_DEBUG_CLEANUP("Particle system unloaded.\n");
+        FF_DEBUG_FLUSH();
     }
 
     // Cleanup D3D/DXEngine
     if (g_graphicsInitialized) {
-        fprintf(stderr, "[cleanup] Releasing DXEngine...\n");
-        fflush(stderr);
+        FF_DEBUG_CLEANUP("Releasing DXEngine...\n");
+        FF_DEBUG_FLUSH();
         TheDXEngine.Release();
         g_graphicsInitialized = false;
-        fprintf(stderr, "[cleanup] DXEngine released.\n");
-        fflush(stderr);
+        FF_DEBUG_CLEANUP("DXEngine released.\n");
+        FF_DEBUG_FLUSH();
     }
 
     // Release D3D interfaces
-    fprintf(stderr, "[cleanup] Releasing D3D interfaces...\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("Releasing D3D interfaces...\n");
+    FF_DEBUG_FLUSH();
     if (g_pD3DDevice) {
         g_pD3DDevice->Release();
         g_pD3DDevice = nullptr;
@@ -1056,12 +1399,12 @@ static void cleanup(void) {
         g_pD3D->Release();
         g_pD3D = nullptr;
     }
-    fprintf(stderr, "[cleanup] D3D interfaces released.\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("D3D interfaces released.\n");
+    FF_DEBUG_FLUSH();
 
     // Cleanup audio
-    fprintf(stderr, "[cleanup] Cleaning up audio...\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("Cleaning up audio...\n");
+    FF_DEBUG_FLUSH();
     if (g_alContext) {
         alcMakeContextCurrent(nullptr);
         alcDestroyContext(g_alContext);
@@ -1071,25 +1414,32 @@ static void cleanup(void) {
         alcCloseDevice(g_alDevice);
         g_alDevice = nullptr;
     }
-    fprintf(stderr, "[cleanup] Audio cleaned up.\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("Audio cleaned up.\n");
+    FF_DEBUG_FLUSH();
+
+    // Cleanup SDL joystick
+    FF_DEBUG_CLEANUP("Closing SDL joystick...\n");
+    FF_DEBUG_FLUSH();
+    CleanupSDLJoystick();
+    FF_DEBUG_CLEANUP("SDL joystick closed.\n");
+    FF_DEBUG_FLUSH();
 
     // Cleanup SDL
-    fprintf(stderr, "[cleanup] Quitting SDL...\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("Quitting SDL...\n");
+    FF_DEBUG_FLUSH();
     SDL_Quit();
-    fprintf(stderr, "[cleanup] SDL quit.\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("SDL quit.\n");
+    FF_DEBUG_FLUSH();
 
     // Cleanup resource manager
-    fprintf(stderr, "[cleanup] Cleaning up resource manager...\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("Cleaning up resource manager...\n");
+    FF_DEBUG_FLUSH();
     ResExit();
-    fprintf(stderr, "[cleanup] Resource manager cleaned up.\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("Resource manager cleaned up.\n");
+    FF_DEBUG_FLUSH();
 
-    fprintf(stderr, "[cleanup] Cleanup complete!\n");
-    fflush(stderr);
+    FF_DEBUG_CLEANUP("Cleanup complete!\n");
+    FF_DEBUG_FLUSH();
 }
 
 // Convert SDL events to Windows-style messages
@@ -1115,12 +1465,22 @@ static void handle_sdl_events(void) {
                         SDL_SetWindowFullscreen(g_SDLWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
                     }
                 }
-                // Post keyboard message
-                PostGameMessage(WM_KEYDOWN, event.key.keysym.scancode, 0);
+                // Post keyboard message with DIK scancode translation
+                {
+                    int dikCode = ConvertSDLToDIK(event.key.keysym.scancode);
+                    if (dikCode != 0) {
+                        PostGameMessage(WM_KEYDOWN, dikCode, 0);
+                    }
+                }
                 break;
 
             case SDL_KEYUP:
-                PostGameMessage(WM_KEYUP, event.key.keysym.scancode, 0);
+                {
+                    int dikCode = ConvertSDLToDIK(event.key.keysym.scancode);
+                    if (dikCode != 0) {
+                        PostGameMessage(WM_KEYUP, dikCode, 0);
+                    }
+                }
                 break;
 
             case SDL_MOUSEBUTTONDOWN:
@@ -1193,6 +1553,75 @@ static void handle_sdl_events(void) {
                         break;
                     default:
                         break;
+                }
+                break;
+
+            // Joystick events - update IO structure directly
+            case SDL_JOYAXISMOTION:
+                if (event.jaxis.which == g_JoystickIndex && event.jaxis.axis < 16) {
+                    g_JoystickAxes[event.jaxis.axis] = event.jaxis.value;
+                    // Update IO structure based on axis mapping
+                    // Axis 0: Roll, Axis 1: Pitch, Axis 2: Throttle, Axis 3: Yaw
+                    int axisVal = event.jaxis.value * 10000 / 32767;
+                    switch (event.jaxis.axis) {
+                        case 0:  // Roll (X)
+                            IO.analog[AXIS_ROLL].ioVal = axisVal;
+                            IO.analog[AXIS_ROLL].engrValue = (float)axisVal / 10000.0f;
+                            IO.analog[AXIS_ROLL].isUsed = true;
+                            break;
+                        case 1:  // Pitch (Y)
+                            IO.analog[AXIS_PITCH].ioVal = axisVal;
+                            IO.analog[AXIS_PITCH].engrValue = (float)axisVal / 10000.0f;
+                            IO.analog[AXIS_PITCH].isUsed = true;
+                            break;
+                        case 2:  // Throttle (Z) - unipolar
+                            {
+                                int throttleVal = (32767 - event.jaxis.value) * 15000 / 65535;
+                                IO.analog[AXIS_THROTTLE].ioVal = throttleVal;
+                                IO.analog[AXIS_THROTTLE].engrValue = (float)throttleVal / 15000.0f;
+                                IO.analog[AXIS_THROTTLE].isUsed = true;
+                            }
+                            break;
+                        case 3:  // Yaw (Rz)
+                            IO.analog[AXIS_YAW].ioVal = axisVal;
+                            IO.analog[AXIS_YAW].engrValue = (float)axisVal / 10000.0f;
+                            IO.analog[AXIS_YAW].isUsed = true;
+                            break;
+                    }
+                }
+                break;
+
+            case SDL_JOYBUTTONDOWN:
+                if (event.jbutton.which == g_JoystickIndex && event.jbutton.button < SIMLIB_MAX_DIGITAL) {
+                    IO.digital[event.jbutton.button] = TRUE;
+                }
+                break;
+
+            case SDL_JOYBUTTONUP:
+                if (event.jbutton.which == g_JoystickIndex && event.jbutton.button < SIMLIB_MAX_DIGITAL) {
+                    IO.digital[event.jbutton.button] = FALSE;
+                }
+                break;
+
+            case SDL_JOYHATMOTION:
+                if (event.jhat.which == g_JoystickIndex && event.jhat.hat < SIMLIB_MAX_POV) {
+                    IO.povHatAngle[event.jhat.hat] = ConvertSDLHatToPOV(event.jhat.value);
+                }
+                break;
+
+            case SDL_JOYDEVICEADDED:
+                FF_DEBUG_JOYSTICK("Device added: %d\n", event.jdevice.which);
+                if (g_SDLJoystick == nullptr) {
+                    // Try to open the newly connected joystick
+                    InitSDLJoystick();
+                }
+                break;
+
+            case SDL_JOYDEVICEREMOVED:
+                FF_DEBUG_JOYSTICK("Device removed: %d\n", event.jdevice.which);
+                if (event.jdevice.which == g_JoystickIndex) {
+                    // Our joystick was disconnected
+                    CleanupSDLJoystick();
                 }
                 break;
         }
@@ -1425,6 +1854,35 @@ static void main_loop(void) {
             }
             frameCount = 0;
             lastFPSTime = currentTime;
+        }
+
+        // Automatic UI screen test
+        // Tests that UI screens can load correctly
+        // Note: Only tests ONE screen per run since clicking a button changes the active screen
+        static bool screenTestDone = false;
+        static Uint32 screenTestStart = SDL_GetTicks();
+
+        if (!screenTestDone && doUI && gMainHandler && (currentTime - screenTestStart) > 3000) {
+            screenTestDone = true;
+            bool oldFallback = g_useFallbackMenu;
+            g_useFallbackMenu = false;
+
+            fprintf(stderr, "\n========== PHASE 1.2: UI SCREEN LOADING TEST ==========\n");
+            fprintf(stderr, "Testing Setup screen load (validates UI resource loading mechanism)\n");
+            fprintf(stderr, "[TEST] Clicking Setup at (405, 745)...\n");
+            PostGameMessage(WM_LBUTTONDOWN, 0, MAKELPARAM(405, 745));
+            PostGameMessage(WM_LBUTTONUP, 0, MAKELPARAM(405, 745));
+
+            // The Setup screen will load and display
+            // Verification points:
+            // 1. OpenSetupCB callback fires
+            // 2. LoadImageList/LoadSoundList/LoadWindowList complete for st_*.lst files
+            // 3. Window group 8000 is enabled
+            // 4. No crashes
+
+            g_useFallbackMenu = oldFallback;
+            fprintf(stderr, "========== Setup screen test initiated ==========\n\n");
+            fflush(stderr);
         }
 
         // Simple frame rate limiting

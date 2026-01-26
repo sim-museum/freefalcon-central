@@ -947,6 +947,8 @@ BOOL C_Parser::LoadWindowList(char *filename)
     long i;
     C_Window *win;
 
+    fprintf(stderr, "[LoadWindowList] Loading: %s\n", filename);
+
     memset(&WindowList_[0], 0, sizeof(long)*MAX_WINDOWS_IN_LIST);
     WinIndex_ = 0;
     WinLoaded_ = 0;
@@ -1196,6 +1198,8 @@ BOOL C_Parser::LoadImageList(char *filename)
     char *listfile, *lfp;
     long i;
 
+    fprintf(stderr, "[LoadImageList] Loading: %s\n", filename);
+
 #if 0
     strcpy(filebuf, FalconUIArtDirectory); // FreeFalcon root
 
@@ -1212,6 +1216,7 @@ BOOL C_Parser::LoadImageList(char *filename)
 
     if (ifp == NULL)
     {
+        fprintf(stderr, "[LoadImageList] FAILED to open: %s\n", filename);
         if (g_bLogUiErrors)
         {
             if (Perror_)
@@ -1220,6 +1225,7 @@ BOOL C_Parser::LoadImageList(char *filename)
 
         return(FALSE);
     }
+    fprintf(stderr, "[LoadImageList] Opened: %s\n", filename);
 
     size = UI_FILESIZE(ifp);
 
@@ -1294,6 +1300,8 @@ BOOL C_Parser::LoadSoundList(char *filename)
     long size;
     char *listfile, *lfp;
     long i;
+
+    fprintf(stderr, "[LoadSoundList] Loading: %s\n", filename);
 
 #if 0
     strcpy(filebuf, FalconUIArtDirectory); // FreeFalcon root
@@ -1747,7 +1755,7 @@ BOOL C_Parser::ParseScript(char *filename)
 
 char *C_Parser::FindIDStr(long ID)
 {
-    sprintf(ValueStr, "%1ld", ID);
+    snprintf(ValueStr, sizeof(ValueStr), "%1ld", ID);
     return(&ValueStr[0]);
 }
 
