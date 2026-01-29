@@ -2297,8 +2297,62 @@ The Instant Action mission launch now progresses through these stages:
 | `src/sim/otwdrive/vcock.cpp` | NULL checks, path separator fix |
 | `src/sim/cockpit/cpmanager.cpp` | Path separator fix, case-insensitive FileExists |
 
+---
+
+### Session: January 29, 2026 - RTT Device Creation Fix
+
+#### Problem: RTT (Render-To-Texture) Canvases Fail to Initialize
+
+**Symptom:** Cockpit instruments (HUD, RWR, DED, PFL) failed to initialize with "Failed to setup rendering context" errors. The main OTW renderer setup succeeded, but all subsequent `VCock_SetRttCanvas` calls failed because `GetDefaultRC()` returned NULL.
+
+**Root Cause:** Race condition between main thread and sim thread during UI→Sim transition.
+
+**Sequence of events:**
+1. Main thread receives `FM_START_INSTANTACTION` message
+2. Main thread calls `SimulationLoopControl::StartGraphics()` which starts the sim thread
+3. Main thread then calls `EndUI()` to clean up the UI
+4. Sim thread calls `FalconDisplay.EnterMode(Sim)` to set up the display device for Sim mode
+5. **RACE:** Main thread's `EndUI()` → `UI_Cleanup()` → `FalconDisplay.LeaveMode()` → `DisplayDevice::Cleanup()` destroys the display device that the sim thread just set up!
+
+**Why Windows doesn't have this issue:**
+On Windows, `_FORCE_MAIN_THREAD` is defined, which causes `EnterMode(Sim)` to be executed via `SendMessageA()` which forces it to run synchronously on the main thread. This ensures `EnterMode(Sim)` completes BEFORE `EndUI()` runs.
+
+On Linux, `_FORCE_MAIN_THREAD` is explicitly disabled (`#ifndef FF_LINUX`), so `EnterMode(Sim)` runs directly on the sim thread, creating the race condition.
+
+**Fix:** Modified `UI_Cleanup()` in `src/ui/src/ui_main.cpp` to check if we're already in Sim mode before calling `LeaveMode()`:
+
+```cpp
+#ifdef FF_LINUX
+    // On Linux, EnterMode(Sim) is called by the sim thread before EndUI() completes.
+    // Don't call LeaveMode() as it would destroy the display device that the sim thread
+    // just set up. Only call LeaveMode() if we're NOT in Sim mode.
+    if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim)
+    {
+        FalconDisplay.LeaveMode();
+    }
+#else
+    FalconDisplay.LeaveMode();
+#endif
+```
+
+**Files Modified:**
+- `src/ui/src/ui_main.cpp` - Conditional `LeaveMode()` call for Linux
+
+**Result:**
+- All RTT canvases now initialize successfully
+- HUD, RWR, DED, PFL cockpit instrument renders should work
+- No more "Failed to setup rendering context" errors for cockpit instruments
+
+**Debug Methodology:**
+1. Added backtrace to `DisplayDevice::Cleanup()` to identify unexpected callers
+2. Used `addr2line` to decode backtrace addresses
+3. Traced call path: `main_loop()` → `ProcessGameMessages()` → `EndUI()` → `UI_Cleanup()` → `LeaveMode()` → `Cleanup()`
+4. Identified the race condition with sim thread's `EnterMode(Sim)` call
+
+---
+
 #### Next Steps
 
-1. **Fix DXContext creation for RTT canvases** - The main display device works but secondary render targets for cockpit instruments fail
-2. **Debug GetDefaultRC()** - May be returning an invalid context for RTT surfaces
-3. **Consider disabling RTT** - As a workaround, skip cockpit RTT if device creation fails
+1. Continue testing the simulation rendering pipeline
+2. Verify cockpit instruments render correctly
+3. Test mission completion and return to menu flow

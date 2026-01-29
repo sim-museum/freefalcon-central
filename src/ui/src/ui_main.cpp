@@ -16,13 +16,13 @@
 
 #include "targa.h"
 #include "dxutil/ddutil.h"
-#include "Graphics/Include/imagebuf.h"
-#include "Graphics/Include/drawBSP.h"
+#include "graphics/include/imagebuf.h"
+#include "graphics/include/drawbsp.h"
 #include "dispcfg.h"
-#include "Graphics/Include/setup.h"
-#include "Graphics/Include/TexBank.h"
-#include "Graphics/Include/TerrTex.h"
-#include "Graphics/Include/FarTex.h"
+#include "graphics/include/setup.h"
+#include "graphics/include/texbank.h"
+#include "graphics/include/terrtex.h"
+#include "graphics/include/fartex.h"
 #include "chandler.h"
 #include "ui95_ext.h"
 #include "cmusic.h"
@@ -51,24 +51,24 @@
 #include "cmap.h"
 #include "userids.h"
 #include "textids.h"
-#include "Graphics/Include/matrix.h"
+#include "graphics/include/matrix.h"
 #include "cbsplist.h"
 #include "c3dview.h"
-#include "sim/include/inpFunc.h"
+#include "sim/include/inpfunc.h"
 #include "sim/include/ascii.h"
-#include "Falclib/Include/UI.h"
+#include "falclib/include/ui.h"
 #include "te_include.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "logbook.h"
 #include "campmiss.h"
 #include "resource.h"
 #include "rules.h"
 #include "teamdata.h"
 #include "MissEval.h"
-#include "sim/include/PilotInputs.h"
-#include "DispOpts.h"
+#include "sim/include/pilotinputs.h"
+#include "dispopts.h"
 
-#include "sim/include/OTWDrive.h"
+#include "sim/include/otwdrive.h"
 
 extern OTWDriverClass OTWDriver; // JB 010615
 extern bool g_bHiResUI; // M.N. 2001-11-20
@@ -77,7 +77,7 @@ extern bool g_bHiResUI; // M.N. 2001-11-20
 #include "Weather.h"
 const int numWeatherConditions = INCLEMENT;
 
-#include "sim/include/IVibeData.h"
+#include "sim/include/ivibedata.h"
 extern IntellivibeData g_intellivibeData;
 extern void *gSharedIntellivibe;
 
@@ -536,20 +536,20 @@ void LeaveCurrentGame()
     switch (FalconLocalGame->GetGameType())
     {
         case game_Dogfight:
-            SendMessage(FalconDisplay.appWin, FM_SHUTDOWN_CAMPAIGN, 0, 0);
+            SendMessageA(FalconDisplay.appWin, FM_SHUTDOWN_CAMPAIGN, 0, 0);
             LeaveDogfight();
             break;
 
         case game_InstantAction:
         case game_TacticalEngagement:
         default:
-            SendMessage(FalconDisplay.appWin, FM_SHUTDOWN_CAMPAIGN, 0, 0);
+            SendMessageA(FalconDisplay.appWin, FM_SHUTDOWN_CAMPAIGN, 0, 0);
             TheCampaign.Flags and_eq compl CAMP_TACTICAL;
             TheCampaign.Flags and_eq compl CAMP_TACTICAL_EDIT;
             break;
 
         case game_Campaign:
-            SendMessage(FalconDisplay.appWin, FM_SHUTDOWN_CAMPAIGN, 0, 0);
+            SendMessageA(FalconDisplay.appWin, FM_SHUTDOWN_CAMPAIGN, 0, 0);
             break;
     }
 }
@@ -608,7 +608,8 @@ void LoadMainWindow()
 {
     long ID;
 
-    if (MainLoaded) return;
+    if (MainLoaded)
+        return;
 
     if (_LOAD_ART_RESOURCES_)
     {
@@ -698,7 +699,6 @@ static void ExitButtonCB(long , short hittype, C_Base *)
 
     if (hittype not_eq C_TYPE_LMOUSEUP)
         return;
-
 
     win = gMainHandler->FindWindow(EXIT_WIN);
 
@@ -850,9 +850,11 @@ void EnableScenarioInfo(long ID)
 
 static void OpenInstantActionCB(long , short hittype, C_Base *control)
 {
+    fprintf(stderr, "[OpenInstantActionCB] Called with hittype=%d\n", hittype);
     if (hittype not_eq C_TYPE_LMOUSEUP)
         return;
 
+    fprintf(stderr, "[OpenInstantActionCB] Processing - IALoaded=%d\n", IALoaded);
     DisableScenarioInfo();
     LeaveCurrentGame();
 
@@ -860,8 +862,11 @@ static void OpenInstantActionCB(long , short hittype, C_Base *control)
 
     SetCursor(gCursors[CRSR_WAIT]);
 
-    if ( not IALoaded)
+    if ( not IALoaded) {
+        fprintf(stderr, "[OpenInstantActionCB] Loading Instant Action windows...\n");
         LoadInstantActionWindows();
+        fprintf(stderr, "[OpenInstantActionCB] LoadInstantActionWindows() completed\n");
+    }
 
     if (MainLastGroup not_eq 0 and MainLastGroup not_eq control->GetGroup())
     {
@@ -879,9 +884,11 @@ static void OpenInstantActionCB(long , short hittype, C_Base *control)
 
 static void OpenDogFightCB(long , short hittype, C_Base *control)
 {
+    fprintf(stderr, "[OpenDogFightCB] Called with hittype=%d\n", hittype);
     if (hittype not_eq C_TYPE_LMOUSEUP)
         return;
 
+    fprintf(stderr, "[OpenDogFightCB] Processing - DFLoaded=%d\n", DFLoaded);
     DisableScenarioInfo();
     LeaveCurrentGame();
 
@@ -889,8 +896,11 @@ static void OpenDogFightCB(long , short hittype, C_Base *control)
 
     SetCursor(gCursors[CRSR_WAIT]);
 
-    if ( not DFLoaded)
+    if ( not DFLoaded) {
+        fprintf(stderr, "[OpenDogFightCB] Loading Dogfight windows...\n");
         LoadDogFightWindows();
+        fprintf(stderr, "[OpenDogFightCB] LoadDogFightWindows() completed\n");
+    }
 
     if (MainLastGroup not_eq 0 and MainLastGroup not_eq control->GetGroup())
     {
@@ -940,9 +950,11 @@ void OpenMainCampaignCB(long , short hittype, C_Base *control)
     C_Button *btn;
     C_Window *win;
 
+    fprintf(stderr, "[OpenMainCampaignCB] Called with hittype=%d\n", hittype);
     if (hittype not_eq C_TYPE_LMOUSEUP)
         return;
 
+    fprintf(stderr, "[OpenMainCampaignCB] Processing - CPSelectLoaded=%d\n", CPSelectLoaded);
     DisableScenarioInfo();
     LeaveCurrentGame();
 
@@ -950,8 +962,11 @@ void OpenMainCampaignCB(long , short hittype, C_Base *control)
 
     SetCursor(gCursors[CRSR_WAIT]);
 
-    if ( not CPSelectLoaded)
+    if ( not CPSelectLoaded) {
+        fprintf(stderr, "[OpenMainCampaignCB] Loading Campaign Select windows...\n");
         LoadCampaignSelectWindows();
+        fprintf(stderr, "[OpenMainCampaignCB] LoadCampaignSelectWindows() completed\n");
+    }
 
     if (MainLastGroup not_eq 0 and MainLastGroup not_eq control->GetGroup())
     {
@@ -1019,15 +1034,21 @@ void OpenTacticalReferenceCB(long nID, short hittype, C_Base *control)
 
 void OpenSetupCB(long , short hittype, C_Base *control)
 {
+    fprintf(stderr, "[OpenSetupCB] Called with hittype=%d (need %d for LMOUSEUP)\n", hittype, C_TYPE_LMOUSEUP);
     if (hittype not_eq C_TYPE_LMOUSEUP)
         return;
 
+    fprintf(stderr, "[OpenSetupCB] Processing - calling LoadSetupWindows()\n");
     SetCursor(gCursors[CRSR_WAIT]);
     LoadSetupWindows();
+    fprintf(stderr, "[OpenSetupCB] LoadSetupWindows() completed\n");
 
     CloseAllRenderers(SETUP_WIN);
 
-    gMainHandler->EnableWindowGroup(control->GetGroup());
+    long group = control->GetGroup();
+    fprintf(stderr, "[OpenSetupCB] Enabling window group %ld\n", group);
+    gMainHandler->EnableWindowGroup(group);
+    fprintf(stderr, "[OpenSetupCB] Window group enabled, setting cursor\n");
     SetCursor(gCursors[CRSR_F16]);
 }
 
@@ -1622,7 +1643,6 @@ int UI_Startup()
     }
 
     Primary = FalconDisplay.GetImageBuffer();
-
     Primary->GetColorMasks(&r_mask, &g_mask, &b_mask);
     UI95_SetScreenColorInfo(static_cast<DWORD>(r_mask), static_cast<DWORD>(g_mask), static_cast<DWORD>(b_mask));
 
@@ -1663,10 +1683,16 @@ int UI_Startup()
     LoadHelpGuideWindows();
     RealLoadLogbook(); // without daves extra garbage
 
-    _tcscpy(gUI_AutoSaveName, gStringMgr->GetString(TXT_AUTOSAVENAME));
+    {
+        const _TCHAR* autosaveName = gStringMgr ? gStringMgr->GetString(TXT_AUTOSAVENAME) : NULL;
+        if (autosaveName)
+            _tcscpy(gUI_AutoSaveName, autosaveName);
+        else
+            _tcscpy(gUI_AutoSaveName, _T("autosave"));
+    }
 
 
-    if (gCommsMgr->Online())
+    if (gCommsMgr && gCommsMgr->Online())
     {
         StartCommsQueue();
         RebuildGameTree();
@@ -2049,7 +2075,19 @@ void UI_Cleanup()
     MemPoolFree(UI_Pools[UI_SOUND_POOL]);
 #endif
 
+#ifdef FF_LINUX
+    // On Linux, EnterMode(Sim) is called by the sim thread before EndUI() completes.
+    // Don't call LeaveMode() as it would destroy the display device that the sim thread
+    // just set up. The sim thread already called EnterMode(Sim) which cleaned up the UI
+    // mode and set up the Sim mode display.
+    // Only call LeaveMode() if we're NOT in Sim mode (e.g., returning to UI from Sim).
+    if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim)
+    {
+        FalconDisplay.LeaveMode();
+    }
+#else
     FalconDisplay.LeaveMode();
+#endif
 
     // OW
     //ShowCursor(FALSE);
