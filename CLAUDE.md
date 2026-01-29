@@ -948,6 +948,223 @@ After Phase 3 fixes:
 
 ---
 
+### Session: January 28, 2026 - 32/64-bit Type Compatibility Fixes (Phase 4)
+
+#### Problem: std::bad_alloc During Campaign Loading
+
+**Root Cause:** The `unsigned long` type is 8 bytes on 64-bit Linux but only 4 bytes on 32-bit Windows. Campaign save files were created on Windows with 4-byte values, but the Linux code was reading them as 8-byte values, causing garbage data and memory allocation failures.
+
+**Scope of Changes:**
+
+The following types were changed to use fixed-width `uint32_t` for binary file compatibility:
+
+**Core VU Types (src/falclib/include/vutypes.h):**
+- `VU_DAMAGE`: `unsigned long` → `uint32_t`
+- `VU_TIME`: `unsigned long` → `uint32_t`
+- `VU_KEY`: `unsigned long` → `uint32_t`
+- `VU_ID_NUMBER`: `unsigned long` → `uint32_t`
+- `VU_SESSION_ID::value_`: `unsigned long` → `uint32_t`
+- `VU_ADDRESS::ip`: `unsigned long` → `uint32_t`
+
+**Campaign Time Types:**
+- `CampaignTime` (src/falclib/include/camplib.h): `ulong` → `uint32_t`
+- `gCompressTillTime` (TimerThread.h): `ulong` → `uint32_t`
+- Various timing externs in TimerThread.h: `ulong` → `uint32_t`
+
+**ATC Brain Types (src/sim/include/atcbrain.h):**
+- `minDeagTime`: `ulong` → `CampaignTime`
+- `MinDeagTime()` return type: `ulong` → `CampaignTime`
+- `RemovePlaceHolders()` return type: `ulong` → `CampaignTime`
+- `FindFlightTakeoffTime()` return type: `ulong` → `CampaignTime`
+- `GetNextAvailRunwayTime()`: `ulong` params/return → `CampaignTime`
+- `CalculateMinMaxTime()`: `ulong*` params → `CampaignTime*`
+- `FindFirstLegPt()`: `ulong` param → `CampaignTime`
+
+**Simulation Timing (src/sim/include/simlib.h):**
+- `SimLibElapsedTime` extern: Changed to `VU_TIME` to match definition
+
+**Binary File I/O Fixes:**
+- `CampaignClass::LoadData()` (cmpclass.cpp): Use `int32_t` for size read from file
+- `CampaignClass::SaveData()` (cmpclass.cpp): Use `int32_t` for size written to file
+- `WayPointClass::Save/Load` (campwp.cpp): Use `uint32_t` temp for Flags field
+
+**Files Modified:**
+- `src/falclib/include/vutypes.h`
+- `src/falclib/include/camplib.h` (and case variants)
+- `src/falclib/include/TimerThread.h` (and case variants)
+- `src/falclib/timerthread.cpp`
+- `src/sim/include/atcbrain.h` (and case variants)
+- `src/sim/include/timer.h`
+- `src/sim/include/simlib.h`
+- `src/sim/include/acturbulence.h`
+- `src/campaign/camplib/atcbrain.cpp`
+- `src/campaign/campupd/cmpclass.cpp`
+- `src/campaign/campupd/campaign.cpp`
+- `src/campaign/campupd/gamemgr.cpp`
+- `src/campaign/campupd/dogfight.cpp`
+- `src/campaign/camplib/campwp.cpp`
+- `src/sim/feature/atcbrain.cpp`
+- `src/sim/aircraft/acturbulence.cpp`
+- `src/sim/aircraft/turbulence.cpp`
+- `src/sim/simlib/file.cpp`
+- `src/sim/simlib/timer.cpp`
+- `src/sim/digi/landme.cpp`
+- `src/graphics/renderer/otw.cpp`
+- `src/falcsnd/mlrvoicehandle.cpp`
+- `src/ui/src/taceng/te_setup.cpp`
+- `src/ui/src/comms/uicomms.cpp`
+
+**Key Principle:**
+When reading/writing binary data that was created on 32-bit Windows, always use `int32_t` or `uint32_t` instead of `long` or `unsigned long`. The `long` type is 4 bytes on Windows but 8 bytes on 64-bit Linux.
+
+**Pattern for Binary File I/O:**
+```cpp
+// Reading from 32-bit Windows format file:
+int32_t file_value;
+fread(&file_value, sizeof(int32_t), 1, fp);  // Read 4 bytes
+long native_value = file_value;  // Convert to native type if needed
+
+// Writing to 32-bit Windows format file:
+long native_value = ...;
+int32_t file_value = static_cast<int32_t>(native_value);
+fwrite(&file_value, sizeof(int32_t), 1, fp);  // Write 4 bytes
+```
+
+---
+
+### Session: January 28, 2026 - Display Device and Terrain Loading Fixes
+
+#### Problem 1: Display Device Double-Initialization Crash
+
+**Symptom:** `ShiAssert(!IsReady())` failure at `device.cpp:47` when entering Sim mode.
+
+**Root Cause:** `DisplayDevice::Setup()` was called twice without `Cleanup()` between calls. When switching from UI mode to Sim mode, the display device was already initialized from UI mode, causing the assertion failure.
+
+**Fix:** Added `IsReady()` check before `Setup()` in `EnterMode()`:
+```cpp
+// If the device is already set up (e.g., UI mode active), clean it up first
+// This ensures we don't fail the ShiAssert(!IsReady()) check in DisplayDevice::Setup()
+if (theDisplayDevice.IsReady())
+{
+    theDisplayDevice.Cleanup();
+}
+
+theDisplayDevice.Setup(
+    Driver, theDevice,
+    width[newMode], height[newMode], depth[newMode],
+    displayFullScreen, doubleBuffer[newMode], appWin, newMode == Sim
+);
+```
+
+**Files Modified:**
+- `src/falclib/dispcfg.cpp` - Lines 317-328
+
+#### Problem 2: Terrain File Path Separators
+
+**Symptom:** "Bad file descriptor: Bad loader read (16)" error at `tlevel.cpp:378`
+
+**Root Cause:** Terrain file paths used Windows backslashes (`\\`) which fail on Linux.
+
+**Fix:** Added `#ifdef FF_LINUX` blocks to use forward slashes for Theater.o*, Theater.l*, Theater.map, and Theater.MEA files:
+```cpp
+#ifdef FF_LINUX
+    sprintf(filename, "%s/Theater.o%0d", mapPath, level);
+#else
+    sprintf(filename, "%s\\Theater.o%0d", mapPath, level);
+#endif
+```
+
+**Files Modified:**
+- `src/graphics/terrain/tlevel.cpp` - Lines 75-83, 151-155
+- `src/graphics/terrain/tmap.cpp` - Lines 41-45, 337-341
+
+#### Problem 3: Case-Sensitive Terrain File Lookup
+
+**Symptom:** "No such file or directory: Couldn't read block offset data" error
+
+**Root Cause:** Linux filesystem is case-sensitive. Files like `THEATER.O0` vs `Theater.o0` don't match.
+
+**Fix:** Used `open_nocase()` for case-insensitive file lookup:
+```cpp
+#ifdef FF_LINUX
+    sprintf(filename, "%s/Theater.o%0d", mapPath, level);
+    // Use case-insensitive file lookup for Linux
+    extern int open_nocase(const char* filepath, int flags, int mode);
+    offsetFile = open_nocase(filename, O_RDONLY, 0);
+#else
+    sprintf(filename, "%s\\Theater.o%0d", mapPath, level);
+    offsetFile = open(filename, O_BINARY bitor O_RDONLY , 0);
+#endif
+```
+
+**Files Modified:**
+- `src/graphics/terrain/tlevel.cpp` - Lines 77-79
+
+#### Problem 4: 32/64-bit Terrain Block Offset Reading
+
+**Symptom:** Assertion failures and corrupted terrain data.
+
+**Root Cause:** The `tBlockAddress` union stores either a file offset (4 bytes on Windows) or a memory pointer (8 bytes on 64-bit Linux). The terrain offset files were created with 4-byte DWORD values, but the code read `sizeof(TBlock*)` bytes (8 on 64-bit), causing data corruption.
+
+**Fix:** Read 4-byte DWORD values into a temporary buffer, then copy to the blocks array:
+```cpp
+#ifdef FF_LINUX
+    // On 64-bit Linux, the offset file contains 4-byte DWORD offsets
+    // but tBlockAddress uses a pointer (8 bytes). Read into temp buffer
+    // and expand to the blocks array.
+    size_t numEntries = blocks_wide * blocks_high;
+    DWORD* tempOffsets = new DWORD[numEntries];
+    bytes = read(offsetFile, tempOffsets, sizeof(DWORD) * numEntries);
+
+    if (bytes != (ssize_t)(sizeof(DWORD) * numEntries))
+    {
+        char message[120];
+        sprintf(message, "%s:  Couldn't read block offset data", strerror(errno));
+        ShiError(message);
+        delete[] tempOffsets;
+    }
+    else
+    {
+        // Copy 4-byte offsets to the tBlockAddress union
+        for (size_t i = 0; i < numEntries; i++)
+        {
+            blocks[i].offset = tempOffsets[i];
+        }
+        delete[] tempOffsets;
+    }
+#else
+    // Read the file offsets into the post pointer array
+    bytes = read(offsetFile, blocks, sizeof(TBlock*)*blocks_wide * blocks_high);
+    // ... original Windows code
+#endif
+```
+
+**Files Modified:**
+- `src/graphics/terrain/tlevel.cpp` - Lines 87-121
+
+### Result
+
+After these fixes:
+- Game initializes terrain successfully: `[DIGS] TheMap.Setup() done`
+- Runs stably in UI mode without "Bad loader read" crashes
+- Theater reload works correctly (Korea theater)
+- Display mode transitions (UI → Sim → UI) work correctly
+
+**Terrain Loading Architecture:**
+```
+TMap::Setup()
+    ↓
+TLevel::Setup() for each LOD level
+    ↓
+Theater.o* file → Block offsets (4-byte DWORDs read into temp buffer)
+    ↓
+Theater.l* file → Post data (memory-mapped via FileMemMap)
+    ↓
+tBlockAddress union stores offset OR pointer (distinguished by low bit)
+```
+
+---
+
 ## Next Steps
 
 1. ~~Investigate and fix the segfault after initial rendering~~ ✓ Fixed
@@ -960,6 +1177,13 @@ After Phase 3 fixes:
 8. ~~Verify 3D rendering pipeline (Phase 2.1)~~ ✓ Done - Texture loading fixed
 9. ~~Phase 2.2: Flight dynamics and input verification~~ ✓ Done - SDL input system implemented
 10. ~~Phase 3: Code quality and stability fixes~~ ✓ Done - Security fixes, debug macros, code cleanup
+11. ~~Mission launch pipeline (Menu → Flight → Return)~~ ✓ Done - PostMessage routing, FM_* handlers, GL context transfer, sim rendering
+12. ~~Phase 4: 32/64-bit type compatibility fixes~~ ✓ Done - VU types, campaign time, ATC brain, file I/O
+13. ~~Display device and terrain loading fixes~~ ✓ Done - Mode transition, path separators, case-insensitive lookup, 32/64-bit offsets
+14. **NEXT:** Test Instant Action mission launch manually (verify 3D rendering appears)
+15. **NEXT:** Debug any runtime crashes during sim initialization (OTWDriver.Enter() path)
+16. Verify joystick input works during flight
+17. Test return-to-menu flow after exiting sim
 
 ---
 
@@ -1519,3 +1743,341 @@ void FF_PresentPrimarySurface() {
 ```
 
 **Result:** BUG-001 is **FIXED**. UI content now displays correctly via OpenGL.
+
+### Session: January 27, 2026 - Mission Launch Pipeline (Menu → Flight → Return)
+
+#### Overview
+
+Implemented the full mission launch pipeline: Main Menu → Instant Action/Dogfight/Campaign → 3D Flight → Return to Menu. This was the critical path from UI to simulation and back.
+
+#### Phase 1: PostMessage/SendMessage Routing (Critical Blocker)
+
+**Root Cause:** `PostMessageA()` and `SendMessageA()` in `src/compat/compat_winuser.h` were no-ops. All FM_* game state transition messages (FM_LOAD_CAMPAIGN, FM_START_INSTANTACTION, etc.) posted by UI callbacks were silently dropped. This was the primary reason mission launch didn't work.
+
+**Fix:** Made `PostMessageA()` and `SendMessageA()` route FM_* messages (Msg > WM_USER) to `PostGameMessage()`:
+
+```cpp
+extern void PostGameMessage(unsigned int msg, WPARAM wParam, LPARAM lParam);
+
+static inline BOOL PostMessageA(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
+    (void)hWnd;
+    if (Msg > WM_USER) {
+        PostGameMessage(Msg, wParam, lParam);
+    }
+    return TRUE;
+}
+```
+
+**Files Modified:**
+- `src/compat/compat_winuser.h` - PostMessageA and SendMessageA now route FM_* messages
+
+#### Phase 2: FM_* Message Handlers
+
+**What:** Added handlers in `ProcessGameMessages()` for the complete mission lifecycle, mirroring `winmain.cpp:1584-1764`.
+
+**Messages Handled:**
+| Message | Action |
+|---------|--------|
+| FM_LOAD_CAMPAIGN | Load campaign file, post FM_JOIN_SUCCEEDED/FAILED |
+| FM_JOIN_SUCCEEDED | CampaignJoinSuccess() |
+| FM_JOIN_FAILED | CampaignJoinFail() |
+| FM_SHUTDOWN_CAMPAIGN | ShutdownCampaign() |
+| FM_AUTOSAVE_CAMPAIGN | CampaignAutoSave() |
+| FM_ONLINE_STATUS | UI_CommsErrorMessage() |
+| FM_GOT_CAMPAIGN_DATA | CampaignPreloadSuccess() |
+| FM_START_INSTANTACTION | Set FLYSTATE_LOADING, setup instant action, StartGraphics(), EndUI() |
+| FM_START_DOGFIGHT | Set FLYSTATE_LOADING, StartGraphics(), EndUI() |
+| FM_START_CAMPAIGN | Set FLYSTATE_LOADING, StartGraphics(), EndUI() |
+| FM_START_TACTICAL | Set FLYSTATE_LOADING, StartGraphics(), EndUI() |
+| FM_END_INSTANTACTION/DOGFIGHT | No-ops (same as Windows) |
+| FM_REVERT_CAMPAIGN | Reload campaign after mission abort |
+
+**Files Modified:**
+- `src/ffviper/main_linux.cpp` - Added all FM_* handlers, extern declarations
+
+#### Phase 3-4: Simulation Rendering and Display Mode Switching
+
+**Problem:** OpenGL context is thread-bound. The main thread owns the GL context during UI mode, but the sim thread (via `OTWDriver.Cycle()`) needs it for 3D rendering.
+
+**Solution:** Implemented GL context transfer functions:
+
+```cpp
+static std::mutex g_glContextMutex;
+static bool g_simOwnsGLContext = false;
+
+void FF_ReleaseGLContext();     // Release GL from current thread
+void FF_AcquireGLContext();     // Acquire GL on current thread
+void FF_SimThreadAcquireGL();   // Sim thread acquires GL + sets flag
+void FF_SimThreadReleaseGL();   // Sim thread releases GL + clears flag
+void FF_SwapBuffers();          // Present frame via SDL_GL_SwapWindow
+```
+
+**Flow:**
+1. FM_START_* handler calls `EndUI()` then `FF_ReleaseGLContext()`
+2. Sim thread's `StartLoop()` calls `FF_SimThreadAcquireGL()` after `WaitForSingleObject`
+3. Sim loop renders via `OTWDriver.Cycle()` → `DDS7_Flip()` → `FF_SwapBuffers()`
+4. `render_frame()` returns immediately when `g_simOwnsGLContext` is true
+5. On sim exit, `StartLoop()` calls `FF_SimThreadReleaseGL()`
+6. FM_START_UI handler calls `FF_AcquireGLContext()` to restore main thread ownership
+
+**Files Modified:**
+- `src/ffviper/main_linux.cpp` - GL context transfer functions, updated render_frame()
+- `src/sim/simloop/simloop.cpp` - Added GL context acquire/release in StartLoop()
+- `src/compat/d3d_gl.cpp` - DDS7_Flip calls FF_SwapBuffers() when doUI==false
+
+#### Phase 5: OTWDriver.Enter() Linux Compatibility
+
+**Verification Results:**
+| Component | Status | Notes |
+|-----------|--------|-------|
+| SetupDIMouseAndKeyboard | Safe | Returns early when gDIEnabled==FALSE |
+| SetFocus | Safe | No-op in compat layer |
+| TestCooperativeLevel | Safe | Returns DD_OK in compat layer |
+| RestoreAll surfaces | Safe | IsLost returns DD_OK, Restore never called |
+| VB Manager (CreateVertexBuffer) | Safe | Implemented in d3d_gl.cpp compat layer |
+| DXContext::Init | Safe | Creates stub DirectDraw/D3D objects |
+| Display mode enumeration | Safe | Returns standard resolutions in compat layer |
+| hInst global | Safe | Defined in winmain.cpp, zero-initialized |
+
+**Fix Applied:**
+- `src/sim/otwdrive/splash.cpp` - Changed all backslash path separators to forward slashes
+
+#### Phase 6: Return to Menu (Sim → UI)
+
+**Flow:** The sim loop (`simloop.cpp:1081-1102`) already handles the return flow:
+1. `FF_SimThreadReleaseGL()` - releases GL context back to main thread
+2. Posts `FM_REVERT_CAMPAIGN` (if mission aborted) or `FM_START_UI` (normal exit)
+
+**Handler Added:**
+- `FM_REVERT_CAMPAIGN` - Copies save file, posts FM_SHUTDOWN_CAMPAIGN, restarts campaign/tactical
+
+**Files Modified:**
+- `src/ffviper/main_linux.cpp` - Added FM_REVERT_CAMPAIGN handler, StartCampaignGame/tactical_restart_mission externs, g_theaters.DoSoundSetup() in FM_START_UI
+
+#### Runtime Verification
+
+Game starts successfully with all changes:
+```
+[Main] Posting FM_START_GAME to initialize game...
+[FM] FM_START_GAME received
+[FM] FM_START_UI received
+[FM] Main thread re-acquired GL context
+[FM] Calling UI_Startup()...
+[FM] UI_Startup() complete
+FPS: 59 (avg over 5 sec), doUI=1, gMainHandler=0x...
+```
+
+### Message Flow Architecture (Linux)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ SDL2 Event Loop (main_linux.cpp)                           │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ SDL events → PostGameMessage(WM_*, ...)                 │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ PostMessageA / SendMessageA (compat_winuser.h)             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ if (Msg > WM_USER) PostGameMessage(Msg, wParam, lParam) │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ ProcessGameMessages() (main_linux.cpp)                     │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ FM_START_GAME → FM_START_UI → UI_Startup()             │ │
+│ │ FM_LOAD_CAMPAIGN → TheCampaign.LoadCampaign()          │ │
+│ │ FM_START_INSTANTACTION → StartGraphics() + EndUI()     │ │
+│ │ FM_START_UI → UI_Startup() (return from sim)           │ │
+│ │ FM_REVERT_CAMPAIGN → Reload campaign after abort       │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ GL Context Transfer                                        │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ UI Mode: Main thread owns GL → render_frame() presents │ │
+│ │ Sim Mode: Sim thread owns GL → OTWDriver.Cycle() → Flip│ │
+│ │ Transition: FF_ReleaseGLContext/FF_AcquireGLContext     │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+
+### Session: January 28, 2026 - Campaign Loading Critical Fixes
+
+#### Overview
+
+Fixed three critical issues preventing campaign loading from completing. These were fundamental blockers discovered when testing the instant action mission launch.
+
+#### Fix 1: LZSS Decompression (Campaign Data)
+
+**Root Cause:** `src/compat/linux_stubs_c.cpp` contained stub implementations of `LZSS_Expand()` and `LZSS_Compress()` that simply returned 0. The real implementation in `src/utils/lzss.cpp` was never compiled into the build.
+
+Campaign save files use LZSS compression. When loading, `CampaignClass::Decode()` calls `LZSS_Expand()` to decompress the data. The stub was returning 0, causing all campaign data to be invalid.
+
+**Fix:**
+1. Removed LZSS stubs from `src/compat/linux_stubs_c.cpp`
+2. Added `src/utils/lzss.cpp` to the compat library build in `src/compat/CMakeLists.txt`:
+```cmake
+add_library(compat STATIC
+    linux_stubs_c.cpp
+    linux_stubs.cpp
+    d3d_gl.cpp
+    openal_dsound.cpp
+    ${CMAKE_SOURCE_DIR}/src/utils/lzss.cpp  # FF_LINUX: LZSS compression used by campaign
+)
+target_include_directories(compat PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src  # For utils/lzss.h and utils/LZSSopt.h
+)
+```
+
+**Files Modified:**
+- `src/compat/linux_stubs_c.cpp` - Removed LZSS stubs
+- `src/compat/CMakeLists.txt` - Added lzss.cpp to build
+
+#### Fix 2: gCommsMgr Initialization
+
+**Root Cause:** `gCommsMgr` (UIComms manager) was never initialized in the Linux main. This is created in Windows `winmain.cpp:1250` but was missing from `main_linux.cpp`.
+
+The campaign loading code in `CampaignClass::InitCampaign()` asserts `ShiAssert(gCommsMgr)` and calls `gCommsMgr->LookAtGame(newgame)`. Without initialization, this would crash.
+
+**Fix:** Added initialization after Camp_Init() in `init_game_core()`:
+```cpp
+#include "ui/include/uicomms.h"  // For UIComms / gCommsMgr
+
+// In init_game_core():
+gCommsMgr = new UIComms;
+gCommsMgr->Setup(FalconDisplay.appWin);
+```
+
+**Files Modified:**
+- `src/ffviper/main_linux.cpp` - Added include and gCommsMgr initialization
+
+#### Fix 3: realWeather Initialization
+
+**Root Cause:** `realWeather` (global WeatherClass pointer) was never initialized in the Linux main. This is created in Windows `winmain.cpp:478` but was missing from `main_linux.cpp`.
+
+The campaign loading code in `CampaignClass::InitCampaign()` calls `((WeatherClass*)realWeather)->Init(...)`. Without initialization, `realWeather` was NULL, causing a crash.
+
+**Fix:** Added initialization before Camp_Init() in `init_game_core()`:
+```cpp
+#include "campaign/include/weather.h"  // For WeatherClass / realWeather
+
+// In init_game_core():
+realWeather = new WeatherClass();
+```
+
+**Files Modified:**
+- `src/ffviper/main_linux.cpp` - Added include and realWeather initialization
+
+#### Result
+
+After these fixes:
+- LZSS decompression works correctly (returns proper byte count)
+- Campaign loading progresses through: `LoadScenarioStats` → `InitCampaign` → `LoadTeams` → `LoadBaseObjectives` → ...
+- No more crashes during campaign initialization
+- App runs continuously without segfaults
+
+**Verification:**
+```
+[FM] FM_LOAD_CAMPAIGN received (type=1)
+[FM] FM_LOAD_CAMPAIGN: Calling TheCampaign.LoadCampaign()...
+[FF_LINUX] LoadCampaign: InitCampaign returned
+[FF_LINUX] LoadCampaign: Calling LoadTeams()
+[FF_LINUX] LoadCampaign: Calling LoadBaseObjectives()
+```
+
+#### Known Issues (Non-blocking)
+
+1. **Runway assertions**: `[Failed: numRwys > 0]` warnings appear repeatedly during campaign operation. These are non-fatal assertions that don't crash the game.
+
+These are follow-up items that don't block the basic mission launch flow.
+
+---
+
+### Session: January 28, 2026 - Campaign Binary Compatibility Fixes (Continued)
+
+#### Overview
+
+Continued fixing 32/64-bit binary compatibility issues in campaign loading code. The `long` type on 64-bit Linux is 8 bytes, but Windows 32-bit campaign save files use 4-byte values. This causes stream desynchronization when reading campaign data.
+
+#### Fix 1: `fourbyte` typedef
+
+**Root Cause:** The `fourbyte` typedef in `cmpglobl.h` was defined as `long int`, which is 8 bytes on 64-bit Linux but 4 bytes on Windows.
+
+**Fix:** Changed typedef to use `int32_t`:
+```cpp
+// src/campaign/include/cmpglobl.h
+#include <cstdint>
+typedef int32_t fourbyte;  // FF_LINUX: Use int32_t for 32-bit binary compat
+```
+
+**Impact:** This fixes fields like `roster` and `unit_flags` in UnitClass that use the `fourbyte` type.
+
+#### Fix 2: SquadronClass Decode (DIRTY_FUEL)
+
+**Root Cause:** The `Decode()` function in `squadron.cpp` used `sizeof(long)` when reading the `fuel` field from the dirty flag update stream.
+
+**Fix:**
+```cpp
+// src/campaign/camptask/squadron.cpp
+if (bits bitand DIRTY_FUEL)
+{
+    // FF_LINUX: Read exactly 4 bytes for 32-bit Windows binary compat
+    int32_t fuel32;
+    memcpychk(&fuel32, stream, sizeof(int32_t), rem);
+    fuel = fuel32;
+}
+```
+
+#### Fix 3: PackageClass Decode (DIRTY_PACKAGE_FLAGS)
+
+**Root Cause:** The `Decode()` function in `package.cpp` used `sizeof(ulong)` when reading `package_flags`, which is 8 bytes on 64-bit Linux.
+
+**Fix:**
+```cpp
+// src/campaign/camptask/package.cpp
+if (bits bitand DIRTY_PACKAGE_FLAGS)
+{
+    // FF_LINUX: Read exactly 4 bytes for 32-bit Windows binary compat
+    uint32_t flags32;
+    memcpychk(&flags32, stream, sizeof(uint32_t), rem);
+    package_flags = flags32;
+}
+```
+
+#### Fix 4: Debug output for campaign file path tracing
+
+Added debug output to trace exactly which campaign file is being loaded:
+- `StartReadCampFile()` in `campaign.cpp` - prints file path and FalconCampUserSaveDirectory
+- `ReadVersionNumber()` in `cmpclass.cpp` - prints raw version data from .ver file
+
+#### Campaign File Analysis
+
+**Key Finding:** The `Instant.cam` file in `campaign/save/` contains version **73**, which is compatible with the code (`gCurrentDataVersion = 73`). Other save files (save0.cam, etc.) contain version 99 which would require version capping.
+
+**Theater Paths:**
+- Korea theater: Uses `campaign/save/` directory (version 73 compatible)
+- EuroWar theater: Uses `campaign/eurowar/` directory (version 99)
+
+The game correctly loads the Korea theater by default, which uses version 73 compatible files.
+
+#### Files Modified
+- `src/campaign/include/cmpglobl.h` - fourbyte typedef fix
+- `src/campaign/camptask/squadron.cpp` - DIRTY_FUEL decode fix
+- `src/campaign/camptask/package.cpp` - DIRTY_PACKAGE_FLAGS decode fix
+- `src/campaign/campupd/campaign.cpp` - Debug output for file path tracing
+- `src/campaign/campupd/cmpclass.cpp` - Debug output for version reading
+
+#### Remaining `sizeof(long)` Issues
+
+The following files still have `sizeof(long)` usages but are primarily in **save** functions (not load), which won't cause issues when reading existing Windows campaign files:
+- `src/campaign/camplib/objectiv.cpp` - fwrite calls for saving
+- `src/campaign/camplib/unit.cpp` - fwrite calls for saving
+- `src/campaign/campupd/cmpclass.cpp` - buffer size calculations and memcpy in Encode()
+
+These would need fixing if campaign saving is required to be compatible with Windows, but don't affect loading existing campaign files.

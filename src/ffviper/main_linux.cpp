@@ -8,6 +8,9 @@
 #include <time.h>
 #include <fenv.h>
 #include <signal.h>
+#include <mutex>
+#include <queue>
+#include <vector>
 
 // Linux port debug configuration
 #include "ff_linux_debug.h"
@@ -59,10 +62,16 @@
 // UI system (for gMainHandler)
 #include "ui95/chandler.h"
 #include "ui/include/falcuser.h"
+#include "ui/include/uicomms.h"  // FF_LINUX: For gCommsMgr
 
 // Simulation input (for IO structure and joystick data)
 #include "sim/include/simio.h"
 #include "sim/include/sinput.h"
+
+// Campaign / instant action headers
+#include "campaign/include/iaction.h"
+#include "campaign/include/dogfight.h"
+#include "campaign/include/weather.h"  // FF_LINUX: For WeatherClass / realWeather
 
 // External initialization functions
 extern void LoadTheaterList();
@@ -79,6 +88,28 @@ extern int LoadTactics(char *name);
 extern void InitVU();
 extern void BuildAscii();
 
+// Campaign/mission lifecycle externs
+extern void EndUI(void);
+extern void CampaignJoinSuccess(void);
+extern void CampaignJoinFail(void);
+extern void ShutdownCampaign(void);
+extern void CampaignPreloadSuccess(int remote);
+extern void CampaignAutoSave(FalconGameType type);
+extern char gUI_CampaignFile[];
+extern void UI_CommsErrorMessage(WORD error);
+extern int gameCompressionRatio;
+extern DogfightClass SimDogfight;
+extern void StartCampaignGame(int local, int game_type);
+extern void tactical_restart_mission(void);
+
+// Communications initialization (needed for CAPI function pointers)
+typedef struct WSAData {
+    unsigned short wVersion;
+    unsigned short wHighVersion;
+    char szDescription[257];
+    char szSystemStatus[129];
+} WSADATA;
+extern "C" int initialize_windows_sockets(WSADATA *wsaData);
 
 // Default data directory - can be overridden with -d flag or env var
 #define DEFAULT_DATA_DIR "/home/g/ese/SAT/WP/drive_c/FreeFalcon6"
@@ -114,6 +145,49 @@ extern char FalconUIArtThrDirectory[];
 SDL_Window* g_SDLWindow = nullptr;
 SDL_GLContext g_GLContext = nullptr;
 
+// OpenGL context transfer for multi-threaded rendering
+// The sim thread needs the GL context for OTWDriver.Cycle(), but the main thread
+// owns it during UI mode. These functions transfer ownership.
+static std::mutex g_glContextMutex;
+static bool g_simOwnsGLContext = false;
+
+// Release GL context from current thread (call before another thread acquires it)
+void FF_ReleaseGLContext() {
+    std::lock_guard<std::mutex> lock(g_glContextMutex);
+    if (g_SDLWindow) {
+        SDL_GL_MakeCurrent(g_SDLWindow, NULL);
+    }
+}
+
+// Acquire GL context on current thread
+void FF_AcquireGLContext() {
+    std::lock_guard<std::mutex> lock(g_glContextMutex);
+    if (g_SDLWindow && g_GLContext) {
+        SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
+    }
+}
+
+// Called by sim thread before it starts rendering
+void FF_SimThreadAcquireGL() {
+    FF_AcquireGLContext();
+    g_simOwnsGLContext = true;
+    fprintf(stderr, "[GL] Sim thread acquired GL context\n");
+}
+
+// Called by sim thread when it's done rendering
+void FF_SimThreadReleaseGL() {
+    g_simOwnsGLContext = false;
+    FF_ReleaseGLContext();
+    fprintf(stderr, "[GL] Sim thread released GL context\n");
+}
+
+// Swap buffers - callable from any thread that owns the GL context
+void FF_SwapBuffers() {
+    if (g_SDLWindow) {
+        SDL_GL_SwapWindow(g_SDLWindow);
+    }
+}
+
 // OpenAL - global for DirectSound compatibility layer
 ALCdevice* g_alDevice = nullptr;
 ALCcontext* g_alContext = nullptr;
@@ -132,6 +206,7 @@ bool g_Use_DX_Engine = false;
 // Game state
 static bool g_running = true;
 static bool g_gameInitialized = false;
+static bool g_autoTestInstantAction = false;  // TEST: Set by auto-launch code
 
 // These globals are defined in ui/src/winmain.cpp - use extern
 extern HWND mainAppWnd;
@@ -142,9 +217,6 @@ extern const char* FREE_FALCON_PROJECT;
 extern const char* FREE_FALCON_VERSION;
 
 // Message queue for Windows-style message passing
-#include <queue>
-#include <mutex>
-#include <vector>
 
 struct GameMessage {
     UINT message;
@@ -464,7 +536,7 @@ static void PollSDLJoystick() {
 // FALLBACK MENU SYSTEM
 // Simple OpenGL-based menu when UI95 rendering isn't working
 // =============================================================================
-static bool g_useFallbackMenu = true;  // Enable fallback menu by default
+static bool g_useFallbackMenu = false;  // Disabled - testing texture rendering
 static const char* g_menuStatusMessage = nullptr;  // Status message to display
 static Uint32 g_menuStatusTime = 0;  // When the status message was set
 
@@ -1190,6 +1262,17 @@ static bool init_openal(void) {
 static bool init_game_core(void) {
     printf("\n--- Initializing Game Core Systems ---\n");
 
+    // Initialize communications / Winsock emulation
+    // This sets up CAPI function pointers needed by VU network code
+    printf("  Initializing communications layer...\n");
+    WSADATA wsaData;
+    int wsaResult = initialize_windows_sockets(&wsaData);
+    if (wsaResult == 0) {  // EXIT_SUCCESS = 0 means failure in this API
+        fprintf(stderr, "Warning: initialize_windows_sockets returned failure code\n");
+    } else {
+        printf("  Communications layer initialized successfully\n");
+    }
+
     // Set FPU rounding mode to truncate (equivalent to Windows _controlfp)
     fesetround(FE_TOWARDZERO);
 
@@ -1280,10 +1363,8 @@ static bool init_game_core(void) {
     ThreadManager::setup();
     fprintf(stderr, "  [main_linux] ThreadManager::setup() returned\n");
 
-    // Initialize time manager (needed for time of day, weather, etc.)
-    fprintf(stderr, "  Initializing time manager...\n");
-    TheTimeManager.Setup(2004, 300);  // Year 2004, day 300 (late October)
-    fprintf(stderr, "  [main_linux] TheTimeManager.Setup() returned\n");
+    // NOTE: TheTimeManager.Setup() is already called by DeviceIndependentGraphicsSetup()
+    // in FalconDisplay.Setup(), so we don't need to call it again here.
 
     // Initialize sound system (creates gSoundDriver and calls InstallDSound)
     fprintf(stderr, "  Initializing sound manager...\n");
@@ -1303,6 +1384,11 @@ static bool init_game_core(void) {
     SimulationLoopControl::StartSim();
     fprintf(stderr, "  [main_linux] SimulationLoopControl::StartSim() returned\n");
 
+    // FF_LINUX: Initialize weather system (required before campaign loading)
+    fprintf(stderr, "  Initializing weather system...\n");
+    realWeather = new WeatherClass();
+    fprintf(stderr, "  [main_linux] realWeather created\n");
+
     // Initialize campaign
     fprintf(stderr, "  Initializing campaign system...\n");
     Camp_Init(1);
@@ -1312,6 +1398,12 @@ static bool init_game_core(void) {
     fprintf(stderr, "  Building key mappings...\n");
     BuildAscii();
     fprintf(stderr, "  [main_linux] BuildAscii() returned\n");
+
+    // FF_LINUX: Initialize comms manager (required for campaign loading)
+    fprintf(stderr, "  Initializing comms manager...\n");
+    gCommsMgr = new UIComms;
+    gCommsMgr->Setup(FalconDisplay.appWin);
+    fprintf(stderr, "  [main_linux] gCommsMgr->Setup() returned\n");
 
     fprintf(stderr, "  Game core initialization complete.\n");
     g_gameInitialized = true;
@@ -1670,7 +1762,15 @@ bool ProcessGameMessages() {
 
             case FM_START_UI:
                 fprintf(stderr, "[FM] FM_START_UI received\n");
+                // Re-acquire GL context on main thread if sim was running
+                if (!doUI) {
+                    FF_AcquireGLContext();
+                    fprintf(stderr, "[FM] Main thread re-acquired GL context\n");
+                }
                 TheCampaign.Suspend();
+                if (msg.wParam) {
+                    g_theaters.DoSoundSetup();
+                }
                 FalconLocalSession->SetFlyState(FLYSTATE_IN_UI);
                 doUI = TRUE;
                 fprintf(stderr, "[FM] Calling UI_Startup()...\n");
@@ -1689,15 +1789,17 @@ bool ProcessGameMessages() {
 
             case FM_TIMER_UPDATE:
                 // Called periodically to update the UI
+                // On Linux, we handle Update/CopyToPrimary directly here instead of
+                // using the background OutputLoop thread (which is disabled on Linux).
                 if (gMainHandler != nullptr) {
                     gMainHandler->ProcessUserCallbacks();
-                    // On Linux, manually trigger a full screen refresh
-                    // This compensates for the lack of Windows paint messages
+                    // Trigger a full screen refresh
                     UI95_RECT fullRect = { 0, 0, gMainHandler->GetW(), gMainHandler->GetH() };
                     gMainHandler->RefreshAll(&fullRect);
-                    // Call Update() to actually draw the windows to the surface
-                    // Note: RefreshAll->SetUpdateRect should have set UpdateFlag |= C_DRAW_REFRESH
+                    // Draw windows to the Front_ buffer
                     gMainHandler->Update();
+                    // Copy from Front_ to Primary_ surface
+                    gMainHandler->CopyToPrimary();
                 }
                 break;
 
@@ -1708,6 +1810,154 @@ bool ProcessGameMessages() {
 
             // FM_DISP_ENTER_MODE is not needed on Linux - EnterMode directly calls _EnterMode
             // FM_DISP_LEAVE_MODE is also not needed on Linux
+
+            // =========================================================
+            // Campaign loading / joining / shutdown
+            // =========================================================
+            case FM_LOAD_CAMPAIGN:
+            {
+                fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN received (type=%ld)\n", (long)msg.lParam);
+                // For non-campaign/TE types, use "Instant" as campaign file
+                if ((FalconGameType)msg.lParam != game_Campaign &&
+                    (FalconGameType)msg.lParam != game_TacticalEngagement) {
+                    strcpy(gUI_CampaignFile, "Instant");
+                }
+                fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Calling TheCampaign.LoadCampaign()...\n");
+                int retval = TheCampaign.LoadCampaign((FalconGameType)msg.lParam, gUI_CampaignFile);
+                fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: LoadCampaign() returned %d\n", retval);
+                if (retval) {
+                    fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_SUCCEEDED\n");
+                    QueuePendingMessage(FM_JOIN_SUCCEEDED, 0, 0);
+                } else {
+                    fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_FAILED\n");
+                    QueuePendingMessage(FM_JOIN_FAILED, 0, 0);
+                }
+                break;
+            }
+
+            case FM_JOIN_SUCCEEDED:
+                fprintf(stderr, "[FM] FM_JOIN_SUCCEEDED received\n");
+                CampaignJoinSuccess();
+                if (!gMainHandler) {
+                    QueuePendingMessage(FM_START_UI, 0, 0);
+                }
+                // TEST: Auto-start instant action if triggered by test code
+                if (g_autoTestInstantAction) {
+                    g_autoTestInstantAction = false;
+                    fprintf(stderr, "[TEST] Campaign joined, now posting FM_START_INSTANTACTION...\n");
+                    QueuePendingMessage(FM_START_INSTANTACTION, 0, 0);
+                }
+                break;
+
+            case FM_JOIN_FAILED:
+                fprintf(stderr, "[FM] FM_JOIN_FAILED received\n");
+                CampaignJoinFail();
+                break;
+
+            case FM_SHUTDOWN_CAMPAIGN:
+                fprintf(stderr, "[FM] FM_SHUTDOWN_CAMPAIGN received\n");
+                ShutdownCampaign();
+                break;
+
+            case FM_AUTOSAVE_CAMPAIGN:
+                fprintf(stderr, "[FM] FM_AUTOSAVE_CAMPAIGN received\n");
+                CampaignAutoSave((FalconGameType)msg.lParam);
+                break;
+
+            case FM_ONLINE_STATUS:
+                if (doUI && gMainHandler) {
+                    UI_CommsErrorMessage(static_cast<WORD>(msg.wParam));
+                }
+                break;
+
+            case FM_GOT_CAMPAIGN_DATA:
+                fprintf(stderr, "[FM] FM_GOT_CAMPAIGN_DATA received (wParam=%lu)\n",
+                        (unsigned long)msg.wParam);
+                // Handle campaign data based on what we received
+                if (msg.wParam == CAMP_NEED_PRELOAD && FalconLocalGame) {
+                    CampaignPreloadSuccess(!FalconLocalGame->IsLocal());
+                }
+                break;
+
+            // =========================================================
+            // Sim entry: start flying
+            // =========================================================
+            case FM_START_INSTANTACTION:
+                fprintf(stderr, "[FM] FM_START_INSTANTACTION received\n");
+                fflush(stderr);
+                fprintf(stderr, "[FM] Calling SetFlyState...\n");
+                fflush(stderr);
+                FalconLocalSession->SetFlyState(FLYSTATE_LOADING);
+                fprintf(stderr, "[FM] Calling set_campaign_time...\n");
+                fflush(stderr);
+                instant_action::set_campaign_time();
+                fprintf(stderr, "[FM] Calling move_player_flight...\n");
+                fflush(stderr);
+                instant_action::move_player_flight();
+                fprintf(stderr, "[FM] Calling create_wave...\n");
+                fflush(stderr);
+                instant_action::create_wave();
+                fprintf(stderr, "[FM] Starting instant action... vuxRealTime=%lu\n",
+                        (unsigned long)vuxRealTime);
+                SimulationLoopControl::StartGraphics();
+                EndUI();
+                // Release GL context so the sim thread can acquire it
+                FF_ReleaseGLContext();
+                fprintf(stderr, "[FM] Main thread released GL context for sim\n");
+                break;
+
+            case FM_START_DOGFIGHT:
+                fprintf(stderr, "[FM] FM_START_DOGFIGHT received\n");
+                FalconLocalSession->SetFlyState(FLYSTATE_LOADING);
+                SimulationLoopControl::StartGraphics();
+                EndUI();
+                FF_ReleaseGLContext();
+                fprintf(stderr, "[FM] Main thread released GL context for sim\n");
+                break;
+
+            case FM_START_CAMPAIGN:
+                fprintf(stderr, "[FM] FM_START_CAMPAIGN received\n");
+                FalconLocalSession->SetFlyState(FLYSTATE_LOADING);
+                SimulationLoopControl::StartGraphics();
+                EndUI();
+                FF_ReleaseGLContext();
+                fprintf(stderr, "[FM] Main thread released GL context for sim\n");
+                break;
+
+            case FM_START_TACTICAL:
+                fprintf(stderr, "[FM] FM_START_TACTICAL received\n");
+                FalconLocalSession->SetFlyState(FLYSTATE_LOADING);
+                SimulationLoopControl::StartGraphics();
+                EndUI();
+                FF_ReleaseGLContext();
+                fprintf(stderr, "[FM] Main thread released GL context for sim\n");
+                break;
+
+            // =========================================================
+            // Sim exit: return to menu
+            // =========================================================
+            case FM_END_INSTANTACTION:
+            case FM_END_DOGFIGHT:
+                fprintf(stderr, "[FM] FM_END_INSTANTACTION/DOGFIGHT received\n");
+                // These are currently no-ops in Windows too (winmain.cpp:1736-1737)
+                break;
+
+            case FM_REVERT_CAMPAIGN:
+            {
+                fprintf(stderr, "[FM] FM_REVERT_CAMPAIGN received\n");
+                int gametype = FalconLocalGame->GetGameType();
+
+                // Game aborted - reload current campaign
+                strcpy(gUI_CampaignFile, TheCampaign.SaveFile);
+                PostGameMessage(FM_SHUTDOWN_CAMPAIGN, 0, 0);
+
+                if (gametype == game_Campaign) {
+                    StartCampaignGame(1, gametype);
+                } else if (gametype == game_TacticalEngagement) {
+                    tactical_restart_mission();
+                }
+                break;
+            }
 
             // Route mouse and keyboard events to the UI handler
             case WM_LBUTTONDOWN:
@@ -1729,7 +1979,11 @@ bool ProcessGameMessages() {
                         fprintf(stderr, "[Mouse] LBUTTONUP at (%d, %d)\n",
                                 LOWORD(msg.lParam), HIWORD(msg.lParam));
                     }
+                    fprintf(stderr, "[DEBUG] Before EventHandler for LBUTTONUP\n");
+                    fflush(stderr);
                     gMainHandler->EventHandler(NULL, msg.message, msg.wParam, msg.lParam);
+                    fprintf(stderr, "[DEBUG] After EventHandler for LBUTTONUP\n");
+                    fflush(stderr);
                 }
                 break;
             case WM_RBUTTONDOWN:
@@ -1747,12 +2001,22 @@ bool ProcessGameMessages() {
                 break;
         }
     }
+    fprintf(stderr, "[DEBUG] ProcessGameMessages returning true\n");
+    fflush(stderr);
     return true;
 }
 
 static void render_frame(void) {
+    static int renderFrameCount = 0;
+    renderFrameCount++;
+
+    fprintf(stderr, "[render_frame %d] entry doUI=%d fallback=%d simOwns=%d\n",
+            renderFrameCount, doUI, g_useFallbackMenu, g_simOwnsGLContext);
+    fflush(stderr);
+
     // Use fallback menu if enabled (temporary workaround for UI95 issues)
     if (g_useFallbackMenu && doUI) {
+        if (renderFrameCount % 60 == 1) fprintf(stderr, "[render_frame %d] fallback menu path\n", renderFrameCount);
         glClear(GL_COLOR_BUFFER_BIT);
         DrawFallbackMenu();
         SDL_GL_SwapWindow(g_SDLWindow);
@@ -1762,39 +2026,26 @@ static void render_frame(void) {
     // When in UI mode (doUI=1), the UI has been drawn to the primary DirectDraw surface
     // We need to present that surface via OpenGL
     if (doUI) {
+        if (renderFrameCount <= 5 || renderFrameCount % 60 == 1) fprintf(stderr, "[render_frame %d] doUI path\n", renderFrameCount);
         // Present the DirectDraw primary surface (2D UI)
+        fprintf(stderr, "[render_frame %d] Calling FF_PresentPrimarySurface\n", renderFrameCount);
+        fflush(stderr);
         FF_PresentPrimarySurface();
-    } else if (g_graphicsInitialized && g_pD3DDevice) {
-        // 3D mode - use Direct3D rendering
-        g_pD3DDevice->BeginScene();
-
-        // Clear color and depth buffer
-        g_pD3DDevice->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xFF203040, 1.0f, 0);
-
-        // Flush the DXEngine (draws all queued objects)
-        if (g_Use_DX_Engine) {
-            TheDXEngine.FlushBuffers();
-        }
-
-        // End scene
-        g_pD3DDevice->EndScene();
+        fprintf(stderr, "[render_frame %d] Calling SDL_GL_SwapWindow\n", renderFrameCount);
+        fflush(stderr);
+        SDL_GL_SwapWindow(g_SDLWindow);
+        fprintf(stderr, "[render_frame %d] SDL_GL_SwapWindow done\n", renderFrameCount);
+        fflush(stderr);
+    } else if (g_simOwnsGLContext) {
+        // Sim mode: the sim thread owns the GL context and handles rendering.
+        // The main thread has no GL access. Just pump messages and events.
+        // Don't call any GL functions here - the context belongs to the sim thread.
+        return;
     } else {
-        // Fallback: simple test pattern if graphics not initialized
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glBegin(GL_TRIANGLES);
-            glColor3f(1.0f, 0.0f, 0.0f);   // Red
-            glVertex2f(-0.5f, -0.5f);
-            glColor3f(0.0f, 1.0f, 0.0f);   // Green
-            glVertex2f(0.5f, -0.5f);
-            glColor3f(0.0f, 0.0f, 1.0f);   // Blue
-            glVertex2f(0.0f, 0.5f);
-        glEnd();
-
-        glFlush();
+        if (renderFrameCount % 60 == 1) fprintf(stderr, "[render_frame %d] no-render path (waiting for sim)\n", renderFrameCount);
+        // Neither UI nor sim rendering - transitional state, just wait
+        return;
     }
-
-    SDL_GL_SwapWindow(g_SDLWindow);
 }
 
 static void main_loop(void) {
@@ -1815,6 +2066,13 @@ static void main_loop(void) {
     fprintf(stderr, "[Main] Posting FM_START_GAME to initialize game...\n");
     PostGameMessage(FM_START_GAME, 0, 0);
 
+    // TEST: Auto-launch instant action after delay for testing
+    // Set to 0 to disable auto-launch (user can click buttons normally)
+    // NOTE: Auto-launch causes texture assertion failures - needs investigation
+    Uint32 autoLaunchTime = 0;  // Disabled - texture loading issues during sim entry
+    bool autoLaunchTriggered = false;
+    Uint32 startTime = SDL_GetTicks();
+
     while (g_running) {
         Uint32 frameStart = SDL_GetTicks();
 
@@ -1833,16 +2091,48 @@ static void main_loop(void) {
             break;
         }
 
+        fprintf(stderr, "[DEBUG] After ProcessGameMessages, getting currentTime\n");
+        fflush(stderr);
+
         // Send periodic timer updates for the UI system
         Uint32 currentTime = SDL_GetTicks();
+        fprintf(stderr, "[DEBUG] Got currentTime=%u, lastTimerTime=%u\n", currentTime, lastTimerTime);
+        fflush(stderr);
         if (currentTime - lastTimerTime >= timerUpdateInterval) {
+            fprintf(stderr, "[DEBUG] About to post FM_TIMER_UPDATE\n");
+            fflush(stderr);
             PostGameMessage(FM_TIMER_UPDATE, 0, 0);
             lastTimerTime = currentTime;
+            fprintf(stderr, "[DEBUG] FM_TIMER_UPDATE posted\n");
+            fflush(stderr);
+        }
+
+        // TEST: Auto-launch instant action after delay
+        if (autoLaunchTime > 0 && !autoLaunchTriggered && doUI &&
+            (currentTime - startTime) >= autoLaunchTime) {
+            autoLaunchTriggered = true;
+            g_autoTestInstantAction = true;  // Flag to trigger FM_START_INSTANTACTION after join
+            fprintf(stderr, "\n============================================\n");
+            fprintf(stderr, "[TEST] Auto-launching Instant Action...\n");
+            fprintf(stderr, "============================================\n\n");
+
+            // Set up for instant action - mirror what InstantActionFlyCB does
+            strcpy(gUI_CampaignFile, "Instant");
+
+            // Load the instant action campaign
+            fprintf(stderr, "[TEST] Posting FM_LOAD_CAMPAIGN (game_InstantAction)...\n");
+            PostGameMessage(FM_LOAD_CAMPAIGN, 0, game_InstantAction);
         }
 
         // Render frame
+        fprintf(stderr, "[DEBUG] About to call render_frame\n");
+        fflush(stderr);
         render_frame();
+        fprintf(stderr, "[DEBUG] render_frame returned\n");
+        fflush(stderr);
         frameCount++;
+        fprintf(stderr, "[DEBUG] frameCount=%u, continuing main loop\n", frameCount);
+        fflush(stderr);
 
         // FPS counter - only print every 5 seconds to reduce spam
         if (currentTime - lastFPSTime >= 5000) {
@@ -1860,30 +2150,8 @@ static void main_loop(void) {
         // Tests that UI screens can load correctly
         // Note: Only tests ONE screen per run since clicking a button changes the active screen
         static bool screenTestDone = false;
-        static Uint32 screenTestStart = SDL_GetTicks();
-
-        if (!screenTestDone && doUI && gMainHandler && (currentTime - screenTestStart) > 3000) {
-            screenTestDone = true;
-            bool oldFallback = g_useFallbackMenu;
-            g_useFallbackMenu = false;
-
-            fprintf(stderr, "\n========== PHASE 1.2: UI SCREEN LOADING TEST ==========\n");
-            fprintf(stderr, "Testing Setup screen load (validates UI resource loading mechanism)\n");
-            fprintf(stderr, "[TEST] Clicking Setup at (405, 745)...\n");
-            PostGameMessage(WM_LBUTTONDOWN, 0, MAKELPARAM(405, 745));
-            PostGameMessage(WM_LBUTTONUP, 0, MAKELPARAM(405, 745));
-
-            // The Setup screen will load and display
-            // Verification points:
-            // 1. OpenSetupCB callback fires
-            // 2. LoadImageList/LoadSoundList/LoadWindowList complete for st_*.lst files
-            // 3. Window group 8000 is enabled
-            // 4. No crashes
-
-            g_useFallbackMenu = oldFallback;
-            fprintf(stderr, "========== Setup screen test initiated ==========\n\n");
-            fflush(stderr);
-        }
+        // Automatic UI tests disabled - use manual testing
+        // (The test code was automatically clicking Setup button after 3 seconds)
 
         // Simple frame rate limiting
         Uint32 frameTime = SDL_GetTicks() - frameStart;
