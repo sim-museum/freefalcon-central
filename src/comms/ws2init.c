@@ -89,12 +89,20 @@ int initialize_windows_sockets(WSADATA* windows_sockets_data)
 
     if ( not windows_sockets_connections) // No successful connection yet?
     {
+#ifdef FF_LINUX
+        // FF_LINUX: On Linux, directly initialize CAPI function pointers without DLL loading
+        if ( not CAPI_GetProcAddresses(0))
+        {
+            ComAPILastError = COMAPI_WINSOCKDLL_ERROR;
+            return EXIT_SUCCESS;
+        }
+#else
 		TCHAR output_buffer[MAX_PATH];
 		DWORD buffer_length;
 		buffer_length = SearchPath(NULL, DLL_NAME, NULL, MAX_PATH,
 								   output_buffer, NULL);
 
-//		buffer_length = 0; // my debug		
+//		buffer_length = 0; // my debug
 		if (0 == buffer_length)
         {
             ComAPILastError = COMAPI_WINSOCKDLL_ERROR;
@@ -121,38 +129,40 @@ int initialize_windows_sockets(WSADATA* windows_sockets_data)
 #endif
 			return EXIT_SUCCESS;
         }
+#endif // FF_LINUX
 
-
+#ifndef FF_LINUX
 		int major_version = 1;
 		int minor_version = 1;
 		int windows_sockets_status;
 		windows_sockets_status = CAPI_WSAStartup(MAKEWORD(major_version, minor_version), windows_sockets_data);
 		if (windows_sockets_status)
         {
-            
+
             MessageBox(NULL,
                        "Could not find high enough version of WinSock",
                        "Error", MB_OK bitor MB_ICONSTOP bitor MB_SETFOREGROUND);
-              
+
 			return EXIT_SUCCESS;
         }
         else
         {
             // Now confirm that the WinSock 2 DLL supports the exact version
-            // we want. If not, make sure to call WSACleanup(). 
+            // we want. If not, make sure to call WSACleanup().
             if (LOBYTE(windows_sockets_data->wVersion) not_eq major_version or
                 HIBYTE(windows_sockets_data->wVersion) not_eq minor_version)
             {
-                
+
                  MessageBox(NULL,
                             "Could not find the correct version of WinSock",
                             "Error",  MB_OK bitor MB_ICONSTOP bitor MB_SETFOREGROUND);
-                  
+
                 CAPI_WSACleanup();
                 return EXIT_SUCCESS;
             }
 
         }
+#endif // !FF_LINUX
     }
 
     // If we get here , either we just need to increment counter or we execute 

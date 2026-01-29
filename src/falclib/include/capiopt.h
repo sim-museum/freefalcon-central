@@ -6,7 +6,11 @@
 /* comment/uncomment this as wished */
 /* #define DEBUG_COMMS  */
 
+// LOAD_DLLS causes DLL loading via GetProcAddress for Winsock functions
+// On Linux, we use direct BSD socket function assignments instead
+#ifndef FF_LINUX
 #define LOAD_DLLS
+#endif
 
 //#define CAPI_DEBUG
 //#define DEBUG_RECEIVE
