@@ -6,14 +6,14 @@
     This class provides management of the drawing devices in the system.
 \***************************************************************************/
 #include "stdafx.h"
-#include "DevMgr.h"
-#include "FalcLib/include/playerop.h"
+#include "devmgr.h"
+#include "falclib/include/playerop.h"
 
-#include "FalcLib/include/dispopts.h" //JAM 04Oct03
+#include "falclib/include/dispopts.h" //JAM 04Oct03
 
 #include <math.h>
 #include "polylib.h"
-#include "Graphics/DXEngine/DXEngine.h"
+#include "graphics/dxengine/dxengine.h"
 extern bool g_bUse_DX_Engine;
 
 typedef std::vector<DDPIXELFORMAT> PIXELFMT_ARRAY;
@@ -22,10 +22,14 @@ int HighResolutionHackFlag = FALSE; // Used in WinMain.CPP
 extern bool g_bForceDXMultiThreadedCoopLevel;
 extern char g_CardDetails[]; // JB 010215
 
+#ifdef _MSC_VER
 #define INT3 _asm {int 3}
+#else
+#define INT3
+#endif
 
 // Cobra - Hack to get VC6 to link
-#if _MSC_VER < 1300
+#if defined(_MSC_VER) && _MSC_VER < 1300
 
 void __cdecl std::_Xlen()
 {
@@ -36,13 +40,15 @@ void __cdecl std::_Xran()
 
 #endif
 
-typedef HRESULT(WINAPI *LPDIRECTDRAWCREATEEX)(GUID *lpGUID, LPVOID *lplpDD, REFIID iid, IUnknown *pUnkOuter);
+// LPDIRECTDRAWCREATEEX is defined in ddraw.h
 LPDIRECTDRAWENUMERATEEX pfnDirectDrawEnumerateEx = NULL;
 LPDIRECTDRAWCREATEEX pfnDirectDrawCreateEx = NULL;
 
-// Device GUIDs
+// Device GUIDs - MSVC-specific uuid attribute
+#ifdef _MSC_VER
 struct __declspec(uuid("D7B71CFA-4342-11CF-CE67-0120A6C2C935")) DEVGUID_3DFX_VOODOO2_a; // DX7 Beta Driver
 struct __declspec(uuid("472BEA00-40DF-11D1-A9DF-006097C2EDB2")) DEVGUID_3DFX_VOODOO2_b; // DX7
+#endif
 
 void DeviceManager::Setup(int languageNum)
 {
@@ -220,14 +226,14 @@ BOOL DeviceManager::ChooseDevice(int *usrDrvNum, int *usrDevNum, int *usrWidth)
                 strcat(name, "  ");
                 strcat(name, modeName);
 
-                listSlot = SendMessage(listWin, LB_ADDSTRING, 0, (LPARAM)name);
+                listSlot = SendMessageA(listWin, LB_ADDSTRING, 0, (LPARAM)name);
 
                 if (listSlot == LB_ERR)
                 {
                     ShiError("Failed to add device to selection list.");
                 }
 
-                SendMessage(listWin, LB_SETITEMDATA, listSlot, packedNum);
+                SendMessageA(listWin, LB_SETITEMDATA, listSlot, packedNum);
 
                 modeNum++;
             }
@@ -239,15 +245,15 @@ BOOL DeviceManager::ChooseDevice(int *usrDrvNum, int *usrDevNum, int *usrWidth)
     }
 
     // Mark the first entry as selected by default and show the window to the user
-    SendMessage(listWin, LB_SETCURSEL, 0, 0);
+    SendMessageA(listWin, LB_SETCURSEL, 0, 0);
     ShowWindow(listWin, SW_SHOW);
 
     // Stop here until we get a choice from the user
     MessageBox(NULL, "Click OK when you've made your device choice", "", MB_OK);
 
-    listSlot = SendMessage(listWin, LB_GETCURSEL, 0, 0);
+    listSlot = SendMessageA(listWin, LB_GETCURSEL, 0, 0);
     ShiAssert(listSlot not_eq LB_ERR);
-    packedNum = SendMessage(listWin, LB_GETITEMDATA, listSlot, 0);
+    packedNum = SendMessageA(listWin, LB_GETITEMDATA, listSlot, 0);
     devNum  = (packedNum >> 24) bitand 0xFF;
     drvNum  = (packedNum >> 8) bitand 0xFFFF;
     modeNum = (packedNum >> 0) bitand 0xFF;
@@ -273,17 +279,24 @@ BOOL DeviceManager::ChooseDevice(int *usrDrvNum, int *usrDevNum, int *usrWidth)
 
 DXContext *DeviceManager::CreateContext(int driverNum, int devNum, int resNum, BOOL bFullscreen, HWND hWnd)
 {
+    fprintf(stderr, "  [CreateContext] driverNum=%d, devNum=%d, resNum=%d\n", driverNum, devNum, resNum); fflush(stderr);
     try
     {
         DDDriverInfo *pDDI = GetDriver(driverNum);
+        fprintf(stderr, "  [CreateContext] GetDriver returned pDDI=%p\n", (void*)pDDI); fflush(stderr);
 
         if ( not pDDI) return NULL;
 
+        fprintf(stderr, "  [CreateContext] D3D devices count: %zu\n", pDDI->m_arrD3DDevices.size()); fflush(stderr);
+        fprintf(stderr, "  [CreateContext] Display modes count: %zu\n", pDDI->m_arrModes.size()); fflush(stderr);
+
         DDDriverInfo::D3DDeviceInfo *pD3DDI = pDDI->GetDevice(devNum);
+        fprintf(stderr, "  [CreateContext] GetDevice returned pD3DDI=%p\n", (void*)pD3DDI); fflush(stderr);
 
         if ( not pD3DDI) return NULL;
 
         LPDDSURFACEDESC2 pddsd = pDDI->GetDisplayMode(resNum);
+        fprintf(stderr, "  [CreateContext] GetDisplayMode returned pddsd=%p\n", (void*)pddsd); fflush(stderr);
 
         if ( not pddsd) return NULL;
 
@@ -316,6 +329,14 @@ DXContext *DeviceManager::CreateContext(int driverNum, int devNum, int resNum, B
 
 void DeviceManager::EnumDDDrivers(DeviceManager *pThis)
 {
+#ifdef FF_LINUX
+    // On Linux, we provide a single OpenGL-backed DirectDraw driver
+    m_arrDDDrivers.clear();
+
+    // Add our OpenGL driver as the primary (and only) display driver
+    // Use GUID_NULL for the primary display device
+    pThis->m_arrDDDrivers.push_back(DDDriverInfo(GUID_NULL, "OpenGL", "FreeFalcon OpenGL Driver"));
+#else
     HINSTANCE h = LoadLibrary("ddraw.dll");
 
     if ( not h) return;
@@ -332,6 +353,7 @@ void DeviceManager::EnumDDDrivers(DeviceManager *pThis)
     else DirectDrawEnumerate(EnumDDCallback, pThis);
 
     FreeLibrary(h);
+#endif
 }
 
 BOOL WINAPI DeviceManager::EnumDDCallback(GUID FAR *lpGUID, LPSTR lpDriverDescription,
@@ -351,7 +373,7 @@ BOOL WINAPI DeviceManager::EnumDDCallbackEx(GUID FAR *lpGUID, LPSTR lpDriverDesc
 DeviceManager::DDDriverInfo *DeviceManager::GetDriver(int driverNum)
 {
     if (driverNum < 0 or driverNum >= (int) m_arrDDDrivers.size())
-        return false;
+        return nullptr;
 
     return &m_arrDDDrivers[driverNum];
 }
@@ -370,27 +392,44 @@ DeviceManager::DDDriverInfo::DDDriverInfo(GUID guid, LPCTSTR Name, LPCTSTR Descr
 
 void DeviceManager::DDDriverInfo::EnumD3DDrivers()
 {
+    fprintf(stderr, "  [EnumD3DDrivers] Starting...\n"); fflush(stderr);
     try
     {
-        IDirectDrawPtr pDD;
-        IDirectDraw7Ptr pDD7;
-        IDirect3D7Ptr pD3D;
+        IDirectDraw7Ptr pDD7 = nullptr;
+        IDirect3D7Ptr pD3D = nullptr;
 
         // Create DDRAW object
-        CheckHR(DirectDrawCreateEx(&m_guid, (void **) &pDD, IID_IDirectDraw7, NULL));
+        CheckHR(DirectDrawCreateEx(&m_guid, (void **) &pDD7, IID_IDirectDraw7, NULL));
+        fprintf(stderr, "  [EnumD3DDrivers] DirectDrawCreateEx returned pDD7=%p\n", (void*)pDD7); fflush(stderr);
 
-        pD3D = pDD;
-        pDD7 = pDD;
-        pDD7->GetDeviceIdentifier(&devID, NULL);
+        // Get IDirect3D7 interface via QueryInterface
+        if (pDD7)
+        {
+            HRESULT hr = pDD7->QueryInterface(IID_IDirect3D7, (void**)&pD3D);
+            fprintf(stderr, "  [EnumD3DDrivers] QueryInterface for D3D7: hr=0x%lx, pD3D=%p\n",
+                    (unsigned long)hr, (void*)pD3D); fflush(stderr);
+            pDD7->GetDeviceIdentifier(&devID, 0);
+        }
 
         m_arrD3DDevices.clear();
-        pD3D->EnumDevices(EnumD3DDriversCallback, this);
+        if (pD3D)
+        {
+            fprintf(stderr, "  [EnumD3DDrivers] Calling EnumDevices...\n"); fflush(stderr);
+            pD3D->EnumDevices((void*)EnumD3DDriversCallback, this);
+            fprintf(stderr, "  [EnumD3DDrivers] EnumDevices returned\n"); fflush(stderr);
+        }
+        else
+        {
+            fprintf(stderr, "  [EnumD3DDrivers] pD3D is NULL, skipping EnumDevices\n"); fflush(stderr);
+        }
 
-        pDD7->EnumDisplayModes(NULL, NULL, this, EnumModesCallback);
+        if (pDD7)
+            pDD7->EnumDisplayModes(0, NULL, this, EnumModesCallback);
 
         ZeroMemory(&m_caps, sizeof(m_caps));
         m_caps.dwSize = sizeof(m_caps);
-        pDD7->GetCaps(&m_caps, NULL);
+        if (pDD7)
+            pDD7->GetCaps(&m_caps, NULL);
     }
 
     catch (_com_error e)
@@ -402,16 +441,28 @@ void DeviceManager::DDDriverInfo::EnumD3DDrivers()
 HRESULT CALLBACK DeviceManager::DDDriverInfo::EnumD3DDriversCallback(LPSTR lpDeviceDescription,
         LPSTR lpDeviceName, LPD3DDEVICEDESC7 lpD3DHWDeviceDesc, LPVOID lpContext)
 {
+    fprintf(stderr, "    [EnumD3DDriversCallback] name=%s, desc=%s\n",
+            lpDeviceName ? lpDeviceName : "(null)",
+            lpDeviceDescription ? lpDeviceDescription : "(null)"); fflush(stderr);
+
     DeviceManager::DDDriverInfo *pThis = (DeviceManager::DDDriverInfo *) lpContext;
 
     if (lpD3DHWDeviceDesc)
     {
+        fprintf(stderr, "    [EnumD3DDriversCallback] dwDevCaps=0x%lx, required=0x%x\n",
+                (unsigned long)lpD3DHWDeviceDesc->dwDevCaps, DisplayOptionsClass::GetDevCaps()); fflush(stderr);
+
         // COBRA - DX - Consider only Drivers making HW T&L
         // sfr: this causes notebooks to stop working
         //if (lpD3DHWDeviceDesc->dwDevCaps bitand D3DDEVCAPS_HWTRANSFORMANDLIGHT ){
         if (lpD3DHWDeviceDesc->dwDevCaps bitand DisplayOptionsClass::GetDevCaps())
         {
+            fprintf(stderr, "    [EnumD3DDriversCallback] Adding device to list\n"); fflush(stderr);
             pThis->m_arrD3DDevices.push_back(D3DDeviceInfo(*lpD3DHWDeviceDesc, lpDeviceName, lpDeviceDescription));
+        }
+        else
+        {
+            fprintf(stderr, "    [EnumD3DDriversCallback] Device caps don't match, not adding\n"); fflush(stderr);
         }
     }
 
@@ -625,11 +676,14 @@ DXContext& DXContext::operator=(DXContext &ref)
 
 bool DXContext::Init(HWND hWnd, int nWidth, int nHeight, int nDepth, bool bFullscreen)
 {
+    fprintf(stderr, "  [DXContext::Init] Starting with hWnd=%p, %dx%d@%d, fullscreen=%d\n", (void*)hWnd, nWidth, nHeight, nDepth, bFullscreen); fflush(stderr);
     MonoPrint("DXContext::Init(0x%X, %d, %d, %d, %d)\n", hWnd, nWidth, nHeight, nDepth, bFullscreen);
 
     try
     {
+        fprintf(stderr, "  [DXContext::Init] Checking thread ID...\n"); fflush(stderr);
         ShiAssert(::GetCurrentThreadId() == GetWindowThreadProcessId(hWnd, NULL)); // Make sure this gets called by the main thread
+        fprintf(stderr, "  [DXContext::Init] Thread ID check passed\n"); fflush(stderr);
 
         m_bFullscreen = bFullscreen;
         m_nWidth = nWidth;
@@ -637,11 +691,18 @@ bool DXContext::Init(HWND hWnd, int nWidth, int nHeight, int nDepth, bool bFulls
         m_hWnd = hWnd;
 
         // Create DDRAW object
+        fprintf(stderr, "  [DXContext::Init] Calling DirectDrawCreateEx...\n"); fflush(stderr);
         CheckHR(DirectDrawCreateEx(&m_guidDD, (void **) &m_pDD, IID_IDirectDraw7, NULL));
+        fprintf(stderr, "  [DXContext::Init] DirectDrawCreateEx returned m_pDD=%p\n", (void*)m_pDD); fflush(stderr);
 
+        fprintf(stderr, "  [DXContext::Init] Calling GetCaps... m_pcapsDD=%p\n", (void*)m_pcapsDD); fflush(stderr);
         m_pcapsDD->dwSize = sizeof(*m_pcapsDD);
         CheckHR(m_pDD->GetCaps(m_pcapsDD, NULL));
+        fprintf(stderr, "  [DXContext::Init] GetCaps done\n"); fflush(stderr);
+
+        fprintf(stderr, "  [DXContext::Init] Calling GetDeviceIdentifier... m_pDevID=%p\n", (void*)m_pDevID); fflush(stderr);
         CheckHR(m_pDD->GetDeviceIdentifier(m_pDevID, NULL));
+        fprintf(stderr, "  [DXContext::Init] GetDeviceIdentifier done\n"); fflush(stderr);
 
         sprintf(g_CardDetails, "DXContext::Init - DriverInfo - \"%s\" - \"%s\", Vendor: %d, Device: %d, SubSys: %d, Rev: %d, Product: %d, Version: %d, SubVersion: %d, Build: %d\n",
                 m_pDevID->szDriver, m_pDevID->szDescription,
@@ -649,6 +710,7 @@ bool DXContext::Init(HWND hWnd, int nWidth, int nHeight, int nDepth, bool bFulls
                 HIWORD(m_pDevID->liDriverVersion.HighPart), LOWORD(m_pDevID->liDriverVersion.HighPart),
                 HIWORD(m_pDevID->liDriverVersion.LowPart), LOWORD(m_pDevID->liDriverVersion.LowPart)); // JB 010215
         MonoPrint("%s", g_CardDetails);  // JB 010215
+        fprintf(stderr, "  [DXContext::Init] %s", g_CardDetails); fflush(stderr);
 
         DWORD m_dwCoopFlags = NULL;
         m_dwCoopFlags or_eq DDSCL_FPUPRESERVE; // OW FIXME: check if this can be eliminated by eliminating ALL controlfp calls in all files
@@ -658,9 +720,15 @@ bool DXContext::Init(HWND hWnd, int nWidth, int nHeight, int nDepth, bool bFulls
         if (bFullscreen) m_dwCoopFlags or_eq DDSCL_EXCLUSIVE bitor DDSCL_FULLSCREEN bitor DDSCL_ALLOWREBOOT;
         else m_dwCoopFlags or_eq DDSCL_NORMAL;
 
+        fprintf(stderr, "  [DXContext::Init] Calling SetCooperativeLevel with flags=0x%x...\n", m_dwCoopFlags); fflush(stderr);
         CheckHR(m_pDD->SetCooperativeLevel(m_hWnd, m_dwCoopFlags));
+        fprintf(stderr, "  [DXContext::Init] SetCooperativeLevel done\n"); fflush(stderr);
 
-        if (bFullscreen) CheckHR(m_pDD->SetDisplayMode(nWidth, nHeight, nDepth, 0, NULL));
+        if (bFullscreen) {
+            fprintf(stderr, "  [DXContext::Init] Calling SetDisplayMode...\n"); fflush(stderr);
+            CheckHR(m_pDD->SetDisplayMode(nWidth, nHeight, nDepth, 0, NULL));
+            fprintf(stderr, "  [DXContext::Init] SetDisplayMode done\n"); fflush(stderr);
+        }
 
         /*
          // Vendor specific workarounds
@@ -687,11 +755,13 @@ bool DXContext::Init(HWND hWnd, int nWidth, int nHeight, int nDepth, bool bFulls
         // }
         //JAM
 
+        fprintf(stderr, "  [DXContext::Init] Complete!\n"); fflush(stderr);
         return true;
     }
 
     catch (_com_error e)
     {
+        fprintf(stderr, "  [DXContext::Init] Exception: 0x%X\n", e.Error()); fflush(stderr);
         MonoPrint("DXContext::DD_Init - Error 0x%X\n", e.Error());
         return false;
     }
@@ -706,16 +776,44 @@ bool DXContext::SetRenderTarget(IDirectDrawSurface7 *pRenderTarget)
     {
         if ( not m_pD3DD)
         {
+#ifdef FF_LINUX
+            // On Linux, validate pointers before use to avoid crashes from corrupt state
+            if (!m_pDD || !pRenderTarget) {
+                fprintf(stderr, "[SetRenderTarget] ERROR: m_pDD=%p pRenderTarget=%p (NULL or invalid)\n",
+                        (void*)m_pDD, (void*)pRenderTarget);
+                fflush(stderr);
+                return false;
+            }
+#endif
             // Check the display mode, and
             DDSURFACEDESC2 ddsd_disp;
             ZeroMemory(&ddsd_disp, sizeof(ddsd_disp));
             ddsd_disp.dwSize = sizeof(ddsd_disp);
+#ifdef FF_LINUX
+            // On Linux, we know the display mode from SDL initialization - assume 32-bit
+            // This avoids potential issues with the compat layer's GetDisplayMode
+            ddsd_disp.ddpfPixelFormat.dwRGBBitCount = 32;
+#else
             CheckHR(m_pDD->GetDisplayMode(&ddsd_disp));
+#endif
 
             if (ddsd_disp.ddpfPixelFormat.dwRGBBitCount <= 8) // 8 Bit display unsupported
                 throw _com_error(DDERR_INVALIDMODE);
 
+#ifdef FF_LINUX
+            // On Linux, the m_pDD pointer may be corrupt by the time SetRenderTarget is called
+            // during sim mode entry (possibly due to threading or memory layout issues).
+            // Use our compat layer's direct creation functions instead of going through m_pDD.
+            fprintf(stderr, "[SetRenderTarget] Linux: Creating D3D7 interface directly\n"); fflush(stderr);
+            m_pD3D = FF_CreateDirect3D7();
+            if (!m_pD3D) {
+                fprintf(stderr, "[SetRenderTarget] ERROR: FF_CreateDirect3D7 failed\n"); fflush(stderr);
+                throw _com_error(DDERR_GENERIC);
+            }
+            fprintf(stderr, "[SetRenderTarget] Linux: m_pD3D=%p\n", (void*)m_pD3D); fflush(stderr);
+#else
             CheckHR(m_pDD->QueryInterface(IID_IDirect3D7, (void **) &m_pD3D));
+#endif
 
 
             // RV - RED - VISTA FIX, seems Vista is returning false to the check for zBuffer availability
@@ -728,15 +826,37 @@ bool DXContext::SetRenderTarget(IDirectDrawSurface7 *pRenderTarget)
             ZeroMemory(&ddscaps, sizeof(ddscaps));
             ddscaps.dwCaps = DDSCAPS_ZBUFFER;
 
+#ifdef FF_LINUX
+            // On Linux, we manage Z-buffers through OpenGL, not attached surfaces
+            // Skip the GetAttachedSurface call and go directly to AttachDepthBuffer
+            AttachDepthBuffer(pRenderTarget);
+#else
             if (FAILED(pRenderTarget->GetAttachedSurface(&ddscaps, &pDDSZB)))
                 AttachDepthBuffer(pRenderTarget);
+#endif
 
             /* }
 
              else MonoPrint("DXContext::AttachDepthBuffer() - Warning: No Z-Buffer support \n");*/
 
+#ifdef FF_LINUX
+            // On Linux, use our compat layer to create the D3D device directly
+            fprintf(stderr, "[SetRenderTarget] Linux: Creating D3D device directly, pRenderTarget=%p\n", (void*)pRenderTarget); fflush(stderr);
+            m_pD3DD = FF_CreateDirect3DDevice7(m_pD3D, pRenderTarget);
+            if (!m_pD3DD) {
+                fprintf(stderr, "[SetRenderTarget] ERROR: FF_CreateDirect3DDevice7 failed\n"); fflush(stderr);
+                throw _com_error(DDERR_GENERIC);
+            }
+            fprintf(stderr, "[SetRenderTarget] Linux: m_pD3DD=%p\n", (void*)m_pD3DD); fflush(stderr);
+
+            // GetCaps and SetRenderState are handled by our compat layer's stub implementations
+            if (m_pD3DD->GetCaps(m_pD3DHWDeviceDesc) != DD_OK) {
+                fprintf(stderr, "[SetRenderTarget] Warning: GetCaps returned error (continuing anyway)\n"); fflush(stderr);
+            }
+#else
             CheckHR(m_pD3D->CreateDevice(m_guidD3D, pRenderTarget, &m_pD3DD));
             CheckHR(m_pD3DD->GetCaps(m_pD3DHWDeviceDesc));
+#endif
             CheckHR(m_pD3DD->SetRenderState(D3DRENDERSTATE_ZENABLE, D3DZB_TRUE));
 
             CheckCaps();
@@ -758,7 +878,7 @@ bool DXContext::SetRenderTarget(IDirectDrawSurface7 *pRenderTarget)
             //JAM 17Dec03
             IDirectDrawSurface7Ptr pDDS;
 
-            if (FAILED(m_pD3DD->GetRenderTarget(&pDDS)) or pDDS.GetInterfacePtr() not_eq pRenderTarget)
+            if (FAILED(m_pD3DD->GetRenderTarget(&pDDS)) or pDDS not_eq pRenderTarget)
             {
                 IDirectDrawSurface7Ptr pRenderTargetOld;
                 CheckHR(m_pD3DD->GetRenderTarget(&pRenderTargetOld));
@@ -820,6 +940,15 @@ void DXContext::AttachDepthBuffer(IDirectDrawSurface7 *p)
 {
     //JAM 25Jul03
     //return;
+
+#ifdef FF_LINUX
+    // On Linux with OpenGL, depth buffers are managed automatically by the GL context.
+    // We don't need to create a DirectDraw Z-buffer surface - OpenGL handles this.
+    // Skip the entire function to avoid using the corrupt m_pDD pointer.
+    (void)p;  // Suppress unused parameter warning
+    fprintf(stderr, "[AttachDepthBuffer] Linux: Skipping - OpenGL manages depth buffers\n"); fflush(stderr);
+    return;
+#endif
 
     // Check the display mode, and
     DDSURFACEDESC2 ddsd_disp;

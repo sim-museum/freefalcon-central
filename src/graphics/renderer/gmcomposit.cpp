@@ -8,11 +8,11 @@
 \***************************************************************************/
 #include <math.h>
 #include "Edge.h"
-#include "GMRadar.h"
-#include "GMComposit.h"
-#include "Falclib/include/dispcfg.h"
-#include "FalcLib/include/playerop.h"
-#include "FalcLib/include/dispopts.h"
+#include "gmradar.h"
+#include "gmcomposit.h"
+#include "falclib/include/dispcfg.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
 
 //MI
 extern bool g_bRealisticAvionics;
@@ -60,14 +60,14 @@ static inline void Intersect(TwoDVertex *v1, TwoDVertex *v2, TwoDVertex *c, floa
 static int ClipToBeamAndLimits(void);
 
 // Used to add random noise to the radar images
-static int random;
+static int randSeed;
 static inline BYTE Noise(int input)
 {
     // return input;
 
-    random = random * 214013L + 2531011L; // Stolen from C Runtime RAND() function
+    randSeed = randSeed * 214013L + 2531011L; // Stolen from C Runtime RAND() function
 
-    input = input + ((random >> 16) bitand 0x3F);
+    input = input + ((randSeed >> 16) bitand 0x3F);
 
     // Gee, I sure whould like to get rid of this if...
     return (BYTE)min(input, 0xFF);
@@ -142,7 +142,7 @@ void RenderGMComposite::Setup(ImageBuffer *output, void(*tgtDrawCallback)(void*,
         radar.Setup(m_pRenderBuffer);
         // and now we are using a back door to make it actually use the primary surface (geez, ugly shit)
         IDirectDrawSurface7 *lpDDSBack = m_pRenderTarget->targetSurface();
-        radar.context.NewImageBuffer((UInt) lpDDSBack);
+        radar.context.NewImageBuffer(lpDDSBack);
     }
 
     paletteHandle = new PaletteHandle(context.m_pCtxDX->m_pDD, 32, 256);

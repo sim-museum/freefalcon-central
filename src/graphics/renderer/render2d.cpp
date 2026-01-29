@@ -8,11 +8,11 @@
 #include <cISO646>
 #include <math.h>
 #include "falclib/include/debuggr.h"
-#include "Image.h"
-#include "Device.h"
-#include "Render2D.h"
+#include "image.h"
+#include "device.h"
+#include "render2d.h"
 #include "GraphicsRes.h"
-#include "Tex.h"
+#include "tex.h"
 #include "GraphicsRes.h"
 #include "falclib/include/dispopts.h" //Wombat778 12-12-2003
 
@@ -149,7 +149,7 @@ void Render2D::SetImageBuffer(ImageBuffer *imageBuffer)
 {
     // Remember who our new image buffer is, and tell MPR about the change
     image = imageBuffer;
-    context.NewImageBuffer((DWORD)imageBuffer->targetSurface());
+    context.NewImageBuffer(imageBuffer->targetSurface());
 
     // This shouldn't be required, but _might_ be
     // context.InvalidateState();

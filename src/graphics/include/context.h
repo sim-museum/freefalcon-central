@@ -27,15 +27,16 @@ extern  "C" {
 #endif
 
 #ifndef _SHI__INT_H_
+#include <stdint.h>
     typedef unsigned int        UInt;
-    typedef unsigned char       UInt8;
-    typedef unsigned short      UInt16;
-    typedef unsigned long       UInt32;
+    typedef uint8_t             UInt8;
+    typedef uint16_t            UInt16;
+    typedef uint32_t            UInt32;  // Use fixed-width type for 64-bit compatibility
 
     typedef signed   int        Int;
-    typedef signed   char       Int8;
-    typedef signed   short      Int16;
-    typedef signed   long       Int32;
+    typedef int8_t              Int8;
+    typedef int16_t             Int16;
+    typedef int32_t             Int32;   // Use fixed-width type for 64-bit compatibility
 #endif
 
     typedef UInt(*DWProc_t)();
@@ -66,7 +67,7 @@ extern  "C" {
     } MPRVtxTexClr_t;
     //END OF SPECIAL CARE SECTION
 
-    typedef enum MPRSurfaceType
+    typedef enum MPRSurfaceType : int
     {
         SystemMem, VideoMem, // Valid for front or back buffer specifier
         Primary,  // Valid for front buffer specifier only
@@ -688,7 +689,7 @@ extern  "C" {
 
         BOOL Setup(ImageBuffer *pIB, DXContext *c);
         void Cleanup(void);
-        void NewImageBuffer(UInt lpDDSBack);
+        void NewImageBuffer(IDirectDrawSurface7* lpDDSBack);
 
         void SetView(LPD3DMATRIX l_pMV);
         void SetWorld(LPD3DMATRIX l_pMW);

@@ -1,6 +1,6 @@
-#include "Graphics/Include/canvas3d.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/canvas3d.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/renderow.h"
 #include "stdhdr.h"
 #include "soundfx.h"
 #include "fsound.h"
@@ -14,19 +14,19 @@
 #include "mfd.h"
 #include "airframe.h"
 #include "otwdrive.h"
-#include "Graphics/Include/tod.h"
-#include "flightData.h"
+#include "graphics/include/tod.h"
+#include "flightdata.h"
 #include "vdial.h"
 #include "fack.h"
 #include "dofsnswitches.h"
 #include "sinput.h" //Wombat778 10-10-2003  Added for 3d clickable cockpit
 #include "commands.h" //Wombat778 10-10-2003  Added for 3d clickable cockpit
-#include "FakeRand.h"
+#include "fakerand.h"
 #include "cphsi.h"
 
 extern bool g_bUse_DX_Engine; // COBRA - RED
 
-#include "TrackIR.h" // Retro 24Dez2004
+#include "trackir.h" // Retro 24Dez2004
 extern bool g_bEnableTrackIR; // Retro 24Dez2004
 extern bool g_bTrackIRon; // Retro 24Dez2004
 extern bool g_bUse6DOFTir; // Retro 24Dez2004
@@ -938,6 +938,13 @@ OTWDriverClass::VCock_Init(int eCPVisType, TCHAR* eCPName, TCHAR* eCPNameNCTR)
     pcockpitDataFile = CP_OPEN(strCPFile, "r");
 
     F4Assert(pcockpitDataFile); //Error: Couldn't open file
+#ifdef FF_LINUX
+    if (!pcockpitDataFile) {
+        fprintf(stderr, "[VCock_Init] ERROR: Failed to open cockpit file: %s\n", strCPFile);
+        fflush(stderr);
+        return false;  // Can't continue without cockpit data
+    }
+#endif
     DebugLineNum = 0;
 
     while ( not quitFlag)

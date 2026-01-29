@@ -6,35 +6,39 @@
     //JAM 06Oct03 - Begin Major Rewrite
 \***************************************************************************/
 #include "stdafx.h"
-#include "ImageBuf.h"
+#include "imagebuf.h"
 #include "context.h"
 #include "polylib.h"
-#include "StateStack.h"
+#include "statestack.h"
 #include "render3d.h"
 #include "alloc.h"
 #include "radix.h"
 #include "graphics/include/texbank.h"
 #include "graphics/include/fartex.h"
 #include "graphics/include/terrtex.h"
-#include "FalcLib/include/playerop.h"
-#include "FalcLib/include/dispopts.h"
-#include "Graphics/Include/TOD.h"
-#include "Sim/Include/otwdrive.h"
-#include "RealWeather.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
+#include "graphics/include/tod.h"
+#include "sim/include/otwdrive.h"
+#include "realweather.h"
 
 
 extern DWORD p3DpitHilite; // Cobra - 3D pit high night lighting color
 extern DWORD p3DpitLolite; // Cobra - 3D pit low night lighting color
 
 
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "graphics/dxengine/dxengine.h"
+#include "graphics/dxengine/dxvbmanager.h"
 extern bool g_bUse_DX_Engine;
 
 extern bool g_bSlowButSafe;
 extern float g_fMipLodBias;
 
+#ifdef _WIN32
 #define INT3 _asm {int 3}
+#else
+#define INT3 __builtin_trap()
+#endif
 
 #ifdef _DEBUG
 
@@ -166,7 +170,7 @@ BOOL ContextMPR::Setup(ImageBuffer *pIB, DXContext *c)
 
         m_pIB = pIB;
         IDirectDrawSurface7 *lpDDSBack = pIB->targetSurface();
-        NewImageBuffer((UInt)lpDDSBack);
+        NewImageBuffer(lpDDSBack);
 
         m_pDD = m_pCtxDX->m_pDD;
         m_pD3DD = m_pCtxDX->m_pD3DD;
@@ -318,26 +322,33 @@ void ContextMPR::Cleanup()
 #endif
 }
 
-void ContextMPR::NewImageBuffer(UInt lpDDSBack)
+void ContextMPR::NewImageBuffer(IDirectDrawSurface7* lpDDSBack)
 {
 #ifdef _CONTEXT_TRACE_ALL
-    MonoPrint("ContextMPR::NewImageBuffer(0x%X)\n", lpDDSBack);
+    MonoPrint("ContextMPR::NewImageBuffer(0x%lX)\n", (unsigned long)(uintptr_t)lpDDSBack);
 #endif
 
     if (m_pRenderTarget)
         m_pRenderTarget = NULL;
 
-    m_pRenderTarget = (IDirectDrawSurface7 *)lpDDSBack;
+    m_pRenderTarget = lpDDSBack;
 
     // Some drivers (like the 3.68 detonators) implicitly create Z buffers
     if (m_pRenderTarget)
     {
+#ifdef FF_LINUX
+        // On Linux/OpenGL, we manage Z-buffers ourselves. The compat layer's
+        // DirectDraw surfaces don't support GetAttachedSurface for Z-buffers.
+        // The Z-buffer is managed by OpenGL when we configure the framebuffer.
+        m_bRenderTargetHasZBuffer = FALSE;
+#else
         IDirectDrawSurface7Ptr pDDS;
 
         DDSCAPS2 ddscaps;
         ZeroMemory(&ddscaps, sizeof(ddscaps));
         ddscaps.dwCaps = DDSCAPS_ZBUFFER;
         m_bRenderTargetHasZBuffer = SUCCEEDED(m_pRenderTarget->GetAttachedSurface(&ddscaps, &pDDS));
+#endif
     }
 }
 
@@ -3975,7 +3986,10 @@ void ContextMPR::Stats::StartBatch()
 
 void ContextMPR::Stats::Primitive(DWORD dwType, DWORD dwNumVtx)
 {
-    arrPrimitives[dwType - 1]++;
+    // Safety check: dwType must be >= 1 to prevent array underflow
+    if (dwType > 0 && dwType <= sizeof(arrPrimitives)/sizeof(arrPrimitives[0])) {
+        arrPrimitives[dwType - 1]++;
+    }
     dwTotalPrimitives++;
     dwCurPrimCountPerSecond++;
     dwCurVtxCountPerSecond += dwNumVtx;
