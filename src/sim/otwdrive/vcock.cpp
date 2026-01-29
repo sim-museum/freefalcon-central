@@ -3667,59 +3667,56 @@ OTWDriverClass::Button3D_Init(int eCPVisType, TCHAR* eCPName, TCHAR* eCPNameNCTR
     //Wombat778 10-15-2003 Replaced the findcockpit call with a sequence that should mean that a button file only loads if it is in
     //the same folder as the 3d cockpit file.  This should solve the problem of an f-16 button file with another planes 3d pit.
 
+#ifdef FF_LINUX
+    #define VC_PATH_SEP "/"
+#else
+    #define VC_PATH_SEP "\\"
+#endif
+
     if (eCPVisType == MapVisId(VIS_F16C))
         // RV - Biker
-        //sprintf(strCPFile, "%s%s", FalconCockpitThrDirectory, buttonfile);
-        sprintf(strCPFile, "%s\\%s", FalconCockpitThrDirectory, buttonfile);
+        sprintf(strCPFile, "%s" VC_PATH_SEP "%s", FalconCockpitThrDirectory, buttonfile);
     else
     {
         // RV - Biker
-        //sprintf(strCPFile, "%s%d\\%s", FalconCockpitThrDirectory, MapVisId(eCPVisType), vcockfile);
-        sprintf(strCPFile, "%s\\%d\\%s", FalconCockpitThrDirectory, MapVisId(eCPVisType), vcockfile);
+        sprintf(strCPFile, "%s" VC_PATH_SEP "%d" VC_PATH_SEP "%s", FalconCockpitThrDirectory, MapVisId(eCPVisType), vcockfile);
 
         // RV - Biker - No more res manager
-        //if(ResExistFile(strCPFile))
         if (FileExists(strCPFile))
             // RV - Biker
-            //sprintf(strCPFile, "%s%d\\%s", FalconCockpitThrDirectory, MapVisId(eCPVisType), buttonfile);
-            sprintf(strCPFile, "%s\\%d\\%s", FalconCockpitThrDirectory, MapVisId(eCPVisType), buttonfile);
+            sprintf(strCPFile, "%s" VC_PATH_SEP "%d" VC_PATH_SEP "%s", FalconCockpitThrDirectory, MapVisId(eCPVisType), buttonfile);
         else
         {
             std::string name = RemoveInvalidChars(string(eCPName, 15));
 
             // RV - Biker
-            //sprintf(strCPFile, "%s%s\\%s", FalconCockpitThrDirectory, name.c_str(), vcockfile);
-            sprintf(strCPFile, "%s\\%s\\%s", FalconCockpitThrDirectory, name.c_str(), vcockfile);
+            sprintf(strCPFile, "%s" VC_PATH_SEP "%s" VC_PATH_SEP "%s", FalconCockpitThrDirectory, name.c_str(), vcockfile);
 
             // RV - Biker - No more res manager
-            //if(ResExistFile(strCPFile))
             if (FileExists(strCPFile))
                 // RV - Biker
-                //sprintf(strCPFile, "%s%s\\%s", FalconCockpitThrDirectory, name.c_str(), buttonfile);
-                sprintf(strCPFile, "%s\\%s\\%s", FalconCockpitThrDirectory, name.c_str(), buttonfile);
+                sprintf(strCPFile, "%s" VC_PATH_SEP "%s" VC_PATH_SEP "%s", FalconCockpitThrDirectory, name.c_str(), buttonfile);
             else
             {
                 std::string nameNCTR = RemoveInvalidChars(string(eCPNameNCTR, 5));
                 // RV - Biker
-                //sprintf(strCPFile, "%s%s\\%s", FalconCockpitThrDirectory, nameNCTR.c_str(), vcockfile);
-                sprintf(strCPFile, "%s\\%s\\%s", FalconCockpitThrDirectory, nameNCTR.c_str(), vcockfile);
+                sprintf(strCPFile, "%s" VC_PATH_SEP "%s" VC_PATH_SEP "%s", FalconCockpitThrDirectory, nameNCTR.c_str(), vcockfile);
 
                 // RV - Biker - No more res manager
-                //if(ResExistFile(strCPFile))
                 if (FileExists(strCPFile))
                     // RV - Biker
-                    //sprintf(strCPFile, "%s%s\\%s", FalconCockpitThrDirectory, nameNCTR.c_str(), buttonfile);
-                    sprintf(strCPFile, "%s\\%s\\%s", FalconCockpitThrDirectory, nameNCTR.c_str(), buttonfile);
+                    sprintf(strCPFile, "%s" VC_PATH_SEP "%s" VC_PATH_SEP "%s", FalconCockpitThrDirectory, nameNCTR.c_str(), buttonfile);
                 else
                 {
                     // F16C fallback
                     // RV - Biker - Here read from default cockpit dir
-                    //sprintf(strCPFile, "%s%s", FalconCockpitThrDirectory, buttonfile);
-                    sprintf(strCPFile, "%s\\%s", COCKPIT_DIR, buttonfile);
+                    sprintf(strCPFile, "%s%s", COCKPIT_DIR, buttonfile);
                 }
             }
         }
     }
+
+#undef VC_PATH_SEP
 
     Button3DDataFile = fopen(strCPFile, "r");
 

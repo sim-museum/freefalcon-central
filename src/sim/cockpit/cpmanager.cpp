@@ -3,6 +3,9 @@
 #include <tchar.h>
 #include <windows.h>
 #include <stdio.h>
+#ifdef FF_LINUX
+#include "compat/stdio_compat.h"
+#endif
 
 #include "stdhdr.h"
 #include "simdrive.h"
@@ -18,7 +21,7 @@
 #include "cpindicator.h"
 #include "cpdial.h"
 #include "icp.h"
-#include "KneeBoard.h"
+#include "kneeboard.h"
 #include "cpded.h"
 #include "cpadi.h"
 #include "cpmachasi.h"
@@ -27,10 +30,10 @@
 #include "sinput.h"
 #include "cpdigits.h"
 #include "inpfunc.h"
-#include "Graphics/Include/filemem.h"
-#include "Graphics/Include/image.h"
-#include "Graphics/Include/TimeMgr.h"
-#include "Graphics/Include/TOD.h"
+#include "graphics/include/filemem.h"
+#include "graphics/include/image.h"
+#include "graphics/include/timemgr.h"
+#include "graphics/include/tod.h"
 #include "fsound.h"
 #include "soundfx.h"
 #include "cplift.h"
@@ -39,19 +42,19 @@
 #include "f4thread.h"
 #include "cptext.h"
 #include "dispopts.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/renderow.h"
 #include "sms.h"
 #include "simweapn.h"
 #include "cpkneeview.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "datadir.h"
 #include "hud.h"
 #include "commands.h"
 #include "ui/include/logbook.h"
 #include "falcsnd/voicemanager.h"
 #include "aircrft.h"
-#include "FalcLib/include/playerop.h"
+#include "falclib/include/playerop.h"
 #include "Dofsnswitches.h"
 #include "weather.h"
 #include "falcsess.h"
@@ -77,7 +80,11 @@ extern char FalconCockpitThrDirectory[];
 // RV - Biker
 char cockpitFolder[_MAX_PATH];
 
+#ifdef FF_LINUX
+#define menudat "/menu.dat"
+#else
 #define menudat "\\menu.dat"
+#endif
 
 // This controls how often the 2D cockpit lighting is recomputed.
 static const float COCKPIT_LIGHT_CHANGE_TOLERANCE = 0.1f;
@@ -98,8 +105,8 @@ MEM_POOL gCockMemPool;
 #endif
 
 #ifdef _DEBUG
-
-// Special assert for Snqqpy
+#ifdef _MSC_VER
+// Special assert for Snqqpy - Windows version
 #define CockpitMessage(badString, area, lineNum ) \
 {                                                                 \
  char buffer[80];    \
@@ -115,6 +122,15 @@ MEM_POOL gCockMemPool;
  __asm int 3 \
  } \
 }
+#else
+// Non-Windows version
+#define CockpitMessage(badString, area, lineNum ) \
+{                                                                 \
+ char buffer[80];    \
+ sprintf( buffer, "Cockpit Error in %s at line %0d - bad string is %s", area, lineNum, badString);\
+ fprintf(stderr, "Problem: %s\n", buffer); \
+}
+#endif
 #else
 #define CockpitMessage(A,B,C)
 #endif
@@ -5942,7 +5958,12 @@ int FileExists(char *file)
 #undef fopen
 #undef fclose
 
+#ifdef FF_LINUX
+    // Use case-insensitive file lookup on Linux
+    fp = fopen_nocase(file, "r");
+#else
     fp = fopen(file, "r");
+#endif
 
     if (fp)
     {
@@ -5976,12 +5997,18 @@ int FindCockpit(
     int fallback
 )
 {
+#ifdef FF_LINUX
+    // Linux uses forward slash path separator
+    #define CP_PATH_SEP "/"
+#else
+    #define CP_PATH_SEP "\\"
+#endif
 
     // FO sfr: plane number is no more
     // try plane number
     // FRB - Make cockpits switchable with theater
     sprintf(cockpitFolder, "%s", FalconCockpitThrDirectory);
-    sprintf(strCPFile, "%s\\%d\\%s", cockpitFolder, MapVisId(eCPVisType), pCPFile);
+    sprintf(strCPFile, "%s" CP_PATH_SEP "%d" CP_PATH_SEP "%s", cockpitFolder, MapVisId(eCPVisType), pCPFile);
 
     if (FileExists(strCPFile))
     {
@@ -5994,7 +6021,7 @@ int FindCockpit(
         std::string name = RemoveInvalidChars(string(eCPName, 15));
         // RV - Biker - Make cockpits switchable with theater
         sprintf(cockpitFolder, "%s", FalconCockpitThrDirectory);
-        sprintf(strCPFile, "%s\\%s\\%s", cockpitFolder, name.c_str(), pCPFile);
+        sprintf(strCPFile, "%s" CP_PATH_SEP "%s" CP_PATH_SEP "%s", cockpitFolder, name.c_str(), pCPFile);
 
         if (FileExists(strCPFile))
         {
@@ -6008,7 +6035,7 @@ int FindCockpit(
         std::string nameNCTR = RemoveInvalidChars(string(eCPNameNCTR, 5));
         // RV - Biker - Make cockpits switchable with theater
         sprintf(cockpitFolder, "%s", FalconCockpitThrDirectory);
-        sprintf(strCPFile, "%s\\%s\\%s", cockpitFolder, nameNCTR.c_str(), pCPFile);
+        sprintf(strCPFile, "%s" CP_PATH_SEP "%s" CP_PATH_SEP "%s", cockpitFolder, nameNCTR.c_str(), pCPFile);
 
         if (FileExists(strCPFile))
         {
@@ -6021,7 +6048,7 @@ int FindCockpit(
     {
         // FRB - Make cockpits switchable with theater
         sprintf(cockpitFolder, "%s", FalconCockpitThrDirectory);
-        sprintf(strCPFile, "%s\\%s", cockpitFolder, pCPFile);
+        sprintf(strCPFile, "%s" CP_PATH_SEP "%s", cockpitFolder, pCPFile);
 
         if (FileExists(strCPFile))
         {
@@ -6038,6 +6065,8 @@ int FindCockpit(
     }
     else
         return 0;
+
+#undef CP_PATH_SEP
 }
 
 int FindCockpitResolution(
