@@ -961,6 +961,10 @@ OTWDriverClass::VCock_Init(int eCPVisType, TCHAR* eCPName, TCHAR* eCPNameNCTR)
         plinePtr = plineBuffer;
         ptoken = FindToken(&plinePtr, pseparators);
 
+        // Skip if token is NULL (end of line or parsing issue)
+        if (ptoken == NULL)
+            continue;
+
         // ASSO:
         if ( not strcmpi(ptoken, PROP_3D_RTTTARGET))    // the rttTarget :
         {

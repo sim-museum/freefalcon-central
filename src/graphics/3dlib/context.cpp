@@ -2106,6 +2106,12 @@ void ContextMPR::RestoreState(GLint state)
         {
             FlushVB();
 
+#ifdef FF_LINUX
+            // Safety check: device may not be initialized if setup failed
+            if (!m_pD3DD) {
+                return;  // Can't apply state without a valid device
+            }
+#endif
             HRESULT hr = m_pD3DD->ApplyStateBlock(StateTable[currentState]);
             ShiAssert(SUCCEEDED(hr));
         }
