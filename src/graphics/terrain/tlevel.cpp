@@ -14,16 +14,16 @@
 #include <io.h>
 #include <fcntl.h>
 #include <math.h>
-#include "TimeMgr.h"
-#include "TOD.h"
-#include "TerrTex.h"
-#include "FarTex.h"
-#include "Tmap.h"
-#include "Tlevel.h"
-#include "Tblock.h"
-#include "Tpost.h"
-#include "TdskPost.h"
-#include "Falclib/Include/IsBad.h"
+#include "timemgr.h"
+#include "tod.h"
+#include "terrtex.h"
+#include "fartex.h"
+#include "tmap.h"
+#include "tlevel.h"
+#include "tblock.h"
+#include "tpost.h"
+#include "tdskpost.h"
+#include "falclib/include/isbad.h"
 
 //#define DEBUG_TLEVEL
 extern bool g_bUseMappedFiles;
@@ -72,13 +72,43 @@ void TLevel::Setup(int level, int width, int height, const char *mapPath)
     }
 
     // Open the block offset file for this level
+#ifdef FF_LINUX
+    sprintf(filename, "%s/Theater.o%0d", mapPath, level);
+    // Use case-insensitive file lookup for Linux
+    extern int open_nocase(const char* filepath, int flags, int mode);
+    offsetFile = open_nocase(filename, O_RDONLY, 0);
+#else
     sprintf(filename, "%s\\Theater.o%0d", mapPath, level);
-
     offsetFile = open(filename, O_BINARY bitor O_RDONLY , 0);
+#endif
 
     if (offsetFile >= 0)
     {
+#ifdef FF_LINUX
+        // On 64-bit Linux, the offset file contains 4-byte DWORD offsets
+        // but tBlockAddress uses a pointer (8 bytes). Read into temp buffer
+        // and expand to the blocks array.
+        size_t numEntries = blocks_wide * blocks_high;
+        DWORD* tempOffsets = new DWORD[numEntries];
+        bytes = read(offsetFile, tempOffsets, sizeof(DWORD) * numEntries);
 
+        if (bytes != (ssize_t)(sizeof(DWORD) * numEntries))
+        {
+            char message[120];
+            sprintf(message, "%s:  Couldn't read block offset data", strerror(errno));
+            ShiError(message);
+            delete[] tempOffsets;
+        }
+        else
+        {
+            // Copy 4-byte offsets to the tBlockAddress union
+            for (size_t i = 0; i < numEntries; i++)
+            {
+                blocks[i].offset = tempOffsets[i];
+            }
+            delete[] tempOffsets;
+        }
+#else
         // Read the file offsets into the post pointer array
         bytes = read(offsetFile, blocks, sizeof(TBlock*)*blocks_wide * blocks_high);
 
@@ -88,7 +118,7 @@ void TLevel::Setup(int level, int width, int height, const char *mapPath)
             sprintf(message, "%s:  Couldn't read block offset data", strerror(errno));
             ShiError(message);
         }
-
+#endif
         close(offsetFile);
 
     }
@@ -118,7 +148,11 @@ void TLevel::Setup(int level, int width, int height, const char *mapPath)
 
 
     // Open the post file for this level
+#ifdef FF_LINUX
+    sprintf(filename, "%s/Theater.l%0d", mapPath, level);
+#else
     sprintf(filename, "%s\\Theater.l%0d", mapPath, level);
+#endif
 
     if (postFileMap.Open(filename, FALSE, not g_bUseMappedFiles) == false)
         return;

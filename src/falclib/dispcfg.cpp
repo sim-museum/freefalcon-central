@@ -1,11 +1,12 @@
 #include "dispcfg.h"
 #include "fsound.h"
 #include "f4find.h"
-#include "Graphics/Include/setup.h"
+#include "graphics/include/setup.h"
 #include "falcuser.h"
-#include "FalcLib/include/playerop.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
 #include <commctrl.h>
+#include <cstdio>
 
 extern bool g_bForceSoftwareGUI;
 void TheaterReload(char *theater, char *loddata);
@@ -66,8 +67,12 @@ void FalconDisplayConfiguration::Setup(int languageNum)
 {
     WNDCLASS wc;
 
+    fprintf(stderr, "  [FalconDisplay::Setup] Starting DeviceIndependentGraphicsSetup...\n");
+
     // Setup the graphics databases - M.N. changed to Falcon3DDataDir for theater switching
     DeviceIndependentGraphicsSetup(FalconTerrainDataDir, Falcon3DDataDir, FalconMiscTexDataDir);
+
+    fprintf(stderr, "  [FalconDisplay::Setup] DeviceIndependentGraphicsSetup done\n");
 
     // set up and register window class
     wc.style = CS_HREDRAW bitor CS_VREDRAW bitor CS_OWNDC bitor CS_NOCLOSE;
@@ -82,8 +87,10 @@ void FalconDisplayConfiguration::Setup(int languageNum)
     wc.lpszMenuName = NULL;
     wc.lpszClassName = "FalconDisplay";
 
+    fprintf(stderr, "  [FalconDisplay::Setup] Registering window class...\n");
     // Register this class.
     RegisterClass(&wc);
+    fprintf(stderr, "  [FalconDisplay::Setup] RegisterClass done, calling MakeWindow...\n");
 #if 0
 
     // Choose an appropriate window style
@@ -125,9 +132,12 @@ void FalconDisplayConfiguration::Setup(int languageNum)
     // Display the new rendering window
     ShowWindow(appWin, SW_SHOW);
 #endif
+    fprintf(stderr, "  [FalconDisplay::Setup] Calling MakeWindow...\n");
     MakeWindow();
+    fprintf(stderr, "  [FalconDisplay::Setup] MakeWindow done, calling devmgr.Setup...\n");
     // Set up the display device manager
     devmgr.Setup(languageNum);
+    fprintf(stderr, "  [FalconDisplay::Setup] devmgr.Setup done\n");
     //   TheaterReload(FalconTerrainDataDir); // JPO test if this works.
 }
 
@@ -140,6 +150,16 @@ void FalconDisplayConfiguration::Cleanup(void)
 
 void FalconDisplayConfiguration::MakeWindow(void)
 {
+#ifdef FF_LINUX
+    // On Linux, the SDL window is already created by main_linux.cpp
+    // Just ensure appWin is set and skip window creation
+    if (appWin) {
+        // Window already exists (SDL window), nothing to do
+        return;
+    }
+    // If appWin is not set, fall through to create a window (shouldn't happen)
+#endif
+
     RECT rect;
 
     // Choose an appropriate window style
@@ -199,13 +219,15 @@ void FalconDisplayConfiguration::MakeWindow(void)
 }
 
 // OW
+#ifndef FF_LINUX
 #define _FORCE_MAIN_THREAD
+#endif
 
 #ifdef _FORCE_MAIN_THREAD
 void FalconDisplayConfiguration::EnterMode(DisplayMode newMode, int theDevice, int Driver)
 {
     // Force exectution in the main thread to avoid problems with worker threads setting directx cooperative levels (which is illegal)
-    LRESULT result = SendMessage(appWin, FM_DISP_ENTER_MODE, newMode, theDevice bitor (Driver << 16));
+    LRESULT result = SendMessageA(appWin, FM_DISP_ENTER_MODE, newMode, theDevice bitor (Driver << 16));
 }
 
 void FalconDisplayConfiguration::_EnterMode(DisplayMode newMode, int theDevice, int Driver)
@@ -292,6 +314,13 @@ void FalconDisplayConfiguration::EnterMode(DisplayMode newMode, int theDevice, i
             DisplayOptions.bRender2Texture = false;
     }
 
+    // If the device is already set up (e.g., UI mode active), clean it up first
+    // This ensures we don't fail the ShiAssert(!IsReady()) check in DisplayDevice::Setup()
+    if (theDisplayDevice.IsReady())
+    {
+        theDisplayDevice.Cleanup();
+    }
+
     theDisplayDevice.Setup(
         Driver, theDevice,
         width[newMode], height[newMode], depth[newMode],
@@ -309,7 +338,7 @@ void FalconDisplayConfiguration::EnterMode(DisplayMode newMode, int theDevice, i
 void FalconDisplayConfiguration::LeaveMode(void)
 {
     // Force exectution in the main thread to avoid problems with worker threads setting directx cooperative levels (which is illegal)
-    LRESULT result = SendMessage(appWin, FM_DISP_LEAVE_MODE, 0, 0);
+    LRESULT result = SendMessageA(appWin, FM_DISP_LEAVE_MODE, 0, 0);
 }
 
 void FalconDisplayConfiguration::_LeaveMode(void)
@@ -339,7 +368,7 @@ void FalconDisplayConfiguration::SetSimMode(int newwidth, int newheight, int new
 void FalconDisplayConfiguration::ToggleFullScreen(void)
 {
     // Force exectution in the main thread to avoid problems with worker threads setting directx cooperative levels (which is illegal)
-    LRESULT result = SendMessage(appWin, FM_DISP_TOGGLE_FULLSCREEN, 0, 0);
+    LRESULT result = SendMessageA(appWin, FM_DISP_TOGGLE_FULLSCREEN, 0, 0);
 }
 
 void FalconDisplayConfiguration::_ToggleFullScreen(void)
