@@ -11,27 +11,28 @@
 \***************************************************************************/
 //JAM 297Sep03 - Begin Major Rewrite
 #include <math.h>
+#include <cstdint>  // FF_LINUX: For uint32_t
 #include "falclib/include/debuggr.h"
-#include "TimeMgr.h"
-#include "TOD.h"
-#include "TMap.h"
+#include "timemgr.h"
+#include "tod.h"
+#include "tmap.h"
 #include "Tpost.h"
-#include "Draw2D.h"
-#include "DrawOVC.h"
-#include "ColorBank.h"
-#include "Device.h"
-#include "RViewPnt.h"
-#include "RenderOW.h"
+#include "draw2d.h"
+#include "drawovc.h"
+#include "colorbank.h"
+#include "device.h"
+#include "rviewpnt.h"
+#include "renderow.h"
 #include "falclib/include/fakerand.h"
 #include "falclib/include/mltrig.h"
-#include "FalcLib/include/playerop.h"
-#include "FalcLib/include/dispopts.h"
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
+#include "graphics/dxengine/dxengine.h"
+#include "graphics/dxengine/dxvbmanager.h"
 
 //JAM 18Nov03
-#include "RealWeather.h"
-#include "DrawParticleSys.h"
+#include "realweather.h"
+#include "drawparticlesys.h"
 
 extern float SimLibMajorFrameTime;
 
@@ -45,7 +46,7 @@ extern bool g_bEnableWeatherExtensions;
 extern float g_fCloudThicknessFactor;
 extern bool g_bFullScreenNVG;
 
-extern unsigned long    vuxRealTime;
+extern uint32_t         vuxRealTime;  // FF_LINUX: Use uint32_t for binary compat
 
 #ifdef TWO_D_MAP_AVAILABLE
 BOOL twoDmode = FALSE; // Use to control map display mode while debugging
@@ -831,12 +832,15 @@ void RenderOTW::PreLoadScene(const Tpoint *offset, const Trotation *orientation)
     // Sort the object list based on our location
     viewpoint->ResetObjectTraversal();
 
-    // Preload each possible List
-    viewpoint->ObjectsAboveRoof()->PreLoad(this);
-    viewpoint->ObjectsInTerrain()->PreLoad(this);
-    viewpoint->ObjectsBelowClouds()->PreLoad(this);
-    viewpoint->ObjectsInClouds()->PreLoad(this);
-    viewpoint->ObjectsAboveClouds()->PreLoad(this);
+    // Preload each possible List (only if viewpoint is properly initialized)
+    // FF_LINUX: Check IsReady() to avoid crash if objectLists is NULL
+    if (viewpoint->IsReady()) {
+        viewpoint->ObjectsAboveRoof()->PreLoad(this);
+        viewpoint->ObjectsInTerrain()->PreLoad(this);
+        viewpoint->ObjectsBelowClouds()->PreLoad(this);
+        viewpoint->ObjectsInClouds()->PreLoad(this);
+        viewpoint->ObjectsAboveClouds()->PreLoad(this);
+    }
 
     // ok, now fill object and texture banks
     ObjectLOD::WaitUpdates();

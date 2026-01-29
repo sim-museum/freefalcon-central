@@ -6,17 +6,18 @@
     Provides structures and definitions for 3D objects.
 \***************************************************************************/
 #include <cISO646>
+#include <cstdint>
 #include "stdafx.h"
 #include <io.h>
 #include <fcntl.h>
-#include "StateStack.h"
-#include "TexBank.h"
+#include "statestack.h"
+#include "texbank.h"
 #include "PalBank.h"
-#include "ColorBank.h"
-#include "ObjectParent.h"
-#include "falclib/include/IsBad.h"
+#include "colorbank.h"
+#include "objectparent.h"
+#include "falclib/include/isbad.h"
 
-#include "Graphics/DXEngine/DXDefines.h"
+#include "graphics/dxengine/dxdefines.h"
 extern bool g_bUse_DX_Engine;
 unsigned long DXver = 0xFEEF;
 extern int nVer;
@@ -114,22 +115,37 @@ void ObjectParent::SetupTable(char *basename)
 
 void ObjectParent::CleanupTable(void)
 {
+    fprintf(stderr, "      [ObjectParent::CleanupTable] Starting, TheObjectList=%p, TheObjectListLength=%d\n",
+            (void*)TheObjectList, TheObjectListLength); fflush(stderr);
+
     // Make sure all the parent objects are freed
+    fprintf(stderr, "      [ObjectParent::CleanupTable] FlushReferences()...\n"); fflush(stderr);
     FlushReferences();
+    fprintf(stderr, "      [ObjectParent::CleanupTable] FlushReferences() done\n"); fflush(stderr);
 
     // Free the LOD table
+    fprintf(stderr, "      [ObjectParent::CleanupTable] ObjectLOD::CleanupTable()...\n"); fflush(stderr);
     ObjectLOD::CleanupTable();
+    fprintf(stderr, "      [ObjectParent::CleanupTable] ObjectLOD::CleanupTable() done\n"); fflush(stderr);
 
     // Free the texture, palette, and color banks
+    fprintf(stderr, "      [ObjectParent::CleanupTable] TheTextureBank.Cleanup()...\n"); fflush(stderr);
     TheTextureBank.Cleanup();
+    fprintf(stderr, "      [ObjectParent::CleanupTable] ThePaletteBank.Cleanup()...\n"); fflush(stderr);
     ThePaletteBank.Cleanup();
+    fprintf(stderr, "      [ObjectParent::CleanupTable] TheColorBank.Cleanup()...\n"); fflush(stderr);
     TheColorBank.Cleanup();
+    fprintf(stderr, "      [ObjectParent::CleanupTable] Banks cleanup done\n"); fflush(stderr);
 
     // Free our array of parent objects
 #ifdef USE_SH_POOLS
     MemFreePtr(TheObjectList);
 #else
-    delete[] TheObjectList;
+    fprintf(stderr, "      [ObjectParent::CleanupTable] Deleting TheObjectList...\n"); fflush(stderr);
+    if (TheObjectList != NULL) {
+        delete[] TheObjectList;
+    }
+    fprintf(stderr, "      [ObjectParent::CleanupTable] TheObjectList deleted\n"); fflush(stderr);
 #endif
     TheObjectList = NULL;
     TheObjectListLength = 0;
@@ -293,11 +309,23 @@ void ObjectParent::ReadParentList(int file)
         {
             if (g_bUse_DX_Engine) read(file, LODName, sizeof(LODName));
 
-            result = read(file, &objParent->pLODs[i], sizeof(*objParent->pLODs));
+            // Read LODrecord data using fixed-size types to handle 32/64-bit differences
+            // The file format uses 4-byte values regardless of platform pointer size
+            struct {
+                int32_t objLOD_offset;  // This is an offset, not a pointer
+                float maxRange;
+            } fileLODRecord;
+
+            result = read(file, &fileLODRecord, sizeof(fileLODRecord));
+
+            // Store the offset temporarily as a pointer value (will be fixed up below)
+            objParent->pLODs[i].objLOD = (ObjectLOD*)(intptr_t)fileLODRecord.objLOD_offset;
+            objParent->pLODs[i].maxRange = fileLODRecord.maxRange;
+
 #ifdef DEBUG_LOD_ID
 
             // LOD ID DEBUG
-            if (g_bUse_DX_Engine) memcpy(&TheLODNames[((int)(objParent->pLODs[i].objLOD) >> 1)], LODName, sizeof(LODName));;
+            if (g_bUse_DX_Engine) memcpy(&TheLODNames[(fileLODRecord.objLOD_offset >> 1)], LODName, sizeof(LODName));;
 
 #endif
 
@@ -318,7 +346,8 @@ void ObjectParent::ReadParentList(int file)
             // Replace the offset of the LOD with a pointer into TheObjectLOD array.
             // NOTE:  We're shifting the offset right one bit to clear our special
             // marker.
-            objParent->pLODs[i].objLOD = &TheObjectLODs[((int)(objParent->pLODs[i].objLOD) >> 1) ];
+            int lodIndex = ((int)(intptr_t)(objParent->pLODs[i].objLOD) >> 1);
+            objParent->pLODs[i].objLOD = &TheObjectLODs[lodIndex];
         }
     }
 }

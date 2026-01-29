@@ -1,15 +1,15 @@
 #include "stdhdr.h"
-#include "Graphics/Include/TOD.h"
-#include "Graphics/Include/renderow.h"
-#include "Graphics/Include/RViewPnt.h"
-#include "Graphics/Include/canvas3d.h"
-#include "Graphics/Include/Drawbsp.h"
-#include "Graphics/Include/Drawgrnd.h"
-#include "Graphics/Include/draw2d.h"
-#include "Graphics/Include/TimeMgr.h"
+#include "graphics/include/tod.h"
+#include "graphics/include/renderow.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/canvas3d.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/drawgrnd.h"
+#include "graphics/include/draw2d.h"
+#include "graphics/include/timemgr.h"
 
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "graphics/dxengine/dxengine.h"
+#include "graphics/dxengine/dxvbmanager.h"
 extern bool g_bUse_DX_Engine;
 
 #include "TimerThread.h"
@@ -18,7 +18,7 @@ extern bool g_bUse_DX_Engine;
 #include "mfd.h"
 #include "playerrwr.h"
 #include "fsound.h"
-#include "soundFX.h"
+#include "soundfx.h"
 #include "cpmanager.h"
 //MI extracting Data
 #include "cphsi.h"
@@ -40,7 +40,7 @@ extern bool g_bUse_DX_Engine;
 #include "dogfight.h"
 #include "inpfunc.h"
 #include "otwdrive.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "airframe.h"
 #include "fack.h"
 #include "campwp.h"
@@ -52,8 +52,8 @@ extern bool g_bUse_DX_Engine;
 #include "dofsnswitches.h"
 #include "navsystem.h"
 #include "falclib/include/fakerand.h"
-#include "PilotInputs.h"
-#include "IvibeData.h"
+#include "pilotinputs.h"
+#include "ivibedata.h"
 
 // OW needed for restoring textures after task switch
 #include "graphics/include/texbank.h"
@@ -201,7 +201,7 @@ extern MEM_POOL gFartexMemPool;
 #endif
 
 /* Retro TrackIR stuff.. */
-#include "TrackIR.h" // Retro 26/09/03
+#include "trackir.h" // Retro 26/09/03
 extern bool g_bEnableTrackIR; // Retro 26/09/03
 extern TrackIR theTrackIRObject; // Retro 27/09/03
 extern int g_nTrackIRSampleFreq; // Retro 02/10/03
@@ -535,7 +535,7 @@ struct Mode2Cam
 const static Mode2Cam theModeTable[] =
 {
     {OTWDriverClass::ModeChase, FLY_BY_CAMERA},
-    // {OTWDriverClass::ModeChase, CHASE_CAMERA}, // theCamID doesn´t matter here..
+    // {OTWDriverClass::ModeChase, CHASE_CAMERA}, // theCamID doesnï¿½t matter here..
     {OTWDriverClass::ModeOrbit, ORBIT_CAMERA},
     {OTWDriverClass::ModeSatellite, SATELLITE_CAMERA},
     {OTWDriverClass::ModeWeapon, WEAPON_CAMERA},
@@ -621,9 +621,9 @@ void OTWDriverClass::DisplayInfoBar(void)
         strcat(tmpo, ((DrawableBSP *)otwPlatform->drawPointer)->Label());
 
         // 2 issues here:
-        // a) string could be longer as the locally allocated one (bad thing (tm)) - however that´s unlikely, see above
+        // a) string could be longer as the locally allocated one (bad thing (tm)) - however thatï¿½s unlikely, see above
         // b) string could be longer than physical screen size.. FreeFalcon then displays nothing.. also a bit suboptimal..
-        // solution for b) need to get renderer->TextWidth() working, if it is >1 then we don´t add a chunk.. or so..
+        // solution for b) need to get renderer->TextWidth() working, if it is >1 then we donï¿½t add a chunk.. or so..
         if (( not otwPlatform->IsGroundVehicle()) and ( not otwPlatform->IsBomb()))
         {
             char tmp[30];
@@ -733,7 +733,7 @@ void OTWDriverClass::DrawSubTitles(void)  // Retro 16Dec2003 (all)
                 {
                     renderer->SetColor(theLabels[i]->theColour);
                     // renderer->TextLeft(-0.95F,  (0.90F-i*0.03F), theLabels[i]->theString);
-                    // Retro 10Jan2004 - lower so that they don´t collide with LEF/TEF display
+                    // Retro 10Jan2004 - lower so that they donï¿½t collide with LEF/TEF display
                     renderer->TextLeft(-0.95F, (0.84F - i * 0.03F), theLabels[i]->theString);
                 }
 
@@ -759,7 +759,7 @@ void OTWDriverClass::DisplayFrontText(void)
     //Prof(DisplayFrontText); // Retro 15/10/03
     //Prof_update(ProfilerActive); // Retro 16/10/03
 
-    // Retro 7May2004 - for pretty screens we don´t want any 2d text on our screen
+    // Retro 7May2004 - for pretty screens we donï¿½t want any 2d text on our screen
     // See OTWDriver.h for explanation
     if (takePrettyScreenShot == EXECUTE)
     {
@@ -1593,6 +1593,11 @@ extern SIMLIB_IO_CLASS IO;   // Retro 31Dec2003
 
 void OTWDriverClass::RenderFrame()
 {
+    // FF_LINUX: Early exit if viewPoint not initialized
+    if (!viewPoint) {
+        return;
+    }
+
     int i;
     float dT;
     static int count = 0;
@@ -1624,7 +1629,7 @@ void OTWDriverClass::RenderFrame()
 
     // Retro 31Dec2003 start
     // the position here might not be the best.. has to coordinated with the g_bLookCloserFix I think..
-    // Should be coordinated with wombat´s keypresses: if this active
+    // Should be coordinated with wombatï¿½s keypresses: if this active
     // is used, then the keypresses (and maybe the 'l' key) should
     // be deactivated
     if (( not actionCameraMode) and ( not MouseMenuActive))

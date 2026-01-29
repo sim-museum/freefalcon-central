@@ -1,16 +1,16 @@
-#include "Graphics/Include/renderow.h"
-#include "Graphics/Include/drawshdw.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/draw2d.h"
-#include "Graphics/Include/drawbrdg.h"
-#include "Graphics/Include/drawrdbd.h"
-#include "Graphics/Include/drawbldg.h"
-#include "Graphics/Include/drawgrnd.h"
-#include "Graphics/Include/drawsgmt.h"
-#include "Graphics/Include/drawplat.h"
-#include "Graphics/Include/drawguys.h"
-#include "Graphics/Include/objlist.h"
-#include "Graphics/Include/RViewPnt.h"
+#include "graphics/include/renderow.h"
+#include "graphics/include/drawshdw.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/draw2d.h"
+#include "graphics/include/drawbrdg.h"
+#include "graphics/include/drawrdbd.h"
+#include "graphics/include/drawbldg.h"
+#include "graphics/include/drawgrnd.h"
+#include "graphics/include/drawsgmt.h"
+#include "graphics/include/drawplat.h"
+#include "graphics/include/drawguys.h"
+#include "graphics/include/objlist.h"
+#include "graphics/include/rviewpnt.h"
 #include "stdhdr.h"
 #include "ClassTbl.h"
 #include "Entity.h"
@@ -22,14 +22,14 @@
 #include "feature.h"
 #include "vehicle.h"
 #include "simdrive.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "campbase.h"
 #include "Ground.h"
-#include "Dogfight.h"
-#include "Team.h"
-#include "Pilot.h"
-#include "Flight.h"
-#include "ui/include/TeamData.h"
+#include "dogfight.h"
+#include "team.h"
+#include "pilot.h"
+#include "flight.h"
+#include "ui/include/teamdata.h"
 #include "msginc/sendchatmessage.h"
 #include "fsound.h"
 #include "soundfx.h"
@@ -84,6 +84,9 @@ void OTWDriverClass::CreateVisualObject(SimBaseClass* theObject, int visType, fl
 
 void OTWDriverClass::InsertObjectIntoDrawList(SimBaseClass* theObject)
 {
+    // FF_LINUX: Add NULL check for viewPoint
+    if (!viewPoint) return;
+
     if (theObject->drawPointer and not theObject->drawPointer->InDisplayList())
     {
         // KCK: Let's try just going ahead and adding these to the list directly -

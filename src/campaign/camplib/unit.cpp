@@ -7,11 +7,12 @@
 #include <io.h>
 #include <stdlib.h>
 #include <math.h>
+#include <cstdint>  // FF_LINUX: For int32_t
 
 
 #include "Unit.h"
 #include "CmpGlobl.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "CampCell.h"
 #include "CampTerr.h"
 #include "ASearch.h"
@@ -37,7 +38,7 @@
 #include "AIInput.h"
 #include "CUIEvent.h"
 #include "Weather.h"
-#include "PtData.h"
+#include "ptdata.h"
 #include "CmpClass.h"
 #include "MsgInc/AWACSMsg.h"
 #include "MsgInc/CampDataMsg.h"
@@ -55,7 +56,7 @@
 #include "FalcSess.h"
 #include "SimDrive.h"
 #include "classtbl.h"
-#include "Camp2Sim.h"
+#include "camp2sim.h"
 #include "simdrive.h"
 #include "otwdrive.h"
 #include "simmover.h"
@@ -64,25 +65,25 @@
 #include "Guns.h"
 #include "CmpRadar.h"
 #include "graphics/include/drawpnt.h"
-#include "Graphics/Include/TMap.h"
-#include "playerOp.h"
+#include "graphics/include/tmap.h"
+#include "playerop.h"
 #include "Dogfight.h"
 #include "atcbrain.h"
 #include "dirtybits.h"
 #include "GameMgr.h"
 #include "digi.h"
-#include "f4Version.h"
+#include "F4Version.h"
 #include "debuggr.h"
 #include "uiwin.h"
 #include "aircrft.h"
-#include "radarData.h"
+#include "radardata.h"
 #include "vu2/src/vu_priv.h"
 #include "vucoll.h"
-#include "Falclib/Include/IsBad.h"
+#include "falclib/include/isbad.h"
 /* 2001-03-15 S.G. 'CanDetect' */
 #include "geometry.h"
 /* 2001-03-20 S.G. 'CanDetect' */
-#include "sim/include/radarData.h"
+#include "sim/include/radardata.h"
 /* 2001-04-03 S.G. 'CanDetect' */
 #include "flight.h"
 #include "missile.h" // 2002-03-08 S.G.
@@ -286,6 +287,15 @@ UnitClass::UnitClass(ushort type, VU_ID_NUMBER id) : CampBaseClass(type, id)
 
 UnitClass::UnitClass(VU_BYTE **stream, long *rem) : CampBaseClass(stream, rem)
 {
+    static int unitCtorCount = 0;
+    unitCtorCount++;
+    bool doDebugUnit = (unitCtorCount <= 3);
+
+    if (doDebugUnit) {
+        fprintf(stderr, "[FF_LINUX] UnitClass ctor[%d] entry after CampBase: rem=%ld\n",
+                unitCtorCount, *rem);
+    }
+
 #if HOTSPOT_FIX
     update_interval = 0;
 #endif
@@ -387,6 +397,11 @@ UnitClass::UnitClass(VU_BYTE **stream, long *rem) : CampBaseClass(stream, rem)
 
     wp_list = NULL;
     DecodeWaypoints(stream, rem);
+
+    if (doDebugUnit) {
+        fprintf(stderr, "[FF_LINUX] UnitClass ctor[%d] after DecodeWaypoints: rem=%ld\n",
+                unitCtorCount, *rem);
+    }
 
     class_data = (UnitClassDataType*) Falcon4ClassTable[share_.entityType_ - VU_LAST_ENTITY_TYPE].dataPtr;
     dirty_unit = 0;
@@ -1446,7 +1461,7 @@ int UnitClass::RecordCurrentState(FalconSessionEntity *session, int byReag)
                                 if (SMS->hardPoint[hp]->weaponId == gRocketId)
                                 {
                                     loadData[pilotSlot]->WeaponID[hp] = (short) SMS->hardPoint[hp]->GetRackId();
-                                    loadData[pilotSlot]->WeaponCount[hp] = min(1, SMS->hardPoint[hp]->weaponCount);
+                                    loadData[pilotSlot]->WeaponCount[hp] = min((short)1, SMS->hardPoint[hp]->weaponCount);
                                 }
                                 else
                                 {
@@ -2067,7 +2082,7 @@ void UnitClass::DeaggregateFromData(VU_BYTE* data, long size)
     VehicleClassDataType* vc;
     float z;
     WayPoint w, lw = NULL;
-    long fuel;
+    int32_t fuel;  // FF_LINUX: Use int32_t for binary compat with 32-bit Windows
     LoadoutStruct* loadlist = NULL;
 
     memset(&simdata, 0, sizeof(simdata));
@@ -2120,7 +2135,7 @@ void UnitClass::DeaggregateFromData(VU_BYTE* data, long size)
     if (IsFlight())
     {
         // Copy in flight's loadout data
-        memcpychk(&fuel, &data, sizeof(long), rem);
+        memcpychk(&fuel, &data, sizeof(int32_t), rem);  // FF_LINUX: Read 4 bytes for binary compat
         // This is fuel burnt
         SetBurntFuel(fuel);
         memcpychk(&value, &data, sizeof(uchar), rem);
@@ -3275,7 +3290,7 @@ char* UnitClass::GetName(_TCHAR* buffer, int size, int)
     name_id = GetUnitNameID();
     GetNumberName(name_id, temp1);
     _tcscpy(format, "%s %s %s");
-    _tcsnccpy(temp2, class_data->Name, 29);
+    _tcsncpy(temp2, class_data->Name, 29);
     temp2[29] = 0;
 
     if (gLangIDNum == F4LANG_GERMAN)
@@ -4660,7 +4675,7 @@ int UnitClass::CollectWeapons(uchar* dam, MoveType m, short w[], uchar wc[], int
     if (MOVE_AIR(m) and not IsFlight())
         max_salvos = 1;
 
-    if (GetTeam() < 0 or F4IsBadCodePtr((FARPROC) TeamInfo[GetTeam()]) or GetRClass() < 0 or F4IsBadReadPtr(&(TeamInfo[GetTeam()]->max_vehicle[GetRClass()]), sizeof(uchar))) // JB 010305 CTD
+    if (GetTeam() < 0 or F4IsBadCodePtr((void*)(FARPROC) TeamInfo[GetTeam()]) or GetRClass() < 0 or F4IsBadReadPtr(&(TeamInfo[GetTeam()]->max_vehicle[GetRClass()]), sizeof(uchar))) // JB 010305 CTD
         return 0; // JB 010305 CTD
 
     int mv = TeamInfo[GetTeam()]->max_vehicle[GetRClass()];
@@ -5302,7 +5317,7 @@ void SaveUnits(char* scenario)
 //sfr: added to size(as remaining) to DecodeUnitData
 int LoadUnits(char* scenario)
 {
-    long size;
+    int32_t size;  // FF_LINUX: Use int32_t for binary compat with 32-bit Windows save files
     uchar /* *data,*/ *data_ptr;;
 
 
@@ -5318,7 +5333,7 @@ int LoadUnits(char* scenario)
 
     //take size out and update pointer
     //this size is not used anywhere, so ill trust my size
-    memcpychk(&size, &data_ptr, sizeof(long), &rem);
+    memcpychk(&size, &data_ptr, sizeof(int32_t), &rem);  // FF_LINUX: Read 4 bytes for binary compat
 
     //updated the call to include remaining value
     DecodeUnitData(&data_ptr, &rem, NULL);
@@ -6023,7 +6038,7 @@ int EncodeUnitData(VU_BYTE **stream, FalconSessionEntity *owner)
 
 int DecodeUnitData(VU_BYTE **stream, long *rem, FalconSessionEntity *owner)
 {
-    long            size;
+    int32_t         size;  // FF_LINUX: Use int32_t for binary compat with 32-bit Windows
     short count, last_type, type, num;
     VU_ID vuid;
     Unit cur;
@@ -6031,7 +6046,9 @@ int DecodeUnitData(VU_BYTE **stream, long *rem, FalconSessionEntity *owner)
     // char buffer[100];
 
     memcpychk(&count, stream, sizeof(short), rem);
-    memcpychk(&size, stream, sizeof(long), rem);
+    memcpychk(&size, stream, sizeof(int32_t), rem);  // FF_LINUX: Read 4 bytes for binary compat
+
+    fprintf(stderr, "[FF_LINUX] DecodeUnitData: count=%d size=%d rem=%ld gCampDataVersion=%d\n", (int)count, (int)size, *rem, gCampDataVersion);
 
     //we dont decode if we dont have to
     if (size == 0)
@@ -6044,12 +6061,28 @@ int DecodeUnitData(VU_BYTE **stream, long *rem, FalconSessionEntity *owner)
     bufhead = buf;
 
     //now we check the expand return
-    if ((LZSS_Expand(*stream, rem[0], buf, size)) <= 0)
+    int expandRet = LZSS_Expand(*stream, rem[0], buf, size);
+    fprintf(stderr, "[FF_LINUX] DecodeUnitData: LZSS_Expand returned %d\n", expandRet);
+    if (expandRet <= 0)
     {
         // char err[200];
         // sprintf(err, "%s %d: error expanding unit data", __FILE__, __LINE__);
         // throw std::InvalidBufferException(err);
     }
+
+    // FF_LINUX: Debug - show first few bytes of decompressed data
+    fprintf(stderr, "[FF_LINUX] DecodeUnitData: first 20 bytes after expand: ");
+    for (int i = 0; i < 20 && i < size; i++) {
+        fprintf(stderr, "%02x ", (unsigned)buf[i]);
+    }
+    fprintf(stderr, "\n");
+
+    // FF_LINUX: Debug - show bytes 80-100 to see what's at position 84
+    fprintf(stderr, "[FF_LINUX] DecodeUnitData: bytes 80-99: ");
+    for (int i = 80; i < 100 && i < size; i++) {
+        fprintf(stderr, "%02x ", (unsigned)buf[i]);
+    }
+    fprintf(stderr, "\n");
 
     rem[0] = size;
 
@@ -6065,9 +6098,27 @@ int DecodeUnitData(VU_BYTE **stream, long *rem, FalconSessionEntity *owner)
 
         start_buf = buf;
 
+        // FF_LINUX: Debug - show bytes before reading type
+        if (num < 3) {
+            fprintf(stderr, "[FF_LINUX] DecodeUnitData: Unit %d - buf before read: %02x %02x, rem=%ld\n",
+                    num, (unsigned)buf[0], (unsigned)buf[1], *rem);
+        }
+
         memcpychk(&type, &buf, sizeof(short), rem);
 
+        // FF_LINUX: Debug - show type after reading
+        if (num < 3) {
+            fprintf(stderr, "[FF_LINUX] DecodeUnitData: Unit %d - type read: %d (0x%04x)\n",
+                    num, (int)type, (unsigned)type);
+        }
+
         cur = NewUnit(type, &buf, rem);
+
+        // FF_LINUX: Debug - show rem after reading unit
+        if (num < 3) {
+            fprintf(stderr, "[FF_LINUX] DecodeUnitData: Unit %d - after NewUnit, rem=%ld, next bytes: %02x %02x\n",
+                    num, *rem, (unsigned)buf[0], (unsigned)buf[1]);
+        }
 
         if (load_log)
         {
@@ -6081,11 +6132,21 @@ int DecodeUnitData(VU_BYTE **stream, long *rem, FalconSessionEntity *owner)
         }
 
         // sfr: dont think this is necessary since unit is not local... but anyway
-        cur->SetSendCreate(VuEntity::VU_SC_DONT_SEND);
-        vuDatabase->/*Silent*/Insert(cur);
+        // FF_LINUX: Add NULL check to prevent crash if NewUnit fails
+        if (cur)
+        {
+            cur->SetSendCreate(VuEntity::VU_SC_DONT_SEND);
+            vuDatabase->/*Silent*/Insert(cur);
+        }
+        else
+        {
+            fprintf(stderr, "[FF_LINUX] DecodeUnitData: WARNING - NewUnit(type=%d) returned NULL, skipping unit %d/%d\n",
+                    (int)type, (int)(num + 1), (int)count);
+        }
 
         // Special case shit for tactical engagement
-        if (FalconLocalGame and cur->IsBattalion() and FalconLocalGame->GetGameType() == game_TacticalEngagement)
+        // FF_LINUX: Added NULL check for cur
+        if (cur and FalconLocalGame and cur->IsBattalion() and FalconLocalGame->GetGameType() == game_TacticalEngagement)
         {
             // Emitters are always spotted and emitting in tactical engagement
             if (cur->GetRadarType() not_eq RDR_NO_RADAR)
@@ -6100,6 +6161,7 @@ int DecodeUnitData(VU_BYTE **stream, long *rem, FalconSessionEntity *owner)
                 cur->SetSpotted(i, TheCampaign.CurrentTime);
         }
 
+        num++;  // FF_LINUX: Track unit count for debug
         count--;
     }
 
@@ -6199,6 +6261,11 @@ void UnitClass::SetLastCheck(CampaignTime t)
     CampaignTime max = MaxUpdateTime();
     int randFactor;
     CampaignTime tenSecs = 10 * CampaignSeconds;
+
+    // FF_LINUX: Prevent division by zero if max is 0
+    if (max == 0) {
+        max = CampaignSeconds;  // Default to 1 second if not configured
+    }
 
     if (max <= tenSecs)
     {

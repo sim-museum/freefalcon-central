@@ -7,15 +7,15 @@
  terrain, and object lists in synch.
 \***************************************************************************/
 #include "grmath.h"
-#include "TimeMgr.h"
-#include "TOD.h"
-#include "DrawOvc.h"
-#include "RViewPnt.h"
+#include "timemgr.h"
+#include "tod.h"
+#include "drawovc.h"
+#include "rviewpnt.h"
 #include "context.h"
-#include "FalcLib/include/dispopts.h" //JAM 04Oct03
+#include "falclib/include/dispopts.h" //JAM 04Oct03
 
 //JAM 18Nov03
-#include "RealWeather.h"
+#include "realweather.h"
 
 //#define _OLD_UPDATE_ // use scotts Update() funtion
 
@@ -271,8 +271,11 @@ void RViewPoint::ResetObjectTraversal(void)
 {
     ShiAssert(IsReady());
 
-    for (int i = 0; i < nObjectLists; i++)
-        objectLists[i].displayList.ResetTraversal();
+    // FF_LINUX: Add NULL check to prevent crash when objectLists not initialized
+    if (objectLists != NULL) {
+        for (int i = 0; i < nObjectLists; i++)
+            objectLists[i].displayList.ResetTraversal();
+    }
 
     cloudList.ResetTraversal();
 }

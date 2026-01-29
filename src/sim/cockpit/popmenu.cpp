@@ -1,9 +1,12 @@
 #include "stdafx.h"
+#ifdef FF_LINUX
+#include "compat/stdio_compat.h"
+#endif
 #include "popmenu.h"
 #include "dispopts.h"
 #include "cpmanager.h"
 #include "cpres.h"
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/renderow.h"
 #include "otwdrive.h"
 #include "mesg.h"
 #include "msginc/wingmanmsg.h"
@@ -11,7 +14,7 @@
 #include "msginc/awacsmsg.h"
 #include "msginc/tankermsg.h"
 #include "dispcfg.h"
-#include "Graphics/Include/grinline.h"
+#include "graphics/include/grinline.h"
 #include "sinput.h"
 #include "commands.h"
 #include "inpFunc.h"
@@ -177,7 +180,18 @@ void MenuManager::ReadDataFile(char* pfileName)
     int pageNumber = -1;
     int itemNumber = -1;
 
+#ifdef FF_LINUX
+    // Convert Windows path separators to Unix
+    char adjustedPath[_MAX_PATH];
+    strncpy(adjustedPath, pfileName, _MAX_PATH - 1);
+    adjustedPath[_MAX_PATH - 1] = '\0';
+    for (char* p = adjustedPath; *p; p++) {
+        if (*p == '\\') *p = '/';
+    }
+    pFile = fopen_nocase(adjustedPath, "r");
+#else
     pFile = CP_OPEN(pfileName, "r");
+#endif
     F4Assert(pFile);
 
     presult = fgets(plineBuffer, lineLen, pFile);
