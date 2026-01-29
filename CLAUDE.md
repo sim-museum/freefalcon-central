@@ -1163,6 +1163,49 @@ Theater.l* file → Post data (memory-mapped via FileMemMap)
 tBlockAddress union stores offset OR pointer (distinguished by low bit)
 ```
 
+#### Problem 5: TimeManager Double-Initialization
+
+**Symptom:** `ShiAssert(not IsReady())` failure at `timemgr.cpp:24`
+
+**Root Cause:** `TheTimeManager.Setup()` was called twice:
+1. In `DeviceIndependentGraphicsSetup()` (via `FalconDisplay.Setup()`)
+2. Again in `init_game_core()` in `main_linux.cpp`
+
+**Fix:** Removed the redundant call from `main_linux.cpp`.
+
+**Files Modified:**
+- `src/ffviper/main_linux.cpp` - Removed redundant TheTimeManager.Setup() call
+
+### Known Issue: Texture Assertion Failures During Mission Start
+
+**Status:** UNRESOLVED - Needs Investigation
+
+**Symptom:** When launching Instant Action mission, texture assertions fail and crash occurs:
+```
+[DEBUG] Assertion at 204  tex.cpp
+[Failed:  imageData == NULL]
+[DEBUG] Assertion at 392  tex.cpp
+[Failed:  texHandle == NULL]
+timeout: the monitored command dumped core
+```
+
+**Cause:** During `OTWDriver.Enter()` in the sim thread, texture loading tries to load textures into Texture objects that already have data/handles. This suggests:
+1. Texture objects are being reused without proper cleanup during theater reload
+2. Or texture reference counting is not working correctly
+
+**Affected Code Paths:**
+- `tex.cpp:204` - `Texture::LoadImage()` asserts `imageData == NULL`
+- `tex.cpp:392` - `Texture::CreateTexture()` asserts `texHandle == NULL`
+- Called from `OTWDriver.Enter()` during sim initialization
+
+**Workaround:** Auto-launch instant action test is disabled. Manual testing of mission launch not yet possible.
+
+**Next Steps to Fix:**
+1. Add debug logging to trace texture lifecycle during theater reload
+2. Check if TheTextureBank.Cleanup() is properly releasing all texture handles
+3. Verify OTWDriver.Enter() properly reinitializes texture resources
+4. May need to add explicit texture handle cleanup before reload
+
 ---
 
 ## Next Steps
@@ -1180,10 +1223,11 @@ tBlockAddress union stores offset OR pointer (distinguished by low bit)
 11. ~~Mission launch pipeline (Menu → Flight → Return)~~ ✓ Done - PostMessage routing, FM_* handlers, GL context transfer, sim rendering
 12. ~~Phase 4: 32/64-bit type compatibility fixes~~ ✓ Done - VU types, campaign time, ATC brain, file I/O
 13. ~~Display device and terrain loading fixes~~ ✓ Done - Mode transition, path separators, case-insensitive lookup, 32/64-bit offsets
-14. **NEXT:** Test Instant Action mission launch manually (verify 3D rendering appears)
-15. **NEXT:** Debug any runtime crashes during sim initialization (OTWDriver.Enter() path)
-16. Verify joystick input works during flight
-17. Test return-to-menu flow after exiting sim
+14. ~~TimeManager double-init fix~~ ✓ Done - Removed redundant Setup() call
+15. **BLOCKER:** Fix texture assertion failures during sim entry (tex.cpp:204, tex.cpp:392)
+16. Test Instant Action mission launch manually (after texture fix)
+17. Verify joystick input works during flight
+18. Test return-to-menu flow after exiting sim
 
 ---
 
