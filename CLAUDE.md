@@ -2415,9 +2415,83 @@ After these fixes:
 
 ---
 
+### Session: January 29, 2026 (Continued) - Rendering Stability Fixes
+
+#### Problem 1: ResetObjectTraversal Called Before Viewpoint Ready
+
+**Symptom:** `ShiAssert(IsReady())` failure at `rviewpnt.cpp:272` when rendering.
+
+**Root Cause:** `RenderOTW::SetCamera()` and `RenderOTW::Render()` called `viewpoint->ResetObjectTraversal()` without checking if the viewpoint was properly initialized.
+
+**Fix:** Added `IsReady()` checks before `ResetObjectTraversal()` calls in `src/graphics/renderer/otw.cpp`:
+```cpp
+// Sort the object list based on our location
+// FF_LINUX: Check IsReady() to avoid crash if objectLists is NULL
+if (viewpoint->IsReady()) {
+    viewpoint->ResetObjectTraversal();
+}
+```
+
+#### Problem 2: NULL Drawable Object in InsertObject
+
+**Symptom:** `ShiAssert(dObj)` failure at `otwlist.cpp:260`.
+
+**Root Cause:** `OTWDriverClass::InsertObject()` was receiving NULL drawable objects.
+
+**Fix:** Added NULL check with early return in `src/sim/otwdrive/otwlist.cpp`:
+```cpp
+// FF_LINUX: NULL check - return early if dObj is NULL
+if (!dObj) {
+    return;
+}
+```
+
+#### Problem 3: alloc-dealloc Mismatch in Sound Loading
+
+**Symptom:** ASAN detected `operator new[] vs operator delete` mismatch in psound.cpp.
+
+**Root Cause:** `newsnd->data` and `filedata->data` were allocated with `new char[size]` but deleted with `delete` instead of `delete[]`.
+
+**Fix:** Changed all `delete newsnd->data` to `delete[] newsnd->data` in `src/falcsnd/psound.cpp` (6 occurrences). Also fixed `delete filedata->data` to `delete[] filedata->data`.
+
+#### Problem 4: 64-bit InterlockedExchangeAdd Buffer Overflow
+
+**Symptom:** ASAN detected global buffer overflow in TextureHandle debug code.
+
+**Root Cause:** `InterlockedExchangeAdd((long*)&m_dwTotalBytes, ...)` writes 8 bytes (size of `long` on 64-bit Linux) but `m_dwTotalBytes` is a 4-byte DWORD.
+
+**Fix:** Added `!defined(FF_LINUX)` guard to debug code in `src/graphics/texture/tex.cpp`:
+```cpp
+#if defined(_DEBUG) && !defined(FF_LINUX)
+    // FF_LINUX: Skipped - InterlockedExchangeAdd uses long* which is 8 bytes
+    InterlockedExchangeAdd((long*)&m_dwTotalBytes, m_strName.size());
+#endif
+```
+
+#### Problem 5: Duplicate Header File Causing Build Errors
+
+**Symptom:** Redefinition errors for classes in DXVbManager.h.
+
+**Root Cause:** Two files existed with different cases: `DXVbManager.h` and `dxvbmanager.h`. On Linux's case-sensitive filesystem, both files were included.
+
+**Fix:** Removed duplicate file and created symlink: `dxvbmanager.h` → `DXVbManager.h`.
+
+#### Current Status
+
+The application builds successfully and runs, but crashes consistently during the flight deaggregation Sleep(1000) with SIGSEGV at address NULL. This is a different crash from the earlier intermittent crash at address 0xc.
+
+**Investigation Needed:**
+- The crash occurs in a background thread while the sim thread sleeps
+- SIGSEGV at si_addr=NULL indicates a direct NULL pointer dereference
+- The crash happens after successful texture creation and UI rendering
+- VU thread safety checks are in place but may need additional coverage
+
+---
+
 #### Next Steps
 
-1. Verify full simulation rendering (cockpit, 3D world)
-2. Test flight controls (joystick input)
-3. Test mission completion and return to menu flow
-4. Continue fixing ASAN-detected issues (alloc/dealloc mismatch)
+1. Debug the NULL pointer dereference in the background VU thread
+2. Consider adding synchronization between thread initialization
+3. Verify full simulation rendering once crash is fixed
+4. Test flight controls (joystick input)
+5. Test mission completion and return to menu flow
