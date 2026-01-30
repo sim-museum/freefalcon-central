@@ -1,10 +1,10 @@
-#include "Graphics/Include/Rviewpnt.h"
-#include "Graphics/Include/timemgr.h"
-#include "Graphics/Include/drawsgmt.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/draw2d.h"
-#include "Graphics/Include/DrawObj.h"
-#include "Graphics/Include/tod.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/timemgr.h"
+#include "graphics/include/drawsgmt.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/draw2d.h"
+#include "graphics/include/drawobj.h"
+#include "graphics/include/tod.h"
 #include "stdhdr.h"
 #include "simveh.h"
 #include "ClassTbl.h"
@@ -258,6 +258,11 @@ void OTWDriverClass::InsertObject(DrawableObject *dObj)
     ShiAssert(GetCurrentThreadId() == gSimThreadID);
 
     ShiAssert(dObj); // Could tolerate this by returning, but I don't think it happens.
+
+    // FF_LINUX: NULL check - return early if dObj is NULL
+    if (!dObj) {
+        return;
+    }
 
     if (viewPoint and viewPoint->IsReady())
     {

@@ -830,7 +830,10 @@ void RenderOTW::PreLoadScene(const Tpoint *offset, const Trotation *orientation)
 
 
     // Sort the object list based on our location
-    viewpoint->ResetObjectTraversal();
+    // FF_LINUX: Check IsReady() to avoid crash if objectLists is NULL
+    if (viewpoint->IsReady()) {
+        viewpoint->ResetObjectTraversal();
+    }
 
     // Preload each possible List (only if viewpoint is properly initialized)
     // FF_LINUX: Check IsReady() to avoid crash if objectLists is NULL
@@ -1090,7 +1093,10 @@ void RenderOTW::DrawScene(const Tpoint *offset, const Trotation *orientation)
     //JAM
 
     // Sort the object list based on our location
-    viewpoint->ResetObjectTraversal();
+    // FF_LINUX: Check IsReady() to avoid crash if objectLists is NULL
+    if (viewpoint->IsReady()) {
+        viewpoint->ResetObjectTraversal();
+    }
 
     // Figure out which list would contain our eye point
     containingList = viewpoint->GetContainingList(position.z);

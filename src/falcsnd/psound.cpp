@@ -1,4 +1,5 @@
 #include <cISO646>
+#include <stdint.h>  // For int32_t
 #include <windows.h>
 #include <mmreg.h>
 #include <process.h>
@@ -6,9 +7,9 @@
 #include "falclib.h"
 #include "dsound.h"
 #include "psound.h"
-#include "grTypes.h"
+#include "grtypes.h"
 #include "matrix.h"
-#include "SoundFX.h"
+#include "soundfx.h"
 
 
 #include "sim/include/simlib.h" // MLR needed for SetVelocity since objects set there Delta values per frame
@@ -120,15 +121,23 @@ BOOL CSoundMgr::InstallDSound(HWND hwnd, DWORD Priority, WAVEFORMATEX *fmt)
     // DWORD Speakers;
     // DSCAPS dscaps;
 
+    fprintf(stderr, "[InstallDSound] Starting, gSoundDriver=%p, DSound=%p\n", (void*)gSoundDriver, (void*)DSound);
+
     if (gSoundDriver)
     {
         if (DSound not_eq NULL)
+        {
+            fprintf(stderr, "[InstallDSound] DSound already initialized, returning FALSE\n");
             return(FALSE);
+        }
 
+        fprintf(stderr, "[InstallDSound] Calling DirectSoundCreate...\n");
         res = DirectSoundCreate(NULL, &DSound, NULL);
+        fprintf(stderr, "[InstallDSound] DirectSoundCreate returned 0x%lx, DSound=%p\n", (unsigned long)res, (void*)DSound);
 
         if (res not_eq DS_OK)
         {
+            fprintf(stderr, "[InstallDSound] DirectSoundCreate FAILED with 0x%lx\n", (unsigned long)res);
             DSoundCheck(res);
             return(FALSE);
         }
@@ -313,7 +322,9 @@ long CSoundMgr::SetMasterVolume(long NewVolume)
 
 long CSoundMgr::GetMasterVolume()
 {
-    Primary->GetVolume(&MasterVolume);
+    LONG vol;
+    Primary->GetVolume(&vol);
+    MasterVolume = vol;
     return(MasterVolume);
 }
 
@@ -383,7 +394,7 @@ RIFF_FILE *CSoundMgr::LoadRiff(char *filename)
     FILE *fp;
     char buffer[5];
     char *ptr, *hdr;
-    long size, datasize;
+    int32_t size, datasize;  // Use int32_t - WAV files use 4-byte sizes
 
     fp = fopen(filename, "rb");
 
@@ -396,7 +407,7 @@ RIFF_FILE *CSoundMgr::LoadRiff(char *filename)
     if (strcmp(buffer, "RIFF"))
         return(NULL); // Unknown file type
 
-    fread(&datasize, sizeof(long), 1, fp);
+    fread(&datasize, sizeof(int32_t), 1, fp);  // WAV uses 4-byte size
 
 #ifdef USE_SH_POOLS
     filedata = (RIFF_FILE *)MemAllocPtr(gSoundMemPool, sizeof(RIFF_FILE), 0);
@@ -423,13 +434,13 @@ RIFF_FILE *CSoundMgr::LoadRiff(char *filename)
         {
             hdr = ptr;
             ptr += 4;
-            size = *(long*)ptr;
+            size = *(int32_t*)ptr;  // WAV chunk sizes are 4 bytes
             ptr += 4;
 
             if ( not strncmp(hdr, "fmt ", 4))
                 filedata->Format = (WAVEFORMATEX*)ptr;
             else if ( not strncmp(hdr, "fact", 4))
-                filedata->NumSamples = *(long*)ptr;
+                filedata->NumSamples = *(int32_t*)ptr;  // 4-byte value
             else if ( not strncmp(hdr, "data", 4))
             {
                 filedata->Start = ptr;
@@ -442,7 +453,7 @@ RIFF_FILE *CSoundMgr::LoadRiff(char *filename)
     else
     {
         if (filedata->data)
-            delete filedata->data;
+            delete[] filedata->data;  // FF_LINUX: Use delete[] for array allocation
 
         delete filedata;
         filedata = NULL;
@@ -606,7 +617,7 @@ long CSoundMgr::LoadRiffFormat(HANDLE fp, WAVEFORMATEX *Format, long *HeaderSize
     {
         if ( not strncmp(buffer, "fmt ", 4))
         {
-            ReadFile(fp, Format, min(sizeof(WAVEFORMATEX), size), &br, NULL);
+            ReadFile(fp, Format, min((long)sizeof(WAVEFORMATEX), size), &br, NULL);
             size -= br;
             bytesread += br;
         }
@@ -671,7 +682,7 @@ long CSoundMgr::LoadWaveFile(char *Filename, long Flags, SFX_DEF_ENTRY *sfx)
             if ( not newsnd->Format)
             {
                 if (newsnd->data)
-                    delete newsnd->data;
+                    delete[] newsnd->data;
 
                 delete newsnd;
                 return(SND_NO_HANDLE);
@@ -737,7 +748,7 @@ long CSoundMgr::LoadWaveFile(char *Filename, long Flags, SFX_DEF_ENTRY *sfx)
                 else
                     DSoundCheck(hr);
 
-                delete newsnd->data;
+                delete[] newsnd->data;  // FF_LINUX: Use delete[] for array allocation
                 delete newsnd;
                 return(NewID);
             }
@@ -746,7 +757,7 @@ long CSoundMgr::LoadWaveFile(char *Filename, long Flags, SFX_DEF_ENTRY *sfx)
                 MonoPrint("Unsupported file format\n");
 
                 if (newsnd->data)
-                    delete newsnd->data;
+                    delete[] newsnd->data;
 
                 delete newsnd;
             }
@@ -1095,6 +1106,7 @@ int CSoundMgr::GetSampleVolume(long ID)
 {
     SoundList * Sample;
     long Volume = DSBVOLUME_MIN;
+    LONG vol = DSBVOLUME_MIN;
 
     if (gSoundDriver)
     {
@@ -1103,7 +1115,10 @@ int CSoundMgr::GetSampleVolume(long ID)
             Sample = FindSample(ID);
 
             if (Sample not_eq NULL)
-                Sample->Buf[0].DSoundBuffer->GetVolume(&Volume);
+            {
+                Sample->Buf[0].DSoundBuffer->GetVolume(&vol);
+                Volume = vol;
+            }
         }
     }
 
@@ -3733,7 +3748,7 @@ LPDIRECTSOUNDBUFFER CSoundMgr::LoadWaveFile(char *Filename, SFX_DEF_ENTRY *sfx)
             if ( not newsnd->Format)
             {
                 if (newsnd->data)
-                    delete newsnd->data;
+                    delete[] newsnd->data;
 
                 delete newsnd;
                 return(0);
@@ -3781,7 +3796,7 @@ LPDIRECTSOUNDBUFFER CSoundMgr::LoadWaveFile(char *Filename, SFX_DEF_ENTRY *sfx)
                 else
                     DSoundCheck(hr);
 
-                delete newsnd->data;
+                delete[] newsnd->data;
                 delete newsnd;
                 return(lpNewDSBuf);
             }
@@ -3790,7 +3805,7 @@ LPDIRECTSOUNDBUFFER CSoundMgr::LoadWaveFile(char *Filename, SFX_DEF_ENTRY *sfx)
                 MonoPrint("Unsupported file format\n");
 
                 if (newsnd->data)
-                    delete newsnd->data;
+                    delete[] newsnd->data;
 
                 delete newsnd;
             }

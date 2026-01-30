@@ -2351,8 +2351,73 @@ On Linux, `_FORCE_MAIN_THREAD` is explicitly disabled (`#ifndef FF_LINUX`), so `
 
 ---
 
+### Session: January 29, 2026 (Continued) - VU Thread NULL Safety and Buffer Overflow Fixes
+
+#### Problem 1: Intermittent Crash During Flight Deaggregation
+
+**Symptom:** The application would intermittently crash during the `Sleep(1000)` call in the flight deaggregation loop with SIGSEGV at address 0xc (offset 12 from NULL pointer).
+
+**Root Cause:** The `VuMainThread::Update()` function accessed `vuLocalSessionEntity->Game()` without checking if `vuLocalSessionEntity` was initialized. When the VU thread ran before session initialization was complete, it would dereference NULL.
+
+**Fix:** Added NULL safety checks in `src/vu2/src/vu_thread.cpp`:
+- Added check for `vuLocalSessionEntity` before accessing
+- Added NULL check for `vuCollectionManager` before calling `CreateEntitiesAndRunGc()`
+- Added NULL check for `messageQueue_` before calling `DispatchMessages()`
+
+**Files Modified:**
+- `src/vu2/src/vu_thread.cpp` - Lines 282-285, 316-319, 347-350
+
+#### Problem 2: Global Buffer Overflow in Debug Statistics
+
+**Symptom:** ASAN detected global buffer overflow when writing 8 bytes to 4-byte DWORD variables via `InterlockedIncrement((long *)&m_dwNumHandles)`.
+
+**Root Cause:** On 64-bit Linux, `long` is 8 bytes while `DWORD` is 4 bytes. The debug macros used `InterlockedIncrement((long *)...)` which wrote 8 bytes to 4-byte static variables, corrupting adjacent memory.
+
+**Fix:** Added `!defined(FF_LINUX)` condition to skip debug statistics in:
+- `src/graphics/texture/tex.cpp` - Texture constructor/destructor
+- `src/graphics/texture/palette.cpp` - PaletteHandle constructor/destructor
+
+#### Problem 3: Stack Buffer Overflow in F4Assert/F4Warning Macros
+
+**Symptom:** ASAN detected stack buffer overflow when the macro's 80-byte buffer couldn't hold the error message containing `__FILE__` (which can be a very long path on Linux).
+
+**Root Cause:** The F4Warning macro formatted a string like "Error: line %d, %s on %s" with `__FILE__` (60+ chars), `__LINE__`, and `__DATE__`, potentially exceeding 80 bytes.
+
+**Fix:** Modified `src/falclib/include/f4error.h`:
+1. Increased buffer size from 80 to 512 bytes
+2. Changed `sprintf` to `snprintf` with `sizeof(buffer)`
+3. Commented out Windows-only `__asm int 3` debug breakpoint
+
+Also fixed sprintf→snprintf in `src/falclib/f4find.cpp` for F4OpenFile, F4ReadFile, F4WriteFile.
+
+#### Result
+
+After these fixes:
+- Flight deaggregation completes successfully
+- Player is attached to aircraft
+- SimDriver.GetPlayerEntity() returns valid entity
+- SplashScreenUpdate(2) completes
+- Application runs stably for 120+ seconds in simulation mode
+
+**Mission Launch Flow (Updated):**
+1. ✅ Menu → Click Instant Action button
+2. ✅ FM_LOAD_CAMPAIGN received and processed
+3. ✅ Campaign file (Instant.cam) loaded successfully
+4. ✅ FM_JOIN_SUCCEEDED → FM_START_INSTANTACTION posted
+5. ✅ FM_START_INSTANTACTION received
+6. ✅ SimulationLoopControl::StartGraphics() called
+7. ✅ OTWDriver.Enter() called
+8. ✅ Flight deaggregation wait complete
+9. ✅ Player attached to aircraft
+10. ✅ SimDriver.GetPlayerEntity() ready
+11. ✅ SplashScreenUpdate(2) complete
+12. ⏳ Full simulation rendering (in progress)
+
+---
+
 #### Next Steps
 
-1. Continue testing the simulation rendering pipeline
-2. Verify cockpit instruments render correctly
+1. Verify full simulation rendering (cockpit, 3D world)
+2. Test flight controls (joystick input)
 3. Test mission completion and return to menu flow
+4. Continue fixing ASAN-detected issues (alloc/dealloc mismatch)

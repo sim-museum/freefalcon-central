@@ -6,12 +6,12 @@
  - Begin Major Rewrite
 ***************************************************************************/
 #include "stdafx.h"
-#include "Image.h"
-#include "Tex.h"
+#include "image.h"
+#include "tex.h"
 #include "dxtlib.h"
 #include "PalBank.h"
-#include "FalcLib/include/playerop.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL Palette::pool;
@@ -123,7 +123,9 @@ Texture::Texture()
     //sfr: added palette control
     //paletteFromBank = thFromBank = false;
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(FF_LINUX)
+    // FF_LINUX: Skipped - InterlockedIncrement uses long* which is 8 bytes on 64-bit Linux
+    // but these DWORD variables are only 4 bytes, causing buffer overflow
     InterlockedIncrement((long *)&m_dwNumHandles); // Number of instances
     InterlockedExchangeAdd((long *)&m_dwTotalBytes, sizeof(*this));
 #endif
@@ -155,10 +157,21 @@ void Texture::SetupForDevice(DXContext *texRC, char *path)
 
     strcpy(TexturePath, path);
 
+#ifdef FF_LINUX
+    // Convert backslashes to forward slashes for Linux
+    for (char* p = TexturePath; *p; p++) {
+        if (*p == '\\') *p = '/';
+    }
+    if (TexturePath[strlen(TexturePath) - 1] != '/')
+    {
+        strcat(TexturePath, "/");
+    }
+#else
     if (TexturePath[strlen(TexturePath) - 1] not_eq '\\')
     {
         strcat(TexturePath, "\\");
     }
+#endif
 
     rc = texRC;
     Palette::SetupForDevice(texRC);
@@ -197,11 +210,28 @@ BOOL Texture::LoadImage(char *filename, DWORD newFlags, BOOL addDefaultPath)
     if (addDefaultPath)
     {
         strcpy(fullname, TexturePath);
+#ifdef FF_LINUX
+        // Skip leading backslashes in filename (Windows path artifacts)
+        const char* fn = filename;
+        while (*fn == '\\' || *fn == '/') fn++;
+        strcat(fullname, fn);
+        // Convert any remaining backslashes to forward slashes
+        for (char* p = fullname; *p; p++) {
+            if (*p == '\\') *p = '/';
+        }
+#else
         strcat(fullname, filename);
+#endif
     }
     else
     {
         strcpy(fullname, filename);
+#ifdef FF_LINUX
+        // Convert backslashes to forward slashes
+        for (char* p = fullname; *p; p++) {
+            if (*p == '\\') *p = '/';
+        }
+#endif
     }
 
     texFile.imageType = CheckImageType(fullname);
@@ -363,6 +393,13 @@ bool Texture::CreateTexture(char *strName)
     ShiAssert(imageData);
     ShiAssert(texHandle == NULL);
 
+#ifdef FF_LINUX
+    // Safety check: Don't try to create texture if device isn't set up
+    if (rc == NULL || imageData == NULL) {
+        return false;
+    }
+#endif
+
     // JB 010318 CTD
     if (/* not F4IsBadReadPtr(palette,sizeof(Palette)) and */ (flags bitand MPR_TI_PALETTE))
     {
@@ -519,7 +556,9 @@ TextureHandle::TextureHandle()
     m_pImageData = NULL;
     m_nImageDataStride = -1;
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(FF_LINUX)
+    // FF_LINUX: Skipped - InterlockedIncrement uses long* which is 8 bytes on 64-bit Linux
+    // but these DWORD variables are only 4 bytes, causing buffer overflow
     InterlockedIncrement((long *)&m_dwNumHandles); // Number of instances
     InterlockedExchangeAdd((long *)&m_dwTotalBytes, sizeof(*this));
 #endif
@@ -527,7 +566,7 @@ TextureHandle::TextureHandle()
 
 TextureHandle::~TextureHandle()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(FF_LINUX)
     InterlockedDecrement((long *)&m_dwNumHandles); // Number of instances
     //InterlockedExchangeAdd((long *)&m_dwTotalBytes,-sizeof(*this));
     //InterlockedExchangeAdd((long *)&m_dwTotalBytes,-m_strName.size());
@@ -573,8 +612,9 @@ bool TextureHandle::Create(char *strName, UInt32 info, UInt16 bits, UInt16 width
 
     m_dwFlags = info;
 
-#ifdef _DEBUG
-
+#if defined(_DEBUG) && !defined(FF_LINUX)
+    // FF_LINUX: Skipped - InterlockedExchangeAdd uses long* which is 8 bytes on 64-bit Linux
+    // but m_dwTotalBytes is only 4 bytes, causing buffer overflow
     if (strName)
     {
         m_strName = strName;
