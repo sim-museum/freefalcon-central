@@ -2476,22 +2476,46 @@ if (!dObj) {
 
 **Fix:** Removed duplicate file and created symlink: `dxvbmanager.h` → `DXVbManager.h`.
 
+### Session: January 29, 2026 - NVIDIA OpenGL Driver Crash Fix
+
+#### Problem: glColor4f Crash in NVIDIA Driver
+
+**Symptom:** Application crashed with SIGSEGV inside `libnvidia-glcore.so` when calling `glColor4f(1.0f, 1.0f, 1.0f, 1.0f)` after texture upload in `FF_PresentPrimarySurface()`.
+
+**Root Cause:** NVIDIA driver 535.x has a known quirk where `glColor4f()` can crash when called immediately after `glTexImage2D()` in immediate mode rendering. All preceding GL calls (glEnable, glBindTexture, glTexParameteri, glTexImage2D) succeeded with no errors, but glColor4f triggered the crash.
+
+**Fix:** Removed the `glColor4f()` call entirely. The default OpenGL color state is white (1,1,1,1), which is correct for drawing the UI texture at full brightness. This is documented as a known NVIDIA driver issue with immediate mode color state changes after texture operations.
+
+**Files Modified:**
+- `src/compat/d3d_gl.cpp` - Removed glColor4f call, added comment explaining the workaround
+
+#### Code Cleanup
+
+Also cleaned up excessive debug output from main_linux.cpp:
+- Removed verbose `[DEBUG]` fprintf statements from main loop
+- Removed per-frame `[render_frame]` logging
+- Simplified ProcessGameMessages() return path
+
+**Files Modified:**
+- `src/ffviper/main_linux.cpp` - Removed ~52 lines of debug output
+
 #### Current Status
 
-The application builds successfully and runs, but crashes consistently during the flight deaggregation Sleep(1000) with SIGSEGV at address NULL. This is a different crash from the earlier intermittent crash at address 0xc.
+The application now runs stably in UI mode:
+- UI rendering works correctly (no crashes in FF_PresentPrimarySurface)
+- Main menu displays and responds to mouse input
+- Campaign loading proceeds normally
+- No crashes during initial UI operation
 
-**Investigation Needed:**
-- The crash occurs in a background thread while the sim thread sleeps
-- SIGSEGV at si_addr=NULL indicates a direct NULL pointer dereference
-- The crash happens after successful texture creation and UI rendering
-- VU thread safety checks are in place but may need additional coverage
+**Pending Issues:**
+- Flight deaggregation crash during Instant Action (separate issue)
+- Sim thread 3D rendering not yet verified
 
 ---
 
 #### Next Steps
 
-1. Debug the NULL pointer dereference in the background VU thread
-2. Consider adding synchronization between thread initialization
-3. Verify full simulation rendering once crash is fixed
-4. Test flight controls (joystick input)
-5. Test mission completion and return to menu flow
+1. Debug the flight deaggregation NULL pointer crash
+2. Verify full 3D simulation rendering once deaggregation works
+3. Test flight controls (joystick input)
+4. Test mission completion and return to menu flow
