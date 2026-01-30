@@ -2840,3 +2840,56 @@ The simulation successfully enters `RunningGraphics` mode (mode=6) and runs cont
 2. Verify 3D world/cockpit rendering is visible
 3. Test joystick input during flight
 4. Test return-to-menu flow after exiting sim
+
+---
+
+### Session: January 30, 2026 - 64-bit Pointer Truncation Fix (CRITICAL)
+
+#### Problem: AircraftClass::Init Crash Due to NULL Campaign Object
+
+**Symptom:** Game crashed during aircraft initialization with debug output showing `GetCampaignObject=(nil)` right after `SetCampaignObject()` was called.
+
+**Root Cause:** In `SimBaseClass::SetCampaignObject()`, the condition `(int)ent > MAX_IA_CAMP_UNIT` was used to check if the entity pointer is a real pointer (vs a small integer ID).
+
+On 64-bit Linux:
+- Pointer: `0x59deaf937ed0`
+- `(int)ent` truncates to lower 32 bits: `0xaf937ed0`
+- Bit 31 is set, so signed int interprets as negative: `-1348829488`
+- Comparison: `-1348829488 > 65536` → **FALSE**
+- Result: `campaignObject.reset(ent)` is never called, leaving it NULL
+
+**Fix:** Changed all occurrences of `(int)ent` and `(int)campaignObject` to `(intptr_t)ent` and `(intptr_t)campaignObject.get()` to properly handle 64-bit addresses.
+
+**Files Modified:**
+- `src/sim/simlib/simbase.cpp`:
+  - `SetCampaignObject()`: `(int)ent` → `(intptr_t)ent`
+  - `SaveSize()`: `(int)campaignObject` → `(intptr_t)campaignObject.get()`
+  - `Save(VU_BYTE**)`: `(int)campaignObject` → `(intptr_t)campaignObject.get()`
+  - `Save(FILE*)`: `(int)campaignObject` → `(intptr_t)campaignObject.get()`
+
+**Pattern to Watch For:**
+Any code that casts a pointer to `int` for comparison or storage will fail on 64-bit Linux:
+```cpp
+// BAD - 64-bit pointer truncation
+if ((int)somePointer > SOME_THRESHOLD)
+
+// GOOD - proper 64-bit handling
+if ((intptr_t)somePointer > SOME_THRESHOLD)
+```
+
+**Result:** Aircraft initialization now completes successfully, simulation enters flight mode (mode 6), and runs without crashing.
+
+#### Current Status
+
+The Instant Action mission launch flow is now fully working:
+1. ✅ Main menu → Instant Action click
+2. ✅ Campaign loading (LZSS decompression, team/objective loading)
+3. ✅ VU message dispatch during deaggregation wait
+4. ✅ Flight deaggregation (aggregate → individual aircraft)
+5. ✅ Aircraft initialization (airframe, weapons, sensors, AI brain)
+6. ✅ Simulation loop running (mode 6 = flight mode)
+
+**Next Focus:**
+- Verify 3D rendering is producing visible output
+- Test player input handling during flight
+- Test mission exit / return to menu
