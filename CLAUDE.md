@@ -3128,41 +3128,63 @@ Similarly, `Select()` can be called during terrain rendering before Setup() has 
 
 #### Current Blocker: DX Engine FlushBuffers Crash
 
-**Status:** UNDER INVESTIGATION
+**Status:** RESOLVED
 
-**Symptom:** Crash in `CDXEngine::FlushBuffers()` when calling `m_pD3DD->ApplyStateBlock(DxEngineStateHandle)`. The state block handle is valid (2), and m_pD3DD is not NULL.
+**Original Symptom:** Crash in `CDXEngine::FlushBuffers()` during `ResetFeatures()` → `SelectTexture(-1)`.
 
-**Location:** `src/graphics/dxengine/dxengine.cpp:2066`
-
-**Debug Output:**
-```
-[FlushPolyLists] FlushBuffers...
-[CDXEngine::FlushBuffers] ENTER, m_pD3DD=0x7a8718324a20
-[CDXEngine::FlushBuffers] CreateStateBlock... DxEngineStateHandle=2
-[CDXEngine::FlushBuffers] CreateStateBlock done (StateHandle=40), ApplyStateBlock(DxEngineStateHandle)...
-timeout: the monitored command dumped core
+**Root Cause:** 64-bit pointer truncation in `CDXEngine::SelectTexture()`:
+```cpp
+// BROKEN: GLint is 32-bit, truncates 64-bit pointers
+texID = (texID not_eq -1) ? TheTextureBank.GetHandle(texID) : (GLint)ZeroTex;
+if (texID) texID = (GLint)((TextureHandle *)texID)->m_pDDS;  // Dereferences truncated pointer!
 ```
 
-**Likely Cause:** The `ApplyStateBlock()` implementation in `d3d_gl.cpp` calls OpenGL functions (`ApplyRenderState()` → `glEnable/glDisable/etc`). The crash may be due to:
-1. OpenGL context not bound to the sim thread
-2. OpenGL state corruption
-3. GL context threading issue
+When `ZeroTex` (a 64-bit pointer like `0x70e6fc8bd040`) is cast to `GLint` (32-bit), it becomes a truncated value. Casting this back to `TextureHandle*` results in an invalid pointer that crashes when dereferenced.
 
-**Call Chain:**
-```
-FlushPolyLists() (context.cpp)
-  → TheDXEngine.FlushBuffers() (dxengine.cpp)
-    → m_pD3DD->ApplyStateBlock(DxEngineStateHandle)
-      → D3D7Dev_ApplyStateBlock() (d3d_gl.cpp)
-        → dev->ApplyRenderState()
-          → glEnable/glDisable/... (OpenGL calls)
+**Fix:** Use `uintptr_t` instead of `GLint` for pointer storage on Linux:
+```cpp
+#ifdef FF_LINUX
+    uintptr_t texHandle;
+    if (texID != -1) {
+        texHandle = (uintptr_t)TheTextureBank.GetHandle(texID);
+    } else {
+        texHandle = (uintptr_t)ZeroTex;
+    }
+    if (texHandle) {
+        texHandle = (uintptr_t)((TextureHandle *)texHandle)->m_pDDS;
+    }
+    // Use texHandle instead of texID...
+#endif
 ```
 
-**Next Steps to Fix:**
-1. Verify GL context is properly bound to sim thread before FlushBuffers
-2. Add debug output inside `D3D7Dev_ApplyStateBlock()` and `ApplyRenderState()`
-3. Check if GL context transfer (`FF_SimThreadAcquireGL()`) is happening at the right time
-4. Consider wrapping GL calls in context validation checks
+**Files Modified:**
+- `src/graphics/dxengine/dxengine.cpp` - SelectTexture() 64-bit fix, safety checks in FlushBuffers()
+- `src/compat/d3d_gl.cpp` - Cleaned up verbose debug output in ApplyStateBlock()
+
+**Result:** Simulation rendering loop now runs continuously. Multiple render cycles complete successfully before other issues occur.
+
+---
+
+### Session: January 30, 2026 - Continued Stability Investigation
+
+#### Current Status
+
+After fixing the SelectTexture pointer truncation issue, the simulation now:
+- Runs multiple render cycles successfully
+- Completes FlushPolyLists() without crashing
+- Eventually crashes after a few render cycles (under investigation)
+
+#### Non-fatal Assertions Observed
+
+During simulation, these warnings appear but don't cause crashes:
+```
+[Failed:  floor(topPixel) >= 0.0f] - display.cpp:292
+[Failed:  ceil(bottomPixel) >= 0.0f] - display.cpp:293
+[Failed:  floor(leftPixel) >= 0.0f] - display.cpp:294
+[Failed:  ceil(rightPixel) >= 0.0f] - display.cpp:295
+```
+
+These indicate viewport/pixel calculation issues that should be investigated.
 
 #### Files Modified This Session
 
@@ -3171,7 +3193,8 @@ FlushPolyLists() (context.cpp)
 | `src/graphics/texture/fartex.cpp` | Added IsReady() guards to Cleanup() and Select() |
 | `src/graphics/texture/terrtex.cpp` | Added IsReady() guards to Cleanup() and Select() |
 | `src/graphics/3dlib/context.cpp` | Added debug output to FlushPolyLists() |
-| `src/graphics/dxengine/dxengine.cpp` | Added debug output and NULL check to FlushBuffers() |
+| `src/graphics/dxengine/dxengine.cpp` | SelectTexture 64-bit fix, NULL/state checks in FlushBuffers() |
+| `src/compat/d3d_gl.cpp` | Cleaned up ApplyStateBlock debug output |
 | `src/sim/otwdrive/otwloop.cpp` | Added debug output to trace crash location |
 
 ---
