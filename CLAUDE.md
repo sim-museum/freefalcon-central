@@ -1313,6 +1313,89 @@ After these fixes:
 - Simulation initialization progresses to cockpit loading
 - Current blocker: F-16CJ cockpit data not found (game data configuration issue, not code bug)
 
+### Session: January 29, 2026 - Instant Action Mission Launch Working
+
+#### Problem: Deaggregation Never Completing
+
+**Symptom:** When launching instant action, the flight entity remained in aggregate state (`IsAggregate()=128`). The deaggregation wait loop in `StartLoop()` would timeout because the `simcampDeaggregate` messages were being sent but never processed.
+
+**Root Cause 1: VU Message Dispatch Rate Limiting**
+
+The `RealTimeFunction()` in `rtloop.cpp` has a rate limiter at lines 45-60:
+```cpp
+if (vuxRealTime > update_time) {
+    gMainThread->Update(20);  // Dispatch VU messages
+    update_time = vuxRealTime + 10;
+}
+```
+
+During Step2 mode, the main time update code (`vuxRealTime = GetTickCount()`) was being skipped because of my `continue` statement. This meant `vuxRealTime` never advanced past `update_time`, so `gMainThread->Update()` was only called once (the first time) and then never again.
+
+**Fix 1:** Update `vuxRealTime` before calling `RealTimeFunction()` in Step2 mode:
+```cpp
+if (currentMode == Step2) {
+    // CRITICAL: Update vuxRealTime before RealTimeFunction
+    vuxRealTime = GetTickCount();
+    RealTimeFunction(vuxRealTime, NULL);
+    ...
+}
+```
+
+**Root Cause 2: Mode Transition Not Detected**
+
+The Step2 handling code used `continue` to skip the rest of the loop, including the switch statement where mode transitions are checked. When `StartLoop()` set `currentMode = StartRunningGraphics`, the `Loop()` thread never saw it and stayed stuck in Step2 mode.
+
+**Fix 2:** Remove the `continue` and add explicit mode transition check:
+```cpp
+// Don't use continue - let the loop fall through to the switch statement
+
+// Add after switch statement:
+#ifdef FF_LINUX
+if (currentMode == StartRunningGraphics) {
+    currentMode = RunningGraphics;
+}
+#endif
+```
+
+**Files Modified:**
+- `src/sim/simloop/simloop.cpp` - Main fixes for message dispatch and mode transition
+- `src/campaign/camplib/unit.cpp` - Debug output for deaggregation
+- `src/campaign/campupd/campaign.cpp` - Debug output for deaggregation check
+- `src/falclib/msgsrc/simcampmsg.cpp` - Debug output for message processing
+- `src/vu2/src/vu_thread.cpp` - Debug output for VU message dispatch
+
+**Result:** Instant action mission launch now works:
+1. Campaign loads successfully
+2. Flight spawns
+3. `simcampDeaggregate` messages are sent AND processed
+4. Flight deaggregates (IsAggregate changes from 128 to 0)
+5. Player entity created
+6. Mode transitions: Step2 → StartRunningGraphics → RunningGraphics
+7. Simulation loop runs stably
+
+**Mission Launch Sequence (Linux):**
+```
+FM_LOAD_CAMPAIGN → LoadCampaign() → FM_JOIN_SUCCEEDED
+    ↓
+FM_START_INSTANTACTION → StartGraphics() → EndUI()
+    ↓
+StartLoop thread: OTWDriver.Enter(), SimDriver.Enter()
+    ↓
+Loop thread: Step2 mode, RebuildBubble(), RealTimeFunction()
+    ↓
+Campaign thread: DeaggregationCheck() sends simcampDeaggregate
+    ↓
+RealTimeFunction() → gMainThread->Update() → DispatchMessages()
+    ↓
+FalconSimCampMessage::Process() → UnitClass::Deaggregate()
+    ↓
+StartLoop: Deaggregation complete, player valid
+    ↓
+currentMode = StartRunningGraphics → RunningGraphics
+    ↓
+Simulation running
+```
+
 ---
 
 ## Next Steps
@@ -1334,11 +1417,12 @@ After these fixes:
 15. ~~**BLOCKER:** Fix texture assertion failures during sim entry~~ ✓ Fixed - pointer truncation was root cause
 16. ~~DXContext pointer truncation fixes~~ ✓ Fixed - NewImageBuffer, SetRenderTarget, AttachDepthBuffer
 17. ~~Sim loop race condition crash~~ ✓ Fixed - Wait in Step2/Step5 states to sync with StartLoop thread
-18. **CURRENT:** Flight deaggregation not completing (flight->IsAggregate() always returns true)
+18. ~~**BLOCKER:** Flight deaggregation not completing~~ ✓ Fixed - VU message dispatch and mode transition
 19. Fix cockpit data file loading (F-16CJ cockpit not found - game data configuration)
-20. Test Instant Action mission launch with working cockpit
+20. Test 3D rendering in flight mode (OTWDriver.Cycle())
 21. Verify joystick input works during flight
 22. Test return-to-menu flow after exiting sim
+23. Clean up debug output for production builds
 
 ---
 
