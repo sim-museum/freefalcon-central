@@ -7,32 +7,33 @@
  startup and shutdown sequences.  Just call these functions and you're
  set.
 \***************************************************************************/
+#include <cstdio>
 #include "PalBank.h"
-#include "TexBank.h"
-#include "ObjectParent.h"
-#include "TimeMgr.h"
-#include "DevMgr.h"
-#include "TOD.h"
-#include "Tmap.h"
-#include "TBlock.h"
-#include "TBlkList.h"
-#include "Tex.h"
-#include "TerrTex.h"
-#include "FarTex.h"
-#include "DrawBSP.h"
-#include "DrawOVC.h"
-#include "DrawSgmt.h"
-#include "Drawparticlesys.h"
-#include "Draw2d.h"
-#include "RenderOW.h"
-#include "GraphicsRes.h"
-#include "Setup.h"
-#include "FalcLib/include/dispopts.h"
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "texbank.h"
+#include "objectparent.h"
+#include "timemgr.h"
+#include "devmgr.h"
+#include "tod.h"
+#include "tmap.h"
+#include "tblock.h"
+#include "tblklist.h"
+#include "tex.h"
+#include "terrtex.h"
+#include "fartex.h"
+#include "drawbsp.h"
+#include "drawovc.h"
+#include "drawsgmt.h"
+#include "drawparticlesys.h"
+#include "draw2d.h"
+#include "renderow.h"
+#include "graphicsres.h"
+#include "setup.h"
+#include "falclib/include/dispopts.h"
+#include "graphics/dxengine/dxengine.h"
+#include "graphics/dxengine/dxvbmanager.h"
 
 //JAM 18Nov03
-#include "RealWeather.h"
+#include "realweather.h"
 
 static char theaterPath[_MAX_PATH];
 static char objectPath[_MAX_PATH];
@@ -62,7 +63,6 @@ void DeviceIndependentGraphicsSetup(char *theater, char *objects, char* misctex)
 {
     char fullPath[_MAX_PATH];
 
-
     // Store the data path and the map name
     strcpy(theaterPath, theater);
     strcpy(objectPath, objects);
@@ -79,16 +79,16 @@ void DeviceIndependentGraphicsSetup(char *theater, char *objects, char* misctex)
 
 #ifdef GRAPHICS_USE_RES_MGR
     // Setup our attach points
-    sprintf(fullPath, "%s\\Texture", theaterPath);
+    sprintf(fullPath, "%s/Texture", theaterPath);
     ResAddPath(fullPath, FALSE);
-    sprintf(fullPath, "%s\\Weather", theaterPath);
+    sprintf(fullPath, "%s/Weather", theaterPath);
     ResAddPath(fullPath, FALSE);
     ResAddPath(objectPath, FALSE);
     ResAddPath(misctexPath, FALSE);
 
     // Attach our resource files
-    sprintf(fullPath, "%s\\texture\\", theaterPath);
-    sprintf(zipName, "%s\\texture\\%s", theaterPath, TerrainTexArchiveName);
+    sprintf(fullPath, "%s/texture/", theaterPath);
+    sprintf(zipName, "%s/texture/%s", theaterPath, TerrainTexArchiveName);
     ResHandleTerrainTex = ResAttach(fullPath, zipName, FALSE);
 
     if (ResHandleTerrainTex < 0)
@@ -111,15 +111,15 @@ void DeviceIndependentGraphicsSetup(char *theater, char *objects, char* misctex)
     // M.N. Turn around setup - first terrain, then TOD - we need theater.map's LAT/LONG for the stars
 
     // Setup the terrain database
-    sprintf(fullPath, "%s\\terrain", theaterPath);
+    sprintf(fullPath, "%s/terrain", theaterPath);
     TheMap.Setup(fullPath);
 
     // Setup the time of day manager
-    sprintf(fullPath, "%s\\weather", theaterPath);
+    sprintf(fullPath, "%s/weather", theaterPath);
     TheTimeOfDay.Setup(fullPath);
 
     // Setup the BSP object library
-    sprintf(fullPath, "%s\\%s", objectPath, "KoreaObj");
+    sprintf(fullPath, "%s/%s", objectPath, "KoreaObj");
     ObjectParent::SetupTable(fullPath);
 }
 
@@ -137,21 +137,21 @@ void DeviceDependentGraphicsSetup(DisplayDevice *device)
     // OW - must initialize Textures first for pools to work
 #if 1
     // Setup the miscellanious texture database
-    sprintf(fullPath, "%s\\", misctexPath);
+    sprintf(fullPath, "%s/", misctexPath);
     Texture::SetupForDevice(device->GetDefaultRC(), fullPath);
 
     // Setup the terrain texture database
-    sprintf(fullPath, "%s\\texture\\", theaterPath);
+    sprintf(fullPath, "%s/texture/", theaterPath);
     TheTerrTextures.Setup(device->GetDefaultRC(), fullPath);
     TheFarTextures.Setup(device->GetDefaultRC(), fullPath);
 #else
     // Setup the terrain texture database
-    sprintf(fullPath, "%s\\texture\\", theaterPath);
+    sprintf(fullPath, "%s/texture/", theaterPath);
     TheTerrTextures.Setup(device->GetDefaultRC(), fullPath);
     TheFarTextures.Setup(device->GetDefaultRC(), fullPath);
 
     // Setup the miscellanious texture database
-    sprintf(fullPath, "%s\\", misctexPath);
+    sprintf(fullPath, "%s/", misctexPath);
     Texture::SetupForDevice(device->GetDefaultRC(), fullPath);
 #endif
 
@@ -165,7 +165,7 @@ void DeviceDependentGraphicsSetup(DisplayDevice *device)
     Render2D::ChangeFontSet(&VirtualDisplay::Font2D); // ASFO:
     DrawableParticleSys::SetupTexturesOnDevice(device->GetDefaultRC());
     // DrawableOvercast::SetupTexturesOnDevice( device->GetDefaultRC() );
-    realWeather->SetupTexturesOnDevice(device->GetDefaultRC()); //JAM 09Nov03
+    if (realWeather) realWeather->SetupTexturesOnDevice(device->GetDefaultRC()); //JAM 09Nov03
     RenderOTW::SetupTexturesOnDevice(device->GetDefaultRC());
     // Render2D::Load2DFontTextures(); //JAM 22Dec03
 }
@@ -255,14 +255,14 @@ void TheaterReload(char *theater, char *loddata)
 
 #ifdef GRAPHICS_USE_RES_MGR
     // Setup our attach points
-    sprintf(fullPath, "%s\\Texture", theaterPath);
+    sprintf(fullPath, "%s/Texture", theaterPath);
     ResAddPath(fullPath, FALSE);
-    sprintf(fullPath, "%s\\Weather", theaterPath);
+    sprintf(fullPath, "%s/Weather", theaterPath);
     ResAddPath(fullPath, FALSE);
 
     // Attach our resource files
-    sprintf(fullPath, "%s\\texture\\", theaterPath);
-    sprintf(zipName, "%s\\texture\\%s", theaterPath, TerrainTexArchiveName);
+    sprintf(fullPath, "%s/texture/", theaterPath);
+    sprintf(zipName, "%s/texture/%s", theaterPath, TerrainTexArchiveName);
     ResHandleTerrainTex = ResAttach(fullPath, zipName, FALSE);
 
     if (ResHandleTerrainTex < 0)
@@ -279,15 +279,15 @@ void TheaterReload(char *theater, char *loddata)
     //TheTimeManager.SetTime( 0 ); // TODO:  Get a time of day in here or somewhere
 
     // Setup the time of day manager
-    sprintf(fullPath, "%s\\weather", theaterPath);
+    sprintf(fullPath, "%s/weather", theaterPath);
     TheTimeOfDay.Setup(fullPath);
 
     // Setup the terrain database
-    sprintf(fullPath, "%s\\terrain", theaterPath);
+    sprintf(fullPath, "%s/terrain", theaterPath);
     TheMap.Setup(fullPath);
 
     // Setup the BSP object library
     // M.N. I'd like to have an extra variable to the 3D objects: Falcon3DDataDir
-    sprintf(fullPath, "%s\\%s", loddata, "KoreaObj");
+    sprintf(fullPath, "%s/%s", loddata, "KoreaObj");
     ObjectParent::SetupTable(fullPath);
 }

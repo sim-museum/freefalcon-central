@@ -6,26 +6,26 @@
 #include <AtlCom.h>
 #include <AtlWin.h>
 #include <direct.h>
-#include <StdIO.h>
+#include <stdio.h>
 #include <time.h>
 #include <windows.h>
-#include <WinSock2.h>
+#include <winsock2.h>
 // END OF SYSTEM INCLUDES
 
 
 // SIM INCLUDES
-#include "ASCII.h"
-#include "Camp2Sim.h"
+#include "ascii.h"
+#include "camp2sim.h"
 #include "campaign.h"
-#include "CampJoin.h"
+#include "campjoin.h"
 #include "CampStr.h"
 #include "ClassTbl.h"
 #include "CmpClass.h"
-#include "dDraw.h"
+#include "ddraw.h"
 #include "dialog.h" // Campaign tool includes
 #include "DispCfg.h"
-#include "DispOpts.h"
-#include "eHandler.h"
+#include "dispopts.h"
+#include "ehandler.h"
 #include "entity.h"
 #include "F4Comms.h"
 #include "F4Find.h"
@@ -36,54 +36,54 @@
 #include "FalcUser.h"
 #include "feature.h"
 #include "find.h"
-#include "fSound.h"
-#include "HUD.h"
-#include "iAction.h"
-#include "InpFunc.h"
-#include "LogBook.h"
-#include "MissEval.h"
-#include "OtwDrive.h"
-#include "PlayerOp.h"
-#include "RadioSubtitle.h"
+#include "fsound.h"
+#include "hud.h"
+#include "iaction.h"
+#include "inpfunc.h"
+#include "logbook.h"
+#include "misseval.h"
+#include "otwdrive.h"
+#include "playerop.h"
+#include "radiosubtitle.h"
 #include "resource.h"
 #include "rules.h"
-#include "SimDrive.h"
-#include "SimIO.h"
-#include "SimLoop.h"
-#include "SimObj.h"
-#include "sInput.h"
-#include "SMS.h"
+#include "simdrive.h"
+#include "simio.h"
+#include "simloop.h"
+#include "simobj.h"
+#include "sinput.h"
+#include "sms.h"
 #include "statistics.h"
-#include "StdHdr.h"
-#include "SubRange.h"
-#include "TheaterDef.h"
-#include "ThreadMgr.h"
-#include "TimerThread.h"
+#include "stdhdr.h"
+#include "Sub_range.h"
+#include "theaterdef.h"
+#include "threadmgr.h"
+#include "timerthread.h"
 #include "token.h" // default value Unz
-#include "TrackIR.h"
-#include "UI_ia.h"
-#include "Uicomms.h"
-#include "UserIDs.h"
-#include "VrInput.h"
+#include "trackir.h"
+#include "ui_ia.h"
+#include "uicomms.h"
+#include "userids.h"
+#include "vrinput.h"
 #include "weather.h"
 // END OF SIM INCLUDES
 
 
 // ADDITIONAL SIM INCLUDES
-#include "CodeLib/resources/ResLib/src/ResMgr.h"
-#include "FalcSnd/pSound.h"
-#include "FalcSnd/VoiceMapper.h"
-#include "FalcSnd/WinAmpFrontend.h"
-#include "graphics/include/DrawParticleSys.h"
-#include "graphics/include/ImageBuf.h"
-#include "graphics/include/TexBank.h"
-#include "include/ComSup.h"
-#include "movie/AviMovie.h"
-#include "UI95/cHandler.h"
+#include "codelib/resources/reslib/src/resmgr.h"
+#include "falcsnd/psound.h"
+#include "falcsnd/voicemapper.h"
+#include "falcsnd/winampfrontend.h"
+#include "graphics/include/drawparticlesys.h"
+#include "graphics/include/imagebuf.h"
+#include "graphics/include/texbank.h"
+#include "include/comsup.h"
+#include "movie/avimovie.h"
+#include "ui95/chandler.h"
 
 extern "C"
 {
-#include "AmdLib.h"
+#include "amdlib.h"
 }
 // END OF ADDITIONAL SIM INCLUDES
 
@@ -94,10 +94,12 @@ extern "C"
 #undef fclose
 
 // These are needed for network support.
+#ifdef _MSC_VER
 #pragma warning(disable:4192)
 #import "gnet\bin\core.tlb"
 #import "gnet\bin\shared.tlb" named_guids
 #pragma warning(default:4192)
+#endif // _MSC_VER
 // END OF PREPROCESSOR DIRECTIVES
 
 
@@ -162,7 +164,9 @@ extern long MovieCount;
 extern uchar gCampJoinTries;
 extern ulong gCampJoinLastData; // Last vuxRealtime we received data about this game
 falcon4LeakCheck flc;
+#ifdef _MSC_VER
 GNETCORELib::IUplinkPtr m_pUplink;
+#endif
 HINSTANCE hInst;
 HWND mainAppWnd;
 HWND mainMenuWnd;
@@ -210,9 +214,11 @@ char g_strLgbk[20];
 
 #ifdef DEBUG// Debug Assert softswitches
 	int f4AssertsOn = TRUE, f4HardCrashOn = FALSE;
+#ifndef FF_LINUX  // FF_LINUX: These are defined in main_linux.cpp
 	int shiAssertsOn = TRUE,
 	shiWarningsOn = TRUE,
 	shiHardCrashOn = FALSE;
+#endif
 	extern CampaignTime gConnectionTime;
 	extern CampaignTime gResendTime;
 	extern int gCampJoinStatus;
@@ -420,6 +426,7 @@ signed int PASCAL handle_WinMain(HINSTANCE h_instance,
         MonoPrint("handle_WinMain: Error 0x%X occured during COM initialization", hr);
 
     // Begin - Uplink stuff
+#ifdef _MSC_VER
     try
     {
         if (g_bEnableUplink)
@@ -445,7 +452,7 @@ signed int PASCAL handle_WinMain(HINSTANCE h_instance,
     {
         MonoPrint("handle_WinMain: Error 0x%X occured during JetNet initialization", e.Error());
     }
-
+#endif // _MSC_VER
     // End - Uplink stuff
 
     /**
@@ -549,8 +556,10 @@ signed int PASCAL handle_WinMain(HINSTANCE h_instance,
 
     _Module.Term();
 
+#ifdef _MSC_VER
     if (m_pUplink)
         m_pUplink.Release();
+#endif
 
     CoUninitialize();
 
@@ -576,6 +585,7 @@ signed int PASCAL WinMain(HINSTANCE h_Instance, HINSTANCE h_previous_instance,
 	error_code = EXIT_FAILURE;
 
 	// Set up structured exception handling here.
+#ifdef _WIN32
 		__try
     {
         error_code = handle_WinMain(h_Instance, h_previous_instance,
@@ -588,6 +598,11 @@ signed int PASCAL WinMain(HINSTANCE h_Instance, HINSTANCE h_previous_instance,
         // get called unless you return EXCEPTION_EXECUTE_HANDLER from
         // the __except clause.
     }
+#else
+    // On Linux, we don't have SEH - just call directly
+    error_code = handle_WinMain(h_Instance, h_previous_instance,
+                                command_line, command_show);
+#endif
 
     return error_code;
 }
@@ -1477,7 +1492,7 @@ LRESULT CALLBACK FalconMessageHandler(HWND hwnd, UINT message, WPARAM wParam, LP
             SystemLevelInit();
 
             if (intro_movie)
-                SendMessage(hwnd, FM_PLAY_INTRO_MOVIE, 0, 0); // Play Movie
+                SendMessageA(hwnd, FM_PLAY_INTRO_MOVIE, 0, 0); // Play Movie
 
             PostMessage(hwnd, FM_START_UI, 0, 0); // Start UI
 
@@ -1601,7 +1616,7 @@ LRESULT CALLBACK FalconMessageHandler(HWND hwnd, UINT message, WPARAM wParam, LP
 
             // Game aborted - reload current campaign
             strcpy(gUI_CampaignFile, TheCampaign.SaveFile);
-            SendMessage(hwnd, FM_SHUTDOWN_CAMPAIGN, 0, 0);
+            SendMessageA(hwnd, FM_SHUTDOWN_CAMPAIGN, 0, 0);
 
             // KCK: This is well and truely stupid
             if (gametype == game_Campaign)
@@ -1663,7 +1678,7 @@ LRESULT CALLBACK FalconMessageHandler(HWND hwnd, UINT message, WPARAM wParam, LP
             CampaignJoinSuccess();
 
             if ( not gMainHandler)
-                SendMessage(hwnd, FM_START_UI, 0, 0);
+                SendMessageA(hwnd, FM_START_UI, 0, 0);
 
             break;
 
