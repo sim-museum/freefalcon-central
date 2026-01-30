@@ -1,10 +1,10 @@
 #include "stdhdr.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "simbase.h"
 #include "otwdrive.h"
 #include "initdata.h"
 #include "digi.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "object.h"
 #include "sms.h"
 #include "fcc.h"
@@ -706,7 +706,8 @@ void SimBaseClass::SetFiring(int flag)
 
 void SimBaseClass::SetCampaignObject(CampBaseClass *ent)
 {
-    if ((int)ent > MAX_IA_CAMP_UNIT)
+    // FF_LINUX: Use intptr_t instead of int to avoid 64-bit pointer truncation
+    if ((intptr_t)ent > MAX_IA_CAMP_UNIT)
     {
         campaignObject.reset(ent);
     }
@@ -717,7 +718,7 @@ int SimBaseClass::SaveSize(void)
     int size = FalconEntity::SaveSize() +
                sizeof(SimBaseSpecialData);  // Special Data for each frame
 
-    if ((int)campaignObject > MAX_IA_CAMP_UNIT)
+    if ((intptr_t)campaignObject.get() > MAX_IA_CAMP_UNIT)
         size += sizeof(VU_ID);
     else
         size += sizeof(int);
@@ -736,7 +737,7 @@ int SimBaseClass::Save(VU_BYTE **stream)
     *stream += sizeof(SimBaseSpecialData);
     VU_ID camp_object;
 
-    if ((int)campaignObject > MAX_IA_CAMP_UNIT)
+    if ((intptr_t)campaignObject.get() > MAX_IA_CAMP_UNIT)
     {
         flag = 1;
         memcpy(*stream, &flag, sizeof(char));
@@ -769,7 +770,7 @@ int SimBaseClass::Save(FILE *file)
 
     fwrite(SpecialData(), sizeof(SimBaseSpecialData), 1, file);
 
-    if ((int)campaignObject > MAX_IA_CAMP_UNIT)
+    if ((intptr_t)campaignObject.get() > MAX_IA_CAMP_UNIT)
     {
         flag = 1;
         camp_object = campaignObject->Id();

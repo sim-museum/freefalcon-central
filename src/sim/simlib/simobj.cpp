@@ -17,7 +17,7 @@
 #include "simfiltr.h"
 #include "entity.h"
 #include "FalcSess.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "acmi/src/include/acmirec.h"
 #include "CampBase.h"
 #include "Pilot.h"
@@ -242,8 +242,18 @@ void *debugPtr = NULL;
 
 SimBaseClass* AddVehicleToSim(SimInitDataClass *initData, int motionType)
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[AddVehicleToSim] ENTER descriptionIndex=%d motionType=%d\n",
+            initData->descriptionIndex, motionType);
+    fflush(stderr);
+#endif
     SimBaseClass* theVehicle = NULL;
     Falcon4EntityClassType* classPtr = &Falcon4ClassTable[initData->descriptionIndex - VU_LAST_ENTITY_TYPE];
+#ifdef FF_LINUX
+    fprintf(stderr, "[AddVehicleToSim] classPtr domain=%d type=%d\n",
+            classPtr->vuClassData.classInfo_[VU_DOMAIN], classPtr->vuClassData.classInfo_[VU_TYPE]);
+    fflush(stderr);
+#endif
 
     if (classPtr->vuClassData.classInfo_[VU_DOMAIN] == DOMAIN_LAND)
     {
@@ -268,7 +278,13 @@ SimBaseClass* AddVehicleToSim(SimInitDataClass *initData, int motionType)
             motionType = MOTION_AIR_AI;
             //aircraft are assumed to be digital until made into player vehicles
             //theVehicle = new AircraftClass(FALSE, initData->descriptionIndex);
+#ifdef FF_LINUX
+            fprintf(stderr, "[AddVehicleToSim] Creating AircraftClass...\n"); fflush(stderr);
+#endif
             theVehicle = new AircraftClass(TRUE, initData->descriptionIndex);
+#ifdef FF_LINUX
+            fprintf(stderr, "[AddVehicleToSim] AircraftClass created: %p\n", (void*)theVehicle); fflush(stderr);
+#endif
         }
     }
     else if (classPtr->vuClassData.classInfo_[VU_DOMAIN] == DOMAIN_SEA)
@@ -280,8 +296,17 @@ SimBaseClass* AddVehicleToSim(SimInitDataClass *initData, int motionType)
     // RV - Biker - Don't create subs
     if (theVehicle)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[AddVehicleToSim] Calling SetFlag and Init...\n"); fflush(stderr);
+#endif
         theVehicle->SetFlag(motionType);
+#ifdef FF_LINUX
+        fprintf(stderr, "[AddVehicleToSim] SetFlag done, calling Init...\n"); fflush(stderr);
+#endif
         theVehicle->Init(initData);
+#ifdef FF_LINUX
+        fprintf(stderr, "[AddVehicleToSim] Init done, returning %p\n", (void*)theVehicle); fflush(stderr);
+#endif
 
         return (theVehicle);
     }
