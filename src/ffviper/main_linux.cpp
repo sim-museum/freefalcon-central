@@ -1063,15 +1063,14 @@ static bool init_sdl(bool fullscreen) {
         return false;
     }
 
-    // Set OpenGL attributes - conservative settings for compatibility
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    fprintf(stderr, "[TRACE] SDL_Init completed, setting GL attributes\n"); fflush(stderr);
+
+    // Set OpenGL attributes - minimal requirements, let driver pick best match
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 16);   // 16-bit depth is more compatible
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);  // No stencil for now
-    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
-    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
-    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);     // 16-bit color (565)
+    // Don't specify version - let driver use default compatibility context
+    // Don't specify color/depth sizes - let driver pick available format
+
+    fprintf(stderr, "[TRACE] About to create window\n"); fflush(stderr);
 
     // Create window - simple fixed-size window for stability
     Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
@@ -1112,6 +1111,7 @@ static bool init_sdl(bool fullscreen) {
 
 static bool init_opengl(void) {
     printf("Initializing OpenGL...\n");
+    fprintf(stderr, "[TRACE] About to call SDL_GL_CreateContext\n"); fflush(stderr);
 
     // Create OpenGL context
     g_GLContext = SDL_GL_CreateContext(g_SDLWindow);
@@ -1975,15 +1975,7 @@ bool ProcessGameMessages() {
                 if (gMainHandler != nullptr) {
                     static int lbuCount = 0;
                     lbuCount++;
-                    if (lbuCount <= 5) {
-                        fprintf(stderr, "[Mouse] LBUTTONUP at (%d, %d)\n",
-                                LOWORD(msg.lParam), HIWORD(msg.lParam));
-                    }
-                    fprintf(stderr, "[DEBUG] Before EventHandler for LBUTTONUP\n");
-                    fflush(stderr);
                     gMainHandler->EventHandler(NULL, msg.message, msg.wParam, msg.lParam);
-                    fprintf(stderr, "[DEBUG] After EventHandler for LBUTTONUP\n");
-                    fflush(stderr);
                 }
                 break;
             case WM_RBUTTONDOWN:
@@ -2001,8 +1993,6 @@ bool ProcessGameMessages() {
                 break;
         }
     }
-    fprintf(stderr, "[DEBUG] ProcessGameMessages returning true\n");
-    fflush(stderr);
     return true;
 }
 
@@ -2010,13 +2000,8 @@ static void render_frame(void) {
     static int renderFrameCount = 0;
     renderFrameCount++;
 
-    fprintf(stderr, "[render_frame %d] entry doUI=%d fallback=%d simOwns=%d\n",
-            renderFrameCount, doUI, g_useFallbackMenu, g_simOwnsGLContext);
-    fflush(stderr);
-
     // Use fallback menu if enabled (temporary workaround for UI95 issues)
     if (g_useFallbackMenu && doUI) {
-        if (renderFrameCount % 60 == 1) fprintf(stderr, "[render_frame %d] fallback menu path\n", renderFrameCount);
         glClear(GL_COLOR_BUFFER_BIT);
         DrawFallbackMenu();
         SDL_GL_SwapWindow(g_SDLWindow);
@@ -2026,26 +2011,15 @@ static void render_frame(void) {
     // When in UI mode (doUI=1), the UI has been drawn to the primary DirectDraw surface
     // We need to present that surface via OpenGL
     if (doUI) {
-        if (renderFrameCount <= 5 || renderFrameCount % 60 == 1) fprintf(stderr, "[render_frame %d] doUI path\n", renderFrameCount);
-        // Present the DirectDraw primary surface (2D UI)
-        fprintf(stderr, "[render_frame %d] Calling FF_PresentPrimarySurface\n", renderFrameCount);
-        fflush(stderr);
         FF_PresentPrimarySurface();
-        fprintf(stderr, "[render_frame %d] Calling SDL_GL_SwapWindow\n", renderFrameCount);
-        fflush(stderr);
         SDL_GL_SwapWindow(g_SDLWindow);
-        fprintf(stderr, "[render_frame %d] SDL_GL_SwapWindow done\n", renderFrameCount);
-        fflush(stderr);
     } else if (g_simOwnsGLContext) {
         // Sim mode: the sim thread owns the GL context and handles rendering.
         // The main thread has no GL access. Just pump messages and events.
         // Don't call any GL functions here - the context belongs to the sim thread.
         return;
-    } else {
-        if (renderFrameCount % 60 == 1) fprintf(stderr, "[render_frame %d] no-render path (waiting for sim)\n", renderFrameCount);
-        // Neither UI nor sim rendering - transitional state, just wait
-        return;
     }
+    // If neither doUI nor g_simOwnsGLContext, this is a transitional state - just return
 }
 
 static void main_loop(void) {
@@ -2068,8 +2042,7 @@ static void main_loop(void) {
 
     // TEST: Auto-launch instant action after delay for testing
     // Set to 0 to disable auto-launch (user can click buttons normally)
-    // NOTE: Auto-launch causes texture assertion failures - needs investigation
-    Uint32 autoLaunchTime = 0;  // Disabled - texture loading issues during sim entry
+    Uint32 autoLaunchTime = 4000;  // 4 seconds - testing texture cleanup fix
     bool autoLaunchTriggered = false;
     Uint32 startTime = SDL_GetTicks();
 
@@ -2091,20 +2064,11 @@ static void main_loop(void) {
             break;
         }
 
-        fprintf(stderr, "[DEBUG] After ProcessGameMessages, getting currentTime\n");
-        fflush(stderr);
-
         // Send periodic timer updates for the UI system
         Uint32 currentTime = SDL_GetTicks();
-        fprintf(stderr, "[DEBUG] Got currentTime=%u, lastTimerTime=%u\n", currentTime, lastTimerTime);
-        fflush(stderr);
         if (currentTime - lastTimerTime >= timerUpdateInterval) {
-            fprintf(stderr, "[DEBUG] About to post FM_TIMER_UPDATE\n");
-            fflush(stderr);
             PostGameMessage(FM_TIMER_UPDATE, 0, 0);
             lastTimerTime = currentTime;
-            fprintf(stderr, "[DEBUG] FM_TIMER_UPDATE posted\n");
-            fflush(stderr);
         }
 
         // TEST: Auto-launch instant action after delay
@@ -2125,14 +2089,8 @@ static void main_loop(void) {
         }
 
         // Render frame
-        fprintf(stderr, "[DEBUG] About to call render_frame\n");
-        fflush(stderr);
         render_frame();
-        fprintf(stderr, "[DEBUG] render_frame returned\n");
-        fflush(stderr);
         frameCount++;
-        fprintf(stderr, "[DEBUG] frameCount=%u, continuing main loop\n", frameCount);
-        fflush(stderr);
 
         // FPS counter - only print every 5 seconds to reduce spam
         if (currentTime - lastFPSTime >= 5000) {
@@ -2178,6 +2136,9 @@ int main(int argc, char** argv) {
     // Set up signal handlers for clean window cleanup on kill
     setup_signal_handlers();
 
+    // Note: X11 error handling is handled by SDL2 internally.
+    // GLX context errors are caught by SDL and don't cause crashes.
+
     // Check for data directory environment variable
     const char* envDataDir = getenv("FF_DATA_DIR");
     if (envDataDir) {
@@ -2215,28 +2176,36 @@ int main(int argc, char** argv) {
     }
 
     // Initialize game paths
+    fprintf(stderr, "[TRACE] About to call init_game_paths\n"); fflush(stderr);
     if (!init_game_paths()) {
         fprintf(stderr, "Failed to set up game paths\n");
         return 1;
     }
+    fprintf(stderr, "[TRACE] init_game_paths completed\n"); fflush(stderr);
 
     // Initialize resource manager
+    fprintf(stderr, "[TRACE] About to call init_resource_manager\n"); fflush(stderr);
     if (!init_resource_manager()) {
         fprintf(stderr, "Warning: Resource manager initialization issues\n");
     }
+    fprintf(stderr, "[TRACE] init_resource_manager completed\n"); fflush(stderr);
 
     // Initialize SDL2
+    fprintf(stderr, "[TRACE] About to call init_sdl\n"); fflush(stderr);
     if (!init_sdl(fullscreen)) {
         fprintf(stderr, "Failed to initialize SDL2\n");
         return 1;
     }
+    fprintf(stderr, "[TRACE] init_sdl completed\n"); fflush(stderr);
 
     // Initialize OpenGL
+    fprintf(stderr, "[TRACE] About to call init_opengl\n"); fflush(stderr);
     if (!init_opengl()) {
         fprintf(stderr, "Failed to initialize OpenGL\n");
         cleanup();
         return 1;
     }
+    fprintf(stderr, "[TRACE] init_opengl completed\n"); fflush(stderr);
 
     // Initialize OpenAL (optional - continue if fails)
     if (enableSound) {
