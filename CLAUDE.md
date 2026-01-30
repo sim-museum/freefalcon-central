@@ -2733,4 +2733,110 @@ This appears to be a separate issue with the campaign/VU system not processing d
 - ✅ Flight deaggregation completes successfully
 - ✅ Mission launch proceeds to renderer setup
 - ⚠️ Far texture loading errors (game data issue)
-- ❌ Full flight simulation not yet verified
+- ✅ Full flight simulation enters RunningGraphics mode
+
+---
+
+### Session: January 30, 2026 - Deaggregation Wait Loop VU Message Processing
+
+#### Problem: Flight Never Deaggregates Despite Fixes
+
+**Symptom:** Even with the Step2/Step5 synchronization fixes, the flight entity's `IsAggregate()` remained at 128, causing the 120-second timeout.
+
+**Root Cause:** The deaggregation wait loop in `StartLoop()` blocked with `Sleep(1000)` without:
+1. Calling `RebuildBubble()` to send deaggregation messages
+2. Processing VU messages via `RealTimeFunction()` so the deaggregation could actually happen
+
+The original Windows code relied on background threads handling message dispatch during the sleep. On Linux, without `_FORCE_MAIN_THREAD`, the sim thread must actively process messages.
+
+**Key Insight:** The `simcampDeaggregate` message was being sent by `RebuildBubble()` → `DeaggregationCheck()`, but only when the Loop() function called it. During the deaggregation wait, Loop() was in `Step2` mode doing light work, and the wait loop itself was just sleeping without processing anything.
+
+**Fix:** Modified the deaggregation wait loop in `StartLoop()` (lines 925-939 of `simloop.cpp`) to actively process VU messages:
+
+```cpp
+while (flight and flight->IsAggregate() and (delayCounter))
+{
+#ifdef FF_LINUX
+    // FF_LINUX: Instead of just sleeping, we need to:
+    // 1. Call RebuildBubble to send deaggregation messages
+    // 2. Process VU messages so the deaggregation actually happens
+    vuxRealTime = GetTickCount();
+    RebuildBubble(0);
+    RealTimeFunction(vuxRealTime, NULL);
+    ThreadManager::sim_signal_campaign();
+    ThreadManager::sim_wait_for_campaign(10);
+    Sleep(100);
+    static int deagLoopCounter = 0;
+    deagLoopCounter++;
+    if (deagLoopCounter % 10 == 0) { delayCounter--; }
+    // Debug output every second...
+#else
+    Sleep(1000);
+    delayCounter --;
+#endif
+}
+```
+
+**Additional Changes:**
+- Added camera entity attachment debug at line 884-889 to trace when player entity becomes available
+- Added debug output to `RebuildBubble()` in `campaign.cpp` to trace session/game state
+
+**Files Modified:**
+- `src/sim/simloop/simloop.cpp` - Active VU message processing in wait loop
+- `src/campaign/campupd/campaign.cpp` - Debug output for RebuildBubble
+
+**Result:**
+```
+[StartLoop] Deaggregation wait: flight=0x..., IsAggregate=128, counter=120
+[StartLoop] Deaggregation wait: flight=0x..., IsAggregate=128, counter=119
+... (messages being processed) ...
+[SimCampMsg] Calling ent->Deaggregate(session) for ent=0x...
+[SimCampMsg] Deaggregate returned, IsAggregate=0
+[StartLoop] Flight deaggregation done, IsAggregate=0
+```
+
+The simulation successfully enters `RunningGraphics` mode (mode=6) and runs continuously.
+
+#### Deaggregation Architecture Summary
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ StartLoop() - Deaggregation Wait Loop                       │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ while (flight->IsAggregate())                           │ │
+│ │     RebuildBubble(0)      → Posts simcampDeaggregate   │ │
+│ │     RealTimeFunction()    → Dispatches VU messages      │ │
+│ │     sim_signal_campaign() → Signals campaign thread     │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ VuMainThread::Update() - Message Dispatch                   │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ messageQueue_->DispatchMessages()                       │ │
+│ │     → FalconSimCampMessage::Process()                   │ │
+│ │         → ent->Deaggregate(session)                     │ │
+│ │             → Sets IsAggregate() = 0                    │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Flight entity deaggregated - sim loop continues             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ currentMode = RunningGraphics (6)                       │ │
+│ │ SimDriver.Cycle() runs aircraft physics                 │ │
+│ │ OTWDriver.Cycle() renders 3D world                      │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Current Milestone
+
+**Instant Action Mission Launch: WORKING**
+- Main menu → Instant Action button → Campaign loads → Flight deaggregates → Simulation runs
+
+**Next Steps:**
+1. Clean up excessive debug output for production builds
+2. Verify 3D world/cockpit rendering is visible
+3. Test joystick input during flight
+4. Test return-to-menu flow after exiting sim
