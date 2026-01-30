@@ -1858,7 +1858,17 @@ void UI_Cleanup()
         gUIViewer = NULL;
     }
 
+#ifdef FF_LINUX
+    // On Linux, EnterMode(Sim) is called by the sim thread before EndUI() completes.
+    // Don't call CleanViewpoint() as it would destroy the viewPoint that the sim thread
+    // just created in OTWDriver.Enter(). Only clean viewpoint if we're NOT in Sim mode.
+    if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim)
+    {
+        OTWDriver.CleanViewpoint(); // JB 010615
+    }
+#else
     OTWDriver.CleanViewpoint(); // JB 010615
+#endif
     DeviceDependentGraphicsCleanup(&FalconDisplay.theDisplayDevice);
 
     if (gMusic)

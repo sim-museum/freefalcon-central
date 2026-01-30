@@ -392,10 +392,37 @@ void OTWDriverClass::Cycle(void)
     }
 
     DXContext *pCtx = OTWImage->GetDisplayDevice()->GetDefaultRC();
+#ifdef FF_LINUX
+    {
+        static int pctxDbg = 0;
+        if (pctxDbg++ % 100 == 0)
+        {
+            fprintf(stderr, "[OTWCycle] pCtx=%p (#%d)\n", (void*)pCtx, pctxDbg);
+            fflush(stderr);
+        }
+        if (!pCtx)
+        {
+            if (pctxDbg % 100 == 1)
+            {
+                fprintf(stderr, "[OTWCycle] ERROR: GetDefaultRC() returned NULL!\n");
+                fflush(stderr);
+            }
+            return;
+        }
+    }
+#endif
     HRESULT hr = pCtx->TestCooperativeLevel();
 
     if (FAILED(hr))
     {
+#ifdef FF_LINUX
+        static int failCount = 0;
+        if (failCount++ % 100 == 0)
+        {
+            fprintf(stderr, "[OTWCycle] TestCooperativeLevel FAILED hr=0x%lx (#%d)\n", (long)hr, failCount);
+            fflush(stderr);
+        }
+#endif
         return;
     }
 
@@ -1594,7 +1621,26 @@ extern SIMLIB_IO_CLASS IO;   // Retro 31Dec2003
 void OTWDriverClass::RenderFrame()
 {
     // FF_LINUX: Early exit if viewPoint not initialized
+#ifdef FF_LINUX
+    {
+        static int vpDbg = 0;
+        if (vpDbg++ % 100 == 0)
+        {
+            fprintf(stderr, "[RenderFrame] this=%p, &OTWDriver=%p, viewPoint=%p (#%d)\n",
+                    (void*)this, (void*)&OTWDriver, (void*)viewPoint, vpDbg);
+            fflush(stderr);
+        }
+    }
+#endif
     if (!viewPoint) {
+#ifdef FF_LINUX
+        static int vpNullCount = 0;
+        if (vpNullCount++ % 100 == 0)
+        {
+            fprintf(stderr, "[RenderFrame] ERROR: viewPoint is NULL, returning early (#%d)\n", vpNullCount);
+            fflush(stderr);
+        }
+#endif
         return;
     }
 
@@ -2335,6 +2381,17 @@ void OTWDriverClass::RenderFrame()
     }
 
     // COBRA - DX - Flip here, to make some work parallel to the GPU and increase fps
+#ifdef FF_LINUX
+    {
+        static int swapDbg = 0;
+        if (swapDbg++ % 100 == 0)
+        {
+            fprintf(stderr, "[OTWLoop] SwapBuffers check: In3D=%d, OTWImage=%p (#%d)\n",
+                    g_intellivibeData.In3D, (void*)OTWImage, swapDbg);
+            fflush(stderr);
+        }
+    }
+#endif
     if (g_intellivibeData.In3D)
     {
         OTWImage->SwapBuffers(false);

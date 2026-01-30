@@ -1986,6 +1986,10 @@ void OTWDriverClass::ServerSetviewPoint(void)
 
 void OTWDriverClass::Enter(void)
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[OTWDriver.Enter] this=%p, &OTWDriver=%p\n", (void*)this, (void*)&OTWDriver);
+    fflush(stderr);
+#endif
     Tpoint viewPos;
     Trotation viewRotation;
     int i;
@@ -2022,13 +2026,18 @@ void OTWDriverClass::Enter(void)
     OTWWin = FalconDisplay.appWin;
     SetResolution(FalconDisplayConfiguration::Sim);
 
+    fprintf(stderr, "[OTWDriver.Enter] Calling FalconDisplay.EnterMode(Sim)...\n"); fflush(stderr);
     FalconDisplay.EnterMode(
         FalconDisplayConfiguration::Sim,
         DisplayOptions.DispVideoCard,
         DisplayOptions.DispVideoDriver
     );
+    fprintf(stderr, "[OTWDriver.Enter] EnterMode done\n"); fflush(stderr);
 
     OTWImage = FalconDisplay.GetImageBuffer();
+    fprintf(stderr, "[OTWDriver.Enter] OTWImage=%p, targetSurface=%p\n",
+            (void*)OTWImage, OTWImage ? (void*)OTWImage->targetSurface() : nullptr);
+    fflush(stderr);
 
     endFlightTimer = 0;
     endFlightPointSet = FALSE;
@@ -2055,6 +2064,11 @@ void OTWDriverClass::Enter(void)
     }
 
     //   MonoPrint("Doing DeviceDependentGraphicsSetup... %d\n",vuxRealTime);
+    // FF_LINUX: Clean up any existing device-dependent graphics before setup
+    // This is necessary because UI mode (ui_main.cpp:1792) may have already called
+    // DeviceDependentGraphicsSetup(), and calling it again without cleanup causes
+    // texture assertion failures (imageData != NULL, texHandle != NULL).
+    DeviceDependentGraphicsCleanup(&FalconDisplay.theDisplayDevice);
     // Setup the device dependent graphics stuff
     DeviceDependentGraphicsSetup(&FalconDisplay.theDisplayDevice);
     //   MonoPrint("Done with DeviceDependentGraphicsSetup... %d\n",vuxRealTime);
@@ -2072,12 +2086,15 @@ void OTWDriverClass::Enter(void)
     //lastotwPlatform = (SimBaseClass*)(-1);
     lastotwPlatform.reset(NULL);
 
+    fprintf(stderr, "[OTWDriver.Enter] Creating viewPoint...\n"); fflush(stderr);
     viewPoint = new RViewPoint;
+    fprintf(stderr, "[OTWDriver.Enter] viewPoint created: %p\n", (void*)viewPoint); fflush(stderr);
 
     //JAM 13Dec03
     viewPoint->Setup(
         PlayerOptions.TerrainDistance()*FEET_PER_KM, PlayerOptions.MaxTerrainLevel(), 4, DisplayOptions.bZBuffering
     );
+    fprintf(stderr, "[OTWDriver.Enter] viewPoint->Setup done\n"); fflush(stderr);
 
     bKeepClean = FALSE; // JB 010616
 
@@ -2097,19 +2114,29 @@ void OTWDriverClass::Enter(void)
     // TheLoader.WaitForLoader();
 
     //   MonoPrint("Initializing renderer.. %d\n",vuxRealTime);
+    fprintf(stderr, "[OTWDriver.Enter] Creating renderer, OTWImage=%p, targetSurface=%p\n",
+            (void*)OTWImage, OTWImage ? (void*)OTWImage->targetSurface() : nullptr);
+    fflush(stderr);
     renderer = new RenderOTW;
+    fprintf(stderr, "[OTWDriver.Enter] Calling renderer->Setup...\n"); fflush(stderr);
     renderer->Setup(OTWImage, viewPoint);
+    fprintf(stderr, "[OTWDriver.Enter] renderer->Setup done\n"); fflush(stderr);
 
     // COBRA - DX - Switching btw Old and New Engine - Initialize DX Engine and VB Manager
     if (g_bUse_DX_Engine)
     {
+        fprintf(stderr, "[OTWDriver.Enter] VbManager.Setup...\n"); fflush(stderr);
         TheVbManager.Setup(OTWImage->GetDisplayDevice()->GetDefaultRC()->m_pD3D);
+        fprintf(stderr, "[OTWDriver.Enter] VbManager.Setup done\n"); fflush(stderr);
     }
 
+    fprintf(stderr, "[OTWDriver.Enter] SetupSplashScreen...\n"); fflush(stderr);
     SetupSplashScreen();
+    fprintf(stderr, "[OTWDriver.Enter] SplashScreenUpdate...\n"); fflush(stderr);
     SplashScreenUpdate(0);
 
     // Register for future time of day updates for the objects with day/night states (lights)
+    fprintf(stderr, "[OTWDriver.Enter] RegisterTimeUpdateCB...\n"); fflush(stderr);
     TheTimeManager.RegisterTimeUpdateCB(TimeUpdateCallback, this);
 
     // Work out a decent name for us.
@@ -2139,11 +2166,16 @@ void OTWDriverClass::Enter(void)
 
     // init the virtual cockpit canvases
     //   MonoPrint("Initializing virtual cockpit.. %d\n",vuxRealTime);
+    fprintf(stderr, "[OTWDriver.Enter] VCock_Init...\n"); fflush(stderr);
     VCock_Init(eCPVisType, eCPName, eCPNameNCTR);
+    fprintf(stderr, "[OTWDriver.Enter] VCock_Init done\n"); fflush(stderr);
     //Wombat778 10-10-2003  Initialize buttons for clickable cockpit
+    fprintf(stderr, "[OTWDriver.Enter] Button3D_Init...\n"); fflush(stderr);
     Button3D_Init(eCPVisType, eCPName, eCPNameNCTR);
+    fprintf(stderr, "[OTWDriver.Enter] Button3D_Init done\n"); fflush(stderr);
     // MonoPrint("Initializing hud.. %d\n",vuxRealTime);
 
+    fprintf(stderr, "[OTWDriver.Enter] Initializing view state...\n"); fflush(stderr);
     tgtId = 0;
     objectScale = PlayerOptions.ObjectMagnification();
     viewStep = 0;
@@ -2160,6 +2192,7 @@ void OTWDriverClass::Enter(void)
     viewPos.x     = 110000.0F;
     viewPos.y     = 137000.0F;
     viewPos.z     = -15000.0F;
+    fprintf(stderr, "[OTWDriver.Enter] View state initialized\n"); fflush(stderr);
 
     // Initialize the cockpit manager for the 2D cockpit
     ////////////////////////////////////////////////////////////////////////////////
@@ -2557,14 +2590,20 @@ void OTWDriverClass::Enter(void)
     clickableMouseMode = PlayerOptions.GetClickablePitMode();
 
     // init sound fx
+    fprintf(stderr, "[OTWDriver.Enter] F4SoundFXInit...\n"); fflush(stderr);
     F4SoundFXInit();
+    fprintf(stderr, "[OTWDriver.Enter] F4SoundFXInit done\n"); fflush(stderr);
 
     // Start up Direct Input
+    fprintf(stderr, "[OTWDriver.Enter] SetupDIMouseAndKeyboard...\n"); fflush(stderr);
     SetupDIMouseAndKeyboard(hInst, FalconDisplay.appWin);
+    fprintf(stderr, "[OTWDriver.Enter] SetupDIMouseAndKeyboard done\n"); fflush(stderr);
     SetFocus(FalconDisplay.appWin);
 
     // sfr: this is the correct place to set it.
+    fprintf(stderr, "[OTWDriver.Enter] SetActive(TRUE)...\n"); fflush(stderr);
     SetActive(TRUE);
+    fprintf(stderr, "[OTWDriver.Enter] Complete!\n"); fflush(stderr);
 
 #ifdef CHECK_LEAKAGE
 #if 0
@@ -2590,6 +2629,10 @@ void OTWDriverClass::Enter(void)
 
 int OTWDriverClass::Exit(void)
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[OTWDriver.Exit] CALLED! this=%p, viewPoint=%p\n", (void*)this, (void*)viewPoint);
+    fflush(stderr);
+#endif
     otwPlatform.reset(NULL);
     OTWWin = NULL;
     OTWImage = NULL;
@@ -2828,6 +2871,10 @@ void OTWDriverClass::InitViewpoint()
 
 void OTWDriverClass::CleanViewpoint()
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[OTWDriver.CleanViewpoint] CALLED! this=%p, viewPoint=%p\n", (void*)this, (void*)viewPoint);
+    fflush(stderr);
+#endif
     F4EnterCriticalSection(cs_update);
     bKeepClean = TRUE;
 
