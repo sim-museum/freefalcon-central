@@ -1001,7 +1001,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_ApplyStateBlock(IDirect3DDevice7* This,
     D3DGL_LOG("ApplyStateBlock %d", dwBlockHandle);
 
     if (dwBlockHandle == 0 || dwBlockHandle >= MAX_STATE_BLOCKS) return DDERR_INVALIDPARAMS;
-    if (!dev->stateBlocks[dwBlockHandle].active) return DDERR_INVALIDPARAMS;
+    if (!dev->stateBlocks[dwBlockHandle].active) {
+        return DDERR_INVALIDPARAMS;
+    }
 
     RenderStateBlock& sb = dev->stateBlocks[dwBlockHandle];
 

@@ -205,6 +205,30 @@ VOID CDXEngine::SelectTexture(GLint texID)
 {
     // eventually select other textures for NVG/TV
 
+#ifdef FF_LINUX
+    // FF_LINUX: Use uintptr_t instead of GLint to avoid 64-bit pointer truncation
+    uintptr_t texHandle;
+    if (texID != -1) {
+        texHandle = (uintptr_t)TheTextureBank.GetHandle(texID);
+    } else {
+        texHandle = (uintptr_t)ZeroTex;
+    }
+
+    if (texHandle) {
+        texHandle = (uintptr_t)((TextureHandle *)texHandle)->m_pDDS;
+    }
+
+    // only Texture on Stage 0 is needed for normal View
+    if (m_RenderState == DX_OTW)
+    {
+        CheckHR(m_pD3DD->SetTexture(0, (IDirectDrawSurface7 *)texHandle));
+        return;
+    }
+
+    // if here, TV and NVG need other texture stages set
+    CheckHR(m_pD3DD->SetTexture(1, (IDirectDrawSurface7 *)texHandle));
+    CheckHR(m_pD3DD->SetTexture(3, (IDirectDrawSurface7 *)texHandle));
+#else
     // get the Handle of the Texture from the Texture Bank
     texID = (texID not_eq -1) ? TheTextureBank.GetHandle(texID) : (GLint)ZeroTex;
 
@@ -220,6 +244,7 @@ VOID CDXEngine::SelectTexture(GLint texID)
     // if here, TV and NVG need othe texture stages setted
     CheckHR(m_pD3DD->SetTexture(1, (IDirectDrawSurface7 *)texID));
     CheckHR(m_pD3DD->SetTexture(3, (IDirectDrawSurface7 *)texID));
+#endif
 }
 
 
@@ -516,7 +541,6 @@ void CDXEngine::ResetFeatures(void)
     SelectTexture(-1);
     m_TexID = -1;
     LastTexID = 0xcccccccc;
-
 }
 
 
@@ -2036,10 +2060,12 @@ extern DWORD LODsLoaded;
 void CDXEngine::FlushBuffers(void)
 {
 #ifdef FF_LINUX
-    fprintf(stderr, "[CDXEngine::FlushBuffers] ENTER, m_pD3DD=%p\n", (void*)m_pD3DD); fflush(stderr);
     // FF_LINUX: Safety check for NULL D3D device
     if (m_pD3DD == NULL) {
-        fprintf(stderr, "[CDXEngine::FlushBuffers] ERROR: m_pD3DD is NULL!\n");
+        return;
+    }
+    // FF_LINUX: Check if DxEngineStateHandle is valid
+    if (DxEngineStateHandle == 0) {
         return;
     }
 #endif
@@ -2052,27 +2078,14 @@ void CDXEngine::FlushBuffers(void)
     //REPORT_VALUE("LODs : ", LODsLoaded);
 #endif
 
-#ifdef FF_LINUX
-    fprintf(stderr, "[CDXEngine::FlushBuffers] CreateStateBlock... DxEngineStateHandle=%u\n", DxEngineStateHandle); fflush(stderr);
-#endif
     // First of all save present renderer State
     DWORD StateHandle;
     CheckHR(m_pD3DD->CreateStateBlock(D3DSBT_ALL, &StateHandle));
-#ifdef FF_LINUX
-    fprintf(stderr, "[CDXEngine::FlushBuffers] CreateStateBlock done (StateHandle=%u), ApplyStateBlock(DxEngineStateHandle)...\n", StateHandle); fflush(stderr);
-    // FF_LINUX: Check if DxEngineStateHandle is valid
-    if (DxEngineStateHandle == 0) {
-        fprintf(stderr, "[CDXEngine::FlushBuffers] ERROR: DxEngineStateHandle is 0 (not initialized)!\n");
-        // Skip the ApplyStateBlock to avoid crash
-        return;
-    }
-#endif
 
     // Setup the state for the DX engine
     CheckHR(m_pD3DD->ApplyStateBlock(DxEngineStateHandle));
 
     CheckHR(m_pD3DD->SetRenderState(D3DRENDERSTATE_ZENABLE, D3DZB_TRUE));
-
     // *** Default engine initializations ***
     m_pD3DD->SetRenderState(D3DRENDERSTATE_COLORVERTEX, TRUE);
     m_pD3DD->SetRenderState(D3DRENDERSTATE_AMBIENT, 0xff000000);
@@ -2117,7 +2130,6 @@ void CDXEngine::FlushBuffers(void)
 
     // Set Up the camera View for the drawing
     m_pD3DD->SetTransform(D3DTRANSFORMSTATE_VIEW, (LPD3DMATRIX)&CameraView);
-
 
     LOCK_VB_MANAGER;
 
