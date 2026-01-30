@@ -748,6 +748,16 @@ void RebuildBubble(int forced)
     VuSessionsIterator *sit;
     FalconSessionEntity  *session;
 
+#ifdef FF_LINUX
+    static int rbDebugCount = 0;
+    if (rbDebugCount++ % 50 == 0)
+    {
+        fprintf(stderr, "[RebuildBubble] ENTRY forced=%d FalconLocalGame=%p g_brebuildbobbleFix=%d (#%d)\n",
+                forced, (void*)FalconLocalGame, g_brebuildbobbleFix, rbDebugCount);
+        fflush(stderr);
+    }
+#endif
+
     CampEnterCriticalSection();
 
 
@@ -909,6 +919,18 @@ void RebuildBubble(int forced)
     {
         // Find the first camera
         player = session->GetCameraEntity(0);
+
+#ifdef FF_LINUX
+        static int sessionLoopDbg = 0;
+        sessionLoopDbg++;
+        // Print more frequently during step2/deaggregation phase (every 10th call)
+        if (sessionLoopDbg % 10 == 0)
+        {
+            fprintf(stderr, "[RebuildBubble] session=%p player=%p sCampaignSleepRequested=%d (#%d)\n",
+                    (void*)session, (void*)player, sCampaignSleepRequested, sessionLoopDbg);
+            fflush(stderr);
+        }
+#endif
 
         /* if ( not player and FalconLocalGame->IsLocal() and gCommsMgr->Online())
          player = FalconLocalSession->GetPlayerFlight();

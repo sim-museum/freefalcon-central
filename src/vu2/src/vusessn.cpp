@@ -2360,6 +2360,12 @@ VU_ERRCODE VuSessionEntity::JoinGame(VuGameEntity* newgame)
     VU_ERRCODE retval = VU_NO_OP;
     VuGameEntity *game = Game();
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[VuSession::JoinGame] ENTRY: session=%p newgame=%p current_game=%p\n",
+            (void*)this, (void*)newgame, (void*)game);
+    fflush(stderr);
+#endif
+
     if (newgame and game == newgame)
     {
         return VU_NO_OP;
@@ -2459,8 +2465,16 @@ VU_ERRCODE VuSessionEntity::JoinGame(VuGameEntity* newgame)
 
     if (newgame)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[VuSession::JoinGame] Setting game_.reset(newgame=%p)\n", (void*)newgame);
+        fflush(stderr);
+#endif
         game_.reset(newgame);
         gameId_ = newgame->Id();
+#ifdef FF_LINUX
+        fprintf(stderr, "[VuSession::JoinGame] Game set, Game()=%p\n", (void*)Game());
+        fflush(stderr);
+#endif
 
         if (IsLocal())
         {
@@ -2496,6 +2510,11 @@ VU_ERRCODE VuSessionEntity::JoinGame(VuGameEntity* newgame)
     {
         retval = JoinGame(vuPlayerPoolGroup);
     }
+
+#ifdef FF_LINUX
+    fprintf(stderr, "[VuSession::JoinGame] EXIT: retval=%d Game()=%p\n", retval, (void*)Game());
+    fflush(stderr);
+#endif
 
     return retval;
 }

@@ -881,11 +881,13 @@ void SimulationLoopControl::StartLoop(void)
             }
 
             // Attach camera to our flight momentarily while we rebuild our initial bubble
-            fprintf(stderr, "[StartLoop] Attaching camera...\n"); fflush(stderr);
+            fprintf(stderr, "[StartLoop] Attaching camera to flight=%p...\n", (void*)flight); fflush(stderr);
             if (FalconLocalSession->CameraCount() == 0)
             {
                 // JB New MP code
                 FalconLocalSession->AttachCamera(flight);
+                fprintf(stderr, "[StartLoop] AttachCamera done, CameraCount=%d GetCameraEntity(0)=%p\n",
+                        FalconLocalSession->CameraCount(), (void*)FalconLocalSession->GetCameraEntity(0)); fflush(stderr);
             }
             fprintf(stderr, "[StartLoop] Camera attached, calling SimDriver.Enter()...\n"); fflush(stderr);
 
@@ -923,16 +925,45 @@ void SimulationLoopControl::StartLoop(void)
         fprintf(stderr, "[StartLoop] Entering deaggregation wait loop (flight=%p, IsAggregate=%d)\n", (void*)flight, flight ? flight->IsAggregate() : -1); fflush(stderr);
         while (flight and flight->IsAggregate() and (delayCounter))
         {
-            Sleep(1000);
-            delayCounter --;
 #ifdef FF_LINUX
+            // FF_LINUX: Instead of just sleeping, we need to:
+            // 1. Call RebuildBubble to send deaggregation messages
+            // 2. Process VU messages so the deaggregation actually happens
+            // Without this, the Loop() thread is stuck here and can't process messages.
+
+            // Update time for VU rate limiting
+            vuxRealTime = GetTickCount();
+
+            // Call RebuildBubble to trigger deaggregation message
+            RebuildBubble(0);
+
+            // Process VU messages via RealTimeFunction
+            RealTimeFunction(vuxRealTime, NULL);
+
+            // Signal campaign thread and wait briefly
+            ThreadManager::sim_signal_campaign();
+            ThreadManager::sim_wait_for_campaign(10);
+
+            // Short sleep to avoid busy-waiting
+            Sleep(100);
+
+            static int deagLoopCounter = 0;
+            deagLoopCounter++;
+            if (deagLoopCounter % 10 == 0)
+            {
+                delayCounter--;  // Decrement timeout every ~1 second
+            }
+
             // Safety check: verify flight pointer is still valid
-            if (flight && delayCounter % 10 == 0)
+            if (flight && deagLoopCounter % 10 == 0)
             {
                 fprintf(stderr, "[StartLoop] Deag wait: counter=%d, flight=%p, IsAggregate=%d\n",
                         delayCounter, (void*)flight, flight->IsAggregate());
                 fflush(stderr);
             }
+#else
+            Sleep(1000);
+            delayCounter --;
 #endif
         }
         fprintf(stderr, "[StartLoop] Deaggregation wait loop exited (counter=%d)\n", delayCounter); fflush(stderr);
