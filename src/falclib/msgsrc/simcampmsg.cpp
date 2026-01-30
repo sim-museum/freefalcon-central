@@ -99,8 +99,24 @@ int FalconSimCampMessage::Process(uchar autodisp)
     CampBaseClass *ent = static_cast<CampBaseClass*>(esafe.get());
     FalconSessionEntity *session = static_cast<FalconSessionEntity*>(ssafe.get());
 
+#ifdef FF_LINUX
+    if (dataBlock.message == simcampDeaggregate)
+    {
+        fprintf(stderr, "[SimCampMsg] Process simcampDeaggregate: autodisp=%d ent=%p session=%p FalconLocalGame=%p\n",
+                autodisp, (void*)ent, (void*)session, (void*)FalconLocalGame);
+        fflush(stderr);
+    }
+#endif
+
     if (autodisp or not ent or not session or not FalconLocalGame)
     {
+#ifdef FF_LINUX
+        if (dataBlock.message == simcampDeaggregate)
+        {
+            fprintf(stderr, "[SimCampMsg] EARLY RETURN from simcampDeaggregate\n");
+            fflush(stderr);
+        }
+#endif
         return 0;
     }
 
@@ -113,7 +129,15 @@ int FalconSimCampMessage::Process(uchar autodisp)
             break;
 
         case simcampDeaggregate:
+#ifdef FF_LINUX
+            fprintf(stderr, "[SimCampMsg] Calling ent->Deaggregate(session) for ent=%p\n", (void*)ent);
+            fflush(stderr);
+#endif
             ent->Deaggregate(session);
+#ifdef FF_LINUX
+            fprintf(stderr, "[SimCampMsg] Deaggregate returned, IsAggregate=%d\n", ent->IsAggregate());
+            fflush(stderr);
+#endif
             break;
 
         case simcampChangeOwner:

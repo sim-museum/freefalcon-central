@@ -1571,8 +1571,17 @@ int UnitClass::RecordCurrentState(FalconSessionEntity *session, int byReag)
 
 int UnitClass::Deaggregate(FalconSessionEntity* session)
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[Deaggregate] ENTER unit=%p session=%p\n", (void*)this, (void*)session);
+    fflush(stderr);
+#endif
     if ( not IsLocal() or not IsAggregate() or IsDead())
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[Deaggregate] Early return: IsLocal=%d IsAggregate=%d IsDead=%d\n",
+                IsLocal(), IsAggregate(), IsDead());
+        fflush(stderr);
+#endif
         return 0;
     }
 
@@ -1588,6 +1597,10 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
     simdata.rwIndex = rwIndex = 0;
 
     CampBaseClass *base = GetUnitAirbase();
+#ifdef FF_LINUX
+    fprintf(stderr, "[Deaggregate] GetUnitAirbase returned %p\n", (void*)base);
+    fflush(stderr);
+#endif
 
     if (base not_eq NULL and GetCurrentWaypoint() == 1)
     {
@@ -1616,9 +1629,17 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
     //spi = new ScopeProfiler("UDEAG2", 6000);
 
     // Check for possible problems
+#ifdef FF_LINUX
+    fprintf(stderr, "[Deaggregate] Before IsFlight check, IsFlight=%d\n", IsFlight());
+    fflush(stderr);
+#endif
     if (IsFlight())
     {
         CampEntity ent = NULL;
+#ifdef FF_LINUX
+        fprintf(stderr, "[Deaggregate] Calling GetDeaggregationPoint...\n");
+        fflush(stderr);
+#endif
         simdata.ptIndex = GetDeaggregationPoint(0, &ent);
         ObjectiveClass *airbase = static_cast<ObjectiveClass*>(ent);
         ATCBrain *brain = NULL;
@@ -1646,14 +1667,36 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
 
     if ( not session)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[Deaggregate] session was NULL, using FalconLocalSession=%p\n", (void*)FalconLocalSession);
+        fflush(stderr);
+#endif
         session = FalconLocalSession;
     }
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[Deaggregate] About to SetDeagOwner, session=%p\n", (void*)session);
+    fflush(stderr);
+#endif
     // Set the owner of the newly created deaggregated entities
     SetDeagOwner(session->Id());
+#ifdef FF_LINUX
+    fprintf(stderr, "[Deaggregate] SetDeagOwner done, calling GetRealPosition...\n");
+    fflush(stderr);
+#endif
     GetRealPosition(&x, &y, &z);
+#ifdef FF_LINUX
+    fprintf(stderr, "[Deaggregate] Position: x=%.1f y=%.1f z=%.1f\n", x, y, z);
+    fflush(stderr);
+    fprintf(stderr, "[Deaggregate] Creating TailInsertList...\n");
+    fflush(stderr);
+#endif
 
     SetComponents(new TailInsertList());
+#ifdef FF_LINUX
+    fprintf(stderr, "[Deaggregate] Calling GetComponents()->Register()...\n");
+    fflush(stderr);
+#endif
     GetComponents()->Register();
 
     // Fill the reusable simdata class.
@@ -1702,16 +1745,32 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
      fprintf(deb, "UnitClass Deaggregate nV=%d Id=%d\n", VEHICLE_GROUPS_PER_UNIT, simdata.callsignIdx );
      fclose(deb);
      */
+#ifdef FF_LINUX
+    fprintf(stderr, "[Deaggregate] Entering vehicle loop, VEHICLE_GROUPS_PER_UNIT=%d\n", VEHICLE_GROUPS_PER_UNIT);
+    fflush(stderr);
+#endif
     // Now add all the vehicles
     for (v = 0; v < VEHICLE_GROUPS_PER_UNIT; v++)
     {
         vehs = GetNumVehicles(v);
         classID = GetVehicleID(v);
         inslot = 0;
+#ifdef FF_LINUX
+        fprintf(stderr, "[Deaggregate] v=%d vehs=%d classID=%d\n", v, vehs, classID);
+        fflush(stderr);
+#endif
 
         while (vehs and classID)
         {
+#ifdef FF_LINUX
+            fprintf(stderr, "[Deaggregate] While loop: vehs=%d classID=%d, calling GetVehicleClassData...\n", vehs, classID);
+            fflush(stderr);
+#endif
             vc = GetVehicleClassData(classID);
+#ifdef FF_LINUX
+            fprintf(stderr, "[Deaggregate] GetVehicleClassData returned %p\n", (void*)vc);
+            fflush(stderr);
+#endif
 
             // Adjust to the correctly textured object (Dogfight only)
             if (FalconLocalGame->GetGameType() == game_Dogfight)
@@ -1738,7 +1797,15 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
             simdata.z = _isnan(z) ? -14000.0f : z;
 
             // Now query for any offsets
+#ifdef FF_LINUX
+            fprintf(stderr, "[Deaggregate] Calling GetVehicleDeagData...\n");
+            fflush(stderr);
+#endif
             motiontype = GetVehicleDeagData(&simdata, FALSE);
+#ifdef FF_LINUX
+            fprintf(stderr, "[Deaggregate] GetVehicleDeagData returned motiontype=%d\n", motiontype);
+            fflush(stderr);
+#endif
 
             if (motiontype < 0)
             {
@@ -1748,7 +1815,15 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
             }
 
             // This actually adds the bugger
+#ifdef FF_LINUX
+            fprintf(stderr, "[Deaggregate] Calling AddObjectToSim...\n");
+            fflush(stderr);
+#endif
             newObject = AddObjectToSim(&simdata, motiontype);
+#ifdef FF_LINUX
+            fprintf(stderr, "[Deaggregate] AddObjectToSim returned %p\n", (void*)newObject);
+            fflush(stderr);
+#endif
 
             if (newObject)
             {
@@ -5337,7 +5412,7 @@ int LoadUnits(char* scenario)
 
     //updated the call to include remaining value
     DecodeUnitData(&data_ptr, &rem, NULL);
-    delete cd.data;
+    delete[] cd.data;  // FF_LINUX: Match new[] with delete[]
 
     // KCK HACK: Reset any saved off player slots
     VuListIterator myit(AllAirList);

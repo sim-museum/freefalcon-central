@@ -486,6 +486,18 @@ int DeaggregationCheck(CampEntity e, FalconSessionEntity *session)
     bool didsimlistcrap = FALSE;
     int inbobble = (session->InSessionBubble(e, REAGREGATION_RATIO));
 
+#ifdef FF_LINUX
+    // Debug: Track why deaggregation might not be happening
+    static int deagCheckCount = 0;
+    if (e->IsFlight() && e->IsAggregate() && (deagCheckCount++ % 100 == 0))
+    {
+        int inBubble = session->InSessionBubble(e, 1.0F);
+        fprintf(stderr, "[DeagCheck] flight=%p IsAggregate=%d InBubble=%d SleepAll=%d IsLocal=%d (check #%d)\n",
+                (void*)e, e->IsAggregate(), inBubble, g_bSleepAll, e->IsLocal(), deagCheckCount);
+        fflush(stderr);
+    }
+#endif
+
     if (e->IsAggregate())
     {
         if (session->InSessionBubble(e, 1.0F) and not g_bSleepAll)
@@ -493,6 +505,10 @@ int DeaggregationCheck(CampEntity e, FalconSessionEntity *session)
             // It's in our bubble, post deaggregate message if host
             if (e->IsLocal())
             {
+#ifdef FF_LINUX
+                fprintf(stderr, "[DeagCheck] SENDING simcampDeaggregate for flight=%p\n", (void*)e);
+                fflush(stderr);
+#endif
                 VuTargetEntity* target = (VuTargetEntity*)
                                          vuDatabase->Find(vuLocalSessionEntity->Game()->OwnerId());
                 FalconSimCampMessage *msg = new FalconSimCampMessage(e->Id(), target);
