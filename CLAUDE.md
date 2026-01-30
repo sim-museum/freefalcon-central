@@ -2893,3 +2893,76 @@ The Instant Action mission launch flow is now fully working:
 - Verify 3D rendering is producing visible output
 - Test player input handling during flight
 - Test mission exit / return to menu
+
+---
+
+### Session: January 30, 2026 - viewPoint Race Condition Fix (CRITICAL)
+
+#### Problem: viewPoint is NULL in RenderFrame() Despite Being Created
+
+**Symptom:** Debug output showed viewPoint was created successfully in `OTWDriver::Enter()` with a valid address (e.g., `0x784124e91a60`), but immediately afterward `RenderFrame()` saw `viewPoint=(nil)`. This caused all 3D rendering to be skipped.
+
+**Root Cause:** Race condition between two threads during UI→Sim transition:
+
+**Timeline:**
+1. Main thread receives `FM_START_INSTANTACTION` message
+2. Main thread calls `StartGraphics()` which starts the sim thread
+3. **Sim thread** starts executing `OTWDriver.Enter()`
+4. Sim thread creates `viewPoint = new RViewPoint` (line 2086)
+5. **Meanwhile**, main thread continues to `EndUI()` → `UI_Cleanup()`
+6. **Main thread** calls `OTWDriver.CleanViewpoint()` (line 1861)
+7. `CleanViewpoint()` deletes and NULLs the viewPoint that sim thread just created
+8. Sim thread continues with Enter() but viewPoint is now NULL
+9. `RenderFrame()` checks viewPoint, finds NULL, returns early
+
+**Debug Evidence:**
+```
+[OTWDriver.Enter] viewPoint created: 0x784124e91a60
+[OTWDriver.Enter] VbManager.Setup done
+[OTWDriver.Enter] SetupSplashScreen...
+[OTWDriver.CleanViewpoint] CALLED! this=0x565a9d8832c0, viewPoint=0x784124e91a60
+[RenderFrame] viewPoint=(nil) (#1)
+```
+
+**Fix:** Added check to skip `CleanViewpoint()` in `UI_Cleanup()` when already in Sim mode:
+
+```cpp
+#ifdef FF_LINUX
+    // On Linux, EnterMode(Sim) is called by the sim thread before EndUI() completes.
+    // Don't call CleanViewpoint() as it would destroy the viewPoint that the sim thread
+    // just created in OTWDriver.Enter(). Only clean viewpoint if we're NOT in Sim mode.
+    if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim)
+    {
+        OTWDriver.CleanViewpoint();
+    }
+#else
+    OTWDriver.CleanViewpoint();
+#endif
+```
+
+This is consistent with the existing fix for `LeaveMode()` in the same function.
+
+**Files Modified:**
+- `src/ui/src/ui_main.cpp` - Conditional CleanViewpoint() call
+
+**Result:** viewPoint is now preserved during the transition. The simulation runs with valid viewPoint and can proceed to 3D rendering.
+
+**Pattern for Linux Threading Issues:**
+When Windows code assumes operations complete synchronously (via `SendMessage`), Linux threading may cause race conditions. Key areas to watch:
+- `EndUI()` vs `OTWDriver.Enter()` - UI cleanup vs sim setup
+- `LeaveMode()` vs `EnterMode()` - display device transitions
+- Any resource creation/destruction across thread boundaries
+
+#### Current Status
+
+The instant action mission launch now progresses further:
+- ✅ viewPoint is created and preserved
+- ✅ RenderFrame() executes with valid viewPoint
+- ✅ Simulation runs stably without crashing
+- Far texture errors are non-fatal (missing texture assets)
+
+**Next Steps:**
+1. Verify actual 3D content is being rendered (terrain, aircraft, cockpit)
+2. Test joystick input during flight
+3. Test return-to-menu flow after exiting sim
+4. Consider cleaning up debug output for production builds
