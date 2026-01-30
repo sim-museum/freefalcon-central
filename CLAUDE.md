@@ -1333,10 +1333,12 @@ After these fixes:
 14. ~~TimeManager double-init fix~~ ✓ Done - Removed redundant Setup() call
 15. ~~**BLOCKER:** Fix texture assertion failures during sim entry~~ ✓ Fixed - pointer truncation was root cause
 16. ~~DXContext pointer truncation fixes~~ ✓ Fixed - NewImageBuffer, SetRenderTarget, AttachDepthBuffer
-17. **CURRENT:** Fix cockpit data file loading (F-16CJ cockpit not found - game data configuration)
-18. Test Instant Action mission launch with working cockpit
-19. Verify joystick input works during flight
-18. Test return-to-menu flow after exiting sim
+17. ~~Sim loop race condition crash~~ ✓ Fixed - Wait in Step2/Step5 states to sync with StartLoop thread
+18. **CURRENT:** Flight deaggregation not completing (flight->IsAggregate() always returns true)
+19. Fix cockpit data file loading (F-16CJ cockpit not found - game data configuration)
+20. Test Instant Action mission launch with working cockpit
+21. Verify joystick input works during flight
+22. Test return-to-menu flow after exiting sim
 
 ---
 
@@ -2513,9 +2515,68 @@ The application now runs stably in UI mode:
 
 ---
 
-#### Next Steps
+---
 
-1. Debug the flight deaggregation NULL pointer crash
-2. Verify full 3D simulation rendering once deaggregation works
-3. Test flight controls (joystick input)
-4. Test mission completion and return to menu flow
+### Session: January 29, 2026 - Sim Loop Race Condition Fix
+
+#### Problem: SIGSEGV Crash During Flight Deaggregation Wait
+
+**Symptom:** When launching Instant Action, the application would crash with SIGSEGV (si_addr=NULL) during the flight deaggregation wait loop (Sleep(1000) in StartLoop).
+
+**Root Cause:** Race condition between two threads:
+1. **Sim loop thread (Loop())** - runs continuously, calling SimCycle(), RebuildBubble(), etc.
+2. **StartLoop thread** - initializes graphics, waits for flight deaggregation
+
+When `currentMode == Step2` (or Step5), both threads were running concurrently, accessing shared resources without synchronization. On Windows, `_FORCE_MAIN_THREAD` provides implicit synchronization by forcing certain operations to run on the main thread. This mechanism doesn't exist on Linux.
+
+**Fix:** Added explicit synchronization in Loop() for Linux:
+```cpp
+#ifdef FF_LINUX
+    // On Linux, wait while in Step2 or Step5 to avoid race conditions with
+    // the StartLoop thread during graphics initialization/cleanup.
+    // On Windows, _FORCE_MAIN_THREAD provides implicit synchronization.
+    if (currentMode == Step2 || currentMode == Step5)
+    {
+        Sleep(10);  // Yield CPU while waiting for state transition
+        continue;   // Skip this iteration
+    }
+#endif
+```
+
+**Additional Fixes in This Commit:**
+- Wrapped `__try/__except` blocks in `_WIN32` guards (SEH is Windows-only)
+- Added `fesetround(FE_TOWARDZERO)` for FPU rounding mode on Linux
+- Fixed include paths for case-sensitive Linux filesystem
+- Used forward slashes for theater path in StartLoop
+
+**Files Modified:**
+- `src/sim/simloop/simloop.cpp`
+
+**Result:**
+- Application no longer crashes during deaggregation wait
+- The 120-second timeout completes successfully
+- Flight never deaggregates (separate issue - deaggregation logic not working)
+
+#### New Issue: Flight Deaggregation Never Completes
+
+After fixing the race condition crash, a new issue was discovered:
+- `flight->IsAggregate()` always returns true
+- The deaggregation wait loop times out after 120 seconds
+- Player is set to NULL, preventing mission start
+
+This appears to be a separate issue with the campaign/VU system not processing deaggregation messages properly. Further investigation needed.
+
+**Possible Causes:**
+1. Campaign thread not running or not processing messages
+2. VU message dispatch not working correctly on Linux
+3. Deaggregation request message not being sent/received
+4. Flight entity state not being updated properly
+
+---
+
+#### Current Status
+
+- ✅ Race condition crash fixed
+- ✅ Deaggregation wait loop completes without crashing
+- ❌ Flight deaggregation never completes (IsAggregate() always true)
+- ❌ Cannot enter actual flight simulation yet
