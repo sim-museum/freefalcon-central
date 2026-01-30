@@ -8,15 +8,18 @@
   the SIM and UI.
 ***************************************************************************/
 #include "stdhdr.h"
-#include "Graphics/Include/Loader.h"
+#ifdef FF_LINUX
+#include <fenv.h>
+#endif
+#include "graphics/include/loader.h"
 #include "find.h"
 #include "Flight.h"
 #include "FalcSess.h"
 #include "ui/include/FalcUser.h"
 #include "ThreadMgr.h"
 #include "dispcfg.h"
-#include "simDrive.h"
-#include "OTWDrive.h"
+#include "simdrive.h"
+#include "otwdrive.h"
 #include "sinput.h"
 #include "Statistics.h"
 #include "SimLoop.h"
@@ -26,15 +29,15 @@
 #include "playerop.h"
 #include "GameMgr.h"
 #include "fsound.h"
-#include "Graphics/Include/TexBank.h"
+#include "graphics/include/texbank.h"
 #include "MsgInc/SimCampMsg.h"
 #include "acmi/src/include/acmirec.h"
 #include "ui/include/uicomms.h"
 #include "ehandler.h"
 #include "VRInput.h"
 #include "aircrft.h"
-#include "PlayerOp.h"
-#include "Graphics/Include/Tod.h"
+#include "playerop.h"
+#include "graphics/include/tod.h"
 
 // Almost works, but seems to cause trouble if wait for loader is disabled or on very fast (450+) machines.
 #define DELAY_TEX_LOAD // Define this to delay object texture loads for improved disk access locality
@@ -111,6 +114,7 @@ static unsigned int __stdcall SimLoopWrapper(void)
 
     int Result = 0;
 
+#ifdef _WIN32
     __try
     {
         SimulationLoopControl::Loop();
@@ -122,6 +126,10 @@ static unsigned int __stdcall SimLoopWrapper(void)
         // get called unless you return EXCEPTION_EXECUTE_HANDLER from
         // the __except clause.
     }
+#else
+    // On Linux, we don't have SEH - just call directly
+    SimulationLoopControl::Loop();
+#endif
 
     return Result;
 }
@@ -139,6 +147,7 @@ static unsigned int __stdcall StartingGraphicsWrapper(void)
 
     int Result = 0;
 
+#ifdef _WIN32
     __try
     {
         SimulationLoopControl::StartLoop();
@@ -150,6 +159,10 @@ static unsigned int __stdcall StartingGraphicsWrapper(void)
         // get called unless you return EXCEPTION_EXECUTE_HANDLER from
         // the __except clause.
     }
+#else
+    // On Linux, we don't have SEH - just call directly
+    SimulationLoopControl::StartLoop();
+#endif
 
     return Result;
 }
@@ -158,7 +171,7 @@ static unsigned int __stdcall StartingGraphicsWrapper(void)
 // We only create the thread.  It will actually start executing later.
 void SimulationLoopControl::StartSim(void)
 {
-    unsigned long value;
+    DWORD value;
 
     // Don't start until we're ready
     while (currentMode not_eq Stopped)
@@ -313,6 +326,12 @@ void SimulationLoopControl::Loop(void)
 #if defined(_MSC_VER)
     _controlfp(_RC_CHOP, MCW_RC); // Set the FPU to Truncate
     _controlfp(_PC_24, MCW_PC); // Set the FPU to 24 bit precision
+#elif defined(FF_LINUX)
+    /* Linux: Use fesetround for rounding mode.
+     * Note: 24-bit precision control is x87-specific and not available on SSE.
+     * Modern compilers use SSE by default which has fixed precision.
+     */
+    fesetround(FE_TOWARDZERO); // Equivalent to _RC_CHOP (truncate toward zero)
 #else
 #error Pay special attention to rounding mode and precision effects on floating point ops
 #endif
@@ -323,6 +342,17 @@ void SimulationLoopControl::Loop(void)
     //while (currentMode not_eq StoppingSim)
     do
     {
+#ifdef FF_LINUX
+        // On Linux, wait while in Step2 or Step5 to avoid race conditions with
+        // the StartLoop thread during graphics initialization/cleanup.
+        // On Windows, _FORCE_MAIN_THREAD provides implicit synchronization.
+        if (currentMode == Step2 || currentMode == Step5)
+        {
+            Sleep(10);  // Yield CPU while waiting for state transition
+            continue;   // Skip this iteration
+        }
+#endif
+
         //START_PROFILE("INPUT");
 
         sim_tick ++;
@@ -651,12 +681,19 @@ void SimulationLoopControl::StartLoop(void)
     {
         WaitForSingleObject(wait_for_start_graphics, INFINITE);
 
+#ifdef FF_LINUX
+        // On Linux, acquire the OpenGL context for this thread.
+        // The main thread released it when EndUI() was called.
+        extern void FF_SimThreadAcquireGL();
+        FF_SimThreadAcquireGL();
+#endif
+
         //if the voices try to play during this time the sounds get all messed up, so be quiet
         F4SilenceVoices();
 
         TheTimeOfDay.Cleanup(); // destroy the old tod data
         char theaterdir[1024];
-        sprintf(theaterdir, "%s\\weather", FalconTerrainDataDir);
+        sprintf(theaterdir, "%s/weather", FalconTerrainDataDir);
         TheTimeOfDay.Setup(theaterdir); // load the new one
 
         // Our pause/suspend state varies by type of game and online status - set appropriately
@@ -722,7 +759,7 @@ void SimulationLoopControl::StartLoop(void)
             // Ask the game to send all deag entities to me
             VuTargetEntity* target = (VuTargetEntity*) vuDatabase->Find(FalconLocalGame->OwnerId());
 
-            if ( not target->IsLocal())
+            if (target && not target->IsLocal())
             {
                 FalconSimCampMessage *msg;
                 //here we ask for all deaggregated data
@@ -1045,6 +1082,12 @@ void SimulationLoopControl::StartLoop(void)
         // M.N. moved ACMI import after sim shutdown
         // Sim doesn't need to continue running when we import the ACMI
         ACMI_ImportFile();
+
+#ifdef FF_LINUX
+        // Release the GL context back to the main thread before returning to UI
+        extern void FF_SimThreadReleaseGL();
+        FF_SimThreadReleaseGL();
+#endif
 
         // Special state maintenance stuff for Campaign.
         // If much more gets added, it should become its own function
