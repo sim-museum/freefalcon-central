@@ -2574,9 +2574,79 @@ This appears to be a separate issue with the campaign/VU system not processing d
 
 ---
 
+### Session: January 29, 2026 - Flight Deaggregation Fix
+
+#### Problem: Flight Never Deaggregates
+
+**Root Cause:** The fix from the previous session was too aggressive. By skipping the entire loop iteration when `currentMode == Step2`, the code also skipped `RebuildBubble()` which is responsible for posting `simcampDeaggregate` messages.
+
+**Investigation Findings:**
+1. `RebuildBubble()` calls `DeaggregationCheck()` for entities in the player's bubble
+2. `DeaggregationCheck()` posts `FalconSimCampMessage::simcampDeaggregate` messages
+3. The timer thread calls `RealTimeFunction()` which dispatches VU messages via `gMainThread->Update()`
+4. When the message is received, `ent->Deaggregate()` is called, setting `IsAggregate()` to 0
+5. The original fix prevented `RebuildBubble()` from running, so no deaggregation messages were ever sent
+
+**Debug Output Added (temporarily):**
+- `RebuildBubble()` call counter
+- `DeaggregationCheck()` flight status (IsAggregate, InBubble, IsLocal, g_bSleepAll)
+- `simcampDeaggregate` message sending
+- `StartLoop()` deaggregation wait status
+
+**Key Finding:**
+- Initially `g_bSleepAll=1` blocked deaggregation
+- After `g_bSleepAll=FALSE` is set in StartLoop(), deaggregation can proceed
+- But `RebuildBubble()` wasn't being called because of the Step2 skip
+
+**Fix:**
+1. Changed the Loop() skip condition from `Step2 || Step5` to just `Step5`:
+   ```cpp
+   #ifdef FF_LINUX
+       if (currentMode == Step5)  // Was: Step2 || Step5
+       {
+           Sleep(10);
+           continue;
+       }
+   #endif
+   ```
+
+2. Added guard around `SimDriver.Cycle()` to skip only the dangerous code during Step2:
+   ```cpp
+   #ifdef FF_LINUX
+       if (currentMode != Step2)
+       {
+   #endif
+       FalconEntity::DoSimDirtyData(vuxRealTime);
+       CampEnterCriticalSection();
+       SimDriver.Cycle();
+       CampLeaveCriticalSection();
+   #ifdef FF_LINUX
+       }
+   #endif
+   ```
+
+**Files Modified:**
+- `src/sim/simloop/simloop.cpp` - Refined Step2 handling
+- `src/campaign/campupd/campaign.cpp` - Linux path fixes, include case fixes
+
+**Result:**
+- Deaggregation messages are sent successfully
+- `IsAggregate()` changes from 128 to 0
+- Mission launch proceeds past the deaggregation wait
+- Game continues to renderer setup phase
+
+**Remaining Issues:**
+- Far texture loading errors (missing texture files in game data, IDs 70xxx)
+- Non-fatal texture assertions during renderer setup
+- These are data/asset issues, not code bugs
+
+---
+
 #### Current Status
 
 - ✅ Race condition crash fixed
 - ✅ Deaggregation wait loop completes without crashing
-- ❌ Flight deaggregation never completes (IsAggregate() always true)
-- ❌ Cannot enter actual flight simulation yet
+- ✅ Flight deaggregation completes successfully
+- ✅ Mission launch proceeds to renderer setup
+- ⚠️ Far texture loading errors (game data issue)
+- ❌ Full flight simulation not yet verified
