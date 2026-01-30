@@ -3079,3 +3079,99 @@ After these fixes:
 3. Traced to alloc.c and found `unsigned int` casts on pointers
 4. Applied uintptr_t fixes
 5. Verified full 64-bit addresses returned (0x76d214a2dd00)
+
+---
+
+### Session: January 30, 2026 - Texture Database Safety and DX Engine Debugging
+
+#### Overview
+
+Continued debugging the simulation rendering pipeline. Fixed texture database assertion crashes and added debugging to trace DX engine FlushBuffers crash.
+
+#### Fix 1: FarTexDB and TextureDB Cleanup/Select Safety
+
+**Root Cause:** `DeviceDependentGraphicsCleanup()` is called before `DeviceDependentGraphicsSetup()` during sim initialization (in `otwdrive.cpp:2071`). This causes `TheFarTextures.Cleanup()` and `TheTerrTextures.Cleanup()` to crash on `ShiAssert(IsReady())` because the databases haven't been initialized yet.
+
+Similarly, `Select()` can be called during terrain rendering before Setup() has completed.
+
+**Fix:** Added safety checks to return early if not initialized:
+
+**Files Modified:**
+- `src/graphics/texture/fartex.cpp`:
+  ```cpp
+  void FarTexDB::Cleanup(void)
+  {
+  #ifdef FF_LINUX
+      if (!IsReady()) {
+          return;  // Not initialized, nothing to clean up
+      }
+  #else
+      ShiAssert(IsReady());
+  #endif
+      // ...
+  }
+
+  void FarTexDB::Select(ContextMPR *localContext, TextureID texID)
+  {
+  #ifdef FF_LINUX
+      if (!IsReady()) {
+          return;  // Not initialized, skip texture selection
+      }
+  #else
+      ShiAssert(IsReady());
+  #endif
+      // ...
+  }
+  ```
+
+- `src/graphics/texture/terrtex.cpp`: Same fixes applied to `TextureDB::Cleanup()` and `TextureDB::Select()`
+
+#### Current Blocker: DX Engine FlushBuffers Crash
+
+**Status:** UNDER INVESTIGATION
+
+**Symptom:** Crash in `CDXEngine::FlushBuffers()` when calling `m_pD3DD->ApplyStateBlock(DxEngineStateHandle)`. The state block handle is valid (2), and m_pD3DD is not NULL.
+
+**Location:** `src/graphics/dxengine/dxengine.cpp:2066`
+
+**Debug Output:**
+```
+[FlushPolyLists] FlushBuffers...
+[CDXEngine::FlushBuffers] ENTER, m_pD3DD=0x7a8718324a20
+[CDXEngine::FlushBuffers] CreateStateBlock... DxEngineStateHandle=2
+[CDXEngine::FlushBuffers] CreateStateBlock done (StateHandle=40), ApplyStateBlock(DxEngineStateHandle)...
+timeout: the monitored command dumped core
+```
+
+**Likely Cause:** The `ApplyStateBlock()` implementation in `d3d_gl.cpp` calls OpenGL functions (`ApplyRenderState()` → `glEnable/glDisable/etc`). The crash may be due to:
+1. OpenGL context not bound to the sim thread
+2. OpenGL state corruption
+3. GL context threading issue
+
+**Call Chain:**
+```
+FlushPolyLists() (context.cpp)
+  → TheDXEngine.FlushBuffers() (dxengine.cpp)
+    → m_pD3DD->ApplyStateBlock(DxEngineStateHandle)
+      → D3D7Dev_ApplyStateBlock() (d3d_gl.cpp)
+        → dev->ApplyRenderState()
+          → glEnable/glDisable/... (OpenGL calls)
+```
+
+**Next Steps to Fix:**
+1. Verify GL context is properly bound to sim thread before FlushBuffers
+2. Add debug output inside `D3D7Dev_ApplyStateBlock()` and `ApplyRenderState()`
+3. Check if GL context transfer (`FF_SimThreadAcquireGL()`) is happening at the right time
+4. Consider wrapping GL calls in context validation checks
+
+#### Files Modified This Session
+
+| File | Changes |
+|------|---------|
+| `src/graphics/texture/fartex.cpp` | Added IsReady() guards to Cleanup() and Select() |
+| `src/graphics/texture/terrtex.cpp` | Added IsReady() guards to Cleanup() and Select() |
+| `src/graphics/3dlib/context.cpp` | Added debug output to FlushPolyLists() |
+| `src/graphics/dxengine/dxengine.cpp` | Added debug output and NULL check to FlushBuffers() |
+| `src/sim/otwdrive/otwloop.cpp` | Added debug output to trace crash location |
+
+---
