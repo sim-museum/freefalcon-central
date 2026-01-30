@@ -8,14 +8,14 @@
 #include "stdafx.h"
 #include <stdio.h>
 #include <math.h>
-#include "TimeMgr.h"
-#include "TOD.h"
-#include "Image.h"
+#include "timemgr.h"
+#include "tod.h"
+#include "image.h"
 #include "TerrTex.h"
 #include "dxtlib.h"
-#include "Falclib/Include/IsBad.h"
-#include "FalcLib/include/dispopts.h"
-#include "FalcLib/include/f4thread.h"
+#include "falclib/include/isbad.h"
+#include "falclib/include/dispopts.h"
+#include "falclib/include/f4thread.h"
 
 extern bool g_bEnableStaticTerrainTextures;
 extern int fileout;
@@ -23,7 +23,7 @@ extern void ConvertToNormalMap(int kerneltype, int colorcnv, int alpha, float sc
 extern void ReadDTXnFile(unsigned long count, void * buffer);
 extern void WriteDTXnFile(unsigned long count, void *buffer);
 
-#include "FalcLib/include/PlayerOp.h"
+#include "falclib/include/playerop.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL gTexDBMemPool = NULL;
@@ -272,8 +272,16 @@ void TextureDB::Cleanup(void)
 {
     int i, j;
 
+#ifdef FF_LINUX
+    // FF_LINUX: Cleanup may be called before Setup (e.g., in DeviceDependentGraphicsCleanup
+    // called from otwdrive.cpp before DeviceDependentGraphicsSetup). Just return early if not ready.
+    if (!IsReady() || !TextureSets) {
+        return;
+    }
+#else
     ShiAssert(IsReady());
     ShiAssert(TextureSets);
+#endif
 
     // sfr: lock texturedb for cleanup
     F4ScopeLock sl(cs_textureList);
@@ -1117,7 +1125,15 @@ void TextureDB::Free(SetEntry* pSet, TileEntry* pTile, int res)
 // Select a "Load"ed texture into an RC for immediate use by the rasterizer
 void TextureDB::Select(ContextMPR *localContext, TextureID texID)
 {
+#ifdef FF_LINUX
+    // FF_LINUX: Select may be called before Setup completes (race condition during sim startup).
+    // Return early if not ready rather than crashing.
+    if (!IsReady()) {
+        return;
+    }
+#else
     ShiAssert(IsReady());
+#endif
     ShiAssert(localContext);
 
     int set = ExtractSet(texID);

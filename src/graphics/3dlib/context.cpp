@@ -2379,6 +2379,9 @@ DWORD VCounter;
 
 void ContextMPR::FlushPolyLists()
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[FlushPolyLists] ENTER\n"); fflush(stderr);
+#endif
     VCounter = 0;
 
 
@@ -2387,33 +2390,58 @@ void ContextMPR::FlushPolyLists()
 
     SetState(MPR_STA_ENABLES, MPR_SE_Z_WRITE);
     SetState(MPR_STA_ENABLES, MPR_SE_Z_BUFFERING);
+#ifdef FF_LINUX
+    fprintf(stderr, "[FlushPolyLists] SetState done, plainPolys=%p, texturedPolys=%p\n",
+            (void*)plainPolys, (void*)texturedPolys); fflush(stderr);
+#endif
 
     if (plainPolys not_eq NULL) RenderPolyList(plainPolys);
+#ifdef FF_LINUX
+    fprintf(stderr, "[FlushPolyLists] plainPolys rendered\n"); fflush(stderr);
+#endif
 
     if (texturedPolys not_eq NULL) RenderPolyList(texturedPolys);
+#ifdef FF_LINUX
+    fprintf(stderr, "[FlushPolyLists] texturedPolys rendered, g_bUse_DX_Engine=%d\n", g_bUse_DX_Engine); fflush(stderr);
+#endif
 
     // STOP_PROFILE(BSP_ENGINE_PROF);
 
     // COBRA - DX - Switching btw Old and New Engine - Flush of the objects
     if (g_bUse_DX_Engine)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[FlushPolyLists] FlushBuffers...\n"); fflush(stderr);
+#endif
         //START_PROFILE(DX_ENGINE_PROF);
         bool k = bZBuffering ? true : false;
         bZBuffering = false;
         TheDXEngine.FlushBuffers();
+#ifdef FF_LINUX
+        fprintf(stderr, "[FlushPolyLists] FlushBuffers done, InvalidateState...\n"); fflush(stderr);
+#endif
         bZBuffering = k;
         InvalidateState();
         //STOP_PROFILE(DX_ENGINE_PROF);
     }
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[FlushPolyLists] DX block done, translucentPolys=%p\n", (void*)translucentPolys); fflush(stderr);
+#endif
     // START_PROFILE(BSP_ENGINE_PROF);
 
     SetState(MPR_STA_DISABLES, MPR_SE_Z_WRITE);
     //TheDXEngine.SetStencilMode(STENCIL_CHECK);
 
     if (translucentPolys not_eq NULL) RenderPolyList(translucentPolys);
+#ifdef FF_LINUX
+    fprintf(stderr, "[FlushPolyLists] translucentPolys rendered\n"); fflush(stderr);
+#endif
 
     TheDXEngine.SetStencilMode(STENCIL_OFF);
+#ifdef FF_LINUX
+    fprintf(stderr, "[FlushPolyLists] SetStencilMode done\n"); fflush(stderr);
+#endif
 
     mIdx = 0;
     plainPolys = texturedPolys = translucentPolys = NULL;
@@ -2428,6 +2456,9 @@ void ContextMPR::FlushPolyLists()
     // STOP_PROFILE(BSP_ENGINE_PROF);
 
     //REPORT_VALUE("Vertices", VCounter);
+#ifdef FF_LINUX
+    fprintf(stderr, "[FlushPolyLists] DONE\n"); fflush(stderr);
+#endif
 }
 
 void ContextMPR::FlushVB()

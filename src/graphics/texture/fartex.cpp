@@ -7,14 +7,14 @@
 \***************************************************************************/
 #include "stdafx.h"
 #include <stdio.h>
-#include "TimeMgr.h"
-#include "TOD.h"
-#include "Image.h"
-#include "FarTex.h"
+#include "timemgr.h"
+#include "tod.h"
+#include "image.h"
+#include "fartex.h"
 #include "dxtlib.h"
-#include "Falclib/Include/IsBad.h"
-#include "FalcLib/include/playerop.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/isbad.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
 
 extern bool g_bEnableStaticTerrainTextures;
 extern bool g_bUseMappedFiles;
@@ -23,7 +23,7 @@ extern void ConvertToNormalMap(int kerneltype, int colorcnv, int alpha, float sc
 extern void ReadDTXnFile(unsigned long count, void * buffer);
 extern void WriteDTXnFile(unsigned long count, void *buffer);
 
-#include "FalcLib/include/PlayerOp.h"
+#include "falclib/include/playerop.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL gFartexMemPool;
@@ -174,7 +174,15 @@ BOOL FarTexDB::Setup(DXContext *hrc, const char* path)
 
 void FarTexDB::Cleanup(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX: Cleanup may be called before Setup (e.g., in DeviceDependentGraphicsCleanup
+    // called from otwdrive.cpp before DeviceDependentGraphicsSetup). Just return early if not ready.
+    if (!IsReady()) {
+        return;
+    }
+#else
     ShiAssert(IsReady());
+#endif
 
     // Stop receiving time updates
     TheTimeManager.ReleaseTimeUpdateCB(TimeUpdateCallback, this);
@@ -697,7 +705,15 @@ LoadedTextureCount--;
 // Select a "Load"ed texture into an RC for immediate use by the rasterizer
 void FarTexDB::Select(ContextMPR *localContext, TextureID texID)
 {
+#ifdef FF_LINUX
+    // FF_LINUX: Select may be called before Setup completes (race condition during sim startup).
+    // Return early if not ready rather than crashing.
+    if (!IsReady()) {
+        return;
+    }
+#else
     ShiAssert(IsReady());
+#endif
     ShiAssert(localContext);
 
     if (texID == INVALID_TEXID) return;

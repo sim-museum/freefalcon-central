@@ -3,7 +3,7 @@
 #include <math.h>
 #include "../include/ObjectInstance.h"
 #include "dxdefines.h"
-#include "DXVBManager.h"
+#include "dxvbmanager.h"
 #include "mmsystem.h"
 #include "../include/TexBank.h"
 #ifndef DEBUG_ENGINE
@@ -11,10 +11,10 @@
 #endif
 #include "dxengine.h"
 #include "../include/ObjectLOD.h"
-#include "DXTools.h"
+#include "dxtools.h"
 #include "../include/Tod.h"
 #include "../../falclib/include/Fakerand.h"
-#include "../../include/ComSup.h"
+#include "../../include/comsup.h"
 
 // This variable is the Model ID presently under draw
 DWORD gDebugLodID;
@@ -183,17 +183,17 @@ void CDXEngine::SetCamera(D3DXMATRIX *Settings, D3DVECTOR Pos, D3DXMATRIX *BB)
     CameraView = *Settings;
     CameraPos = Pos;
 #ifdef EDIT_ENGINE
-    CameraView.m30 = CameraPos.x;
-    CameraView.m31 = CameraPos.y;
-    CameraView.m32 = CameraPos.z;
+    CameraView._41 = CameraPos.x;
+    CameraView._42 = CameraPos.y;
+    CameraView._43 = CameraPos.z;
 #endif
     m_pD3DD->SetTransform(D3DTRANSFORMSTATE_VIEW, (LPD3DMATRIX)&CameraView);
 
     // The BB Stuff
     BBMatrix = *BB;
-    BBCx[0].d3d.x = BB->m00, BBCx[0].d3d.y = BB->m10, BBCx[0].d3d.z = BB->m20, BBCx[0].d3d.Flags.Word = 0;
-    BBCx[1].d3d.x = BB->m01, BBCx[1].d3d.y = BB->m11, BBCx[1].d3d.z = BB->m21, BBCx[1].d3d.Flags.Word = 0;
-    BBCx[2].d3d.x = BB->m02, BBCx[2].d3d.y = BB->m12, BBCx[2].d3d.z = BB->m22, BBCx[2].d3d.Flags.Word = 0;
+    BBCx[0].d3d.x = BB->_11, BBCx[0].d3d.y = BB->_21, BBCx[0].d3d.z = BB->_31, BBCx[0].d3d.Flags.Word = 0;
+    BBCx[1].d3d.x = BB->_12, BBCx[1].d3d.y = BB->_22, BBCx[1].d3d.z = BB->_32, BBCx[1].d3d.Flags.Word = 0;
+    BBCx[2].d3d.x = BB->_13, BBCx[2].d3d.y = BB->_23, BBCx[2].d3d.z = BB->_33, BBCx[2].d3d.Flags.Word = 0;
 
     // set the XMM Camera
     *((D3DVECTOR*)&XMMCamera.d3d) = Pos;
@@ -553,7 +553,7 @@ bool CDXEngine::PushSurfaceIntoSort(SurfaceStackType *Stack, D3DXMATRIX *State)
 
     Level = PushSurface(Stack, State);
     D3DXVECTOR3 Pos;
-    Pos.x = State->m30, Pos.y = State->m31, Pos.z = State->m32;
+    Pos.x = State->_41, Pos.y = State->_42, Pos.z = State->_43;
     DX2D_AddObject(Level, LAYER_AUTO, Stack, &Pos);
     return true;
 }
@@ -934,10 +934,10 @@ void CDXEngine::DrawSurface()
     {
         // Apply the BillBoard Transformation
         D3DXMATRIX R = BBMatrix;
-        R.m30 = AppliedState.m30;
-        R.m31 = AppliedState.m31;
-        R.m32 = AppliedState.m32;
-        R.m33 = 1.0f;
+        R._41 = AppliedState._41;
+        R._42 = AppliedState._42;
+        R._43 = AppliedState._43;
+        R._44 = 1.0f;
         m_pD3DD->SetTransform(D3DTRANSFORMSTATE_WORLD, (LPD3DMATRIX)&R);
     }
 
@@ -1094,10 +1094,10 @@ void CDXEngine::AssignDOFRotation(D3DXMATRIX *R)
 
         // Apply Scaling at the destination Matrix
         ZeroMemory(R, sizeof(D3DXMATRIX));
-        R->m00 = 1.0f - (1.0f - m_NODE.DOF->scale.x) * DofRot;
-        R->m11 = 1.0f - (1.0f - m_NODE.DOF->scale.y) * DofRot;
-        R->m22 = 1.0f - (1.0f - m_NODE.DOF->scale.z) * DofRot;
-        R->m33 = 1.0f;
+        R->_11 = 1.0f - (1.0f - m_NODE.DOF->scale.x) * DofRot;
+        R->_22 = 1.0f - (1.0f - m_NODE.DOF->scale.y) * DofRot;
+        R->_33 = 1.0f - (1.0f - m_NODE.DOF->scale.z) * DofRot;
+        R->_44 = 1.0f;
     }
 
 }
@@ -1382,9 +1382,9 @@ void CDXEngine::DrawObject(ObjectInstance *objInst, D3DXMATRIX *RotMatrix, const
 
         // ************ ADD Other Features ***********
         D3DXMatrixIdentity(&Scale);
-        Scale.m00 = scale * sx;
-        Scale.m11 = scale * sy;
-        Scale.m22 = scale * sz;
+        Scale._11 = scale * sx;
+        Scale._22 = scale * sy;
+        Scale._33 = scale * sz;
         D3DXMatrixMultiply(&State, RotMatrix, &Scale);
         // *******************************************
 #else
@@ -1484,7 +1484,7 @@ void CDXEngine::DrawObject(ObjectInstance *objInst, D3DXMATRIX *RotMatrix, const
 
             // Calculate the color based on Fog level
             // DWORD Color=(min(255,FloatToInt32(m_FogLevel*255.f)) << 24)+0x102010;
-            DWORD Color = F_TO_UARGB(min(255.0f, F_I32(m_FogLevel * 255.f)), Si * 240.0f, Si * 255.0f, Si * 240.0f);
+            DWORD Color = F_TO_UARGB(min((DWORD)255, F_I32(m_FogLevel * 255.f)), Si * 240.0f, Si * 255.0f, Si * 240.0f);
             Draw3DPoint((D3DVECTOR*)Pos, Color);
 #ifdef DEBUG_LOD_ID
             strcpy(LodLabel, ".");
@@ -1745,9 +1745,9 @@ void CDXEngine::FlushObjects(void)
         // Execute the Scripts 0 bitand 1 if existant
         DXScriptVariableType *Script = ((DxDbHeader*)m_VB.Root)->Scripts;
         D3DVECTOR pos;
-        pos.x = AppliedState.m30;
-        pos.y = AppliedState.m31;
-        pos.z = AppliedState.m32;
+        pos.x = AppliedState._41;
+        pos.y = AppliedState._42;
+        pos.z = AppliedState._43;
 
         if (Script[0].Script) if ( not DXScriptArray[Script[0].Script](&pos, objInst, Script[0].Arguments)) goto DrawSection;
 
@@ -1780,7 +1780,7 @@ void CDXEngine::FlushObjects(void)
 
 
         // Calculates the Texture Base Index in the Texture Bank
-        int nTexsPerBank = m_VB.NTex / max(1, objInst->ParentObject->nTextureSets);
+        int nTexsPerBank = m_VB.NTex / max(1, (int)objInst->ParentObject->nTextureSets);
         DWORD *texOffset = m_VB.Texs + objInst->TextureSet * nTexsPerBank;
 
         // Register each texture for the Model ( and load it if not available ) and setup local Textures List
@@ -2035,6 +2035,15 @@ extern DWORD LODsLoaded;
 // it flushes all requested Drawsand draws all poly types
 void CDXEngine::FlushBuffers(void)
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[CDXEngine::FlushBuffers] ENTER, m_pD3DD=%p\n", (void*)m_pD3DD); fflush(stderr);
+    // FF_LINUX: Safety check for NULL D3D device
+    if (m_pD3DD == NULL) {
+        fprintf(stderr, "[CDXEngine::FlushBuffers] ERROR: m_pD3DD is NULL!\n");
+        return;
+    }
+#endif
+
     float FogStart = 0.0;
     D3DErroCount = 3;
 
@@ -2043,9 +2052,21 @@ void CDXEngine::FlushBuffers(void)
     //REPORT_VALUE("LODs : ", LODsLoaded);
 #endif
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[CDXEngine::FlushBuffers] CreateStateBlock... DxEngineStateHandle=%u\n", DxEngineStateHandle); fflush(stderr);
+#endif
     // First of all save present renderer State
     DWORD StateHandle;
     CheckHR(m_pD3DD->CreateStateBlock(D3DSBT_ALL, &StateHandle));
+#ifdef FF_LINUX
+    fprintf(stderr, "[CDXEngine::FlushBuffers] CreateStateBlock done (StateHandle=%u), ApplyStateBlock(DxEngineStateHandle)...\n", StateHandle); fflush(stderr);
+    // FF_LINUX: Check if DxEngineStateHandle is valid
+    if (DxEngineStateHandle == 0) {
+        fprintf(stderr, "[CDXEngine::FlushBuffers] ERROR: DxEngineStateHandle is 0 (not initialized)!\n");
+        // Skip the ApplyStateBlock to avoid crash
+        return;
+    }
+#endif
 
     // Setup the state for the DX engine
     CheckHR(m_pD3DD->ApplyStateBlock(DxEngineStateHandle));
