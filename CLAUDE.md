@@ -3165,36 +3165,94 @@ When `ZeroTex` (a 64-bit pointer like `0x70e6fc8bd040`) is cast to `GLint` (32-b
 
 ---
 
-### Session: January 30, 2026 - Continued Stability Investigation
+### Session: January 30, 2026 - ShiAssert Globals Fix and Stability Improvements
 
-#### Current Status
+#### Problem: ShiAssert Globals Undefined on Linux
 
-After fixing the SelectTexture pointer truncation issue, the simulation now:
-- Runs multiple render cycles successfully
-- Completes FlushPolyLists() without crashing
-- Eventually crashes after a few render cycles (under investigation)
+**Symptom:** Simulation crashed with assertion failures that triggered undefined behavior because `shiHardCrashOn` was not properly initialized.
 
-#### Non-fatal Assertions Observed
+**Root Cause:** A mismatch between `DEBUG` (without underscore) used in `shi/assert.h` and `winmain.cpp`, versus `_DEBUG` (with underscore) used in `main_linux.cpp` and defined by CMake:
 
-During simulation, these warnings appear but don't cause crashes:
+1. `shi/assert.h` unconditionally `#define DEBUG`
+2. `winmain.cpp` uses `#ifdef DEBUG` to define `shiAssertsOn`, `shiWarningsOn`, `shiHardCrashOn`
+3. `main_linux.cpp` used `#ifndef _DEBUG` / `extern` pattern
+4. CMake defines `_DEBUG` but `DEBUG` was also getting defined via the include chain
+
+This caused duplicate symbol errors when both files defined the same globals.
+
+**Fix:**
+1. In `main_linux.cpp`: Always define the ShiAssert globals (removed `#ifndef _DEBUG` guard)
+2. In `winmain.cpp`: Added `#ifndef FF_LINUX` guard around the definitions
+
+```cpp
+// main_linux.cpp - always define these for Linux
+int shiAssertsOn = 1;
+int shiWarningsOn = 1;
+int shiHardCrashOn = 0;  // MUST be 0 to prevent crash on assertions
+
+// winmain.cpp - skip definition on Linux
+#ifdef DEBUG
+    int f4AssertsOn = TRUE, f4HardCrashOn = FALSE;
+#ifndef FF_LINUX  // FF_LINUX: These are defined in main_linux.cpp
+    int shiAssertsOn = TRUE,
+    shiWarningsOn = TRUE,
+    shiHardCrashOn = FALSE;
+#endif
 ```
-[Failed:  floor(topPixel) >= 0.0f] - display.cpp:292
-[Failed:  ceil(bottomPixel) >= 0.0f] - display.cpp:293
-[Failed:  floor(leftPixel) >= 0.0f] - display.cpp:294
-[Failed:  ceil(rightPixel) >= 0.0f] - display.cpp:295
-```
 
-These indicate viewport/pixel calculation issues that should be investigated.
+#### Cleanup: Verbose Debug Output Removed
 
-#### Files Modified This Session
+Removed excessive debug fprintf statements that were slowing down the rendering loop:
+- `setup.cpp`: Removed 15+ initialization progress messages
+- `context.cpp`: Removed 12+ FlushPolyLists() debug messages
+- `otw.cpp`: Kept existing debug (removed by sed would have broken the file)
+
+#### FarTex.h Case-Sensitivity Fix
+
+Created symlink `FarTex.h` -> `fartex.h` for case-insensitive include resolution.
+
+#### Result
+
+**Simulation now runs stably for 20-30+ seconds** with:
+- 3D terrain rendering working
+- Objects drawing correctly
+- Cockpit instruments functioning
+- No crashes during normal operation
+
+The crash that occurs after 20-30 seconds appears to be during cleanup when the timeout kills the process, not during normal simulation.
+
+#### Files Modified
 
 | File | Changes |
 |------|---------|
-| `src/graphics/texture/fartex.cpp` | Added IsReady() guards to Cleanup() and Select() |
-| `src/graphics/texture/terrtex.cpp` | Added IsReady() guards to Cleanup() and Select() |
-| `src/graphics/3dlib/context.cpp` | Added debug output to FlushPolyLists() |
-| `src/graphics/dxengine/dxengine.cpp` | SelectTexture 64-bit fix, NULL/state checks in FlushBuffers() |
-| `src/compat/d3d_gl.cpp` | Cleaned up ApplyStateBlock debug output |
-| `src/sim/otwdrive/otwloop.cpp` | Added debug output to trace crash location |
+| `src/ffviper/main_linux.cpp` | Fixed ShiAssert globals definition |
+| `src/ui/src/winmain.cpp` | Added FF_LINUX guard for globals |
+| `src/graphics/utils/setup.cpp` | Cleaned up verbose debug output |
+| `src/graphics/3dlib/context.cpp` | Removed FlushPolyLists debug output |
+| `src/graphics/include/FarTex.h` | New symlink for case-insensitive include |
+
+---
+
+## Current Status (January 30, 2026)
+
+### What Works
+- Main menu UI renders correctly
+- All menu buttons functional (Exit, Setup, Logbook, Campaign, etc.)
+- Campaign loading succeeds
+- Instant Action mission launch works
+- 3D terrain and object rendering operational
+- Cockpit instruments initialize and render
+- **Simulation runs stably for 20-30+ seconds**
+
+### Known Issues
+1. **Viewport pixel warnings**: Non-fatal assertions about negative pixel values in display.cpp
+2. **Timeout-induced crash**: Process crashes during cleanup when killed by timeout
+3. **Remaining debug output**: Some verbose debug in otw.cpp, otwdraw.cpp needs cleanup
+
+### Next Steps
+1. Investigate the cleanup crash (appears to be during FileMemMap::Close)
+2. Clean up remaining verbose debug output carefully (avoid breaking code structure)
+3. Test longer running sessions without timeout
+4. Test return-to-menu flow after exiting simulation
 
 ---
