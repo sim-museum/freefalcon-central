@@ -1,5 +1,6 @@
 #include <cISO646>
 #include <stdlib.h>
+#include <stdint.h>
 #include "alloc.h"
 #include "xmmintrin.h"
 
@@ -23,8 +24,9 @@ static alloc_hdr_t *root = 0UL;
 
 char *AllocSetToAlignment(char *c)
 {
-    unsigned int i = (unsigned int)c;
-    i = (i + ALIGN_BYTES - 1) bitand -ALIGN_BYTES;
+    // FF_LINUX: Use uintptr_t instead of unsigned int to avoid pointer truncation on 64-bit
+    uintptr_t i = (uintptr_t)c;
+    i = (i + ALIGN_BYTES - 1) & ~(uintptr_t)(ALIGN_BYTES - 1);
     return(char*)i;
 }
 
@@ -62,7 +64,8 @@ char *Alloc(int size)
     mem = blk->free;
     blk->free += size;
 
-    if ((unsigned int)(blk->free) > (unsigned int)(blk->end))
+    // FF_LINUX: Use uintptr_t instead of unsigned int for 64-bit pointer comparison
+    if ((uintptr_t)(blk->free) > (uintptr_t)(blk->end))
     {
         if (blk->next not_eq 0UL)
         {

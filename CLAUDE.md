@@ -2962,7 +2962,120 @@ The instant action mission launch now progresses further:
 - Far texture errors are non-fatal (missing texture assets)
 
 **Next Steps:**
-1. Verify actual 3D content is being rendered (terrain, aircraft, cockpit)
+1. Fix FarTexDB IsReady() assertion (texture database not initialized)
 2. Test joystick input during flight
 3. Test return-to-menu flow after exiting sim
 4. Consider cleaning up debug output for production builds
+
+---
+
+### Session: January 30, 2026 - Critical 64-bit Pointer Truncation Fixes
+
+#### Overview
+
+Fixed critical pointer truncation bugs that were causing crashes in the 3D rendering pipeline. Multiple functions were casting 64-bit pointers to 32-bit `unsigned int` or `DWORD`, resulting in corrupted pointers.
+
+#### Fix 1: Graphics Allocator Pointer Truncation (alloc.c)
+
+**Root Cause:** The `AllocSetToAlignment()` function and pointer comparison in `Alloc()` were using `unsigned int` for pointer arithmetic, which truncates 64-bit pointers.
+
+**Symptoms:**
+- Crash after `AllocatePolygon()` call during terrain rendering
+- Alloc returned pointer like `0x2ca2e3d0` instead of `0x76d214a2dd00`
+- Accessing truncated pointer caused segfault
+
+**Files Modified:**
+- `src/graphics/3dlib/alloc.c`
+
+**Changes:**
+```c
+// Before (line 24-29):
+char *AllocSetToAlignment(char *c)
+{
+    unsigned int i = (unsigned int)c;  // TRUNCATES 64-bit pointer!
+    i = (i + ALIGN_BYTES - 1) bitand -ALIGN_BYTES;
+    return(char*)i;
+}
+
+// After:
+char *AllocSetToAlignment(char *c)
+{
+    uintptr_t i = (uintptr_t)c;  // Preserves full pointer
+    i = (i + ALIGN_BYTES - 1) & ~(uintptr_t)(ALIGN_BYTES - 1);
+    return(char*)i;
+}
+
+// Before (line 65):
+if ((unsigned int)(blk->free) > (unsigned int)(blk->end))
+
+// After:
+if ((uintptr_t)(blk->free) > (uintptr_t)(blk->end))
+```
+
+#### Fix 2: AllocatePolygon Pointer Arithmetic (context.cpp)
+
+**Root Cause:** Calculating vertex list offset used `DWORD` cast which truncates 64-bit pointers.
+
+**Files Modified:**
+- `src/graphics/3dlib/context.cpp`
+
+**Changes:**
+```cpp
+// Before (line 2560):
+curPoly->pVertexList = (TLVERTEX *)(DWORD(curPoly) + sizeof(SPolygon));
+
+// After:
+#ifdef FF_LINUX
+curPoly->pVertexList = (TLVERTEX *)((uintptr_t)curPoly + sizeof(SPolygon));
+#else
+curPoly->pVertexList = (TLVERTEX *)(DWORD(curPoly) + sizeof(SPolygon));
+#endif
+```
+
+#### Fix 3: RenderPolyList Offset Calculation (context.cpp)
+
+**Root Cause:** Computing struct field offset used `DWORD` casts which truncate pointers.
+
+**Files Modified:**
+- `src/graphics/3dlib/context.cpp`
+
+**Changes:**
+```cpp
+// Before (line 2585):
+offset = DWORD(&pHead->zBuffer) - DWORD(pHead);
+
+// After:
+#ifdef FF_LINUX
+offset = (DWORD)((uintptr_t)&pHead->zBuffer - (uintptr_t)pHead);
+#else
+offset = DWORD(&pHead->zBuffer) - DWORD(pHead);
+#endif
+```
+
+#### Pattern for Pointer Truncation Issues
+
+**Problematic patterns to search for:**
+- `(unsigned int)pointer` or `(DWORD)pointer` for arithmetic
+- `(unsigned int)ptr1 - (unsigned int)ptr2` for offset calculation
+- `(DWORD)ptr + offset` for pointer adjustment
+
+**Safe alternatives:**
+- Use `uintptr_t` for pointer arithmetic
+- Use `offsetof()` macro for struct offsets
+- Cast result back to pointer after arithmetic: `(type*)((uintptr_t)ptr + offset)`
+
+#### Results
+
+After these fixes:
+- Graphics allocator returns valid 64-bit pointers
+- Terrain polygon rendering proceeds without crashes
+- Game runs for extended periods during simulation mode
+- New issue revealed: FarTexDB::IsReady() assertion (separate initialization issue)
+
+#### Debug Methodology
+
+1. Added debug output to trace crash location (ClipAndDraw3DFan → DrawPrimitive → AllocatePolygon)
+2. Observed Alloc returning truncated address (0x2ca2e3d0)
+3. Traced to alloc.c and found `unsigned int` casts on pointers
+4. Applied uintptr_t fixes
+5. Verified full 64-bit addresses returned (0x76d214a2dd00)

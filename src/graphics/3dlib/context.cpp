@@ -2555,9 +2555,18 @@ inline void SPolygon::CalcPolyZ(float Avg)
 
 /*inline*/ void ContextMPR::AllocatePolygon(SPolygon *&curPoly, const DWORD numVertices)
 {
-    curPoly = (SPolygon *)Alloc(sizeof(SPolygon) + numVertices * sizeof(TLVERTEX));
+    size_t allocSize = sizeof(SPolygon) + numVertices * sizeof(TLVERTEX);
+    curPoly = (SPolygon *)Alloc(allocSize);
+    if (!curPoly) {
+        return;
+    }
     curPoly->numVertices = numVertices;
+#ifdef FF_LINUX
+    // FF_LINUX: Use uintptr_t instead of DWORD to avoid pointer truncation on 64-bit
+    curPoly->pVertexList = (TLVERTEX *)((uintptr_t)curPoly + sizeof(SPolygon));
+#else
     curPoly->pVertexList = (TLVERTEX *)(DWORD(curPoly) + sizeof(SPolygon));
+#endif
 }
 
 inline void ContextMPR::AddPolygon(SPolygon *&polyList, SPolygon *&curPoly)
@@ -2577,7 +2586,12 @@ void ContextMPR::RenderPolyList(SPolygon *&pHead)
 
     if ((pHead->renderState >= STATE_ALPHA_SOLID) and (pHead->renderState <= STATE_ALPHA_TEXTURE_PERSPECTIVE_CLAMP))
     {
+#ifdef FF_LINUX
+        // FF_LINUX: Use uintptr_t for pointer arithmetic to avoid truncation on 64-bit
+        offset = (DWORD)((uintptr_t)&pHead->zBuffer - (uintptr_t)pHead);
+#else
         offset = DWORD(&pHead->zBuffer) - DWORD(pHead);
+#endif
         pHead = (SPolygon *)RadixSortDescending((radix_sort_t *)pHead, offset);
     }
 

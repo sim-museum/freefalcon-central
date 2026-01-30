@@ -9,7 +9,7 @@
  that the clipping volume is z >= 1 and -z <= x <= z and -z <= y <= z.
 \***************************************************************************/
 #include <cISO646>
-#include "Render3D.h"
+#include "render3d.h"
 
 
 //#define DO_NEAR_CLIP_ONLY // Can leave this defined as long as MPR is doing clipping
@@ -34,6 +34,17 @@ static int extraVertCount; // created by clipping.
 \***************************************************************************/
 void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int CullFlag, bool gifPicture, bool terrain, bool sort) //JAM 14Sep03
 {
+#ifdef FF_LINUX
+    static int clipFanDbg = 0;
+    clipFanDbg++;
+    bool doDebug = (clipFanDbg <= 20) || (clipFanDbg % 500 == 0);
+    if (doDebug)
+    {
+        fprintf(stderr, "[ClipAndDraw3DFan] ENTER vertPointers=%p count=%d CullFlag=%d (%d)\n",
+                (void*)vertPointers, count, CullFlag, clipFanDbg);
+        fflush(stderr);
+    }
+#endif
     ThreeDVertex **v, **p, **lastIn, **nextOut;
     ThreeDVertex **inList, **outList, **temp;
     ThreeDVertex *vertList1[MAX_VERT_LIST]; // Used to hold poly vert pointer lists
@@ -43,6 +54,13 @@ void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int
     ShiAssert(vertPointers);
     ShiAssert(count >= 3);
 
+#ifdef FF_LINUX
+    if (doDebug)
+    {
+        fprintf(stderr, "[ClipAndDraw3DFan] Initialize vertex buffers...\n");
+        fflush(stderr);
+    }
+#endif
     // Initialize the vertex buffers
     outList = vertList1;
     lastIn = vertPointers + count;
@@ -52,6 +70,13 @@ void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int
         clipTest or_eq (*vertPointers)->clipFlag;
         *nextOut = (*vertPointers++);
     }
+#ifdef FF_LINUX
+    if (doDebug)
+    {
+        fprintf(stderr, "[ClipAndDraw3DFan] clipTest=0x%x, vertices copied\n", clipTest);
+        fflush(stderr);
+    }
+#endif
 
     ShiAssert(nextOut - outList <= MAX_VERT_LIST);
     inList = vertList2;
@@ -59,6 +84,13 @@ void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int
 
 
     // Clip to the near plane
+#ifdef FF_LINUX
+    if (doDebug)
+    {
+        fprintf(stderr, "[ClipAndDraw3DFan] Near clip? %d\n", (clipTest & CLIP_NEAR) != 0);
+        fflush(stderr);
+    }
+#endif
     if (clipTest bitand CLIP_NEAR)
     {
         temp = inList;
@@ -109,23 +141,76 @@ void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int
     // have to check all triangles instead of stopping after the second reject loop below.
     // If a new set of un-culled triangles was encountered, we'd have to make a new polygon
     // and resubmit it.
+#ifdef FF_LINUX
+    if (doDebug)
+    {
+        fprintf(stderr, "[ClipAndDraw3DFan] Backface culling? CullFlag=%d\n", CullFlag);
+        fflush(stderr);
+    }
+#endif
     if (CullFlag)
     {
+#ifdef FF_LINUX
+        if (doDebug)
+        {
+            fprintf(stderr, "[ClipAndDraw3DFan] Backface entry: inList=%p outList=%p nextOut=%p\n",
+                    (void*)inList, (void*)outList, (void*)nextOut);
+            fflush(stderr);
+        }
+#endif
         temp = inList;
         inList = outList;
         outList = temp;
         lastIn = nextOut - 1;
         nextOut = outList;
 
+#ifdef FF_LINUX
+        if (doDebug)
+        {
+            fprintf(stderr, "[ClipAndDraw3DFan] Backface after swap: inList=%p outList=%p lastIn=%p nextOut=%p\n",
+                    (void*)inList, (void*)outList, (void*)lastIn, (void*)nextOut);
+            fflush(stderr);
+        }
+#endif
         // We only support one flavor of clipping right now. The other version would just
         // be this same code repeated with inverted compare signs.
         ShiAssert(CullFlag == CULL_ALLOW_CW);
 
         // Always copy the vertex at the root of the fan
+#ifdef FF_LINUX
+        if (doDebug)
+        {
+            fprintf(stderr, "[ClipAndDraw3DFan] Copying root vertex: *inList=%p\n", (void*)*inList);
+            fflush(stderr);
+        }
+#endif
         *nextOut++ = *inList;
 
+#ifdef FF_LINUX
+        if (doDebug)
+        {
+            int vertCount = (int)(lastIn - inList) + 1;
+            fprintf(stderr, "[ClipAndDraw3DFan] Starting backface loop, &inList[1]=%p, vertCount=%d\n",
+                    (void*)&inList[1], vertCount);
+            fflush(stderr);
+        }
+#endif
         for (p = &inList[0], v = &inList[1]; v < lastIn; v++)
         {
+#ifdef FF_LINUX
+            if (doDebug)
+            {
+                fprintf(stderr, "[ClipAndDraw3DFan] Loop1 iteration: v=%p lastIn=%p\n", (void*)v, (void*)lastIn);
+                fflush(stderr);
+            }
+            // Check for NULL pointers before dereferencing
+            if (!*v || !*(v+1) || !*p) {
+                fprintf(stderr, "[ClipAndDraw3DFan] ERROR: NULL vertex in backface loop1: *v=%p *(v+1)=%p *p=%p\n",
+                        (void*)*v, (void*)*(v+1), (void*)*p);
+                fflush(stderr);
+                return;  // Avoid crash
+            }
+#endif
             // Only clockwise triangles are accepted
             if ((((*(v + 1))->y - (*v)->y)) * (((*p)->x - (*v)->x)) <
                 (((*(v + 1))->x - (*v)->x)) * (((*p)->y - (*v)->y)))
@@ -135,10 +220,32 @@ void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int
             }
         }
 
+#ifdef FF_LINUX
+        // Check bounds before accessing *v
+        if (v > lastIn) {
+            fprintf(stderr, "[ClipAndDraw3DFan] ERROR: v=%p > lastIn=%p after loop1\n", (void*)v, (void*)lastIn);
+            fflush(stderr);
+            return;
+        }
+        if (!*v) {
+            fprintf(stderr, "[ClipAndDraw3DFan] ERROR: *v is NULL after backface loop1\n");
+            fflush(stderr);
+            return;
+        }
+#endif
         *nextOut++ = *v;
 
         for (p, v; v < lastIn; v++)
         {
+#ifdef FF_LINUX
+            // Check for NULL pointers before dereferencing
+            if (!*v || !*(v+1) || !*p) {
+                fprintf(stderr, "[ClipAndDraw3DFan] ERROR: NULL vertex in backface loop2: *v=%p *(v+1)=%p *p=%p\n",
+                        (void*)*v, (void*)*(v+1), (void*)*p);
+                fflush(stderr);
+                return;  // Avoid crash
+            }
+#endif
             // Only clockwise triangles are accepted
             if ((((*(v + 1))->y - (*v)->y)) * (((*p)->x - (*v)->x)) >=
                 (((*(v + 1))->x - (*v)->x)) * (((*p)->y - (*v)->y)))
@@ -160,10 +267,24 @@ void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int
     // 2002-04-06 MN if gifPicture is false, then do the other clippings (for terrain and stuff).
     // GifPicture is only locally set to true in the case we draw a celestial object.
     // Sun and Moon GIF's are displayed bad when being clipped by below code.
+#ifdef FF_LINUX
+    if (doDebug)
+    {
+        fprintf(stderr, "[ClipAndDraw3DFan] gifPicture=%d, checking clip planes...\n", gifPicture);
+        fflush(stderr);
+    }
+#endif
     if ( not gifPicture)
     {
 #ifndef DO_NEAR_CLIP_ONLY
 
+#ifdef FF_LINUX
+        if (doDebug)
+        {
+            fprintf(stderr, "[ClipAndDraw3DFan] Bottom clip? %d\n", (clipTest & CLIP_BOTTOM) != 0);
+            fflush(stderr);
+        }
+#endif
         // Clip to the bottom plane
         if (clipTest bitand CLIP_BOTTOM)
         {
@@ -325,8 +446,23 @@ void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int
     }
 
 #else
+#ifdef FF_LINUX
+    if (doDebug)
+    {
+        fprintf(stderr, "[ClipAndDraw3DFan] About to DrawPrimitive, count=%d\n",
+                (int)(nextOut - outList));
+        fflush(stderr);
+    }
+#endif
     context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE,
                           (unsigned short)(nextOut - outList), (MPRVtxTexClr_t **)outList, terrain); //JAM 14Sep03
+#ifdef FF_LINUX
+    if (doDebug)
+    {
+        fprintf(stderr, "[ClipAndDraw3DFan] DrawPrimitive done\n");
+        fflush(stderr);
+    }
+#endif
 #endif
 }
 
