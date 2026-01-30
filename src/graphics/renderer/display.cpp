@@ -7,12 +7,12 @@
 \***************************************************************************/
 #include <cISO646>
 #include <math.h>
-#include "Display.h"
-#include "Render3D.h" // ASSO:
+#include "display.h"
+#include "render3d.h" // ASSO:
 
 // COBRA - DX - DX Engine includes
-#include "Graphics/DXEngine/DXVBManager.h"
-#include "Graphics/DXEngine/DXEngine.h"
+#include "graphics/dxengine/dxvbmanager.h"
+#include "graphics/dxengine/dxengine.h"
 extern bool g_bUse_DX_Engine;
 
 // ASSO: BEGIN
@@ -298,6 +298,21 @@ void VirtualDisplay::SetViewport(float l, float t, float r, float b)
     ShiAssert(ceil(bottomPixel) <= tyRes);
     ShiAssert(floor(leftPixel)  <= txRes);
     ShiAssert(ceil(rightPixel)  <= txRes);
+
+#ifdef FF_LINUX
+    // FF_LINUX: Clamp negative pixel values to prevent DWORD underflow
+    // This can happen during certain viewport transitions
+    if (leftPixel < 0.0f) leftPixel = 0.0f;
+    if (topPixel < 0.0f) topPixel = 0.0f;
+    if (rightPixel < 0.0f) rightPixel = 0.0f;
+    if (bottomPixel < 0.0f) bottomPixel = 0.0f;
+    // Also clamp to resolution bounds
+    if (leftPixel > txRes) leftPixel = txRes;
+    if (topPixel > tyRes) topPixel = tyRes;
+    if (rightPixel > txRes) rightPixel = txRes;
+    if (bottomPixel > tyRes) bottomPixel = tyRes;
+#endif
+
     TheDXEngine.SetViewport((DWORD)leftPixel, (DWORD)topPixel, (DWORD)rightPixel, (DWORD)bottomPixel);
 }
 

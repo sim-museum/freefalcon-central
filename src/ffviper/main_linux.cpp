@@ -145,6 +145,19 @@ extern char FalconUIArtThrDirectory[];
 SDL_Window* g_SDLWindow = nullptr;
 SDL_GLContext g_GLContext = nullptr;
 
+// FF_LINUX: ShiAssert control globals
+// In debug builds these are in winmain.cpp, but we define them here for non-debug
+// shiHardCrashOn MUST be 0 to prevent crash on assertions
+#ifndef _DEBUG
+int shiAssertsOn = 1;
+int shiWarningsOn = 1;
+int shiHardCrashOn = 0;
+#else
+extern int shiAssertsOn;
+extern int shiWarningsOn;
+extern int shiHardCrashOn;
+#endif
+
 // OpenGL context transfer for multi-threaded rendering
 // The sim thread needs the GL context for OTWDriver.Cycle(), but the main thread
 // owns it during UI mode. These functions transfer ownership.
