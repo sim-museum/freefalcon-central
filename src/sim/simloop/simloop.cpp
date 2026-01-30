@@ -343,10 +343,10 @@ void SimulationLoopControl::Loop(void)
     do
     {
 #ifdef FF_LINUX
-        // On Linux, wait while in Step2 or Step5 to avoid race conditions with
-        // the StartLoop thread during graphics initialization/cleanup.
+        // On Linux, wait while in Step5 (StoppingGraphics) to avoid race conditions.
+        // Step2 (StartingGraphics) still needs RebuildBubble() to run for deaggregation.
         // On Windows, _FORCE_MAIN_THREAD provides implicit synchronization.
-        if (currentMode == Step2 || currentMode == Step5)
+        if (currentMode == Step5)
         {
             Sleep(10);  // Yield CPU while waiting for state transition
             continue;   // Skip this iteration
@@ -372,7 +372,7 @@ void SimulationLoopControl::Loop(void)
 
         //START_PROFILE("BUBBLE");
 
-        // Rebuild the bubble here
+        // Rebuild the bubble here - CRITICAL for deaggregation during Step2
         if (
             gRebuildBubbleNow or (
                 static_cast<CampaignTime>(vuxRealTime - lastBubbleTime) >
@@ -589,6 +589,12 @@ void SimulationLoopControl::Loop(void)
         //STOP_PROFILE("TIMER");
 
         //START_PROFILE("SIMDIRTY");
+#ifdef FF_LINUX
+        // On Linux, skip SimDriver work during Step2 to avoid race conditions with
+        // StartLoop() which is initializing graphics. RebuildBubble() still runs above.
+        if (currentMode != Step2)
+        {
+#endif
         FalconEntity::DoSimDirtyData(vuxRealTime);
         //STOP_PROFILE("SIMDIRTY");
 
@@ -599,6 +605,9 @@ void SimulationLoopControl::Loop(void)
         CampEnterCriticalSection();
         SimDriver.Cycle();
         CampLeaveCriticalSection();
+#endif
+#ifdef FF_LINUX
+        }
 #endif
         //STOP_PROFILE("SIMCYCLE");
 

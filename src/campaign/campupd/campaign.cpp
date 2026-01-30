@@ -8,14 +8,15 @@
 #include <math.h>
 #include <string.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "campaign.h"
 #include "CampLib.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "F4Thread.h"
 #include "CmpClass.h"
-#include "ErrorLog.h"
-#include "EventLog.h"
+#include "errorlog.h"
+#include "eventlog.h"
 #include "CampCell.h"
 #include "CampTerr.h"
 #include "ASearch.h"
@@ -54,12 +55,12 @@
 #include "FalcSess.h"
 #include "classtbl.h"
 #include "sfx.h"
-#include "ui95/CHandler.h"
+#include "ui95/chandler.h"
 #include "uicomms.h"
 #include "iaction.h"
 #include "MsgInc/SimCampMsg.h"
 #include "MsgInc/DivertMsg.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "atcbrain.h"
 #include "Falcuser.h"
 #include "Dispcfg.h"
@@ -1058,7 +1059,7 @@ void RebuildBubble(int forced)
                                     else
                                     {
                                         int rwindex = airbase->brain->FindBestTakeoffRunway(TRUE);
-                                        ulong nextTOTime = airbase->brain->FindFlightTakeoffTime(
+                                        CampaignTime nextTOTime = airbase->brain->FindFlightTakeoffTime(  // FF_LINUX: Use CampaignTime
                                                                (Flight)u, GetQueue(rwindex)
                                                            );
 
@@ -1533,7 +1534,7 @@ int CreateCampFile(char *filename, char* path)
 
     // This filename doesn't exist yet (At least res manager doesn't think so)
     // Create it, so that the manager can find it -
-    sprintf(fullname, "%s\\%s", path, filename);
+    sprintf(fullname, "%s/%s", path, filename);
     fp = fopen(fullname, "wb");
     fclose(fp);
     // Now add the current save directory path, if we still can't find this file
@@ -1601,7 +1602,7 @@ static void GetCampFilePath(FalconGameType type, char *filename, char* path)
 
     if (type == game_TacticalEngagement)
     {
-        sprintf(path, "%s\\%s.tac", FalconCampUserSaveDirectory, filename);
+        sprintf(path, "%s/%s.tac", FalconCampUserSaveDirectory, filename);
 
         fp = fopen(path, "rb");
 
@@ -1611,12 +1612,12 @@ static void GetCampFilePath(FalconGameType type, char *filename, char* path)
         }
         else
         {
-            sprintf(path, "%s\\%s.trn", FalconCampUserSaveDirectory, filename);
+            sprintf(path, "%s/%s.trn", FalconCampUserSaveDirectory, filename);
         }
     }
     else
     {
-        sprintf(path, "%s\\%s.cam", FalconCampUserSaveDirectory, filename);
+        sprintf(path, "%s/%s.cam", FalconCampUserSaveDirectory, filename);
     }
 }
 
@@ -1691,6 +1692,12 @@ void StartReadCampFile(FalconGameType type, char *filename)
 
     GetCampFilePath(type, filename, path);
 
+    // FF_LINUX: Debug - print the campaign file path being opened
+    fprintf(stderr, "[FF_LINUX] StartReadCampFile: type=%d filename='%s'\n", (int)type, filename);
+    fprintf(stderr, "[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='%s'\n", FalconCampUserSaveDirectory);
+    fprintf(stderr, "[FF_LINUX] StartReadCampFile: Opening path='%s'\n", path);
+    fflush(stderr);
+
     camp_game_type = type;
     strcpy(camp_file_name, filename);
 
@@ -1698,7 +1705,8 @@ void StartReadCampFile(FalconGameType type, char *filename)
 
     if (camp_fp)
     {
-        // MonoPrint ("Opening Campressed File %s\n", path);
+        fprintf(stderr, "[FF_LINUX] StartReadCampFile: Successfully opened campaign file\n");
+        fflush(stderr);
 
         fread(&offset, 4, 1, camp_fp);
 
@@ -1826,11 +1834,11 @@ void StartWriteCampFile(FalconGameType type, char *filename)
 
     if (type == game_TacticalEngagement)
     {
-        sprintf(path, "%s\\%s.tac", FalconCampUserSaveDirectory, filename);
+        sprintf(path, "%s/%s.tac", FalconCampUserSaveDirectory, filename);
     }
     else
     {
-        sprintf(path, "%s\\%s.cam", FalconCampUserSaveDirectory, filename);
+        sprintf(path, "%s/%s.cam", FalconCampUserSaveDirectory, filename);
     }
 
     camp_fp = fopen(path, "wb");
@@ -2049,8 +2057,75 @@ FILE* OpenCampFile(char *filename, char *ext, char *mode)
     // if ( not ResExistFile(filename))
     // ResAddPath(path, FALSE);
 
-    sprintf(fullname, "%s\\%s.%s", path, filename, ext);
+    sprintf(fullname, "%s/%s.%s", path, filename, ext);
     fp = fopen(fullname, mode);
+
+#ifdef FF_LINUX
+    // Linux is case-sensitive; try different case combinations if not found
+    if (!fp && mode[0] == 'r')
+    {
+        char altFilename[MAX_PATH];
+        char altExt[16];
+        int i;
+
+        // Try UPPERCASE filename and extension
+        for (i = 0; filename[i] && i < MAX_PATH - 1; i++)
+            altFilename[i] = toupper((unsigned char)filename[i]);
+        altFilename[i] = '\0';
+
+        for (i = 0; ext[i] && i < 15; i++)
+            altExt[i] = toupper((unsigned char)ext[i]);
+        altExt[i] = '\0';
+
+        sprintf(fullname, "%s/%s.%s", path, altFilename, altExt);
+        fp = fopen(fullname, mode);
+
+        // Try lowercase filename and extension
+        if (!fp)
+        {
+            for (i = 0; filename[i] && i < MAX_PATH - 1; i++)
+                altFilename[i] = tolower((unsigned char)filename[i]);
+            altFilename[i] = '\0';
+
+            for (i = 0; ext[i] && i < 15; i++)
+                altExt[i] = tolower((unsigned char)ext[i]);
+            altExt[i] = '\0';
+
+            sprintf(fullname, "%s/%s.%s", path, altFilename, altExt);
+            fp = fopen(fullname, mode);
+        }
+
+        // Try UPPERCASE filename, lowercase extension (very common!)
+        if (!fp)
+        {
+            for (i = 0; filename[i] && i < MAX_PATH - 1; i++)
+                altFilename[i] = toupper((unsigned char)filename[i]);
+            altFilename[i] = '\0';
+
+            for (i = 0; ext[i] && i < 15; i++)
+                altExt[i] = tolower((unsigned char)ext[i]);
+            altExt[i] = '\0';
+
+            sprintf(fullname, "%s/%s.%s", path, altFilename, altExt);
+            fp = fopen(fullname, mode);
+        }
+
+        // Try lowercase filename, UPPERCASE extension
+        if (!fp)
+        {
+            for (i = 0; filename[i] && i < MAX_PATH - 1; i++)
+                altFilename[i] = tolower((unsigned char)filename[i]);
+            altFilename[i] = '\0';
+
+            for (i = 0; ext[i] && i < 15; i++)
+                altExt[i] = toupper((unsigned char)ext[i]);
+            altExt[i] = '\0';
+
+            sprintf(fullname, "%s/%s.%s", path, altFilename, altExt);
+            fp = fopen(fullname, mode);
+        }
+    }
+#endif
 
     if ((fp) and (strcmp(ext, "wch") == 0))
     {
@@ -2749,6 +2824,7 @@ unsigned int __stdcall CampaignThread(void)
 {
     int Result = 0;
 
+#ifdef _WIN32
     __try
     {
         Result = HandleCampaignThread();
@@ -2760,6 +2836,10 @@ unsigned int __stdcall CampaignThread(void)
         // get called unless you return EXCEPTION_EXECUTE_HANDLER from
         // the __except clause.
     }
+#else
+    // On Linux, we don't have SEH - just call directly
+    Result = HandleCampaignThread();
+#endif
 
     return Result;
 }
@@ -2913,7 +2993,7 @@ void DoCampaignLoop(int startup)
                 UpdateTeamStatistics();
 
                 if (doUI)
-                    SendMessage(FalconDisplay.appWin, FM_AUTOSAVE_CAMPAIGN, 0, game_Campaign);
+                    SendMessageA(FalconDisplay.appWin, FM_AUTOSAVE_CAMPAIGN, 0, game_Campaign);
 
                 break;
 
