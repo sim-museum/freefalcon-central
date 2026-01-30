@@ -56,7 +56,8 @@ extern void ACMI_ImportFile(void);
 extern int tactical_is_training(void);
 extern void RecordPlayerFlightStart(void);
 bool g_bSleepAll;//me123
-SimulationLoopControl::SimLoopControlMode SimulationLoopControl::currentMode = Stopped;
+// FF_LINUX: volatile for cross-thread visibility
+volatile SimulationLoopControl::SimLoopControlMode SimulationLoopControl::currentMode = SimulationLoopControl::Stopped;
 HANDLE SimulationLoopControl::wait_for_start_graphics = 0;
 HANDLE SimulationLoopControl::wait_for_stop_graphics = 0;
 HANDLE SimulationLoopControl::wait_for_sim_cleanup = 0;
@@ -343,6 +344,16 @@ void SimulationLoopControl::Loop(void)
     //while (currentMode not_eq StoppingSim)
     do
     {
+#ifdef FF_LINUX
+        loopDebugCounter++;
+        if (loopDebugCounter <= 5 || loopDebugCounter % 100 == 0)
+        {
+            fprintf(stderr, "[Loop] Entry #%d, currentMode=%d (RunningGraphics=%d, StartRunningGraphics=%d)\n",
+                    loopDebugCounter, currentMode, RunningGraphics, StartRunningGraphics);
+            fflush(stderr);
+        }
+#endif
+
 #ifdef FF_LINUX
         // On Linux, block during Step5 (StoppingGraphics) to avoid race conditions.
         // Step2 cannot be completely blocked because RebuildBubble() is needed for deaggregation.
@@ -708,6 +719,16 @@ void SimulationLoopControl::Loop(void)
 
                 gGraphicsTime = GetTickCount();
                 // we cant profile here, since its zeroed inside function
+#ifdef FF_LINUX
+                {
+                    static int otwCycleDbg = 0;
+                    if (otwCycleDbg++ % 100 == 0)
+                    {
+                        fprintf(stderr, "[Loop] Calling OTWDriver.Cycle() #%d\n", otwCycleDbg);
+                        fflush(stderr);
+                    }
+                }
+#endif
                 OTWDriver.Cycle();
                 gGraphicsTimeLast = GetTickCount() - gGraphicsTime;
 
@@ -1035,10 +1056,24 @@ void SimulationLoopControl::StartLoop(void)
             while (SimDriver.GetPlayerEntity() == NULL)
             {
 #ifdef FF_LINUX
+                // FF_LINUX: Must process VU messages during this wait.
+                // AnnounceEntry() sends FalconPlayerStatusMessage which must be processed
+                // to trigger AttachPlayerToVehicle() -> SimDriver.SetPlayerEntity()
+                vuxRealTime = GetTickCount();
+                RealTimeFunction(vuxRealTime, NULL);
+                ThreadManager::sim_signal_campaign();
+                ThreadManager::sim_wait_for_campaign(10);
+
                 static int simDriverWaitCount = 0;
                 if (simDriverWaitCount++ % 10 == 0)
                 {
                     fprintf(stderr, "[StartLoop] Waiting for SimDriver.GetPlayerEntity()... (%d)\n", simDriverWaitCount); fflush(stderr);
+                }
+                // Timeout after ~30 seconds to prevent infinite loop
+                if (simDriverWaitCount > 300)
+                {
+                    fprintf(stderr, "[StartLoop] ERROR: Timeout waiting for SimDriver.GetPlayerEntity()\n"); fflush(stderr);
+                    break;
                 }
 #endif
                 Sleep(100);

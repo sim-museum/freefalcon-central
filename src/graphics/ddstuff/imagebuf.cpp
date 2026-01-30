@@ -1022,7 +1022,27 @@ void ImageBuffer::ComposeRoundRot(ImageBuffer *srcBuffer, RECT *srcRect, RECT *d
 // Move this image's back buffer contents into its front buffer, possibly making it visible.
 void ImageBuffer::SwapBuffers(bool bDontFlip)
 {
+#ifdef FF_LINUX
+    static int swapCount = 0;
+    swapCount++;
+    // Always print for first 20 calls to catch OTWImage calls
+    fprintf(stderr, "[SwapBuffers] ENTER #%d: this=%p bDontFlip=%d, m_pDDSFront=%p, m_pDDSBack=%p\n",
+            swapCount, (void*)this, bDontFlip, (void*)m_pDDSFront, (void*)m_pDDSBack);
+    fflush(stderr);
+    // Safety check for Linux - ensure buffers are set up
+    if (!IsReady() || m_pDDSFront == NULL) {
+        fprintf(stderr, "[SwapBuffers] Early return: not ready or m_pDDSFront NULL\n");
+        fflush(stderr);
+        return;
+    }
+    if (m_pDDSBack == NULL) {
+        fprintf(stderr, "[SwapBuffers] Early return: m_pDDSBack NULL\n");
+        fflush(stderr);
+        return;
+    }
+#else
     ShiAssert(IsReady());
+#endif
 
     // Return right away is there is nothing to do
     if (m_pDDSBack == NULL)
@@ -1048,12 +1068,26 @@ void ImageBuffer::SwapBuffers(bool bDontFlip)
         }
     }
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[SwapBuffers] #%d: Pre-flip check: caps=0x%x, DDSCAPS_FLIP=%d\n",
+            swapCount, m_ddsdFront.ddsCaps.dwCaps, (m_ddsdFront.ddsCaps.dwCaps & DDSCAPS_FLIP) ? 1 : 0);
+    fflush(stderr);
+#endif
+
     //STOP_PROFILE("SWAP WAIT : ");
     // OW
     if ( not bDontFlip and (m_ddsdFront.ddsCaps.dwCaps bitand DDSCAPS_FLIP))
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[SwapBuffers] #%d: Calling Flip...\n", swapCount);
+        fflush(stderr);
+#endif
         hr = m_pDDSFront->Flip(NULL, DDFLIP_WAIT);
         // hr = m_pDDSFront->Flip(NULL, DDFLIP_NOVSYNC);
+#ifdef FF_LINUX
+        fprintf(stderr, "[SwapBuffers] #%d: Flip returned hr=0x%x\n", swapCount, (unsigned)hr);
+        fflush(stderr);
+#endif
         ShiAssert(SUCCEEDED(hr));
 
         return;
@@ -1061,10 +1095,38 @@ void ImageBuffer::SwapBuffers(bool bDontFlip)
 
     RECT backRect = { 0, 0, m_ddsdBack.dwWidth, m_ddsdBack.dwHeight };
 
-    if ( not m_bFrontRectValid) // assumes no clipper is attached (fullscreen) 
+#ifdef FF_LINUX
+    fprintf(stderr, "[SwapBuffers] #%d: Pre-Blt: backRect=%d,%d,%d,%d m_rcFront=%d,%d,%d,%d m_bFrontRectValid=%d\n",
+            swapCount, 0, 0, (int)m_ddsdBack.dwWidth, (int)m_ddsdBack.dwHeight,
+            (int)m_rcFront.left, (int)m_rcFront.top, (int)m_rcFront.right, (int)m_rcFront.bottom,
+            m_bFrontRectValid);
+    fflush(stderr);
+#endif
+
+    if ( not m_bFrontRectValid) // assumes no clipper is attached (fullscreen)
+    {
+#ifdef FF_LINUX
+        fprintf(stderr, "[SwapBuffers] #%d: Calling BltFast...\n", swapCount);
+        fflush(stderr);
+#endif
         hr = m_pDDSFront->BltFast(m_rcFront.left, m_rcFront.top, m_pDDSBack, &backRect, DDBLTFAST_WAIT bitor DDBLTFAST_NOCOLORKEY);
+#ifdef FF_LINUX
+        fprintf(stderr, "[SwapBuffers] #%d: BltFast returned hr=0x%x\n", swapCount, (unsigned)hr);
+        fflush(stderr);
+#endif
+    }
     else
+    {
+#ifdef FF_LINUX
+        fprintf(stderr, "[SwapBuffers] #%d: Calling Blt...\n", swapCount);
+        fflush(stderr);
+#endif
         hr = m_pDDSFront->Blt(&m_rcFront, m_pDDSBack, &backRect, DDBLT_WAIT, NULL);
+#ifdef FF_LINUX
+        fprintf(stderr, "[SwapBuffers] #%d: Blt returned hr=0x%x\n", swapCount, (unsigned)hr);
+        fflush(stderr);
+#endif
+    }
 
     ShiAssert(SUCCEEDED(hr));
 

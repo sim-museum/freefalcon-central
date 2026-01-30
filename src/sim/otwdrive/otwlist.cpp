@@ -257,10 +257,12 @@ void OTWDriverClass::InsertObject(DrawableObject *dObj)
 {
     ShiAssert(GetCurrentThreadId() == gSimThreadID);
 
-    ShiAssert(dObj); // Could tolerate this by returning, but I don't think it happens.
-
     // FF_LINUX: NULL check - return early if dObj is NULL
+    // This can happen during deaggregation when objects are being created
     if (!dObj) {
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWDriverClass::InsertObject] WARNING: dObj is NULL, returning early\n");
+#endif
         return;
     }
 

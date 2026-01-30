@@ -38,7 +38,7 @@ public:
     static HANDLE wait_for_graphics_cleanup;
 
 protected:
-    static enum SimLoopControlMode
+    enum SimLoopControlMode
     {
         Stopped,
         StartingSim,
@@ -50,7 +50,9 @@ protected:
         StoppingGraphics,
         Step5,
         StoppingSim,
-    } currentMode;
+    };
+    // FF_LINUX: volatile for cross-thread visibility
+    static volatile SimLoopControlMode currentMode;
 
     static HANDLE wait_for_start_graphics;
     static HANDLE wait_for_stop_graphics;
