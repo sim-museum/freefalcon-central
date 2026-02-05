@@ -161,37 +161,58 @@ static bool g_simOwnsGLContext = false;
 
 // Release GL context from current thread (call before another thread acquires it)
 void FF_ReleaseGLContext() {
+    fprintf(stderr, "[GL] FF_ReleaseGLContext() called, g_SDLWindow=%p\n", (void*)g_SDLWindow);
+    fflush(stderr);
     std::lock_guard<std::mutex> lock(g_glContextMutex);
     if (g_SDLWindow) {
-        SDL_GL_MakeCurrent(g_SDLWindow, NULL);
+        int result = SDL_GL_MakeCurrent(g_SDLWindow, NULL);
+        fprintf(stderr, "[GL] SDL_GL_MakeCurrent(NULL) returned %d\n", result);
+        fflush(stderr);
     }
 }
 
 // Acquire GL context on current thread
 void FF_AcquireGLContext() {
+    fprintf(stderr, "[GL] FF_AcquireGLContext() called, g_SDLWindow=%p, g_GLContext=%p\n",
+            (void*)g_SDLWindow, (void*)g_GLContext);
+    fflush(stderr);
     std::lock_guard<std::mutex> lock(g_glContextMutex);
     if (g_SDLWindow && g_GLContext) {
-        SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
+        int result = SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
+        fprintf(stderr, "[GL] SDL_GL_MakeCurrent(context) returned %d\n", result);
+        fflush(stderr);
     }
 }
 
 // Called by sim thread before it starts rendering
 void FF_SimThreadAcquireGL() {
+    fprintf(stderr, "[GL] FF_SimThreadAcquireGL() ENTER\n");
+    fflush(stderr);
     FF_AcquireGLContext();
     g_simOwnsGLContext = true;
-    fprintf(stderr, "[GL] Sim thread acquired GL context\n");
+    fprintf(stderr, "[GL] Sim thread acquired GL context, g_simOwnsGLContext=true\n");
+    fflush(stderr);
 }
 
 // Called by sim thread when it's done rendering
 void FF_SimThreadReleaseGL() {
+    fprintf(stderr, "[GL] FF_SimThreadReleaseGL() ENTER\n");
+    fflush(stderr);
     g_simOwnsGLContext = false;
     FF_ReleaseGLContext();
-    fprintf(stderr, "[GL] Sim thread released GL context\n");
+    fprintf(stderr, "[GL] Sim thread released GL context, g_simOwnsGLContext=false\n");
+    fflush(stderr);
 }
 
 // Swap buffers - callable from any thread that owns the GL context
 void FF_SwapBuffers() {
-    if (g_SDLWindow) {
+    if (g_SDLWindow && g_GLContext) {
+        // Make sure the GL context is current on this thread before swapping
+        SDL_GLContext current = SDL_GL_GetCurrentContext();
+        if (current != g_GLContext) {
+            // Context not current on this thread, need to make it current
+            SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
+        }
         SDL_GL_SwapWindow(g_SDLWindow);
     }
 }
@@ -215,6 +236,7 @@ bool g_Use_DX_Engine = false;
 static bool g_running = true;
 static bool g_gameInitialized = false;
 static bool g_autoTestInstantAction = false;  // TEST: Set by auto-launch code
+bool g_testInstantActionFlag = false;  // Command-line flag for auto-testing
 
 // These globals are defined in ui/src/winmain.cpp - use extern
 extern HWND mainAppWnd;
@@ -977,6 +999,7 @@ static void print_usage(const char* progname) {
     printf("  -w           Run in windowed mode (default)\n");
     printf("  -f           Run in fullscreen mode\n");
     printf("  -nosound     Disable sound\n");
+    printf("  -test-ia     Auto-launch Instant Action after 3 seconds (for testing)\n");
     printf("  -h           Show this help\n");
 }
 
@@ -1907,38 +1930,50 @@ bool ProcessGameMessages() {
                 instant_action::create_wave();
                 fprintf(stderr, "[FM] Starting instant action... vuxRealTime=%lu\n",
                         (unsigned long)vuxRealTime);
+                fflush(stderr);
+                // CRITICAL ORDER:
+                // 1. StartGraphics() - signals sim thread to start graphics (just sets a flag)
+                // 2. Release GL context - sim thread will need it when StartLoop() wakes up
+                // 3. EndUI() - may block in TheCampaign.Suspend(), so must be last
+                fprintf(stderr, "[FM] Calling StartGraphics()...\n");
+                fflush(stderr);
                 SimulationLoopControl::StartGraphics();
-                EndUI();
-                // Release GL context so the sim thread can acquire it
+                fprintf(stderr, "[FM] StartGraphics() returned, releasing GL context...\n");
+                fflush(stderr);
                 FF_ReleaseGLContext();
-                fprintf(stderr, "[FM] Main thread released GL context for sim\n");
+                fprintf(stderr, "[FM] GL context released, calling EndUI()...\n");
+                fflush(stderr);
+                EndUI();
+                fprintf(stderr, "[FM] EndUI() returned\n");
+                fflush(stderr);
                 break;
 
             case FM_START_DOGFIGHT:
                 fprintf(stderr, "[FM] FM_START_DOGFIGHT received\n");
                 FalconLocalSession->SetFlyState(FLYSTATE_LOADING);
+                // Same critical order as INSTANTACTION
                 SimulationLoopControl::StartGraphics();
-                EndUI();
                 FF_ReleaseGLContext();
+                EndUI();
                 fprintf(stderr, "[FM] Main thread released GL context for sim\n");
                 break;
 
             case FM_START_CAMPAIGN:
                 fprintf(stderr, "[FM] FM_START_CAMPAIGN received\n");
                 FalconLocalSession->SetFlyState(FLYSTATE_LOADING);
+                // Same critical order as INSTANTACTION
                 SimulationLoopControl::StartGraphics();
-                EndUI();
                 FF_ReleaseGLContext();
-                fprintf(stderr, "[FM] Main thread released GL context for sim\n");
+                EndUI();
                 break;
 
             case FM_START_TACTICAL:
                 fprintf(stderr, "[FM] FM_START_TACTICAL received\n");
                 FalconLocalSession->SetFlyState(FLYSTATE_LOADING);
+                // Same critical order as INSTANTACTION
                 SimulationLoopControl::StartGraphics();
-                EndUI();
                 FF_ReleaseGLContext();
-                fprintf(stderr, "[FM] Main thread released GL context for sim\n");
+                EndUI();
                 break;
 
             // =========================================================
@@ -2008,6 +2043,13 @@ static void render_frame(void) {
     static int renderFrameCount = 0;
     renderFrameCount++;
 
+    // Debug output every 200 frames to track render path
+    if (renderFrameCount % 200 == 0) {
+        fprintf(stderr, "[render_frame] #%d: doUI=%d, g_simOwnsGLContext=%d\n",
+                renderFrameCount, doUI, g_simOwnsGLContext ? 1 : 0);
+        fflush(stderr);
+    }
+
     // Use fallback menu if enabled (temporary workaround for UI95 issues)
     if (g_useFallbackMenu && doUI) {
         glClear(GL_COLOR_BUFFER_BIT);
@@ -2050,7 +2092,8 @@ static void main_loop(void) {
 
     // TEST: Auto-launch instant action after delay for testing
     // Set to 0 to disable auto-launch (user can click buttons normally)
-    Uint32 autoLaunchTime = 4000;  // 4 seconds - testing texture cleanup fix
+    // Use -test-ia command line option to enable (3 second delay)
+    Uint32 autoLaunchTime = g_testInstantActionFlag ? 3000 : 0;
     bool autoLaunchTriggered = false;
     Uint32 startTime = SDL_GetTicks();
 
@@ -2154,6 +2197,7 @@ int main(int argc, char** argv) {
     }
 
     // Parse command line arguments
+    bool testInstantAction = false;  // Auto-launch instant action for testing
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-d") == 0 && i + 1 < argc) {
             dataDir = argv[++i];
@@ -2163,11 +2207,18 @@ int main(int argc, char** argv) {
             fullscreen = false;
         } else if (strcmp(argv[i], "-nosound") == 0) {
             enableSound = false;
+        } else if (strcmp(argv[i], "-test-ia") == 0 || strcmp(argv[i], "--test-instant-action") == 0) {
+            testInstantAction = true;
+            fprintf(stderr, "[TEST] Auto-launch Instant Action enabled (3 second delay)\n");
         } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             print_usage(argv[0]);
             return 0;
         }
     }
+
+    // Export testInstantAction flag for use in main loop
+    extern bool g_testInstantActionFlag;
+    g_testInstantActionFlag = testInstantAction;
 
     // Initialize data directory
     if (!init_data_directory(dataDir)) {
