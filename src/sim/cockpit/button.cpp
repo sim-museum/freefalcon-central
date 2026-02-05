@@ -7,7 +7,7 @@
 
 //#include "trainingscript.h"
 
-#include "Graphics/Include/grinline.h" //Wombat778 3-22-04
+#include "graphics/include/grinline.h" //Wombat778 3-22-04
 extern bool g_bFilter2DPit; //Wombat778 3-30-04
 
 //===================================
@@ -427,6 +427,12 @@ void CPButtonView::DisplayBlit(void)
 
 void RenderButtonViewPoly(SourceButtonViewType *sb, tagRECT *destrect, GLint alpha) //Wombat778 3-22-04 helper function to keep the displayblit3d tidy.
 {
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure texture array is not empty
+    if (!sb || sb->m_arrTex.empty()) {
+        return;
+    }
+#endif
 
     OTWDriver.renderer->CenterOriginInViewport();
     OTWDriver.renderer->SetViewport(-1.0F, 1.0F, 1.0F, -1.0F);
@@ -464,7 +470,7 @@ void RenderButtonViewPoly(SourceButtonViewType *sb, tagRECT *destrect, GLint alp
 
     OTWDriver.pCockpitManager->AddTurbulence(pVtx);
     OTWDriver.renderer->context.RestoreState(alpha);
-    OTWDriver.renderer->context.SelectTexture1((GLint) pTex);
+    OTWDriver.renderer->context.SelectTexture1((intptr_t) pTex);
     OTWDriver.renderer->context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 4, pVtx, sizeof(pVtx[0]));
 
 }

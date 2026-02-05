@@ -179,6 +179,12 @@ void CPLight::DisplayBlit(void)
 
 void RenderLightPoly(SourceLightType *sb, tagRECT *destrect, GLint alpha) //Wombat778 3-22-04 helper function to keep the displayblit3d tidy.
 {
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure texture array is not empty
+    if (!sb || sb->m_arrTex.empty()) {
+        return;
+    }
+#endif
 
     OTWDriver.renderer->CenterOriginInViewport();
     OTWDriver.renderer->SetViewport(-1.0F, 1.0F, 1.0F, -1.0F);
