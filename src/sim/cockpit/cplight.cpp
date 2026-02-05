@@ -250,6 +250,12 @@ void CPLight::DisplayBlit3D() //Wombat778 3-22-04 Add support for rendered light
     if ( not DisplayOptions.bRender2DCockpit) //Handle these in displayblit
         return;
 
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure source buffer is valid
+    if (!mpSourceBuffer) {
+        return;
+    }
+#endif
 
     if (mpSourceBuffer[mState].m_arrTex.size() not_eq 1)
         return;

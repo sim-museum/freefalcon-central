@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "stdhdr.h"
-#include "Graphics/Include/display.h"
+#include "graphics/include/display.h"
 #include "airframe.h"
 #include "campwp.h"
 #include "simdrive.h"
@@ -12,7 +12,7 @@
 #include "dispopts.h"
 #include "fack.h"
 #include "otwdrive.h"
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/renderow.h"
 #include "UI/INCLUDE/tac_class.h"
 #include "ui/include/te_defs.h"
 #include "fakerand.h"
@@ -23,7 +23,7 @@ extern bool g_bRealisticAvionics;
 extern bool g_bINS;
 extern bool g_bCockpitAutoScale;
 
-#include "Graphics/Include/grinline.h" //Wombat778 3-24-04
+#include "graphics/include/grinline.h" //Wombat778 3-24-04
 extern bool g_bFilter2DPit; //Wombat778 3-30-04
 
 
@@ -827,7 +827,7 @@ void RenderHSIPoly(tagRECT *srcrect, tagRECT *destrect, GLint alpha, TextureHand
     }
 
     OTWDriver.renderer->context.RestoreState(alpha);
-    OTWDriver.renderer->context.SelectTexture1((GLint) pTex);
+    OTWDriver.renderer->context.SelectTexture1((intptr_t) pTex);
     OTWDriver.renderer->context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 90, pVtx, sizeof(pVtx[0]));
 }
 
@@ -841,6 +841,13 @@ void CPHsiView::DisplayBlit3D()
     {
         return;
     }
+
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure pointers and texture array are valid
+    if (!mpHsi || m_arrTex.empty()) {
+        return;
+    }
+#endif
 
     float angle;
     float currentHeading = mpHsi->GetValue(CPHsi::HSI_VAL_CURRENT_HEADING);

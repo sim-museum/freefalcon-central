@@ -352,6 +352,13 @@ void CPDial::DisplayBlit3D()
         return;
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure texture array is not empty
+    if (m_arrTex.empty()) {
+        return;
+    }
+#endif
+
     if (g_bFilter2DPit)
     {
         //Wombat778 3-30-04 Add option to filter

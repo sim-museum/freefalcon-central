@@ -490,6 +490,13 @@ void CPButtonView::DisplayBlit3D(void)
     if ( not DisplayOptions.bRender2DCockpit) //Handle these in displayblit
         return;
 
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure pointers are valid
+    if (!mpButtonObject || !mpSourceBuffer) {
+        return;
+    }
+#endif
+
     if (mpButtonObject->DoBlit() and mStates)
     {
 

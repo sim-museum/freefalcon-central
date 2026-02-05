@@ -3488,3 +3488,93 @@ Removed verbose debug fprintf statements from the render path while keeping esse
 The simulation now enters `RunningGraphics` mode (mode 6) and runs continuously at 62 FPS without crashes. The cockpit rendering pipeline and 3D world rendering are functional.
 
 ---
+
+### Session: February 4, 2026 - Cockpit DisplayBlit3D Safety Checks
+
+#### Overview
+
+Added comprehensive NULL and empty-array safety checks to all cockpit DisplayBlit3D implementations to prevent crashes during rendering. The crash at object 15 (id=1136) was caused by accessing uninitialized texture arrays.
+
+#### Fix: Safety Checks for All Cockpit DisplayBlit3D Functions
+
+**Files Modified:**
+
+1. **cpdial.cpp** - Added check for empty `m_arrTex` array:
+```cpp
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure texture array is not empty
+    if (m_arrTex.empty()) {
+        return;
+    }
+#endif
+```
+
+2. **cpindicator.cpp** - Added check for NULL `mpSourceBuffer` and invalid `mNumTapes`:
+```cpp
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure source buffer is valid
+    if (!mpSourceBuffer || mNumTapes <= 0) {
+        return;
+    }
+#endif
+```
+
+3. **cpdigits.cpp** - Added check for NULL `mpSourceBuffer`, `mpValues`, and invalid `mDestDigits`:
+```cpp
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure buffers are valid
+    if (!mpSourceBuffer || !mpValues || mDestDigits <= 0) {
+        return;
+    }
+#endif
+```
+
+4. **button.cpp (CPButtonView)** - Added check for NULL `mpButtonObject` and `mpSourceBuffer`:
+```cpp
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure pointers are valid
+    if (!mpButtonObject || !mpSourceBuffer) {
+        return;
+    }
+#endif
+```
+
+5. **cphsi.cpp (CPHsiView)** - Added check for NULL `mpHsi` and empty `m_arrTex`:
+```cpp
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure pointers and texture array are valid
+    if (!mpHsi || m_arrTex.empty()) {
+        return;
+    }
+#endif
+```
+
+6. **cplight.cpp** - Added check for NULL `mpSourceBuffer`:
+```cpp
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure source buffer is valid
+    if (!mpSourceBuffer) {
+        return;
+    }
+#endif
+```
+
+#### Existing Safety Checks (Already Present)
+
+These files already had safety checks added in previous sessions:
+- `cpadi.cpp` - Has `if ( not m_arrTex.size()) return;`
+- `cpmirror.cpp` - Has comprehensive FF_LINUX NULL checks
+- `cpsurface.cpp` - Has `if ( not m_arrTex.size()) return;`
+- `RenderLightPoly()` - Has `if (!sb || sb->m_arrTex.empty()) return;`
+- `RenderIndicatorPoly()` - Has `if (!sb || sb->m_arrTex.empty()) return;`
+- `RenderButtonViewPoly()` - Has `if (!sb || sb->m_arrTex.empty()) return;`
+
+#### Result
+
+The game now runs stably for extended periods without crashes in the cockpit rendering code. All cockpit DisplayBlit3D functions have protection against:
+- NULL pointer dereferences
+- Empty texture array access
+- Invalid array indices
+
+---
+

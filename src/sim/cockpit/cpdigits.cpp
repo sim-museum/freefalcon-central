@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "cpdigits.h"
 
-#include "Graphics/Include/grinline.h" //Wombat778 3-22-04
+#include "graphics/include/grinline.h" //Wombat778 3-22-04
 
 //MI
 extern bool g_bRealisticAvionics;
@@ -129,6 +129,13 @@ void CPDigits::DisplayBlit3D() //Wombat778 3-22-04 Add support for rendered digi
     if ( not DisplayOptions.bRender2DCockpit) //Handle drawing in DisplayBlit
         return;
 
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - ensure buffers are valid
+    if (!mpSourceBuffer || !mpValues || mDestDigits <= 0) {
+        return;
+    }
+#endif
+
     //Wombat778 new rendering code. Taken from cpsurface.cpp
     if ( not g_bRealisticAvionics or (g_bRealisticAvionics and active))
     {
@@ -180,7 +187,7 @@ void CPDigits::DisplayBlit3D() //Wombat778 3-22-04 Add support for rendered digi
                 else
                     OTWDriver.renderer->context.RestoreState(STATE_TEXTURE_NOFILTER);
 
-                OTWDriver.renderer->context.SelectTexture1((GLint) pTex);
+                OTWDriver.renderer->context.SelectTexture1((intptr_t) pTex);
                 OTWDriver.renderer->context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 4, pVtx, sizeof(pVtx[0]));
             }
         }
