@@ -213,6 +213,8 @@ void FF_SwapBuffers() {
             // Context not current on this thread, need to make it current
             SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
         }
+
+        // Present the frame (game content should already be rendered via DrawPrimitiveVB etc)
         SDL_GL_SwapWindow(g_SDLWindow);
     }
 }

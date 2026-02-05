@@ -5,7 +5,7 @@
 #include "aircrft.h"
 #include "simdrive.h"
 
-#include "Graphics/Include/grinline.h" //Wombat778 3-22-04
+#include "graphics/include/grinline.h" //Wombat778 3-22-04
 extern bool g_bFilter2DPit; //Wombat778 3-30-04
 
 
@@ -221,7 +221,7 @@ void RenderLightPoly(SourceLightType *sb, tagRECT *destrect, GLint alpha) //Womb
     OTWDriver.pCockpitManager->AddTurbulence(pVtx);
 
     OTWDriver.renderer->context.RestoreState(alpha);
-    OTWDriver.renderer->context.SelectTexture1((GLint) pTex);
+    OTWDriver.renderer->context.SelectTexture1((intptr_t) pTex);
     OTWDriver.renderer->context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 4, pVtx, sizeof(pVtx[0]));
 
 }

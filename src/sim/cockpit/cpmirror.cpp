@@ -2,8 +2,8 @@
 * 2d cockpit mirror implementation
 */
 #include "cpmirror.h"
-#include "Graphics/include/Render3d.h"
-#include "Sim/Include/Otwdrive.h"
+#include "graphics/include/render3d.h"
+#include "sim/include/otwdrive.h"
 #include "dispcfg.h"
 #include "renderow.h"
 
@@ -94,8 +94,25 @@ void CPMirror::RenderMirror(float left, float top, float right, float bottom)
 
 void CPMirror::DisplayBlit3D()
 {
+#ifdef FF_LINUX
+    // FF_LINUX: Safety checks for pointer validity
+    if (!mBuffer.get()) {
+        return;
+    }
+#endif
     DWORD *buf = static_cast<DWORD*>(mBuffer->Lock());
+#ifdef FF_LINUX
+    if (!buf) {
+        return;
+    }
+#endif
     RenderOTW *r = OTWDriver.renderer;
+#ifdef FF_LINUX
+    if (!r) {
+        mBuffer->Unlock();
+        return;
+    }
+#endif
     r->StartDraw();
     int w = mDestRect.right - mDestRect.left + 1, h = mDestRect.bottom - mDestRect.top + 1;
     r->Render2DBitmap(0, 0, mDestRect.left, mDestRect.top, w, h, w, buf);

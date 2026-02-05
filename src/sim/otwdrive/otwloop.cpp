@@ -1621,26 +1621,8 @@ extern SIMLIB_IO_CLASS IO;   // Retro 31Dec2003
 void OTWDriverClass::RenderFrame()
 {
     // FF_LINUX: Early exit if viewPoint not initialized
-#ifdef FF_LINUX
-    {
-        static int vpDbg = 0;
-        if (vpDbg++ % 100 == 0)
-        {
-            fprintf(stderr, "[RenderFrame] this=%p, &OTWDriver=%p, viewPoint=%p (#%d)\n",
-                    (void*)this, (void*)&OTWDriver, (void*)viewPoint, vpDbg);
-            fflush(stderr);
-        }
-    }
-#endif
+    // FF_LINUX: Safety check - viewPoint may be NULL during initialization
     if (!viewPoint) {
-#ifdef FF_LINUX
-        static int vpNullCount = 0;
-        if (vpNullCount++ % 100 == 0)
-        {
-            fprintf(stderr, "[RenderFrame] ERROR: viewPoint is NULL, returning early (#%d)\n", vpNullCount);
-            fflush(stderr);
-        }
-#endif
         return;
     }
 
@@ -2382,17 +2364,7 @@ void OTWDriverClass::RenderFrame()
 
     // COBRA - DX - Flip here, to make some work parallel to the GPU and increase fps
 #ifdef FF_LINUX
-    {
-        static int swapDbg = 0;
-        if (swapDbg++ % 100 == 0)
-        {
-            fprintf(stderr, "[OTWLoop] SwapBuffers check: In3D=%d, OTWImage=%p, IsReady=%d (#%d)\n",
-                    g_intellivibeData.In3D, (void*)OTWImage,
-                    OTWImage ? OTWImage->IsReady() : -1, swapDbg);
-            fflush(stderr);
-        }
-    }
-    // Safety check for Linux - ensure OTWImage is valid before calling SwapBuffers
+    // FF_LINUX: Safety check - ensure OTWImage is valid before calling SwapBuffers
     if (g_intellivibeData.In3D && OTWImage && OTWImage->IsReady())
     {
         OTWImage->SwapBuffers(false);
@@ -2407,10 +2379,6 @@ void OTWDriverClass::RenderFrame()
     //if( not SkipSwap){ OTWImage->SwapBuffers(false); }
     SkipSwap = false;
 
-#ifdef FF_LINUX
-    fprintf(stderr, "[OTWLoop] After SwapBuffers, checking ZBuffering...\n"); fflush(stderr);
-#endif
-
     // RED - If the camera changed, preload the scene objects
     // if(CameraChange) renderer->PreLoadScene(NULL, NULL), CameraChange = false;
 
@@ -2420,24 +2388,15 @@ void OTWDriverClass::RenderFrame()
         renderer->context.SetZBuffering(TRUE);
     }
 
-#ifdef FF_LINUX
-    fprintf(stderr, "[OTWLoop] Calling renderer->context.StartFrame()...\n"); fflush(stderr);
-#endif
-
     // Actually draw the scene
     renderer->context.StartFrame();
 #ifdef FF_LINUX
     fprintf(stderr, "[OTWLoop] Calling renderer->StartDraw()...\n"); fflush(stderr);
 #endif
     renderer->StartDraw();
-#ifdef FF_LINUX
-    fprintf(stderr, "[OTWLoop] After StartDraw, calling ResetState...\n"); fflush(stderr);
-#endif
+
     // Avoid any remaining from TV colors bitand Settings
     TheDXEngine.ResetState();
-#ifdef FF_LINUX
-    fprintf(stderr, "[OTWLoop] After ResetState, checking modes...\n"); fflush(stderr);
-#endif
 
     // Select the right mode
     if (renderer->context.NVGmode) TheDXEngine.SetState(DX_NVG);
@@ -2445,10 +2404,6 @@ void OTWDriverClass::RenderFrame()
     if (renderer->context.TVmode) TheDXEngine.SetState(DX_TV);
 
     if (renderer->context.IRmode) TheDXEngine.SetState(DX_NVG);
-
-#ifdef FF_LINUX
-    fprintf(stderr, "[OTWLoop] Calling ClearStencil...\n"); fflush(stderr);
-#endif
     // * WARNING * PASSED IN THE DrawScene() function, more approriate for all calls
     // Clear any light list to be rebuilt
     //TheDXEngine.ClearLights();
@@ -2637,11 +2592,17 @@ void OTWDriverClass::RenderFrame()
 #endif
     //STOP_PROFILE("RENDER DRAWSCENE");
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[OTWLoop] SetFont(oldFont) done\n"); fflush(stderr);
+#endif
     VirtualDisplay::SetFont(oldFont);
 
     //Now if in the pit the instumentation
     if (okToDoCockpitStuff)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWLoop] okToDoCockpitStuff=true, DisplayMode=%d\n", DisplayMode); fflush(stderr);
+#endif
         // Flush the polys before rendering instruments
         if (DisplayOptions.bZBuffering)
         {
@@ -2655,39 +2616,72 @@ void OTWDriverClass::RenderFrame()
                 CameraChange = false;
             }
 
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] Calling FlushPolyLists...\n"); fflush(stderr);
+#endif
             renderer->context.FlushPolyLists();
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] FlushPolyLists done, ClearZBuffer...\n"); fflush(stderr);
+#endif
             renderer->ClearZBuffer();
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] ClearZBuffer done\n"); fflush(stderr);
+#endif
         }
 
         if (DisplayMode  == ModePadlockF3)
         {
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] ModePadlockF3: Padlock_DrawSquares + VCock_Exec\n"); fflush(stderr);
+#endif
             ShiAssert(SimDriver.GetPlayerAircraft() == otwPlatform);
             Padlock_DrawSquares(TRUE);
             VCock_Exec();
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] ModePadlockF3: done\n"); fflush(stderr);
+#endif
         }
 
         if (DisplayMode  == Mode3DCockpit) //588
         {
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] Mode3DCockpit: VCock_Exec\n"); fflush(stderr);
+#endif
             ShiAssert(SimDriver.GetPlayerAircraft() == otwPlatform);
             //START_PROFILE("VCOCK EXEC");
             VCock_Exec();
             //STOP_PROFILE("VCOCK EXEC");
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] Mode3DCockpit: VCock_Exec done\n"); fflush(stderr);
+#endif
         } //588
 
         if (DisplayMode  == ModePadlockEFOV)
         {
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] ModePadlockEFOV: Padlock_DrawSquares\n"); fflush(stderr);
+#endif
             ShiAssert(SimDriver.GetPlayerAircraft() == otwPlatform);
             Padlock_DrawSquares(TRUE);
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] ModePadlockEFOV: done\n"); fflush(stderr);
+#endif
         }
     }
     else
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWLoop] okToDoCockpitStuff=false branch\n"); fflush(stderr);
+#endif
         if ((otwPlatform.get() not_eq NULL) and otwPlatform->drawPointer)
         {
             if ( not otwPlatform->OnGround()) DrawExternalViewTarget();
         }
 
         if (g_bLensFlare) Draw2DLensFlare(renderer);
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWLoop] external view done\n"); fflush(stderr);
+#endif
     }
 
     // If camera changed, wait for updates
@@ -2715,50 +2709,102 @@ void OTWDriverClass::RenderFrame()
     // Now flush anything coming from the Pits... they use a own camera
     if (DisplayOptions.bZBuffering)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWLoop] Second FlushPolyLists (pit camera)...\n"); fflush(stderr);
+#endif
         renderer->context.FlushPolyLists();
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWLoop] Second FlushPolyLists done\n"); fflush(stderr);
+#endif
     }
 
     // If in 3D Pit, the pit has to be drawn as 1st item helping z-Buffering
     if (okToDoCockpitStuff)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWLoop] CockDetachWeapons: DisplayMode=%d\n", DisplayMode); fflush(stderr);
+#endif
         // DX - Detach Weapons HERE, AFTER any rendering
         if (DisplayMode == Mode3DCockpit or DisplayMode == ModePadlockF3) CockDetachWeapons();
 
         if (DisplayMode == Mode2DCockpit) pCockpitManager->CockDetachWeapons();
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWLoop] CockDetachWeapons done\n"); fflush(stderr);
+#endif
     }
 
     // COBRA - RED - REDO FOR DX ENGINE - END
     // sfr: @todo taking crits out
 #if NO_VU_LOCK
 #else
+#ifdef FF_LINUX
+    fprintf(stderr, "[OTWLoop] VuExitCriticalSection...\n"); fflush(stderr);
+#endif
     VuExitCriticalSection();
+#ifdef FF_LINUX
+    fprintf(stderr, "[OTWLoop] VuExitCriticalSection done\n"); fflush(stderr);
+#endif
 #endif
 
     // Clear out the "near" list now that we're done drawing it
+#ifdef FF_LINUX
+    fprintf(stderr, "[OTWLoop] FlushNearList...\n"); fflush(stderr);
+#endif
     FlushNearList();
+#ifdef FF_LINUX
+    fprintf(stderr, "[OTWLoop] FlushNearList done\n"); fflush(stderr);
+#endif
 
     //START_PROFILE("RENDER 2DPIT");
     // Do the first layer of drawn cockpit stuff (pre BLT)
+#ifdef FF_LINUX
+    fprintf(stderr, "[OTWLoop] Checking okToDoCockpitStuff=%d...\n", okToDoCockpitStuff); fflush(stderr);
+#endif
     if (okToDoCockpitStuff)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWLoop] In okToDoCockpitStuff block, pCockpitManager=%p\n", (void*)pCockpitManager); fflush(stderr);
+#endif
         // Should we Draw the HUD?
         //START_PROFILE("HUD");
+#ifdef FF_LINUX
+        bool showHudResult = pCockpitManager->ShowHud();
+        fprintf(stderr, "[OTWLoop] ShowHud() returned %d\n", showHudResult); fflush(stderr);
+        if (showHudResult)
+#else
         if (pCockpitManager->ShowHud())
+#endif
         {
+#ifdef FF_LINUX
+            int dispMode = GetOTWDisplayMode();
+            fprintf(stderr, "[OTWLoop] Drawing HUD, DisplayMode=%d\n", dispMode); fflush(stderr);
+#endif
             if (GetOTWDisplayMode() == ModePadlockEFOV or
                 GetOTWDisplayMode() == ModeHud or
                 GetOTWDisplayMode() == Mode2DCockpit
                )
             {
+#ifdef FF_LINUX
+                fprintf(stderr, "[OTWLoop] Calling Draw2DHud()...\n"); fflush(stderr);
+#endif
                 Draw2DHud();
+#ifdef FF_LINUX
+                fprintf(stderr, "[OTWLoop] Draw2DHud() done\n"); fflush(stderr);
+#endif
             }
         }
 
         //STOP_PROFILE("HUD");
         //START_PROFILE("PADLOCK");
 
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWLoop] After HUD, getting mover...\n"); fflush(stderr);
+#endif
         // Should we draw the EFOV window?
         SimMoverClass *mover = static_cast<SimMoverClass*>(otwPlatform.get());
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWLoop] mover=%p, DisplayMode=%d\n", (void*)mover, GetOTWDisplayMode()); fflush(stderr);
+#endif
 
         if ((GetOTWDisplayMode() == ModePadlockEFOV) and (mover->targetList))
         {
@@ -2779,26 +2825,63 @@ void OTWDriverClass::RenderFrame()
 
         //STOP_PROFILE("PADLOCK");
 
+#ifdef FF_LINUX
+        fprintf(stderr, "[OTWLoop] After PADLOCK check, entering Mode2DCockpit block...\n"); fflush(stderr);
+#endif
         // mfds and rwr
         if (GetOTWDisplayMode() == Mode2DCockpit)
         {
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] Mode2DCockpit: EndDraw...\n"); fflush(stderr);
+#endif
             renderer->EndDraw();
 
             //START_PROFILE("COCKPIT MANAGER EXEC");
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] Mode2DCockpit: pCockpitManager->Exec()...\n"); fflush(stderr);
+#endif
             pCockpitManager->Exec();
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] Mode2DCockpit: Exec done, calling renderer->StartDraw()...\n"); fflush(stderr);
+            fprintf(stderr, "[OTWLoop] renderer=%p\n", (void*)renderer); fflush(stderr);
+#endif
             //STOP_PROFILE("COCKPIT MANAGER EXEC");
 
             renderer->StartDraw();
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] Mode2DCockpit: StartDraw done\n"); fflush(stderr);
+#endif
             float top, left, bottom, right;
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] GetViewport...\n"); fflush(stderr);
+#endif
             renderer->GetViewport(&left, &top, &right, &bottom); // save the current viewport
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] SetViewport(-1,1,1,-1)...\n"); fflush(stderr);
+#endif
             renderer->SetViewport(-1.0F, 1.0F, 1.0F, -1.0F); // set fullscreen viewport
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] DisplayBlit3D...\n"); fflush(stderr);
+#endif
             pCockpitManager->DisplayBlit3D(); // draw 3d stuff
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] EndDraw after Blit3D...\n"); fflush(stderr);
+#endif
             renderer->EndDraw();
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] SetViewport restore...\n"); fflush(stderr);
+#endif
             renderer->SetViewport(left, top, right, bottom); // restore viewport
 
             // Draw in the 2D cockpit
             // sfr: it seems we need this for the map only... the rest is all 3d
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] DisplayBlit...\n"); fflush(stderr);
+#endif
             pCockpitManager->DisplayBlit();
+#ifdef FF_LINUX
+            fprintf(stderr, "[OTWLoop] DisplayDraw...\n"); fflush(stderr);
+#endif
             pCockpitManager->DisplayDraw();
 
             // mfds and RWR

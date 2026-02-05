@@ -7,8 +7,8 @@
 #include "cphsi.h"
 #include "cpindicator.h"
 #include "sinput.h"
-#include "FalcLib/include/playerop.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
 //sfr: for cockpit light
 #include "aircrft.h"
 #include "simdrive.h"
@@ -342,14 +342,18 @@ void CPPanel::DisplayBlit3D()
 
     // loop thru and display all objects for this panel
     for (i = 0; i < mNumObjects; i++)
-        mpObjects[i]->DisplayBlit3D();
+    {
+        if (mpObjects[i])
+            mpObjects[i]->DisplayBlit3D();
+    }
 
     //Wombat778 3-23-04  Enabled now that there is code to back this up
     // currently only supported for views
     // loop thru and display all buttons for this panel
     for (i = 0; i < mNumButtonViews; i++)
     {
-        mpButtonViews[i]->DisplayBlit3D();
+        if (mpButtonViews[i])
+            mpButtonViews[i]->DisplayBlit3D();
     }
 }
 

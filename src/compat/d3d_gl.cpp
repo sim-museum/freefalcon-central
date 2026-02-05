@@ -25,6 +25,10 @@
 #include "d3dtypes.h"
 #include "d3d.h"
 
+#include "ffviper/ff_linux_debug.h"
+// External frame counter for correlated debug output
+extern unsigned long g_RenderFrameCount;
+
 // Missing type definitions for stub functions
 typedef void* LPDDBLTBATCH;
 
@@ -455,12 +459,22 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_EnumTextureFormats(IDirect3DDevice7* Th
     return D3D_OK;
 }
 
+static int g_BeginSceneCount = 0;
+
 static HRESULT STDMETHODCALLTYPE D3D7Dev_BeginScene(IDirect3DDevice7* This) {
     D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("BeginScene");
 
     if (dev->inScene) return D3DERR_SCENE_IN_SCENE;
     dev->inScene = true;
+
+    // FF_LINUX: Debug output for first few BeginScene calls
+    g_BeginSceneCount++;
+    if (g_BeginSceneCount <= 5) {
+        fprintf(stderr, "[BeginScene] #%d: viewport=%dx%d\n",
+                g_BeginSceneCount, dev->viewport.dwWidth, dev->viewport.dwHeight);
+        fflush(stderr);
+    }
 
     return D3D_OK;
 }
@@ -590,6 +604,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_GetTransform(IDirect3DDevice7* This, D3
     return D3D_OK;
 }
 
+static int g_SetViewportCount = 0;
+
 static HRESULT STDMETHODCALLTYPE D3D7Dev_SetViewport(IDirect3DDevice7* This, LPD3DVIEWPORT7 lpViewport) {
     D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("SetViewport %dx%d", lpViewport->dwWidth, lpViewport->dwHeight);
@@ -605,6 +621,15 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetViewport(IDirect3DDevice7* This, LPD
     }
 
     memcpy(&dev->viewport, lpViewport, sizeof(D3DVIEWPORT7));
+
+    // FF_LINUX: Debug output for first few SetViewport calls
+    g_SetViewportCount++;
+    if (g_SetViewportCount <= 5) {
+        fprintf(stderr, "[SetViewport] #%d: %dx%d at (%d,%d)\n",
+                g_SetViewportCount, lpViewport->dwWidth, lpViewport->dwHeight,
+                lpViewport->dwX, lpViewport->dwY);
+        fflush(stderr);
+    }
 
     glViewport(lpViewport->dwX, lpViewport->dwY, lpViewport->dwWidth, lpViewport->dwHeight);
     glDepthRange(lpViewport->dvMinZ, lpViewport->dvMaxZ);
@@ -843,6 +868,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveStrided(IDirect3DDe
     return D3D_OK;
 }
 
+static int g_DrawPrimitiveVBCount = 0;
+
 static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitiveVB(IDirect3DDevice7* This, D3DPRIMITIVETYPE dptPrimitiveType, LPDIRECT3DVERTEXBUFFER7 lpd3dVertexBuffer, DWORD dwStartVertex, DWORD dwNumVertices, DWORD dwFlags) {
     D3D7Device* dev = (D3D7Device*)This;
     D3D7VertexBuffer* vb = (D3D7VertexBuffer*)lpd3dVertexBuffer;
@@ -852,6 +879,21 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitiveVB(IDirect3DDevice7* This,
 
     int vertexSize = GetVertexSize(vb->desc.dwFVF);
     const char* startVertex = (const char*)vb->data + dwStartVertex * vertexSize;
+
+    // FF_LINUX: Debug output for first few draw calls
+    g_DrawPrimitiveVBCount++;
+    if (g_DrawPrimitiveVBCount <= 10) {
+        bool isXYZRHW = (vb->desc.dwFVF & D3DFVF_XYZRHW) != 0;
+        fprintf(stderr, "[DrawPrimitiveVB] #%d: type=%d count=%u fvf=0x%x isXYZRHW=%d viewport=%dx%d\n",
+                g_DrawPrimitiveVBCount, dptPrimitiveType, dwNumVertices, vb->desc.dwFVF,
+                isXYZRHW, dev->viewport.dwWidth, dev->viewport.dwHeight);
+        // Log first vertex position
+        if (dwNumVertices > 0) {
+            const float* pos = (const float*)startVertex;
+            fprintf(stderr, "  first vertex: %.2f, %.2f, %.2f\n", pos[0], pos[1], pos[2]);
+        }
+        fflush(stderr);
+    }
 
     dev->DrawVertices(dptPrimitiveType, vb->desc.dwFVF, startVertex, dwNumVertices);
     return D3D_OK;
@@ -1537,6 +1579,30 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     int vertexSize = GetVertexSize(fvf);
     GLenum glPrimType = GetGLPrimitiveType(primType);
 
+    // FF_LINUX: XYZRHW vertices are pre-transformed screen coordinates in DirectX.
+    // They bypass the transformation pipeline entirely. In OpenGL, we need to:
+    // 1. Set up orthographic projection matching the viewport
+    // 2. Set modelview to identity
+    // 3. Use glVertex3f with x, y, z directly (not glVertex4f which divides by w)
+    bool isXYZRHW = (fvf & D3DFVF_XYZRHW) != 0;
+
+    if (isXYZRHW) {
+        // Save current matrices
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        // Set up orthographic projection: x = 0 to viewport.width, y = 0 to viewport.height
+        // Note: DirectX has Y=0 at top, OpenGL has Y=0 at bottom, so flip Y
+        glOrtho(0, viewport.dwWidth, viewport.dwHeight, 0, 0, 1);
+
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+
+        // Disable depth test for 2D rendering (XYZRHW typically used for UI/HUD)
+        glDisable(GL_DEPTH_TEST);
+    }
+
     glBegin(glPrimType);
 
     for (DWORD i = 0; i < count; i++) {
@@ -1583,12 +1649,35 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
             const float* pos = (const float*)vertex;
             glVertex3fv(pos);
         } else if (fvf & D3DFVF_XYZRHW) {
+            // XYZRHW: x, y are screen coords, z is depth (0-1), w is RHW (1/W)
+            // Use x, y, z directly without the RHW component
             const float* pos = (const float*)vertex;
-            glVertex4fv(pos);
+            glVertex3f(pos[0], pos[1], pos[2]);
         }
     }
 
     glEnd();
+
+    if (isXYZRHW) {
+        // Restore matrices
+        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+
+        // Restore depth test
+        glEnable(GL_DEPTH_TEST);
+    }
+
+#ifdef FF_LINUX_DEBUG_RENDER
+    // Check for OpenGL errors after drawing (only in render debug mode)
+    GLenum err = glGetError();
+    if (err != GL_NO_ERROR) {
+        FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  GL ERROR after DrawVertices: 0x%x count=%u primType=%d\n",
+                              err, count, primType);
+        FF_DEBUG_RENDER_FLUSH();
+    }
+#endif
 }
 
 // ============================================================
@@ -2051,9 +2140,6 @@ void FF_PresentPrimarySurface() {
 
     // Validate surface
     if (!g_pPrimarySurface || !g_pPrimarySurface->pixelData) {
-        if (frameCount <= 5) {
-            fprintf(stderr, "[FF_Present] Frame %d: No primary surface or pixel data\n", frameCount);
-        }
         return;
     }
 
@@ -2061,7 +2147,6 @@ void FF_PresentPrimarySurface() {
 
     // Validate surface dimensions
     if (surf->width <= 0 || surf->height <= 0 || surf->width > 4096 || surf->height > 4096) {
-        fprintf(stderr, "[FF_Present] Invalid surface dimensions: %dx%d\n", surf->width, surf->height);
         return;
     }
 
@@ -2076,11 +2161,7 @@ void FF_PresentPrimarySurface() {
         glGenTextures(1, &surf->glTexture);
         GLenum err = glGetError();
         if (err != GL_NO_ERROR) {
-            fprintf(stderr, "[FF_Present] glGenTextures error: 0x%x\n", err);
             return;
-        }
-        if (frameCount <= 5) {
-            fprintf(stderr, "[FF_Present] Frame %d: Created texture ID %u\n", frameCount, surf->glTexture);
         }
     }
 

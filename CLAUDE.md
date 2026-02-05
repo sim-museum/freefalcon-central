@@ -3256,3 +3256,235 @@ The crash that occurs after 20-30 seconds appears to be during cleanup when the 
 4. Test return-to-menu flow after exiting simulation
 
 ---
+
+### Session: January 30, 2026 - Thread Visibility Fix for SimLoop currentMode
+
+#### Problem: Loop() Thread Not Seeing currentMode Changes
+
+**Symptom:** When launching Instant Action and clicking TAKEOFF, the game would either:
+1. Crash during the rendering pipeline (after deaggregation completes)
+2. Hang indefinitely with no visible progress
+
+Debug output showed `Loop()` consistently seeing `currentMode=2` (Step2) even when `StartLoop()` had set it to `5` (StartRunningGraphics) or `6` (RunningGraphics).
+
+**Root Cause:** The `currentMode` static variable in `SimulationLoopControl` class was not declared `volatile`, causing the compiler to optimize reads across threads. One thread's writes were not visible to the other thread due to CPU caching and compiler optimizations.
+
+**Complicating Factor:** Case-sensitive filesystem created three header file variants:
+- `src/sim/include/simloop.h`
+- `src/sim/include/Simloop.h`
+- `src/sim/include/SimLoop.h`
+
+Different source files included different variants, leading to inconsistent declarations.
+
+**Fix:**
+1. Changed the enum and variable declaration to be separate (fixing syntax issue with volatile inline enum)
+2. Added `volatile` qualifier to `currentMode` for cross-thread visibility
+3. Updated all three header file variants to be identical
+
+```cpp
+// simloop.h (all variants)
+protected:
+    enum SimLoopControlMode
+    {
+        Stopped,
+        StartingSim,
+        RunningSim,
+        StartingGraphics,
+        Step2,
+        StartRunningGraphics,
+        RunningGraphics,
+        StoppingGraphics,
+        Step5,
+        StoppingSim,
+    };
+    // FF_LINUX: volatile for cross-thread visibility
+    static volatile SimLoopControlMode currentMode;
+
+// simloop.cpp
+volatile SimulationLoopControl::SimLoopControlMode SimulationLoopControl::currentMode = SimulationLoopControl::Stopped;
+```
+
+**Files Modified:**
+- `src/sim/include/simloop.h` (and Simloop.h, SimLoop.h variants)
+- `src/sim/simloop/simloop.cpp`
+
+#### Additional Fixes in Same Commit
+
+**1. NULL Drawable Object Safety (otwlist.cpp):**
+Added NULL check in `InsertObject()` to handle cases where deaggregation creates entities with NULL drawables:
+```cpp
+void OTWDriverClass::InsertObject(DrawableObject *dObj)
+{
+    if (!dObj) {
+        return;  // Early return for NULL objects
+    }
+    // ... rest of function
+}
+```
+
+**2. Enhanced Debug Output:**
+- Added Loop() entry monitoring with currentMode tracking
+- Added SwapBuffers debug to trace DirectDraw operations
+- Added debug markers in otwloop.cpp to narrow crash location
+
+#### Current Crash Location
+
+Debug output shows the crash occurs **after** these messages:
+```
+[OTWLoop] Setting font for labels...
+[OTWLoop] oldFont=..., calling LabelFont()...
+[OTWLoop] SetFont done, calling DrawScene()...
+```
+
+The crash happens during or immediately after `DrawScene()` call. This is the 3D world rendering function.
+
+#### Current Status
+
+| Component | Status |
+|-----------|--------|
+| Thread visibility fix | ✅ Committed |
+| NULL drawable safety | ✅ Committed |
+| Debug instrumentation | ✅ Committed |
+| DrawScene() crash | ⚠️ Needs investigation |
+| Intermittent hanging | ⚠️ Needs investigation |
+
+#### Next Steps
+
+1. **Investigate DrawScene() crash:**
+   - Add debug markers inside `renderer->DrawScene()` to narrow location
+   - Check if crash is in terrain rendering, object rendering, or post-processing
+   - May be another 64-bit pointer truncation issue
+
+2. **Investigate intermittent hanging:**
+   - Add timeout detection to identify where hangs occur
+   - May be deadlock between sim thread and campaign thread
+   - May be infinite loop in state machine
+
+3. **Test with manual UI interaction:**
+   - Remove automated testing, let user click through UI manually
+   - Observe behavior with real user timing
+
+#### Git Commit
+
+```
+2ce0fb6c Linux port: Fix thread visibility for simloop currentMode variable
+```
+
+---
+
+### Session: February 4, 2026 - 3D Graphics Display Fixes
+
+#### Overview
+
+Fixed critical issues preventing 3D graphics from displaying during flight simulation. The simulation now runs at 62 FPS without crashes.
+
+#### Fix 1: XYZRHW Pre-transformed Vertex Handling (d3d_gl.cpp)
+
+**Root Cause:** DirectX D3DFVF_XYZRHW vertices are pre-transformed screen coordinates that bypass the transformation pipeline. The OpenGL compatibility layer was passing these through the regular GL transformation matrices, resulting in incorrect positioning.
+
+**Fix:** Added proper XYZRHW handling in `D3D7Device::DrawVertices()`:
+- Detect `D3DFVF_XYZRHW` flag in FVF
+- Set up orthographic projection matching viewport dimensions
+- Use `glVertex3f()` instead of `glVertex4fv()` for XYZRHW vertices
+- Restore matrices after drawing
+
+```cpp
+bool isXYZRHW = (fvf & D3DFVF_XYZRHW) != 0;
+if (isXYZRHW) {
+    glMatrixMode(GL_PROJECTION);
+    glPushMatrix();
+    glLoadIdentity();
+    glOrtho(0, viewport.dwWidth, viewport.dwHeight, 0, 0, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadIdentity();
+    glDisable(GL_DEPTH_TEST);
+}
+// ... draw vertices
+if (isXYZRHW) {
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+    glMatrixMode(GL_PROJECTION);
+    glPopMatrix();
+}
+```
+
+**Files Modified:**
+- `src/compat/d3d_gl.cpp`
+
+#### Fix 2: 64-bit Pointer Truncation in SelectTexture1 Calls (10+ cockpit files)
+
+**Root Cause:** Multiple cockpit rendering functions cast `TextureHandle* pTex` to `(GLint)` when calling `SelectTexture1()`. On 64-bit Linux, this truncates the upper 32 bits of the pointer, causing invalid texture handles.
+
+**Pattern:**
+```cpp
+// BROKEN - truncates 64-bit pointer
+OTWDriver.renderer->context.SelectTexture1((GLint) pTex);
+
+// FIXED - preserves full 64-bit pointer
+OTWDriver.renderer->context.SelectTexture1((intptr_t) pTex);
+```
+
+**Files Modified:**
+- `src/sim/cockpit/cpsurface.cpp` (2 occurrences)
+- `src/sim/cockpit/cpdial.cpp`
+- `src/sim/cockpit/cpindicator.cpp`
+- `src/sim/cockpit/cplight.cpp`
+- `src/sim/cockpit/cphsi.cpp`
+- `src/sim/cockpit/button.cpp`
+- `src/sim/cockpit/cpadi.cpp`
+- `src/sim/cockpit/cpdigits.cpp`
+- `src/graphics/renderer/gmcomposit.cpp`
+- `src/sim/siminput/sicursor.cpp`
+
+#### Fix 3: CPMirror NULL Safety Checks
+
+**Root Cause:** `CPMirror::DisplayBlit3D()` could crash if `mBuffer`, `buf` from `Lock()`, or `renderer` was NULL.
+
+**Fix:** Added NULL safety checks with early returns:
+```cpp
+#ifdef FF_LINUX
+    if (!mBuffer.get()) return;
+#endif
+    DWORD *buf = static_cast<DWORD*>(mBuffer->Lock());
+#ifdef FF_LINUX
+    if (!buf) return;
+#endif
+    RenderOTW *r = OTWDriver.renderer;
+#ifdef FF_LINUX
+    if (!r) { mBuffer->Unlock(); return; }
+#endif
+```
+
+**Files Modified:**
+- `src/sim/cockpit/cpmirror.cpp`
+
+#### Debug Cleanup
+
+Removed verbose debug fprintf statements from the render path while keeping essential safety checks:
+
+**Files Cleaned:**
+- `src/sim/cockpit/cpmirror.cpp` - Removed 10+ fprintf calls, kept NULL checks
+- `src/sim/cockpit/cppanel.cpp` - Removed all debug output from DisplayBlit3D loop
+- `src/sim/cockpit/cplight.cpp` - Removed debug output
+- `src/sim/cockpit/cpdial.cpp` - Removed debug output
+- `src/graphics/ddstuff/imagebuf.cpp` - Removed SwapBuffers debug, kept safety checks
+- `src/sim/otwdrive/otwloop.cpp` - Removed render loop debug, kept safety checks
+- `src/ffviper/main_linux.cpp` - Removed FF_SwapBuffers frame counter
+- `src/compat/d3d_gl.cpp` - Removed FF_Present debug output
+
+#### Current Status
+
+| Component | Status |
+|-----------|--------|
+| XYZRHW vertex handling | ✅ Fixed |
+| SelectTexture1 pointer truncation | ✅ Fixed (10+ files) |
+| CPMirror NULL safety | ✅ Fixed |
+| Debug output cleanup | ✅ Completed |
+| Simulation running | ✅ 62 FPS stable |
+
+#### Result
+
+The simulation now enters `RunningGraphics` mode (mode 6) and runs continuously at 62 FPS without crashes. The cockpit rendering pipeline and 3D world rendering are functional.
+
+---

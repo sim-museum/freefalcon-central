@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "cpdial.h"
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/renderow.h"
 #include "otwdrive.h"
 
-#include "Graphics/Include/grinline.h" //Wombat778 3-26-04
+#include "graphics/include/grinline.h" //Wombat778 3-26-04
 extern bool g_bFilter2DPit; //Wombat778 3-30-04
 
 CPDial::CPDial(ObjectInitStr *pobjectInitStr, DialInitStr* pdialInitStr) : CPObject(pobjectInitStr)
@@ -333,14 +333,13 @@ void RenderNeedlePoly(TextureHandle *pTex, tagRECT *destrect, GLint alpha, float
     OTWDriver.pCockpitManager->AddTurbulence(pVtx);
 
     OTWDriver.renderer->context.RestoreState(alpha);
-    OTWDriver.renderer->context.SelectTexture1((GLint) pTex);
+    OTWDriver.renderer->context.SelectTexture1((intptr_t) pTex);
     OTWDriver.renderer->context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 4, pVtx, sizeof(pVtx[0]));
 }
 
 
 void CPDial::DisplayBlit3D()
 {
-
     mDirtyFlag = TRUE;
 
     if ( not mDirtyFlag)
