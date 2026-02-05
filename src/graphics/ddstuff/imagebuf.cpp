@@ -1096,10 +1096,20 @@ void ImageBuffer::SwapBuffers(bool bDontFlip)
     RECT backRect = { 0, 0, m_ddsdBack.dwWidth, m_ddsdBack.dwHeight };
 
 #ifdef FF_LINUX
-    fprintf(stderr, "[SwapBuffers] #%d: Pre-Blt: backRect=%d,%d,%d,%d m_rcFront=%d,%d,%d,%d m_bFrontRectValid=%d\n",
-            swapCount, 0, 0, (int)m_ddsdBack.dwWidth, (int)m_ddsdBack.dwHeight,
-            (int)m_rcFront.left, (int)m_rcFront.top, (int)m_rcFront.right, (int)m_rcFront.bottom,
-            m_bFrontRectValid);
+    // FF_LINUX: In sim mode, the 3D content is rendered directly to the OpenGL framebuffer
+    // via DrawPrimitiveVB etc. The DirectDraw surface pixel buffers don't contain this content.
+    // Skip the Blt (which would just copy empty/old UI data) and present the OpenGL framebuffer directly.
+    extern int doUI;
+    extern void FF_SwapBuffers();
+    if (!doUI) {
+        fprintf(stderr, "[SwapBuffers] #%d: SIM mode - presenting OpenGL framebuffer directly\n", swapCount);
+        fflush(stderr);
+        FF_SwapBuffers();
+        return;
+    }
+
+    fprintf(stderr, "[SwapBuffers] #%d: UI mode - Pre-Blt: backRect=%d,%d,%d,%d\n",
+            swapCount, 0, 0, (int)m_ddsdBack.dwWidth, (int)m_ddsdBack.dwHeight);
     fflush(stderr);
 #endif
 
@@ -1132,20 +1142,6 @@ void ImageBuffer::SwapBuffers(bool bDontFlip)
 
     if ( not SUCCEEDED(hr))
         MonoPrint("ImageBuffer::SwapBuffers - Error 0x%X\n", hr);
-
-#ifdef FF_LINUX
-    // FF_LINUX: After Blt to front buffer, need to present to screen via SDL
-    // In sim mode, doUI=0 and we need to swap OpenGL buffers to show the rendered frame
-    extern int doUI;
-    extern void FF_SwapBuffers();
-    if (!doUI) {
-        fprintf(stderr, "[SwapBuffers] #%d: SIM mode - calling FF_SwapBuffers()\n", swapCount);
-        fflush(stderr);
-        FF_SwapBuffers();
-        fprintf(stderr, "[SwapBuffers] #%d: FF_SwapBuffers() returned\n", swapCount);
-        fflush(stderr);
-    }
-#endif
 }
 
 // Helpful function to drop a screen capture to disk (BACK buffer to 24 bit RAW file)
