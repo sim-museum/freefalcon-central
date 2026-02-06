@@ -1119,6 +1119,23 @@ bool TextureHandle::Reload()
         // sfr: weird.. added {} around switch
         else
         {
+#ifdef FF_LINUX
+            static int reloadDiagCount = 0;
+            if (reloadDiagCount < 5) {
+                reloadDiagCount++;
+                fprintf(stderr, "[Reload] #%d m_eSurfFmt=%d pImageData=%p m_pPalAttach=%p %dx%d stride=%d\n",
+                        reloadDiagCount, (int)m_eSurfFmt, (void*)m_pImageData,
+                        (void*)m_pPalAttach, m_nWidth, m_nHeight, m_nImageDataStride);
+                if (m_pImageData) {
+                    int nonZero = 0;
+                    for (int bi = 0; bi < 256 && bi < m_nWidth; bi++) {
+                        if (m_pImageData[bi] != 0) nonZero++;
+                    }
+                    fprintf(stderr, "[Reload] #%d imageData nonZero256=%d\n", reloadDiagCount, nonZero);
+                }
+                fflush(stderr);
+            }
+#endif
             switch (m_eSurfFmt)
             {
                 case D3DX_SF_PALETTE8:
@@ -1572,6 +1589,12 @@ void TextureHandle::StaticInit(IDirect3DDevice7 *pD3DD)
     {
         m_pD3DD->EnumTextureFormats(TextureSearchCallback, &ptsi[i]);
         ShiAssert(ptsi[i].bFoundGoodFormat)
+#ifdef FF_LINUX
+        fprintf(stderr, "[StaticInit] m_arrPF[%d]: bpp=%d flags=0x%x rMask=0x%x found=%d\n",
+                i, (int)m_arrPF[i].dwRGBBitCount, (unsigned)m_arrPF[i].dwFlags,
+                (unsigned)m_arrPF[i].dwRBitMask, ptsi[i].bFoundGoodFormat);
+        fflush(stderr);
+#endif
     }
 }
 
