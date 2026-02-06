@@ -3578,3 +3578,99 @@ The game now runs stably for extended periods without crashes in the cockpit ren
 
 ---
 
+### Session: February 5, 2026 - Texture Rendering Investigation (Phase 5)
+
+#### Overview
+
+Continued investigating why 3D terrain and objects render as untextured (black/flat) polygons. The geometry is visible and moving correctly, but all textures show as blank.
+
+#### Diagnostic Findings
+
+**Test Results from Automated Flight Tests:**
+
+1. **GL errors eliminated**: Fixed viewport=0x0 causing GL_INVALID_VALUE in XYZRHW DrawVertices by adding viewport dimension guard. Errors dropped from ~630/frame to 0.
+
+2. **Texture pixel data is ALL ZEROS**: Every glTexImage2D upload showed `nonZero256=0` - all pixel buffers are filled with zeros despite being allocated.
+
+3. **Terrain textures have bpp=0**: Diagnostic output showed:
+   ```
+   [D3D_DIAG] SelectTexture: texID=3399 glTex=589 512x512 bpp=0 dirty=1 hasPixels=1 nonZero128=0 pitch=2048 rgbMask=0x0 caps=0x1000
+   ```
+   `dwRGBBitCount=0` means the pixel format was never populated despite DD7_CreateSurface having a default of 32-bit ARGB.
+
+4. **332 of 1076 texture binds have pixel data**: Most texture binds are for surfaces that have no pixel buffer at all.
+
+#### Root Cause Analysis (IDENTIFIED)
+
+**The likely root cause is that `m_arrPF[]` (static pixel format array) in `TextureHandle` contains all-zero entries, causing `m_eSurfFmt = D3DX_SF_UNKNOWN`.**
+
+**Trace of the bug:**
+
+1. **Terrain texture creation** (terrtex.cpp:1000):
+   ```cpp
+   WORD info = MPR_TI_PALETTE;
+   ((TextureHandle*)pTile->handle[res])->Create("TextureDB", info, 8, width, height, dwFlags);
+   ((TextureHandle*)pTile->handle[res])->Load(0, 0, (BYTE*)pTile->bits[res]);
+   ```
+
+2. **In Create()** (tex.cpp:735-756): Since `MPR_TI_PALETTE` is set:
+   ```cpp
+   ddsd.ddpfPixelFormat = m_arrPF[TEX_CAT_DEFAULT];
+   ```
+   If `m_arrPF[TEX_CAT_DEFAULT]` is all-zeros (StaticInit never called), then the surface gets created with `dwRGBBitCount=0`.
+
+3. **Surface format** (tex.cpp:815): `D3DXMakeSurfaceFormat()` with empty pixel format returns `D3DX_SF_UNKNOWN` (0).
+
+4. **In Reload()** (tex.cpp:1122): The switch on `m_eSurfFmt` falls through to `default: ;` which is a NO-OP. The pixel buffer was allocated with zeros by `AllocatePixelBuffer()` and nothing writes to it.
+
+5. **Result**: All textures uploaded to GL have all-zero pixel data, rendering everything as black.
+
+**Why m_arrPF might be empty:**
+- `TextureHandle::StaticInit()` is called from `Texture::SetupForDevice()` (tex.cpp:182)
+- `SetupForDevice()` is called from `DeviceDependentGraphicsSetup()` in `setup.cpp:141`
+- If `SetupForDevice()` is called with `texRC->m_pD3DD = NULL`, StaticInit returns early (line 1531)
+- Or if `SetupForDevice()` is called, then `CleanupForDevice()` clears everything, and terrain textures are created AFTER cleanup
+
+#### Fixes Applied This Session
+
+1. **Viewport guard in DrawVertices XYZRHW** (d3d_gl.cpp): Skip draw when viewport=0x0, preventing GL_INVALID_VALUE
+2. **Same viewport guard in DrawIndexedPrimitiveVB XYZRHW** (d3d_gl.cpp)
+3. **Changed glOrtho near plane from 0 to -1** for correct depth range
+4. **Added FF_DiagSurfaceState()** diagnostic function (d3d_gl.cpp)
+5. **Added terrain texture diagnostic** in CDXEngine::SelectTexture (dxengine.cpp)
+
+#### Next Steps (CRITICAL)
+
+1. **Verify StaticInit is called**: Add diagnostic to confirm `TextureHandle::StaticInit()` runs with valid `m_pD3DD`
+2. **Check m_arrPF population**: After EnumTextureFormats callback, verify `m_arrPF[TEX_CAT_DEFAULT]` has `dwRGBBitCount=32`
+3. **Check call ordering**: Verify terrain texture creation happens AFTER `SetupForDevice()`, not before or after `CleanupForDevice()`
+4. **If m_arrPF is empty**: Ensure our `D3D7Dev_EnumTextureFormats()` is reachable via the vtable
+
+#### Texture Loading Architecture
+
+```
+TextureHandle::StaticInit(m_pD3DD)
+    |
+m_pD3DD->EnumTextureFormats(TextureSearchCallback, &tsi_32[i])
+    |
+D3D7Dev_EnumTextureFormats() provides: 32-XRGB, 32-ARGB, 16-RGB565, 16-ARGB4444, 16-ARGB1555
+    |
+TextureSearchCallback matches format -> copies to m_arrPF[category]
+    |
+TextureHandle::Create() -> ddsd.ddpfPixelFormat = m_arrPF[category]
+    |
+DD7_CreateSurface -> D3D7Surface with format
+    |
+D3DXMakeSurfaceFormat() -> m_eSurfFmt (X8R8G8B8 / A8R8G8B8 / etc.)
+    |
+TextureHandle::Load() -> Reload()
+    |
+Reload(): Lock surface -> switch(m_eSurfFmt) -> palette lookup -> write pixels -> Unlock
+    |
+SetTexture(): isDirty -> glTexImage2D upload to GL
+```
+
+**If m_arrPF is empty, the chain breaks at step 4: format=0, m_eSurfFmt=UNKNOWN, Reload writes nothing, all pixels zero.**
+
+---
+

@@ -223,6 +223,16 @@ VOID CDXEngine::SelectTexture(GLint texID)
         texHandle = (uintptr_t)((TextureHandle *)texHandle)->m_pDDS;
     }
 
+    // FF_LINUX: Diagnostic - check terrain texture state on first few SelectTexture calls
+    {
+        extern void FF_DiagSurfaceState(void* surf, int texID);
+        static int selectTexDiagCount = 0;
+        if (selectTexDiagCount < 10 && texID != -1 && texHandle) {
+            selectTexDiagCount++;
+            FF_DiagSurfaceState((void*)texHandle, texID);
+        }
+    }
+
     // only Texture on Stage 0 is needed for normal View
     if (m_RenderState == DX_OTW)
     {

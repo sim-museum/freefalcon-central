@@ -188,6 +188,28 @@ struct D3D7Surface : public IDirectDrawSurface7 {
 // Global primary surface for screen presentation
 static D3D7Surface* g_pPrimarySurface = nullptr;
 
+// FF_LINUX: Diagnostic function callable from other compilation units
+// to inspect a D3D7Surface's state (used by CDXEngine::SelectTexture)
+void FF_DiagSurfaceState(void* surfPtr, int texID) {
+    if (!surfPtr) return;
+    D3D7Surface* surf = (D3D7Surface*)surfPtr;
+    int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 0;
+    int nonZero = 0;
+    if (surf->pixelData && surf->width > 0 && bpp > 0) {
+        int bytesToCheck = surf->width * bpp;
+        if (bytesToCheck > 128) bytesToCheck = 128;
+        for (int bi = 0; bi < bytesToCheck; bi++) {
+            if (surf->pixelData[bi] != 0) nonZero++;
+        }
+    }
+    fprintf(stderr, "[D3D_DIAG] SelectTexture: texID=%d glTex=%u %dx%d bpp=%d dirty=%d "
+            "hasPixels=%d nonZero128=%d pitch=%d rgbMask=0x%x caps=0x%x\n",
+            texID, surf->glTexture, surf->width, surf->height, bpp * 8,
+            surf->isDirty, surf->pixelData ? 1 : 0, nonZero, surf->pitch,
+            (unsigned)surf->pixelFormat.dwRBitMask, (unsigned)surf->caps);
+    fflush(stderr);
+}
+
 // ============================================================
 // Render state storage for state blocks
 // ============================================================
@@ -1084,6 +1106,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     // FF_LINUX: Save and set up orthographic projection for XYZRHW vertices
     GLboolean prevDepthTest2 = GL_FALSE, prevLighting2 = GL_FALSE, prevFog2 = GL_FALSE;
     if (isXYZRHW) {
+        // FF_LINUX: Guard against zero-size viewport
+        if (dev->viewport.dwWidth == 0 || dev->viewport.dwHeight == 0) {
+            return D3D_OK; // Skip draw - no valid viewport
+        }
+
         prevDepthTest2 = glIsEnabled(GL_DEPTH_TEST);
         prevLighting2 = glIsEnabled(GL_LIGHTING);
         prevFog2 = glIsEnabled(GL_FOG);
@@ -1091,7 +1118,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
         glLoadIdentity();
-        glOrtho(0, dev->viewport.dwWidth, dev->viewport.dwHeight, 0, 0, 1);
+        glOrtho(0, dev->viewport.dwWidth, dev->viewport.dwHeight, 0, -1, 1);
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
         glLoadIdentity();
@@ -1279,6 +1306,21 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
             } else {
                 glPixelStorei(GL_UNPACK_ROW_LENGTH, surf->pitch / bpp);
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            }
+
+            // FF_LINUX: Log first few texture uploads with content info
+            static int texUploadLogCount = 0;
+            if (texUploadLogCount < 15) {
+                texUploadLogCount++;
+                // Check pixel data content
+                int pxNonZero = 0;
+                for (int bi = 0; bi < 256 && bi < surf->width * bpp; bi++) {
+                    if (surf->pixelData[bi] != 0) pxNonZero++;
+                }
+                fprintf(stderr, "[D3D_DIAG] glTexImage2D UPLOAD #%d: glTex=%u %dx%d bpp=%d fmt=0x%x type=0x%x nonZero256=%d pitch=%d\n",
+                        texUploadLogCount, surf->glTexture, surf->width, surf->height, bpp,
+                        format, type, pxNonZero, surf->pitch);
+                fflush(stderr);
             }
 
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surf->width, surf->height, 0,
@@ -2096,6 +2138,13 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     GLboolean prevDepthTest = GL_FALSE, prevLighting = GL_FALSE, prevFog = GL_FALSE;
 
     if (isXYZRHW) {
+        // FF_LINUX: Guard against zero-size viewport which would cause GL_INVALID_VALUE
+        // from glOrtho (left=right or bottom=top). This happens during early frames
+        // before the viewport is properly initialized.
+        if (viewport.dwWidth == 0 || viewport.dwHeight == 0) {
+            return; // Skip draw - no valid viewport
+        }
+
         // Save states that we're about to change
         prevDepthTest = glIsEnabled(GL_DEPTH_TEST);
         prevLighting = glIsEnabled(GL_LIGHTING);
@@ -2107,7 +2156,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glLoadIdentity();
         // Set up orthographic projection: x = 0 to viewport.width, y = 0 to viewport.height
         // Note: DirectX has Y=0 at top, OpenGL has Y=0 at bottom, so flip Y
-        glOrtho(0, viewport.dwWidth, viewport.dwHeight, 0, 0, 1);
+        glOrtho(0, viewport.dwWidth, viewport.dwHeight, 0, -1, 1);
 
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
