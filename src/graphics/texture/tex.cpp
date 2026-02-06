@@ -954,6 +954,21 @@ bool TextureHandle::Load(UInt16 mip, UInt chroma, UInt8 *TexBuffer, bool bDoNotL
 
             memcpy(m_pImageData, TexBuffer, dwSize);
             m_bImageDataOwned = true;
+#ifdef FF_LINUX
+            {
+                static int loadDiagCount = 0;
+                if (loadDiagCount < 5) {
+                    loadDiagCount++;
+                    int nonZero = 0;
+                    for (DWORD bi = 0; bi < dwSize && bi < 65536; bi++) {
+                        if (TexBuffer[bi] != 0) nonZero++;
+                    }
+                    fprintf(stderr, "[Load] #%d TexBuffer=%p size=%u nonZero64K=%d %dx%d\n",
+                            loadDiagCount, (void*)TexBuffer, (unsigned)dwSize, nonZero, m_nWidth, m_nHeight);
+                    fflush(stderr);
+                }
+            }
+#endif
 
 #if defined(_DEBUG) && !defined(FF_LINUX)
             InterlockedExchangeAdd((long *)&m_dwTotalBytes, dwSize);
@@ -1112,9 +1127,24 @@ bool TextureHandle::Reload()
             BYTE *pSrc = m_pImageData;
 
             memcpy(pDst, pSrc, m_nImageDataStride);
-            /*for(int i = 0; i < m_nImageDataStride; i++){
-             *pDst++ = *pSrc++;
-            }*/
+#ifdef FF_LINUX
+            {
+                static int ddsReloadCount = 0;
+                if (ddsReloadCount < 10) {
+                    ddsReloadCount++;
+                    int nonZero = 0;
+                    int checkBytes = m_nImageDataStride;
+                    if (checkBytes > 256) checkBytes = 256;
+                    for (int bi = 0; bi < checkBytes; bi++) {
+                        if (pDst[bi] != 0) nonZero++;
+                    }
+                    fprintf(stderr, "[Reload.DDS] #%d m_pDDS=%p stride=%d lpSurface=%p nonZero256=%d flags=0x%x %dx%d\n",
+                            ddsReloadCount, (void*)m_pDDS, m_nImageDataStride,
+                            ddsd.lpSurface, nonZero, (unsigned)m_dwFlags, m_nWidth, m_nHeight);
+                    fflush(stderr);
+                }
+            }
+#endif
         }
         // sfr: weird.. added {} around switch
         else
@@ -1123,9 +1153,9 @@ bool TextureHandle::Reload()
             static int reloadDiagCount = 0;
             if (reloadDiagCount < 5) {
                 reloadDiagCount++;
-                fprintf(stderr, "[Reload] #%d m_eSurfFmt=%d pImageData=%p m_pPalAttach=%p %dx%d stride=%d\n",
-                        reloadDiagCount, (int)m_eSurfFmt, (void*)m_pImageData,
-                        (void*)m_pPalAttach, m_nWidth, m_nHeight, m_nImageDataStride);
+                fprintf(stderr, "[Reload.Pal] #%d m_pDDS=%p m_eSurfFmt=%d pImageData=%p %dx%d stride=%d\n",
+                        reloadDiagCount, (void*)m_pDDS, (int)m_eSurfFmt, (void*)m_pImageData,
+                        m_nWidth, m_nHeight, m_nImageDataStride);
                 if (m_pImageData) {
                     int nonZero = 0;
                     for (int bi = 0; bi < 256 && bi < m_nWidth; bi++) {
@@ -1169,6 +1199,28 @@ bool TextureHandle::Reload()
                     // Convert palette to 16bit
                     DWORD palette[256];
                     DWORD *pal = &m_pPalAttach->m_pPalData[0];
+#ifdef FF_LINUX
+                    {
+                        static int palDiagCount = 0;
+                        if (palDiagCount < 3) {
+                            palDiagCount++;
+                            int palNonZero = 0;
+                            for (int pi = 0; pi < m_pPalAttach->m_nNumEntries; pi++) {
+                                if (pal[pi] != 0) palNonZero++;
+                            }
+                            fprintf(stderr, "[Reload.Pal] #%d nEntries=%d palNonZero=%d pal[0..3]=0x%08x,0x%08x,0x%08x,0x%08x\n",
+                                    palDiagCount, m_pPalAttach->m_nNumEntries, palNonZero,
+                                    (unsigned)pal[0], (unsigned)pal[1], (unsigned)pal[2], (unsigned)pal[3]);
+                            int srcNonZero = 0;
+                            for (int si = 0; si < m_nWidth * m_nHeight && si < 65536; si++) {
+                                if (m_pImageData[si] != 0) srcNonZero++;
+                            }
+                            fprintf(stderr, "[Reload.Pal] #%d srcNonZero=%d lpSurface=%p pitch=%d\n",
+                                    palDiagCount, srcNonZero, ddsd.lpSurface, (int)ddsd.lPitch);
+                            fflush(stderr);
+                        }
+                    }
+#endif
 
                     for (int i = 0; i < m_pPalAttach->m_nNumEntries; i++)
                     {
@@ -1205,6 +1257,28 @@ bool TextureHandle::Reload()
                             pDst += dwPitch;
                         }
                     }
+#ifdef FF_LINUX
+                    {
+                        static int postWriteCount = 0;
+                        if (postWriteCount < 5) {
+                            postWriteCount++;
+                            // Verify data was actually written to the surface
+                            DWORD* verifyBuf = (DWORD *)ddsd.lpSurface;
+                            int vNonZero = 0;
+                            int vTotal = m_nWidth * m_nHeight;
+                            if (vTotal > 256) vTotal = 256;
+                            for (int vi = 0; vi < vTotal; vi++) {
+                                if (verifyBuf[vi] != 0) vNonZero++;
+                            }
+                            fprintf(stderr, "[Reload.Pal.Verify] #%d m_pDDS=%p lpSurface=%p first4pixels=0x%08x,0x%08x,0x%08x,0x%08x nonZero=%d/%d\n",
+                                    postWriteCount, (void*)m_pDDS, ddsd.lpSurface,
+                                    (unsigned)verifyBuf[0], (unsigned)verifyBuf[1],
+                                    (unsigned)verifyBuf[2], (unsigned)verifyBuf[3],
+                                    vNonZero, vTotal);
+                            fflush(stderr);
+                        }
+                    }
+#endif
 
                     break;
                 }
@@ -1541,12 +1615,20 @@ void TextureHandle::PaletteDetach(PaletteHandle *p)
 
 void TextureHandle::StaticInit(IDirect3DDevice7 *pD3DD)
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[StaticInit] ENTRY pD3DD=%p\n", (void*)pD3DD); fflush(stderr);
+#endif
     // Warning: Not addref'd
     ShiAssert(pD3DD);
     m_pD3DD = pD3DD;
 
     if ( not m_pD3DD)
+    {
+#ifdef FF_LINUX
+        fprintf(stderr, "[StaticInit] pD3DD is NULL, returning early!\n"); fflush(stderr);
+#endif
         return;
+    }
 
     m_pD3DHWDeviceDesc = new D3DDEVICEDESC7;
 

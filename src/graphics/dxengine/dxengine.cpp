@@ -415,6 +415,17 @@ void CDXEngine::Release(void)
 // Setup the Environmental light properties
 void CDXEngine::SetSunLight(float Ambient, float Diffuse, float Specular)
 {
+#ifdef FF_LINUX
+    // FF_LINUX: Diagnostic - log incoming light values
+    static int sunLightCallCount = 0;
+    if (sunLightCallCount < 20 || (sunLightCallCount % 500 == 0)) {
+        fprintf(stderr, "[SetSunLight] #%d: Ambient=%.4f Diffuse=%.4f Specular=%.4f\n",
+                sunLightCallCount, Ambient, Diffuse, Specular);
+        fflush(stderr);
+    }
+    sunLightCallCount++;
+#endif
+
     TheSun.dcvAmbient.r = TheSunColour.r * Ambient;
     TheSun.dcvAmbient.g = TheSunColour.g * Ambient;
     TheSun.dcvAmbient.b = TheSunColour.b * Ambient;

@@ -8,6 +8,9 @@
 #include "stdafx.h"
 #include <stdio.h>
 #include <math.h>
+#ifdef FF_LINUX
+#include "stdio_compat.h"  // FF_LINUX: fopen_nocase for case-insensitive file lookup
+#endif
 #include "timemgr.h"
 #include "tod.h"
 #include "image.h"
@@ -84,10 +87,17 @@ BOOL TextureDB::Setup(DXContext *hrc, const char* path)
 
     strcpy(texturePath, path);
 
+#ifdef FF_LINUX
+    if (texturePath[strlen(texturePath) - 1] != '/')
+        strcat(texturePath, "/");
+
+    sprintf(texturePathD, "%stexture/", texturePath);
+#else
     if (texturePath[strlen(texturePath) - 1] not_eq '\\')
         strcat(texturePath, "\\");
 
     sprintf(texturePathD, "%stexture\\", texturePath);
+#endif
 
     // Store the rendering context to be used just for managing our textures
     private_rc = hrc;
@@ -841,12 +851,27 @@ void TextureDB::Load(SetEntry* pSet, TileEntry* pTile, int res, bool forceNoDDS)
     ShiAssert( not pTile->handle[res]);
     ShiAssert( not pTile->handle[res]);
 
+#ifdef FF_LINUX
+    // FF_LINUX: Try DDS first, fall back to palette if DDS file not found
+    bool ddsLoaded = false;
+    if ( not forceNoDDS and DisplayOptions.m_texMode == DisplayOptionsClass::TEX_MODE_DDS)
+    {
+        ReadImageDDS(pTile, res);
+        if (pTile->bits[res]) {
+            ddsLoaded = true;
+            pSet->palette = NULL;
+        }
+    }
+
+    if ( not ddsLoaded)
+#else
     if ( not forceNoDDS and DisplayOptions.m_texMode == DisplayOptionsClass::TEX_MODE_DDS)
     {
         ReadImageDDS(pTile, res);
         pSet->palette = NULL;
     }
     else
+#endif
     {
         // Construct the full texture file name including path
         strcpy(filename, texturePath);
@@ -1011,6 +1036,14 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
     }
     else
     {
+#ifdef FF_LINUX
+        // FF_LINUX: Safety check - if DDS data was not loaded for this resolution,
+        // skip activation. This happens when DDS files only exist for one resolution
+        // level (e.g., only H*.dds exists, not L*.dds or M*.dds).
+        if (!pTile->bits[res] || !(pTile->height[res] & MPR_TI_DDS)) {
+            return;
+        }
+#endif
         // sfr: guess, hackers placed the flags in height member variable... sigh
         int width = getDDSWidth(pTile->height[res]);
         int widthN = getDDSWidth(pTile->heightN[res]);
@@ -1041,6 +1074,18 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
         // Day texture
         pTile->handle[res] = (uintptr_t)new TextureHandle;
         ShiAssert(pTile->handle[res]);
+
+#ifdef FF_LINUX
+        {
+            static int activateDDSCount = 0;
+            if (activateDDSCount < 10) {
+                activateDDSCount++;
+                fprintf(stderr, "[Activate.DDS] #%d height[%d]=0x%x width=%d dataSize=%d\n",
+                        activateDDSCount, res, pTile->height[res], width, pTile->width[res]);
+                fflush(stderr);
+            }
+        }
+#endif
 
         ((TextureHandle *)pTile->handle[res])->Create(
             "TextureDB", (DWORD)pTile->height[res], 32, static_cast<UInt16>(width), static_cast<UInt16>(width)
@@ -1495,7 +1540,11 @@ void TextureDB::ReadImageDDS(TileEntry* pTile, int res)
         szFileName[strlen(texturePathD)] = 'L';
     }
 
+#ifdef FF_LINUX
+    fp = fopen_nocase(szFileName, "rb");
+#else
     fp = fopen(szFileName, "rb");
+#endif
 
     // FRB - bad dds file name
     if ( not fp)
@@ -1530,8 +1579,31 @@ void TextureDB::ReadImageDDS(TileEntry* pTile, int res)
 
     // Note: HACK (using height for flags)
     pTile->height[res] = MPR_TI_DDS;
+#ifdef FF_LINUX
+    // FF_LINUX: Detect actual DXT format from file header instead of hardcoding DXT1.
+    // Some terrain DDS files use DXT3 or DXT5 compression.
+    if (ddsd.ddpfPixelFormat.dwFourCC == MAKEFOURCC('D', 'X', 'T', '1'))
+        pTile->height[res] or_eq MPR_TI_DXT1;
+    else if (ddsd.ddpfPixelFormat.dwFourCC == MAKEFOURCC('D', 'X', 'T', '3'))
+        pTile->height[res] or_eq MPR_TI_DXT3;
+    else if (ddsd.ddpfPixelFormat.dwFourCC == MAKEFOURCC('D', 'X', 'T', '5'))
+        pTile->height[res] or_eq MPR_TI_DXT5;
+    else
+        pTile->height[res] or_eq MPR_TI_DXT1; // Fallback to DXT1
+    {
+        static int terrDDSCount = 0;
+        if (terrDDSCount < 10) {
+            terrDDSCount++;
+            fprintf(stderr, "[ReadImageDDS.terr] #%d sizeof(ddsd)=%zu FOURCC=0x%08x linearSize=%u width=%u flags=0x%x res=%d\n",
+                    terrDDSCount, sizeof(ddsd), ddsd.ddpfPixelFormat.dwFourCC,
+                    ddsd.dwLinearSize, ddsd.dwWidth, pTile->height[res], res);
+            fflush(stderr);
+        }
+    }
+#else
     // Note: MUST BE DXT1
     pTile->height[res] or_eq MPR_TI_DXT1;
+#endif
 
     // Note: 1024x1024 Max
     switch (ddsd.dwWidth)
@@ -1590,7 +1662,12 @@ void TextureDB::ReadImageDDS(TileEntry* pTile, int res)
         szFileName[strlen(texturePathD)] = 'L';
     }
 
+#ifdef FF_LINUX
+    fp = fopen_nocase(szFileName, "rb");
+#else
     fp = fopen(szFileName, "rb");
+#endif
+    if (!fp) return;  // FF_LINUX: Night texture file might not exist
     fread(&dwMagic, 1, sizeof(DWORD), fp);
     ShiAssert(dwMagic == MAKEFOURCC('D', 'D', 'S', ' '));
 
@@ -1616,8 +1693,20 @@ void TextureDB::ReadImageDDS(TileEntry* pTile, int res)
 
     // Note: HACK (using height for flags)
     pTile->heightN[res] = MPR_TI_DDS;
+#ifdef FF_LINUX
+    // FF_LINUX: Detect actual DXT format from file header
+    if (ddsd.ddpfPixelFormat.dwFourCC == MAKEFOURCC('D', 'X', 'T', '1'))
+        pTile->heightN[res] or_eq MPR_TI_DXT1;
+    else if (ddsd.ddpfPixelFormat.dwFourCC == MAKEFOURCC('D', 'X', 'T', '3'))
+        pTile->heightN[res] or_eq MPR_TI_DXT3;
+    else if (ddsd.ddpfPixelFormat.dwFourCC == MAKEFOURCC('D', 'X', 'T', '5'))
+        pTile->heightN[res] or_eq MPR_TI_DXT5;
+    else
+        pTile->heightN[res] or_eq MPR_TI_DXT1; // Fallback
+#else
     // Note: MUST BE DXT1
     pTile->heightN[res] or_eq MPR_TI_DXT1;
+#endif
 
     // Note: 1024x1024 Max
     switch (ddsd.dwWidth)

@@ -456,7 +456,15 @@ void OTWDriverClass::Reset3DParameters(void)
 void OTWDriverClass::RenderFirstFrame(void)
 {
 #ifdef FF_LINUX
-    fprintf(stderr, "[RenderFirstFrame] Enter\n"); fflush(stderr);
+    fprintf(stderr, "[RenderFirstFrame] Enter, vuxGameTime=%u, todOffset=%.1f\n",
+            (unsigned)vuxGameTime, todOffset); fflush(stderr);
+    {
+        unsigned totalMs = vuxGameTime + (unsigned long)FloatToInt32(todOffset * 1000.0F);
+        unsigned hours = (totalMs / 3600000) % 24;
+        unsigned mins = (totalMs / 60000) % 60;
+        fprintf(stderr, "[RenderFirstFrame] Setting TimeManager to %u ms = %02u:%02u\n",
+                totalMs, hours, mins); fflush(stderr);
+    }
 #endif
     // WARNING  WARNING  WARNING  WARNING  WARNING
     // RED - INIT time stuff here, then call all timed callbacks to have an update
@@ -466,7 +474,8 @@ void OTWDriverClass::RenderFirstFrame(void)
     // update callbacks
     TheTimeManager.Refresh();
 #ifdef FF_LINUX
-    fprintf(stderr, "[RenderFirstFrame] TimeManager refreshed\n"); fflush(stderr);
+    fprintf(stderr, "[RenderFirstFrame] TimeManager refreshed, TOD ambient=%.4f diffuse=%.4f\n",
+            TheTimeOfDay.GetAmbientValue(), TheTimeOfDay.GetDiffuseValue()); fflush(stderr);
 #endif
     // Refresh weather stuff
     realWeather->RefreshWeather(renderer);

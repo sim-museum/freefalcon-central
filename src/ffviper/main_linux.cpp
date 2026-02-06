@@ -41,6 +41,7 @@
 #include "falcsess.h"                     // For FalconLocalSession
 #include "dispcfg.h"
 #include "playerop.h"
+#include "falclib/include/dispopts.h"
 #include "rules.h"
 #include "fsound.h"
 #include "simdrive.h"
@@ -221,8 +222,11 @@ void FF_SwapBuffers() {
             SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
         }
 
-        // Capture screenshot of the GL framebuffer at frame 300 (about 5 seconds in)
-        if (swapCount == 60 || swapCount == 300) {
+        // Capture screenshot of the GL framebuffer
+        if (swapCount == 60 || swapCount == 300 || swapCount == 600) {
+            // Flush GL pipeline to ensure all rendering is complete
+            glFinish();
+
             // Check GL errors first
             GLenum err;
             int errCount = 0;
@@ -231,21 +235,45 @@ void FF_SwapBuffers() {
                 errCount++;
             }
 
-            // Check viewport
+            // Check viewport and framebuffer state
             GLint vp[4];
             glGetIntegerv(GL_VIEWPORT, vp);
-            fprintf(stderr, "[SCREENSHOT] Frame %d: GL viewport = (%d, %d, %d, %d)\n",
-                    swapCount, vp[0], vp[1], vp[2], vp[3]);
+            GLint drawFBO = 0, readFBO = 0, readBuf = 0, drawBuf = 0;
+            glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFBO);
+            glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readFBO);
+            glGetIntegerv(GL_READ_BUFFER, &readBuf);
+            glGetIntegerv(GL_DRAW_BUFFER, &drawBuf);
+            fprintf(stderr, "[SCREENSHOT] Frame %d: viewport=(%d,%d,%d,%d) drawFBO=%d readFBO=%d readBuf=0x%x drawBuf=0x%x\n",
+                    swapCount, vp[0], vp[1], vp[2], vp[3], drawFBO, readFBO, readBuf, drawBuf);
             fflush(stderr);
         }
-        if (swapCount == 60 || swapCount == 300) {
+        if (swapCount == 60 || swapCount == 300 || swapCount == 600) {
             int w = 0, h = 0;
             SDL_GL_GetDrawableSize(g_SDLWindow, &w, &h);
             if (w > 0 && h > 0) {
                 unsigned char* pixels = new unsigned char[w * h * 3];
+                // Read from back buffer (where rendering goes)
+                glReadBuffer(GL_BACK);
                 glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+                // Check how many non-zero pixels we got
+                int nonZero = 0;
+                for (int i = 0; i < w * h * 3 && i < 1024; i++) {
+                    if (pixels[i] != 0) nonZero++;
+                }
+                fprintf(stderr, "[SCREENSHOT] glReadPixels: %dx%d, nonZero in first 1024 bytes: %d\n", w, h, nonZero);
+                // If all zeros, try front buffer
+                if (nonZero == 0) {
+                    fprintf(stderr, "[SCREENSHOT] Back buffer empty, trying GL_FRONT...\n");
+                    glReadBuffer(GL_FRONT);
+                    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+                    nonZero = 0;
+                    for (int i = 0; i < w * h * 3 && i < 1024; i++) {
+                        if (pixels[i] != 0) nonZero++;
+                    }
+                    fprintf(stderr, "[SCREENSHOT] Front buffer: nonZero in first 1024 bytes: %d\n", nonZero);
+                }
                 // Save as BMP
-                FILE* f = fopen("screenshot_sim.bmp", "wb");
+                FILE* f = fopen("/tmp/screenshot_sim.bmp", "wb");
                 if (f) {
                     int rowSize = (w * 3 + 3) & ~3;
                     int imageSize = rowSize * h;
@@ -2019,9 +2047,13 @@ bool ProcessGameMessages() {
                 fprintf(stderr, "[FM] Calling SetFlyState...\n");
                 fflush(stderr);
                 FalconLocalSession->SetFlyState(FLYSTATE_LOADING);
-                fprintf(stderr, "[FM] Calling set_campaign_time...\n");
+                fprintf(stderr, "[FM] Calling set_campaign_time (start_time will be %ld)...\n",
+                        instant_action::get_start_time());
                 fflush(stderr);
                 instant_action::set_campaign_time();
+                fprintf(stderr, "[FM] After set_campaign_time: vuxGameTime=%u\n",
+                        (unsigned)vuxGameTime);
+                fflush(stderr);
                 fprintf(stderr, "[FM] Calling move_player_flight...\n");
                 fflush(stderr);
                 instant_action::move_player_flight();
@@ -2223,6 +2255,12 @@ static void main_loop(void) {
 
             // Set up for instant action - mirror what InstantActionFlyCB does
             strcpy(gUI_CampaignFile, "Instant");
+
+            // Set start time to noon (43200 seconds = 12:00:00)
+            // This is what the IA setup screen does in instant.cpp:678
+            instant_action::set_start_time(static_cast<long>(12.0f * 60.0f * 60.0f));
+            fprintf(stderr, "[TEST] Set IA start_time to %ld (noon)\n",
+                    instant_action::get_start_time());
 
             // Load the instant action campaign
             fprintf(stderr, "[TEST] Posting FM_LOAD_CAMPAIGN (game_InstantAction)...\n");

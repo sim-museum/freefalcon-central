@@ -1687,6 +1687,17 @@ void RenderOTW::SetTimeOfDayColor(void)
         lightSpecular = TheTimeOfDay.GetSpecularValue();
         TheTimeOfDay.GetLightDirection(&lightVector);
 
+#ifdef FF_LINUX
+        // FF_LINUX: Diagnostic - log TOD lighting values
+        static int todLogCount = 0;
+        if (todLogCount < 20 || (todLogCount % 500 == 0)) {
+            fprintf(stderr, "[SetTimeOfDayColor] #%d: TOD ambient=%.4f diffuse=%.4f specular=%.4f\n",
+                    todLogCount, lightAmbient, lightDiffuse, lightSpecular);
+            fflush(stderr);
+        }
+        todLogCount++;
+#endif
+
         // Store terrain lighting environment (not used at present)
         lightTheta = (float)atan2(lightVector.y, lightVector.x);
         lightPhi = (float)atan2(-lightVector.z, sqrt(lightVector.x * lightVector.x + lightVector.y * lightVector.y));

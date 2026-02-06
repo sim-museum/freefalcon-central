@@ -222,6 +222,18 @@ void CTimeOfDay::UpdateSkyProperties()
     // Convert from time since clock start to time since midnight
     now = TheTimeManager.GetTimeOfDay();
 
+#ifdef FF_LINUX
+    static int updateCount = 0;
+    if (updateCount < 5) {
+        unsigned hours = (now / 3600000) % 24;
+        unsigned mins = (now / 60000) % 60;
+        fprintf(stderr, "[UpdateSkyProperties] #%d: now=%u ms (%02u:%02u), TotalTimeOfDay=%d\n",
+                updateCount, now, hours, mins, TotalTimeOfDay);
+        fflush(stderr);
+    }
+    updateCount++;
+#endif
+
     unsigned curtime = TheTimeManager.GetClockTime();
     TheStar.SetUniversalTime(curtime);
 
@@ -345,6 +357,18 @@ void CTimeOfDay::UpdateSkyProperties()
     IMoonYaw = FloatToInt32(radtoangle(az));
     IMoonPitch = FloatToInt32(radtoangle(alt));
 
+#ifdef FF_LINUX
+    {
+        static int interpCount = 0;
+        if (interpCount < 5) {
+            fprintf(stderr, "[UpdateSkyProperties] #%d: After interp: Ambient=%.4f Diffuse=%.4f ISunPitch=%d\n",
+                    interpCount, m_Ambient, m_Diffuse, ISunPitch);
+            fflush(stderr);
+        }
+        interpCount++;
+    }
+#endif
+
     if (ISunPitch < 256 or ISunPitch > (8192 - 256))
     {
         // Adjust the light level for the moon
@@ -356,6 +380,18 @@ void CTimeOfDay::UpdateSkyProperties()
         t1 = (1.0f + t1) / 2.0f;
 
         if (t1 < 0.45f) t1 = 0.45f; // limit the darkness level
+
+#ifdef FF_LINUX
+        {
+            static int moonCount = 0;
+            if (moonCount < 5) {
+                fprintf(stderr, "[UpdateSkyProperties] NIGHT: moonDarken=%.3f, Ambient %.4f->%.4f\n",
+                        t1, m_Ambient, m_Ambient * t1);
+                fflush(stderr);
+            }
+            moonCount++;
+        }
+#endif
 
         m_HazeGroundColor.r *= t1;
         m_HazeGroundColor.g *= t1;

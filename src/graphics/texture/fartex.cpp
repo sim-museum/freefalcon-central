@@ -7,6 +7,9 @@
 \***************************************************************************/
 #include "stdafx.h"
 #include <stdio.h>
+#ifdef FF_LINUX
+#include "stdio_compat.h"  // FF_LINUX: fopen_nocase for case-insensitive file lookup
+#endif
 #include "timemgr.h"
 #include "tod.h"
 #include "image.h"
@@ -153,7 +156,11 @@ BOOL FarTexDB::Setup(DXContext *hrc, const char* path)
 
         // Fetch and save linear size first
         sprintf(szRawName, "%s.dds", texturePath);
+#ifdef FF_LINUX
+        fp = fopen_nocase(szRawName, "rb");
+#else
         fp = fopen(szRawName, "rb");
+#endif
 
         if ( not fp) return TRUE;
 
@@ -542,7 +549,13 @@ void FarTexDB::Load(DWORD offset, bool forceNoDDS)
         ShiAssert(texArray[offset].bits);
 
         // Read the image data
+        // FF_LINUX: sizeof(DDSURFACEDESC2) is 132 on 64-bit Linux (due to LPVOID lpSurface being 8 bytes)
+        // but the DDS file header is exactly 124 bytes. Use DDS_FILE_HEADER for the correct offset.
+#ifdef FF_LINUX
+        if ( not fartexDDSFile.ReadDataAt(sizeof(DDS_FILE_HEADER) + (offset * linearSize), texArray[offset].bits, linearSize))
+#else
         if ( not fartexDDSFile.ReadDataAt(sizeof(DDSURFACEDESC2) + (offset * linearSize), texArray[offset].bits, linearSize))
+#endif
         {
             char string[80];
             char message[120];
@@ -764,7 +777,11 @@ void FarTexDB::FlushHandles()
 
         // Fetch and save linear size first
         sprintf(szRawName, "%s.dds", texturePath);
+#ifdef FF_LINUX
+        fp = fopen_nocase(szRawName, "rb");
+#else
         fp = fopen(szRawName, "rb");
+#endif
 
         if ( not fp) return;
 
@@ -803,7 +820,11 @@ bool FarTexDB::SyncDDSTextures(bool bForce)
     fartexDDSFile.Close();
 
     sprintf(szRawName, "%s.dds", texturePath);
+#ifdef FF_LINUX
+    fpRaw = fopen_nocase(szRawName, "rb");
+#else
     fpRaw = fopen(szRawName, "rb");
+#endif
 
     // If fartiles.dds exists, quit now
     if (fpRaw)

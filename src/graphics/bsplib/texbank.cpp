@@ -689,6 +689,19 @@ void TextureBankClass::ReadImageDDS(DWORD id)
 
     ShiAssert(ddsd.dwFlags bitand DDSD_LINEARSIZE)
 
+#ifdef FF_LINUX
+    {
+        static int bankDDSCount = 0;
+        if (bankDDSCount < 10) {
+            bankDDSCount++;
+            fprintf(stderr, "[ReadImageDDS.bank] #%d sizeof(ddsd)=%zu FOURCC=0x%08x linearSize=%u width=%u id=%u\n",
+                    bankDDSCount, sizeof(ddsd), ddsd.ddpfPixelFormat.dwFourCC,
+                    ddsd.dwLinearSize, ddsd.dwWidth, id);
+            fflush(stderr);
+        }
+    }
+#endif
+
     switch (ddsd.ddpfPixelFormat.dwFourCC)
     {
         case MAKEFOURCC('D', 'X', 'T', '1'):
@@ -911,13 +924,41 @@ void TextureBankClass::RestoreTexturePool()
 
 
 
+// FF_LINUX: Diagnostic counters for GetHandle results
+#ifdef FF_LINUX
+static int g_ghOK = 0;         // Returned valid handle
+static int g_ghLazy = 0;       // Lazy-created handle
+static int g_ghNoImage = 0;    // No imageData (loader not done)
+static int g_ghCreateFail = 0; // CreateTexture failed
+static int g_ghRelease = 0;    // OnRelease flag set
+static int g_ghInvalid = 0;    // Invalid index
+
+extern "C" void FF_GetHandleStats(int* ok, int* lazy, int* noImage, int* createFail, int* release, int* invalid) {
+    *ok = g_ghOK; *lazy = g_ghLazy; *noImage = g_ghNoImage;
+    *createFail = g_ghCreateFail; *release = g_ghRelease; *invalid = g_ghInvalid;
+}
+extern "C" void FF_GetHandleStatsReset() {
+    g_ghOK = g_ghLazy = g_ghNoImage = g_ghCreateFail = g_ghRelease = g_ghInvalid = 0;
+}
+#endif
+
 intptr_t TextureBankClass::GetHandle(DWORD id)
 {
     // if already on release, avoid using or requesting it
-    if (TexFlags[id].OnRelease) return 0;
+    if (TexFlags[id].OnRelease) {
+#ifdef FF_LINUX
+        g_ghRelease++;
+#endif
+        return 0;
+    }
 
     // if the Handle is present, return it
-    if (IsValidIndex(id) and TexturePool[id].tex.TexHandle()) return TexturePool[id].tex.TexHandle();
+    if (IsValidIndex(id) and TexturePool[id].tex.TexHandle()) {
+#ifdef FF_LINUX
+        g_ghOK++;
+#endif
+        return TexturePool[id].tex.TexHandle();
+    }
 
 #ifdef FF_LINUX
     // FF_LINUX: Lazy GL texture creation. The Loader thread loaded image data from disk
@@ -926,7 +967,18 @@ intptr_t TextureBankClass::GetHandle(DWORD id)
     if (IsValidIndex(id) and TexturePool[id].tex.imageData and Texture::IsSetup())
     {
         TexturePool[id].tex.CreateTexture();
-        if (TexturePool[id].tex.TexHandle()) return TexturePool[id].tex.TexHandle();
+        if (TexturePool[id].tex.TexHandle()) {
+            g_ghLazy++;
+            return TexturePool[id].tex.TexHandle();
+        }
+        g_ghCreateFail++;
+        return 0;
+    }
+
+    if (!IsValidIndex(id)) {
+        g_ghInvalid++;
+    } else {
+        g_ghNoImage++;
     }
 #endif
 

@@ -156,8 +156,15 @@ struct D3D7Surface : public IDirectDrawSurface7 {
     bool isDirty;  // Needs texture upload
     bool isPrimary;  // Is this the primary (front) surface?
 
+    // FF_LINUX: DDS/DXT compressed texture support
+    // When a surface is created with DDPF_FOURCC, the pixel data is DXT compressed
+    // and must be uploaded via glCompressedTexImage2D instead of glTexImage2D.
+    GLenum dxtFormat;       // GL_COMPRESSED_RGB_S3TC_DXT1_EXT, etc. 0 = not DXT
+    int    dxtDataSize;     // Size of compressed data in bytes
+
     D3D7Surface() : glTexture(0), width(0), height(0), caps(0), refCount(1),
-                    pixelData(nullptr), pitch(0), isLocked(false), isDirty(false), isPrimary(false) {
+                    pixelData(nullptr), pitch(0), isLocked(false), isDirty(false), isPrimary(false),
+                    dxtFormat(0), dxtDataSize(0) {
         // Initialize inherited lpVtbl to the correct vtable
         lpVtbl = const_cast<IDirectDrawSurface7Vtbl*>(&g_DDS7Vtbl);
         memset(&pixelFormat, 0, sizeof(pixelFormat));
@@ -175,12 +182,25 @@ struct D3D7Surface : public IDirectDrawSurface7 {
 
     void AllocatePixelBuffer() {
         if (!pixelData && width > 0 && height > 0) {
-            int bpp = pixelFormat.dwRGBBitCount ? pixelFormat.dwRGBBitCount / 8 : 4;
-            pitch = width * bpp;
-            // Align pitch to 4 bytes
-            pitch = (pitch + 3) & ~3;
-            pixelData = new unsigned char[pitch * height];
-            memset(pixelData, 0, pitch * height);
+            if (dxtFormat != 0) {
+                // DXT compressed: allocate enough for the compressed data
+                // DXT1: 8 bytes per 4x4 block, DXT3/5: 16 bytes per 4x4 block
+                int blockW = (width + 3) / 4;
+                int blockH = (height + 3) / 4;
+                int blockSize = (dxtFormat == GL_COMPRESSED_RGB_S3TC_DXT1_EXT ||
+                                 dxtFormat == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) ? 8 : 16;
+                dxtDataSize = blockW * blockH * blockSize;
+                pitch = blockW * blockSize;  // "pitch" per block row
+                pixelData = new unsigned char[dxtDataSize];
+                memset(pixelData, 0, dxtDataSize);
+            } else {
+                int bpp = pixelFormat.dwRGBBitCount ? pixelFormat.dwRGBBitCount / 8 : 4;
+                pitch = width * bpp;
+                // Align pitch to 4 bytes
+                pitch = (pitch + 3) & ~3;
+                pixelData = new unsigned char[pitch * height];
+                memset(pixelData, 0, pitch * height);
+            }
         }
     }
 };
@@ -215,6 +235,7 @@ void FF_DiagSurfaceState(void* surfPtr, int texID) {
 // ============================================================
 struct RenderStateBlock {
     bool active;
+    DWORD blockType;  // D3DSBT_ALL, D3DSBT_PIXELSTATE, or D3DSBT_VERTEXSTATE
     std::map<D3DRENDERSTATETYPE, DWORD> renderStates;
     std::map<std::pair<DWORD, D3DTEXTURESTAGESTATETYPE>, DWORD> textureStageStates;
     D3DMATERIAL7 material;
@@ -225,7 +246,7 @@ struct RenderStateBlock {
     D3DMATRIX worldMatrix;
     D3DVIEWPORT7 viewport;
 
-    RenderStateBlock() : active(false) {
+    RenderStateBlock() : active(false), blockType(D3DSBT_ALL) {
         memset(&material, 0, sizeof(material));
         memset(lights, 0, sizeof(lights));
         memset(lightEnabled, 0, sizeof(lightEnabled));
@@ -635,8 +656,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_GetTransform(IDirect3DDevice7* This, D3
     return D3D_OK;
 }
 
-static int g_SetViewportCount = 0;
-
 static HRESULT STDMETHODCALLTYPE D3D7Dev_SetViewport(IDirect3DDevice7* This, LPD3DVIEWPORT7 lpViewport) {
     D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("SetViewport %dx%d", lpViewport->dwWidth, lpViewport->dwHeight);
@@ -654,16 +673,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetViewport(IDirect3DDevice7* This, LPD
     }
 
     memcpy(&dev->viewport, lpViewport, sizeof(D3DVIEWPORT7));
-
-    // FF_LINUX: Debug output for first few SetViewport calls
-    g_SetViewportCount++;
-    if (g_SetViewportCount <= 5) {
-        fprintf(stderr, "[SetViewport] #%d: %dx%d at (%d,%d)\n",
-                g_SetViewportCount, lpViewport->dwWidth, lpViewport->dwHeight,
-                lpViewport->dwX, lpViewport->dwY);
-        fflush(stderr);
-    }
-
     glViewport(lpViewport->dwX, lpViewport->dwY, lpViewport->dwWidth, lpViewport->dwHeight);
     glDepthRange(lpViewport->dvMinZ, lpViewport->dvMaxZ);
 
@@ -836,6 +845,17 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
     bool isXYZRHW = (dwVertexTypeDesc & D3DFVF_XYZRHW) != 0;
     GLenum primType = dev->GetGLPrimitiveType(dptPrimitiveType);
 
+    // FF_LINUX: Disable GL_TEXTURE_2D when no texture coordinates in FVF.
+    // Otherwise stale textures from previous draws modulate vertex colors.
+    int texCountDIP = (dwVertexTypeDesc & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+    GLboolean prevDIP_Texture2D = GL_FALSE;
+    if (texCountDIP == 0) {
+        prevDIP_Texture2D = glIsEnabled(GL_TEXTURE_2D);
+        if (prevDIP_Texture2D) {
+            glDisable(GL_TEXTURE_2D);
+        }
+    }
+
     // FF_LINUX: Save GL state that XYZRHW handling will modify
     GLboolean prevDIP_DepthTest = GL_FALSE, prevDIP_Lighting = GL_FALSE, prevDIP_Fog = GL_FALSE;
     if (isXYZRHW) {
@@ -917,6 +937,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
         if (prevDIP_Fog) glEnable(GL_FOG); else glDisable(GL_FOG);
     }
 
+    // Restore GL_TEXTURE_2D state if we disabled it
+    if (texCountDIP == 0 && prevDIP_Texture2D) {
+        glEnable(GL_TEXTURE_2D);
+    }
+
     return D3D_OK;
 }
 
@@ -951,30 +976,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitiveVB(IDirect3DDevice7* This,
     int vertexSize = GetVertexSize(vb->desc.dwFVF);
     const char* startVertex = (const char*)vb->data + dwStartVertex * vertexSize;
 
-    // FF_LINUX: Debug output for first few draw calls
     g_DrawPrimitiveVBCount++;
-    if (g_DrawPrimitiveVBCount <= 20) {
-        bool isXYZRHW = (vb->desc.dwFVF & D3DFVF_XYZRHW) != 0;
-        fprintf(stderr, "[DrawPrimitiveVB] #%d: type=%d count=%u fvf=0x%x isXYZRHW=%d viewport=%dx%d\n",
-                g_DrawPrimitiveVBCount, dptPrimitiveType, dwNumVertices, vb->desc.dwFVF,
-                isXYZRHW, dev->viewport.dwWidth, dev->viewport.dwHeight);
-        // Log first few vertex positions and colors
-        int numToLog = (dwNumVertices < 4) ? dwNumVertices : 4;
-        for (int vi = 0; vi < numToLog; vi++) {
-            const char* v = (const char*)startVertex + vi * vertexSize;
-            const float* pos = (const float*)v;
-            if (isXYZRHW) {
-                // XYZRHW: x, y, z, w, then color
-                DWORD color = *(const DWORD*)(v + 4 * sizeof(float));
-                fprintf(stderr, "  v[%d]: pos=(%.1f, %.1f, %.1f, %.4f) color=0x%08X\n",
-                        vi, pos[0], pos[1], pos[2], pos[3], color);
-            } else {
-                fprintf(stderr, "  v[%d]: pos=(%.1f, %.1f, %.1f)\n", vi, pos[0], pos[1], pos[2]);
-            }
-        }
-        fflush(stderr);
-    }
-
     dev->DrawVertices(dptPrimitiveType, vb->desc.dwFVF, startVertex, dwNumVertices);
     return D3D_OK;
 }
@@ -1103,11 +1105,23 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         }
     }
 
+    // FF_LINUX: Disable GL_TEXTURE_2D when no texture coordinates in FVF.
+    // Otherwise stale textures from previous draws modulate vertex colors.
+    int texCountVB = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+    GLboolean prevVB_Texture2D = GL_FALSE;
+    if (texCountVB == 0) {
+        prevVB_Texture2D = glIsEnabled(GL_TEXTURE_2D);
+        if (prevVB_Texture2D) {
+            glDisable(GL_TEXTURE_2D);
+        }
+    }
+
     // FF_LINUX: Save and set up orthographic projection for XYZRHW vertices
     GLboolean prevDepthTest2 = GL_FALSE, prevLighting2 = GL_FALSE, prevFog2 = GL_FALSE;
     if (isXYZRHW) {
         // FF_LINUX: Guard against zero-size viewport
         if (dev->viewport.dwWidth == 0 || dev->viewport.dwHeight == 0) {
+            if (texCountVB == 0 && prevVB_Texture2D) glEnable(GL_TEXTURE_2D);
             return D3D_OK; // Skip draw - no valid viewport
         }
 
@@ -1193,6 +1207,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         if (prevFog2) glEnable(GL_FOG); else glDisable(GL_FOG);
     }
 
+    // Restore GL_TEXTURE_2D state if we disabled it
+    if (texCountVB == 0 && prevVB_Texture2D) {
+        glEnable(GL_TEXTURE_2D);
+    }
+
     return D3D_OK;
 }
 
@@ -1216,30 +1235,27 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_GetTexture(IDirect3DDevice7* This, DWOR
 
 static int g_SetTextureCount = 0;
 static int g_SetTextureWithData = 0;
+static int g_SetTextureNullCount = 0;      // SetTexture with NULL ptr (disable)
+static int g_SetTextureNoPixelCount = 0;   // SetTexture with surface but no pixelData
+static int g_SetTextureDirtyCount = 0;     // SetTexture with dirty data (upload needed)
+static int g_SetTextureCleanCount = 0;     // SetTexture with clean data (already uploaded)
 static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWORD dwStage, LPDIRECTDRAWSURFACE7 lpTexture) {
     D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("SetTexture stage=%d tex=%p", dwStage, lpTexture);
     g_SetTextureCount++;
     if (lpTexture) {
         D3D7Surface* s = (D3D7Surface*)lpTexture;
-        if (s->pixelData) g_SetTextureWithData++;
-        // Log first 3 SetTexture calls per frame (counters reset at flip)
-        if (g_SetTextureCount <= 3) {
-            // Sample first few pixels to check if texture has real data
-            unsigned char* px = (unsigned char*)s->pixelData;
-            int bpp = s->pixelFormat.dwRGBBitCount ? s->pixelFormat.dwRGBBitCount / 8 : 4;
-            int nonZero = 0;
-            if (px && s->width > 0) {
-                for (int i = 0; i < 64 && i < s->width * bpp; i++) {
-                    if (px[i] != 0) nonZero++;
-                }
-            }
-            fprintf(stderr, "[D3D_DIAG] SetTexture #%d: stage=%d glTex=%u %dx%d bpp=%d dirty=%d hasPixels=%d nonZeroFirst64=%d\n",
-                    g_SetTextureCount, dwStage, s->glTexture, s->width, s->height, bpp*8,
-                    s->isDirty, s->pixelData ? 1 : 0, nonZero);
+        if (s->pixelData) {
+            g_SetTextureWithData++;
+            if (s->isDirty)
+                g_SetTextureDirtyCount++;
+            else
+                g_SetTextureCleanCount++;
+        } else {
+            g_SetTextureNoPixelCount++;
         }
-    } else if (g_SetTextureCount <= 3) {
-        fprintf(stderr, "[D3D_DIAG] SetTexture #%d: stage=%d tex=NULL\n", g_SetTextureCount, dwStage);
+    } else {
+        g_SetTextureNullCount++;
     }
 
     if (dwStage >= MAX_TEXTURE_STAGES) return DDERR_INVALIDPARAMS;
@@ -1272,75 +1288,95 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
         // FF_LINUX: Upload dirty texture data from CPU to GPU
         // This is critical - without this, textures remain empty (black)
         if (surf->isDirty && surf->pixelData && surf->width > 0 && surf->height > 0) {
-            int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
-            GLenum format = GL_RGBA;
-            GLenum type = GL_UNSIGNED_BYTE;
 
-            if (bpp == 4) {
-                // 32-bit ARGB (Windows D3D format: 0xAARRGGBB)
-                // OpenGL needs GL_BGRA with GL_UNSIGNED_INT_8_8_8_8_REV for ARGB layout
-                format = GL_BGRA;
-                type = GL_UNSIGNED_INT_8_8_8_8_REV;
-            } else if (bpp == 2) {
-                // 16-bit: check masks to determine format
-                if (surf->pixelFormat.dwRBitMask == 0xF800) {
-                    // RGB565
-                    format = GL_RGB;
-                    type = GL_UNSIGNED_SHORT_5_6_5;
-                } else if (surf->pixelFormat.dwRBitMask == 0x7C00) {
-                    // ARGB1555
-                    format = GL_BGRA;
-                    type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
-                } else if (surf->pixelFormat.dwRBitMask == 0x0F00) {
-                    // ARGB4444
-                    format = GL_BGRA;
-                    type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
-                }
-            }
+            // FF_LINUX: Clear any stale GL errors before upload so we only
+            // detect errors from our own upload calls
+            while (glGetError() != GL_NO_ERROR) {}
 
-            // Set pixel row alignment based on pitch
-            int expectedPitch = surf->width * bpp;
-            if (surf->pitch == expectedPitch) {
-                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-            } else {
-                glPixelStorei(GL_UNPACK_ROW_LENGTH, surf->pitch / bpp);
-                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-            }
-
-            // FF_LINUX: Log first few texture uploads with content info
+            // FF_LINUX: Log first few texture uploads
             static int texUploadLogCount = 0;
-            if (texUploadLogCount < 15) {
+            if (texUploadLogCount < 10) {
                 texUploadLogCount++;
-                // Check pixel data content
                 int pxNonZero = 0;
-                for (int bi = 0; bi < 256 && bi < surf->width * bpp; bi++) {
+                int totalNonZero = 0;
+                int totalSize = surf->dxtFormat ? surf->dxtDataSize : (surf->pitch * surf->height);
+                int checkSize = totalSize;
+                if (checkSize > 256) checkSize = 256;
+                for (int bi = 0; bi < checkSize; bi++) {
                     if (surf->pixelData[bi] != 0) pxNonZero++;
                 }
-                fprintf(stderr, "[D3D_DIAG] glTexImage2D UPLOAD #%d: glTex=%u %dx%d bpp=%d fmt=0x%x type=0x%x nonZero256=%d pitch=%d\n",
-                        texUploadLogCount, surf->glTexture, surf->width, surf->height, bpp,
-                        format, type, pxNonZero, surf->pitch);
+                // Also check total buffer
+                for (int bi = 0; bi < totalSize; bi++) {
+                    if (surf->pixelData[bi] != 0) totalNonZero++;
+                }
+                fprintf(stderr, "[D3D_DIAG] TexUpload #%d: surf=%p glTex=%u %dx%d dxt=0x%x dxtSize=%d nonZero256=%d totalNonZero=%d/%d bpp=%d\n",
+                        texUploadLogCount, (void*)surf, surf->glTexture, surf->width, surf->height,
+                        surf->dxtFormat, surf->dxtDataSize, pxNonZero, totalNonZero, totalSize,
+                        (int)surf->pixelFormat.dwRGBBitCount);
                 fflush(stderr);
             }
 
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surf->width, surf->height, 0,
-                         format, type, surf->pixelData);
+            bool uploadOK = true;
+
+            if (surf->dxtFormat != 0 && surf->dxtDataSize > 0) {
+                // DXT compressed texture upload
+                glCompressedTexImage2D(GL_TEXTURE_2D, 0, surf->dxtFormat,
+                                       surf->width, surf->height, 0,
+                                       surf->dxtDataSize, surf->pixelData);
+            } else {
+                // Uncompressed texture upload
+                int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
+                GLenum format = GL_RGBA;
+                GLenum type = GL_UNSIGNED_BYTE;
+
+                if (bpp == 4) {
+                    format = GL_BGRA;
+                    type = GL_UNSIGNED_INT_8_8_8_8_REV;
+                } else if (bpp == 2) {
+                    if (surf->pixelFormat.dwRBitMask == 0xF800) {
+                        format = GL_RGB;
+                        type = GL_UNSIGNED_SHORT_5_6_5;
+                    } else if (surf->pixelFormat.dwRBitMask == 0x7C00) {
+                        format = GL_BGRA;
+                        type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
+                    } else if (surf->pixelFormat.dwRBitMask == 0x0F00) {
+                        format = GL_BGRA;
+                        type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
+                    }
+                }
+
+                int expectedPitch = surf->width * bpp;
+                if (surf->pitch == expectedPitch) {
+                    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+                } else {
+                    glPixelStorei(GL_UNPACK_ROW_LENGTH, surf->pitch / bpp);
+                    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+                }
+
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surf->width, surf->height, 0,
+                             format, type, surf->pixelData);
+
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+            }
 
             // FF_LINUX: Check for GL errors after texture upload
             GLenum texErr = glGetError();
             if (texErr != GL_NO_ERROR) {
+                uploadOK = false;
                 static int texErrCount = 0;
                 if (texErrCount++ < 10) {
-                    fprintf(stderr, "[D3D_DIAG] glTexImage2D ERROR: 0x%x for glTex=%u %dx%d bpp=%d format=0x%x type=0x%x\n",
-                            texErr, surf->glTexture, surf->width, surf->height, bpp, format, type);
+                    fprintf(stderr, "[D3D_DIAG] TexUpload ERROR: 0x%x for glTex=%u %dx%d dxt=0x%x dxtSize=%d\n",
+                            texErr, surf->glTexture, surf->width, surf->height, surf->dxtFormat, surf->dxtDataSize);
                     fflush(stderr);
                 }
             }
 
-            // Reset pixel store state
-            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-            surf->isDirty = false;
+            // Only clear dirty flag on successful upload
+            if (uploadOK) {
+                surf->isDirty = false;
+            }
         }
     } else {
         glBindTexture(GL_TEXTURE_2D, 0);
@@ -1407,60 +1443,62 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_ApplyStateBlock(IDirect3DDevice7* This,
         dev->ApplyTextureStageState(pair.first.first, pair.first.second, pair.second);
     }
 
-    // FF_LINUX: Also restore lights (missing from original implementation)
-    for (DWORD i = 0; i < MAX_GL_LIGHTS; i++) {
-        // Restore light parameters
-        GLenum glLight = GL_LIGHT0 + i;
-        float ambient[4], diffuse[4], specular[4];
-        D3DColorValueToGL(sb.lights[i].dcvAmbient, ambient);
-        D3DColorValueToGL(sb.lights[i].dcvDiffuse, diffuse);
-        D3DColorValueToGL(sb.lights[i].dcvSpecular, specular);
-        glLightfv(glLight, GL_AMBIENT, ambient);
-        glLightfv(glLight, GL_DIFFUSE, diffuse);
-        glLightfv(glLight, GL_SPECULAR, specular);
+    // Lights, material, transforms, viewport only for D3DSBT_ALL blocks.
+    // D3DSBT_PIXELSTATE only captures pixel-related render states and texture stage states.
+    if (sb.blockType == D3DSBT_ALL) {
+        // Restore lights
+        for (DWORD i = 0; i < MAX_GL_LIGHTS; i++) {
+            GLenum glLight = GL_LIGHT0 + i;
+            float ambient[4], diffuse[4], specular[4];
+            D3DColorValueToGL(sb.lights[i].dcvAmbient, ambient);
+            D3DColorValueToGL(sb.lights[i].dcvDiffuse, diffuse);
+            D3DColorValueToGL(sb.lights[i].dcvSpecular, specular);
+            glLightfv(glLight, GL_AMBIENT, ambient);
+            glLightfv(glLight, GL_DIFFUSE, diffuse);
+            glLightfv(glLight, GL_SPECULAR, specular);
 
-        if (sb.lights[i].dltType == D3DLIGHT_DIRECTIONAL) {
-            float dir[4] = { -sb.lights[i].dvDirection.x, -sb.lights[i].dvDirection.y, -sb.lights[i].dvDirection.z, 0.0f };
-            glLightfv(glLight, GL_POSITION, dir);
-        } else if (sb.lights[i].dltType == D3DLIGHT_POINT || sb.lights[i].dltType == D3DLIGHT_SPOT) {
-            float pos[4] = { sb.lights[i].dvPosition.x, sb.lights[i].dvPosition.y, sb.lights[i].dvPosition.z, 1.0f };
-            glLightfv(glLight, GL_POSITION, pos);
+            if (sb.lights[i].dltType == D3DLIGHT_DIRECTIONAL) {
+                float dir[4] = { -sb.lights[i].dvDirection.x, -sb.lights[i].dvDirection.y, -sb.lights[i].dvDirection.z, 0.0f };
+                glLightfv(glLight, GL_POSITION, dir);
+            } else if (sb.lights[i].dltType == D3DLIGHT_POINT || sb.lights[i].dltType == D3DLIGHT_SPOT) {
+                float pos[4] = { sb.lights[i].dvPosition.x, sb.lights[i].dvPosition.y, sb.lights[i].dvPosition.z, 1.0f };
+                glLightfv(glLight, GL_POSITION, pos);
+            }
+
+            if (sb.lightEnabled[i]) {
+                glEnable(glLight);
+            } else {
+                glDisable(glLight);
+            }
+            memcpy(&dev->lights[i], &sb.lights[i], sizeof(D3DLIGHT7));
+            dev->lightEnabled[i] = sb.lightEnabled[i];
         }
 
-        // Restore light enable state
-        if (sb.lightEnabled[i]) {
-            glEnable(glLight);
-        } else {
-            glDisable(glLight);
+        // Restore material
+        dev->currentMaterial = sb.material;
+        float matDiffuse[4], matAmbient[4], matSpecular[4], matEmissive[4];
+        D3DColorValueToGL(sb.material.dcvDiffuse, matDiffuse);
+        D3DColorValueToGL(sb.material.dcvAmbient, matAmbient);
+        D3DColorValueToGL(sb.material.dcvSpecular, matSpecular);
+        D3DColorValueToGL(sb.material.dcvEmissive, matEmissive);
+        glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, matDiffuse);
+        glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, matAmbient);
+        glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, matSpecular);
+        glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, matEmissive);
+        glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, sb.material.dvPower);
+
+        // Restore transforms
+        dev->projMatrix = sb.projMatrix;
+        dev->viewMatrix = sb.viewMatrix;
+        dev->worldMatrix = sb.worldMatrix;
+        dev->ApplyMatrices();
+
+        // Restore viewport
+        dev->viewport = sb.viewport;
+        if (dev->viewport.dwWidth > 0 && dev->viewport.dwHeight > 0) {
+            glViewport(dev->viewport.dwX, dev->viewport.dwY,
+                       dev->viewport.dwWidth, dev->viewport.dwHeight);
         }
-        memcpy(&dev->lights[i], &sb.lights[i], sizeof(D3DLIGHT7));
-        dev->lightEnabled[i] = sb.lightEnabled[i];
-    }
-
-    // Restore material
-    dev->currentMaterial = sb.material;
-    float matDiffuse[4], matAmbient[4], matSpecular[4], matEmissive[4];
-    D3DColorValueToGL(sb.material.dcvDiffuse, matDiffuse);
-    D3DColorValueToGL(sb.material.dcvAmbient, matAmbient);
-    D3DColorValueToGL(sb.material.dcvSpecular, matSpecular);
-    D3DColorValueToGL(sb.material.dcvEmissive, matEmissive);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, matDiffuse);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, matAmbient);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, matSpecular);
-    glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, matEmissive);
-    glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, sb.material.dvPower);
-
-    // Restore transforms
-    dev->projMatrix = sb.projMatrix;
-    dev->viewMatrix = sb.viewMatrix;
-    dev->worldMatrix = sb.worldMatrix;
-    dev->ApplyMatrices();
-
-    // Restore viewport
-    dev->viewport = sb.viewport;
-    if (dev->viewport.dwWidth > 0 && dev->viewport.dwHeight > 0) {
-        glViewport(dev->viewport.dwX, dev->viewport.dwY,
-                   dev->viewport.dwWidth, dev->viewport.dwHeight);
     }
 
     return D3D_OK;
@@ -1473,15 +1511,21 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_CaptureStateBlock(IDirect3DDevice7* Thi
     if (dwBlockHandle == 0 || dwBlockHandle >= MAX_STATE_BLOCKS) return DDERR_INVALIDPARAMS;
 
     RenderStateBlock& sb = dev->stateBlocks[dwBlockHandle];
+
+    // Always capture render states and texture stage states
     sb.renderStates = dev->renderStates;
     sb.textureStageStates = dev->textureStageStates;
-    sb.material = dev->currentMaterial;
-    memcpy(sb.lights, dev->lights, sizeof(sb.lights));
-    memcpy(sb.lightEnabled, dev->lightEnabled, sizeof(sb.lightEnabled));
-    sb.projMatrix = dev->projMatrix;
-    sb.viewMatrix = dev->viewMatrix;
-    sb.worldMatrix = dev->worldMatrix;
-    sb.viewport = dev->viewport;
+
+    // Only capture transforms, viewport, lights, material for D3DSBT_ALL blocks
+    if (sb.blockType == D3DSBT_ALL) {
+        sb.material = dev->currentMaterial;
+        memcpy(sb.lights, dev->lights, sizeof(sb.lights));
+        memcpy(sb.lightEnabled, dev->lightEnabled, sizeof(sb.lightEnabled));
+        sb.projMatrix = dev->projMatrix;
+        sb.viewMatrix = dev->viewMatrix;
+        sb.worldMatrix = dev->worldMatrix;
+        sb.viewport = dev->viewport;
+    }
 
     return D3D_OK;
 }
@@ -1509,15 +1553,22 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_CreateStateBlock(IDirect3DDevice7* This
 
             // Capture current state based on type
             RenderStateBlock& sb = dev->stateBlocks[i];
+            sb.blockType = d3dsbType;
+
+            // Render states and texture stage states are always captured
             sb.renderStates = dev->renderStates;
             sb.textureStageStates = dev->textureStageStates;
-            sb.material = dev->currentMaterial;
-            memcpy(sb.lights, dev->lights, sizeof(sb.lights));
-            memcpy(sb.lightEnabled, dev->lightEnabled, sizeof(sb.lightEnabled));
-            sb.projMatrix = dev->projMatrix;
-            sb.viewMatrix = dev->viewMatrix;
-            sb.worldMatrix = dev->worldMatrix;
-            sb.viewport = dev->viewport;
+
+            // Viewport, transforms, lights, material only for D3DSBT_ALL
+            if (d3dsbType == D3DSBT_ALL) {
+                sb.material = dev->currentMaterial;
+                memcpy(sb.lights, dev->lights, sizeof(sb.lights));
+                memcpy(sb.lightEnabled, dev->lightEnabled, sizeof(sb.lightEnabled));
+                sb.projMatrix = dev->projMatrix;
+                sb.viewMatrix = dev->viewMatrix;
+                sb.worldMatrix = dev->worldMatrix;
+                sb.viewport = dev->viewport;
+            }
 
             *lpdwBlockHandle = i;
             return D3D_OK;
@@ -2077,7 +2128,6 @@ GLenum D3D7Device::GetGLPrimitiveType(D3DPRIMITIVETYPE d3dType) {
 }
 
 static int g_DrawVerticesCount = 0;
-// Per-frame counters for XYZRHW vs world draws (reset in FF_SimFrameEnd below)
 static int g_RHWDrawCount_local = 0;
 static int g_WorldDrawCount_local = 0;
 void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* vertices, DWORD count) {
@@ -2086,46 +2136,6 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     g_DrawVerticesCount++;
     bool isRHW = (fvf & D3DFVF_XYZRHW) != 0;
     if (isRHW) g_RHWDrawCount_local++; else g_WorldDrawCount_local++;
-
-    // Log first few draw calls per frame, separately for RHW and world draws
-    bool shouldLog = false;
-    if (isRHW && g_RHWDrawCount_local <= 2) shouldLog = true;
-    if (!isRHW && g_WorldDrawCount_local <= 3) shouldLog = true;
-
-    if (shouldLog) {
-        GLint boundTex = 0;
-        glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTex);
-        GLboolean texEnabled = glIsEnabled(GL_TEXTURE_2D);
-        GLboolean litEnabled = glIsEnabled(GL_LIGHTING);
-        GLboolean fogEnabled = glIsEnabled(GL_FOG);
-        GLboolean colorMat = glIsEnabled(GL_COLOR_MATERIAL);
-        int texCount = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
-        int enabledLights = 0;
-        for (int li = 0; li < 8; li++) {
-            if (glIsEnabled(GL_LIGHT0 + li)) enabledLights++;
-        }
-        // Log first vertex's data for debugging
-        const float* firstVertex = (const float*)vertices;
-        DWORD firstColor = 0;
-        if (fvf & D3DFVF_DIFFUSE) {
-            int colorOff = isRHW ? 16 : 12; // offset past position
-            if (fvf & D3DFVF_NORMAL) colorOff += 12;
-            firstColor = *(const DWORD*)((const char*)vertices + colorOff);
-        }
-        fprintf(stderr, "[D3D_DIAG] DrawVerts #%d: fvf=0x%x %s nVerts=%d tex=%d/%d boundTex=%d lit=%d(%d lights) fog=%d colMat=%d",
-                g_DrawVerticesCount, fvf, isRHW ? "RHW" : "WORLD", count, texCount, texEnabled,
-                boundTex, litEnabled, enabledLights, fogEnabled, colorMat);
-        if (fvf & D3DFVF_DIFFUSE) {
-            fprintf(stderr, " color=0x%08X", firstColor);
-        }
-        if (isRHW && count > 0) {
-            fprintf(stderr, " v0=(%.1f,%.1f)", firstVertex[0], firstVertex[1]);
-        } else if (count > 0) {
-            fprintf(stderr, " v0=(%.1f,%.1f,%.1f)", firstVertex[0], firstVertex[1], firstVertex[2]);
-        }
-        fprintf(stderr, "\n");
-        fflush(stderr);
-    }
 
     // FF_LINUX: XYZRHW vertices are pre-transformed screen coordinates in DirectX.
     // They bypass the transformation pipeline entirely. In OpenGL, we need to:
@@ -2137,12 +2147,35 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     // FF_LINUX: Save GL state that XYZRHW handling will modify
     GLboolean prevDepthTest = GL_FALSE, prevLighting = GL_FALSE, prevFog = GL_FALSE;
 
+    // FF_LINUX: Disable GL_TEXTURE_2D when no texture coordinates in FVF.
+    // Otherwise stale textures from previous draws would modulate the vertex colors.
+    int texCountCheck = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+    GLboolean prevTexture2D = GL_FALSE;
+    if (texCountCheck == 0) {
+        prevTexture2D = glIsEnabled(GL_TEXTURE_2D);
+        if (prevTexture2D) {
+            glDisable(GL_TEXTURE_2D);
+        }
+    }
+
     if (isXYZRHW) {
-        // FF_LINUX: Guard against zero-size viewport which would cause GL_INVALID_VALUE
-        // from glOrtho (left=right or bottom=top). This happens during early frames
-        // before the viewport is properly initialized.
-        if (viewport.dwWidth == 0 || viewport.dwHeight == 0) {
-            return; // Skip draw - no valid viewport
+        // FF_LINUX: Determine viewport dimensions for orthographic projection.
+        // The device's stored viewport may be 0x0 because D3DSBT_ALL state block
+        // restore zeros it (dev->viewport). However, the actual GL viewport is
+        // preserved because ApplyStateBlock skips glViewport() when dimensions are 0.
+        // So query the real GL viewport as a fallback.
+        DWORD vpW = viewport.dwWidth;
+        DWORD vpH = viewport.dwHeight;
+        if (vpW == 0 || vpH == 0) {
+            GLint glVP[4];
+            glGetIntegerv(GL_VIEWPORT, glVP);
+            vpW = glVP[2];
+            vpH = glVP[3];
+        }
+        if (vpW == 0 || vpH == 0) {
+            // Truly no viewport - skip draw
+            if (texCountCheck == 0 && prevTexture2D) glEnable(GL_TEXTURE_2D);
+            return;
         }
 
         // Save states that we're about to change
@@ -2156,7 +2189,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glLoadIdentity();
         // Set up orthographic projection: x = 0 to viewport.width, y = 0 to viewport.height
         // Note: DirectX has Y=0 at top, OpenGL has Y=0 at bottom, so flip Y
-        glOrtho(0, viewport.dwWidth, viewport.dwHeight, 0, -1, 1);
+        glOrtho(0, vpW, vpH, 0, -1, 1);
 
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
@@ -2234,6 +2267,11 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         if (prevDepthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
         if (prevLighting) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
         if (prevFog) glEnable(GL_FOG); else glDisable(GL_FOG);
+    }
+
+    // Restore GL_TEXTURE_2D state if we disabled it
+    if (texCountCheck == 0 && prevTexture2D) {
+        glEnable(GL_TEXTURE_2D);
     }
 
 #ifdef FF_LINUX_DEBUG_RENDER
@@ -2792,40 +2830,78 @@ extern void FF_SwapBuffers();
 // Called from ImageBuffer::SwapBuffers() on the sim swap path (which bypasses DDS7_Flip)
 static int g_SimFrameCount = 0;
 
+// Forward declarations for GetHandle stats
+extern "C" void FF_GetHandleStats(int* ok, int* lazy, int* noImage, int* createFail, int* release, int* invalid);
+extern "C" void FF_GetHandleStatsReset();
+
+static void SaveGLFramebufferAsBMP(const char* filename) {
+    GLint vp[4];
+    glGetIntegerv(GL_VIEWPORT, vp);
+    int w = vp[2], h = vp[3];
+    if (w <= 0 || h <= 0) return;
+
+    unsigned char* pixels = (unsigned char*)malloc(w * h * 3);
+    if (!pixels) return;
+    glReadPixels(0, 0, w, h, GL_BGR, GL_UNSIGNED_BYTE, pixels);
+
+    #pragma pack(push, 1)
+    struct { uint16_t type; uint32_t size; uint16_t r1, r2; uint32_t offset; } bh;
+    struct { uint32_t size; int32_t w, h; uint16_t planes, bpp; uint32_t comp, imgsize, xppm, yppm, clr, imp; } bi;
+    #pragma pack(pop)
+    int rowBytes = (w * 3 + 3) & ~3;
+    bh.type = 0x4D42; bh.size = 54 + rowBytes * h; bh.r1 = bh.r2 = 0; bh.offset = 54;
+    bi.size = 40; bi.w = w; bi.h = h; bi.planes = 1; bi.bpp = 24;
+    bi.comp = bi.xppm = bi.yppm = bi.clr = bi.imp = 0; bi.imgsize = rowBytes * h;
+
+    FILE* f = fopen(filename, "wb");
+    if (f) {
+        fwrite(&bh, sizeof(bh), 1, f);
+        fwrite(&bi, sizeof(bi), 1, f);
+        // GL reads bottom-up which matches BMP format
+        unsigned char* row = (unsigned char*)malloc(rowBytes);
+        memset(row, 0, rowBytes);
+        for (int y = 0; y < h; y++) {
+            memcpy(row, pixels + y * w * 3, w * 3);
+            fwrite(row, rowBytes, 1, f);
+        }
+        free(row);
+        fclose(f);
+        fprintf(stderr, "[Screenshot] Saved %dx%d framebuffer to %s\n", w, h, filename);
+    }
+    free(pixels);
+}
+
 void FF_SimFrameEnd() {
     g_SimFrameCount++;
 
+    // Save screenshots at frames 30 and 300 for visual comparison
+    if (g_SimFrameCount == 30) {
+        SaveGLFramebufferAsBMP("/tmp/ff_sim_frame30.bmp");
+    }
+    if (g_SimFrameCount == 300) {
+        SaveGLFramebufferAsBMP("/tmp/ff_sim_frame300.bmp");
+    }
+
     // Log per-frame summary for first 20 sim frames, then every 120 frames
     if (g_SimFrameCount <= 20 || g_SimFrameCount % 120 == 1) {
-        // Query current GL state
-        GLboolean texEnabled = glIsEnabled(GL_TEXTURE_2D);
         GLboolean litEnabled = glIsEnabled(GL_LIGHTING);
         GLboolean fogEnabled = glIsEnabled(GL_FOG);
-        GLint boundTex = 0;
-        glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTex);
-        GLint fogMode = 0;
-        glGetIntegerv(GL_FOG_MODE, &fogMode);
-        GLfloat fogStart = 0, fogEnd = 0;
-        glGetFloatv(GL_FOG_START, &fogStart);
+        GLfloat fogEnd = 0;
         glGetFloatv(GL_FOG_END, &fogEnd);
-        GLfloat fogColor[4] = {0};
-        glGetFloatv(GL_FOG_COLOR, fogColor);
-
-        // Check how many GL lights are enabled
         int enabledLights = 0;
         for (int i = 0; i < 8; i++) {
             if (glIsEnabled(GL_LIGHT0 + i)) enabledLights++;
         }
 
-        fprintf(stderr, "[D3D_DIAG] SimFrame #%d: Clears=%d SetTex=%d(%d w/data) DrawVerts=%d(rhw=%d world=%d) DrawPrim=%d DrawPrimVB=%d DrawIdxPrimVB=%d | "
-                "tex2D=%d lit=%d fog=%d fogMode=0x%x fogS=%.0f fogE=%.0f fogRGBA=(%.2f,%.2f,%.2f,%.2f) lights=%d boundTex=%d\n",
-                g_SimFrameCount, g_ClearCallCount, g_SetTextureCount, g_SetTextureWithData,
+        fprintf(stderr, "[D3D_DIAG] SimFrame #%d: SetTex=%d(data=%d dirty=%d clean=%d) "
+                "DrawVerts=%d(rhw=%d world=%d) DrawPrimVB=%d DrawIdxPrimVB=%d | "
+                "fog=%d fogE=%.0f lit=%d lights=%d\n",
+                g_SimFrameCount, g_SetTextureCount, g_SetTextureWithData,
+                g_SetTextureDirtyCount, g_SetTextureCleanCount,
                 g_DrawVerticesCount, g_RHWDrawCount_local, g_WorldDrawCount_local,
-                g_DrawPrimitiveCount, g_DrawPrimitiveVBCount, g_DrawIdxPrimVBCount,
-                texEnabled, litEnabled, fogEnabled, fogMode,
-                fogStart, fogEnd,
-                fogColor[0], fogColor[1], fogColor[2], fogColor[3],
-                enabledLights, boundTex);
+                g_DrawPrimitiveVBCount, g_DrawIdxPrimVBCount,
+                fogEnabled, fogEnd,
+                litEnabled, enabledLights);
         fflush(stderr);
     }
 
@@ -2833,6 +2909,10 @@ void FF_SimFrameEnd() {
     g_ClearCallCount = 0;
     g_SetTextureCount = 0;
     g_SetTextureWithData = 0;
+    g_SetTextureNullCount = 0;
+    g_SetTextureNoPixelCount = 0;
+    g_SetTextureDirtyCount = 0;
+    g_SetTextureCleanCount = 0;
     g_DrawVerticesCount = 0;
     g_DrawPrimitiveCount = 0;
     g_DrawPrimitiveVBCount = 0;
@@ -3008,10 +3088,11 @@ static HRESULT STDMETHODCALLTYPE DDS7_Lock(IDirectDrawSurface7* This, LPRECT lpD
     lpDDSurfaceDesc->ddpfPixelFormat = surf->pixelFormat;
 
     // Calculate the starting pointer based on lpDestRect
-    if (lpDestRect) {
+    if (lpDestRect && surf->dxtFormat == 0) {
         int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
         lpDDSurfaceDesc->lpSurface = surf->pixelData + (lpDestRect->top * surf->pitch) + (lpDestRect->left * bpp);
     } else {
+        // For DXT surfaces or no rect, just return the base pointer
         lpDDSurfaceDesc->lpSurface = surf->pixelData;
     }
 
@@ -3446,6 +3527,18 @@ static HRESULT STDMETHODCALLTYPE DD7_CreateSurface(IDirectDraw7* This, LPDDSURFA
     // Copy pixel format if provided
     if (lpDDSurfaceDesc->dwFlags & DDSD_PIXELFORMAT) {
         surf->pixelFormat = lpDDSurfaceDesc->ddpfPixelFormat;
+
+        // FF_LINUX: Detect DXT compressed texture format from FOURCC
+        if (surf->pixelFormat.dwFlags & DDPF_FOURCC) {
+            DWORD fcc = surf->pixelFormat.dwFourCC;
+            if (fcc == MAKEFOURCC('D','X','T','1')) {
+                surf->dxtFormat = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+            } else if (fcc == MAKEFOURCC('D','X','T','3')) {
+                surf->dxtFormat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+            } else if (fcc == MAKEFOURCC('D','X','T','5')) {
+                surf->dxtFormat = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+            }
+        }
     } else {
         // Default to 32-bit ARGB
         surf->pixelFormat.dwSize = sizeof(DDPIXELFORMAT);
@@ -3474,8 +3567,10 @@ static HRESULT STDMETHODCALLTYPE DD7_CreateSurface(IDirectDraw7* This, LPDDSURFA
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-        // Allocate texture storage
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surf->width, surf->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        // Allocate texture storage - don't pre-allocate for DXT (will be done on upload)
+        if (surf->dxtFormat == 0) {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surf->width, surf->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        }
     }
 
     *lplpDDSurface = surf;
