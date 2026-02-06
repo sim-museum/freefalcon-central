@@ -5,22 +5,22 @@
 
     Derived class to handle interaction with the BSP object library.
 \***************************************************************************/
-#include "StateStack.h"
+#include "statestack.h"
 #include "PalBank.h"
-#include "Matrix.h"
-#include "TimeMgr.h"
-#include "TOD.h"
-#include "RenderOW.h"
-#include "DrawBSP.h"
-#include "DrawPNT.h"
-#include "FalcLib/include/PlayerOp.h"
-#include "FalcLib/include/dispopts.h"
+#include "matrix.h"
+#include "timemgr.h"
+#include "tod.h"
+#include "renderow.h"
+#include "drawbsp.h"
+#include "drawpnt.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
 
-#include "Graphics/DXEngine/DXTools.h"
-#include "Graphics/DXEngine/DXEngine.h"
+#include "graphics/dxengine/dxtools.h"
+#include "graphics/dxengine/dxengine.h"
 
 //JAM 09Dec03
-#include "RealWeather.h"
+#include "realweather.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL DrawableBSP::pool;

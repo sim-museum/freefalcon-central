@@ -1,8 +1,9 @@
 #include "campwp.h"
+#include <cstdint>  // FF_LINUX: For uint32_t
 #include "listadt.h"
 #include "find.h"
 #include "tactics.h"
-#include "Graphics/Include/TMap.h"
+#include "graphics/include/tmap.h"
 
 #include "InvalidBufferException.h"
 
@@ -112,7 +113,10 @@ WayPointClass::WayPointClass(VU_BYTE **stream, long *rem)
     }
     else
     {
-        memcpychk(&Flags, stream, sizeof(ulong), rem);
+        // FF_LINUX: Read exactly 4 bytes for 32-bit Windows binary compat
+        uint32_t flags32;
+        memcpychk(&flags32, stream, sizeof(uint32_t), rem);
+        Flags = flags32;
     }
 
     if (haves bitand WP_HAVE_TARGET)
@@ -166,7 +170,10 @@ WayPointClass::WayPointClass(FILE* fp)
     }
     else
     {
-        fread(&Flags, sizeof(ulong), 1, fp);
+        // FF_LINUX: Read 4 bytes (Windows ulong size), not 8 bytes (Linux ulong size)
+        uint32_t temp_flags;
+        fread(&temp_flags, sizeof(uint32_t), 1, fp);
+        Flags = temp_flags;
     }
 
     if (haves bitand WP_HAVE_TARGET)
@@ -307,7 +314,9 @@ int WayPointClass::Save(FILE* fp)
     fwrite(&Action, sizeof(uchar), 1, fp);
     fwrite(&RouteAction, sizeof(uchar), 1, fp);
     fwrite(&Formation, sizeof(uchar), 1, fp);
-    fwrite(&Flags, sizeof(ulong), 1, fp);
+    // FF_LINUX: Write 4 bytes to match Windows format
+    uint32_t temp_flags = static_cast<uint32_t>(Flags);
+    fwrite(&temp_flags, sizeof(uint32_t), 1, fp);
 
     if (haves bitand WP_HAVE_TARGET)
     {

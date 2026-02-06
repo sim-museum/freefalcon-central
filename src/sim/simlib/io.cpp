@@ -369,7 +369,7 @@ void SIMLIB_IO_CLASS::Reset()
 
     ResetAllInputs();
 }
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 /*****************************************************************************/
 // Should reset all axis values / button presses / POV presses
 /*****************************************************************************/

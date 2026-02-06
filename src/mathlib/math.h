@@ -21,8 +21,8 @@
 #define PI_FRAC (PI / 180.0)
 #define TINY (0.0000001)
 
-#define MAXIMUM(a,b,c) ((a>b)?max(a,c):max(b,c))
-#define MINIMUM(a,b,c) ((a<b)?min(a,c):min(b,c))
+#define MAXIMUM(a,b,c) ((a>b)?((a>c)?(a):(c)):((b>c)?(b):(c)))
+#define MINIMUM(a,b,c) ((a<b)?((a<c)?(a):(c)):((b<c)?(b):(c)))
 
 template<class T> inline T Abs(const T A)
 {

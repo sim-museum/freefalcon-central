@@ -29,7 +29,7 @@
 #include "airframe.h"
 #include "simdrive.h"
 #include "ffeedbk.h"
-#include "Graphics/Include/drawsgmt.h"
+#include "graphics/include/drawsgmt.h"
 
 
 static float lastqBar = 0;  // Note: This limits us to 1 ownship/Force feedback stick per machine

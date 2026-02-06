@@ -1228,9 +1228,11 @@ void C_Window::DrawWindow(SCREEN *surface)
 
     while (cur)
     {
-        for (i = 0; i < rectcount_; i++)
-            if (rectflag_[i])
+        for (i = 0; i < rectcount_; i++) {
+            if (rectflag_[i]) {
                 cur->Control_->Draw(surface, &rectlist_[i]);
+            }
+        }
 
         cur = cur->Next;
     }
@@ -2015,7 +2017,7 @@ void C_Window::Fill(SCREEN *surface, WORD Color, UI95_RECT *rect)
     else
     {
         //WORD
-
+#if defined(_MSC_VER)
         __asm
         {
             mov ecx, h
@@ -2035,6 +2037,17 @@ void C_Window::Fill(SCREEN *surface, WORD Color, UI95_RECT *rect)
             pop ecx
             loop Loop1
         };
+#else
+        /* Portable C equivalent of rep stosw */
+        WORD* wptr = dest + startpos;
+        while (h--)
+        {
+            i = w;
+            while (i--)
+                *wptr++ = Color;
+            wptr += addpos;
+        }
+#endif
     }
 }
 

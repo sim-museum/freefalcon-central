@@ -16,20 +16,20 @@
 #include <math.h>
 #include "grmath.h"
 #include "grinline.h"
-#include "StateStack.h"
-#include "TimeMgr.h"
-#include "TMap.h"
+#include "statestack.h"
+#include "timemgr.h"
+#include "tmap.h"
 #include "Tpost.h"
-#include "TOD.h"
-#include "Tex.h"
+#include "tod.h"
+#include "tex.h"
 #include "draw2d.h"
-#include "RViewPnt.h"
-#include "RenderOW.h"
-#include "FalcLib/include/dispopts.h" //JAM 04Oct03
-#include "RenderTV.h"
+#include "rviewpnt.h"
+#include "renderow.h"
+#include "falclib/include/dispopts.h" //JAM 04Oct03
+#include "rendertv.h"
 
 //JAM 18Nov03
-#include "RealWeather.h"
+#include "realweather.h"
 
 #define FLAT_FILLER
 

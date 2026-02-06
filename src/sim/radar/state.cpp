@@ -2,15 +2,15 @@
 #include "entity.h"
 #include "object.h"
 #include "sensors.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "hud.h"
 #include "simdrive.h"
 #include "simmover.h"
-#include "radarDoppler.h"
+#include "radardoppler.h"
 #include "sms.h"
 #include "fcc.h" //MI
 #include "aircrft.h" //MI
-#include "Graphics/Include/gmComposit.h"
+#include "graphics/include/gmcomposit.h"
 
 // MD -- 20031231: added for analog Antenna Elevation Controls
 #include "simio.h"

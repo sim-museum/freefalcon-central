@@ -5,13 +5,13 @@
  given location and will draw a label for it (if turned on).  In general,
  this can be used to draw an object that's very far away.
 \***************************************************************************/
-#include "Matrix.h"
-#include "TimeMgr.h"
-#include "TOD.h"
-#include "RenderOW.h"
-#include "RViewPnt.h"
-#include "DrawBSP.h"
-#include "DrawPNT.h"
+#include "matrix.h"
+#include "timemgr.h"
+#include "tod.h"
+#include "renderow.h"
+#include "rviewpnt.h"
+#include "drawbsp.h"
+#include "drawpnt.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL DrawablePoint::pool;

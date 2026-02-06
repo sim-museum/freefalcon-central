@@ -2,8 +2,8 @@
 #include "simfile.h"
 #include "object.h"
 #include "eyeball.h"
-#include "Graphics/Include/display.h"
-#include "Graphics/Include/tod.h"
+#include "graphics/include/display.h"
+#include "graphics/include/tod.h"
 #include "simbase.h"
 #include "entity.h"
 #include "simmath.h"
@@ -15,7 +15,7 @@
 /* S.G. FOR SKILL LEVEL */ #include "digi.h"
 /* S.G. FOR SKILL LEVEL */ #include "Classtbl.h"
 
-/* M.N. for draw radius */ #include "Graphics/Include/Drawobj.h"
+/* M.N. for draw radius */ #include "graphics/include/drawobj.h"
 
 extern bool g_bEnableWeatherExtensions;
 extern bool g_bAddACSizeVisual;
@@ -178,18 +178,18 @@ float EyeballClass::GetSignature(SimObjectType* obj)
                     aircraft->IsAcStatusBitsSet(AircraftClass::ACSTATUS_EXT_LANDINGLIGHT)
                 )
                 {
-                    visDetMod = max(visDetMod, 30);
+                    visDetMod = max(visDetMod, 30.0f);
                 }
 
                 //Are we in Afterburner?
                 if (aircraft->af->GetHasAB() and aircraft->PowerOutput() > 1.0f and bogeyAngle > 20.0f)
                 {
-                    visDetMod = max(visDetMod, 30);
+                    visDetMod = max(visDetMod, 30.0f);
                 }
 
                 if (aircraft->dropFlareCmd == TRUE)
                 {
-                    visDetMod = max(visDetMod, 30);
+                    visDetMod = max(visDetMod, 30.0f);
                 }
 
                 //Vis penalty for night
@@ -243,11 +243,11 @@ float EyeballClass::GetSignature(SimObjectType* obj)
 
                     if (smoke == 2)
                     {
-                        visDetMod = max(visDetMod, 7);
+                        visDetMod = max(visDetMod, 7.0f);
                     }
                     else if (smoke == 4)
                     {
-                        visDetMod = max(visDetMod, 10);
+                        visDetMod = max(visDetMod, 10.0f);
                     }
                 }
 
@@ -260,27 +260,27 @@ float EyeballClass::GetSignature(SimObjectType* obj)
                 // Are the exterior lights turned on?
                 if (aircraft->IsAcStatusBitsSet(AircraftClass::ACSTATUS_EXT_LIGHTS))
                 {
-                    visDetMod = max(visDetMod, 10);
+                    visDetMod = max(visDetMod, 10.0f);
                 }
 
                 if (aircraft->IsAcStatusBitsSet(AircraftClass::ACSTATUS_EXT_NAVLIGHTS))
                 {
-                    visDetMod = max(visDetMod, 10);
+                    visDetMod = max(visDetMod, 10.0f);
                 }
 
                 if (aircraft->IsAcStatusBitsSet(AircraftClass::ACSTATUS_EXT_TAILSTROBE))
                 {
-                    visDetMod = max(visDetMod, 10);
+                    visDetMod = max(visDetMod, 10.0f);
                 }
 
                 if (aircraft->IsAcStatusBitsSet(AircraftClass::ACSTATUS_EXT_LANDINGLIGHT))
                 {
-                    visDetMod = max(visDetMod, 10);
+                    visDetMod = max(visDetMod, 10.0f);
                 }
 
                 if (aircraft->dropFlareCmd == TRUE)
                 {
-                    visDetMod = max(visDetMod, 30);
+                    visDetMod = max(visDetMod, 30.0f);
                 }
 
                 //Relative Size to F-16
@@ -289,7 +289,7 @@ float EyeballClass::GetSignature(SimObjectType* obj)
                                 aircraft->af->GetAeroData(AeroDataSet::Span));
                 float afCompPercent = afSize / 1504;
                 float afVisDetNM = visDetNM * afCompPercent;
-                afVisDetNM = min(afVisDetNM, 10); //Cap at 10 miles vis
+                afVisDetNM = min(afVisDetNM, 10.0f); //Cap at 10 miles vis
 
                 if (visDetMod == 5 and afVisDetNM < visDetMod)
                 {

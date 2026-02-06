@@ -2,6 +2,7 @@
 #include "MsgInc/RequestUnitPosition.h"
 #include "MsgInc/SendUnitPosition.h"
 #include "mesg.h"
+#include "falcmesg.h"
 
 // TODO discover what thread uses it...
 
@@ -60,6 +61,6 @@ int RequestUnitPosition::Process(uchar autodisp)
     }
 
     FalconEvent *sup = new SendUnitPosition(mover, sender);
-    sup->Send();
+    FalconSendMessage(sup, TRUE);
     return 0;
 }

@@ -63,7 +63,11 @@ int LoadTactics(char* name)
     FILE* fp;
     char filename[MAX_PATH];
 
+#ifdef FF_LINUX
+    sprintf(filename, "%s/%s.tt", FalconCampaignSaveDirectory, name);
+#else
     sprintf(filename, "%s\\%s.tt", FalconCampaignSaveDirectory, name);
+#endif
 
     if ((fp = F4OpenFile(filename, "rb")) == NULL)
         return 0;

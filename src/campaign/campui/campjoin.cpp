@@ -8,8 +8,8 @@
 #include "FalcSess.h"
 #include "DispCfg.h"
 #include "Flight.h"
-#include "CampJoin.h"
-#include "ui95/CHandler.h"
+#include "campjoin.h"
+#include "ui95/chandler.h"
 #include "userids.h"
 #include "Options.h"
 #include "Dogfight.h"
@@ -95,7 +95,7 @@ void StartCampaignGame(int local, int game_type)
         gCampJoinTimeout = 0;
         gCampJoinTries = 0;
         gCampJoinGameType = game_type;
-        SendMessage(FalconDisplay.appWin, FM_LOAD_CAMPAIGN, 0, game_type);
+        SendMessageA(FalconDisplay.appWin, FM_LOAD_CAMPAIGN, 0, game_type);
         _tcscpy(TheCampaign.SaveFile, gUI_ScenarioName);
 
         GetSystemTime(&time);
@@ -151,7 +151,7 @@ void StartCampaignGame(int local, int game_type)
 
         // Set up our timeout callback
         gMainHandler->AddUserCallback(CampaignConnectionTimer);
-        SendMessage(FalconDisplay.appWin, FM_JOIN_CAMPAIGN, JOIN_REQUEST_ALL_DATA, game_type);
+        SendMessageA(FalconDisplay.appWin, FM_JOIN_CAMPAIGN, JOIN_REQUEST_ALL_DATA, game_type);
     }
 }
 
@@ -242,7 +242,7 @@ void CampaignJoinSuccess(void)
                 ebox = (C_EditBox *)win->FindControl(TITLE_LABEL);
 
                 if (ebox)
-                    _tcsnccpy(TheCampaign.SaveFile, ebox->GetText(), CAMP_NAME_SIZE - 1);
+                    _tcsncpy(TheCampaign.SaveFile, ebox->GetText(), CAMP_NAME_SIZE - 1);
 
                 TheCampaign.SaveFile[CAMP_NAME_SIZE - 1] = 0;
             }

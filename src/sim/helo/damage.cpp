@@ -1,7 +1,8 @@
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/drawsgmt.h"
-#include "Graphics/Include/drawpuff.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/drawsgmt.h"
+#include "graphics/include/drawpuff.h"
 #include "stdhdr.h"
+#include "simstatc.h"
 #include "falcmesg.h"
 #include "helo.h"
 #include "fsound.h"
@@ -94,7 +95,7 @@ void HelicopterClass::InitDamageStation(void)
 
     for (i = 0, debrisvis = 0; i < numBodyParts; i++)
     {
-        damageStation->onRail[i] = new SimBaseClass(Type());
+        damageStation->onRail[i] = new SimStaticClass(Type());
         CalcTransformMatrix(damageStation->onRail[i]);
         OTWDriver.CreateVisualObject(damageStation->onRail[i], classPtr->visType[i + 2], &simView, &viewRotation, OTWDriver.Scale());
 
@@ -155,7 +156,7 @@ void HelicopterClass::RunExplosion(void)
     else
     {
         OTWDriver.AddSfxRequest(
-            new SfxClass(SFX_AIR_HANGING_EXPLOSION, // type
+            new SfxClass(SFX_AC_AIR_EXPLOSION, // type
                          &pos, // world pos
                          2.0f, // time to live
                          200.0f + 200 * PRANDFloatPos())); // scale
@@ -167,7 +168,7 @@ void HelicopterClass::RunExplosion(void)
     // Recoded by KCK on 6/23 to remove damage station BS
     for (i = 0; i < 4; i++)
     {
-        tmpSimBase = new SimBaseClass(Type());
+        tmpSimBase = new SimStaticClass(Type());
         CalcTransformMatrix(tmpSimBase);
         OTWDriver.CreateVisualObject(tmpSimBase, classPtr->visType[i + 2], &tp, &tr, OTWDriver.Scale());
         tmpSimBase->SetPosition(pos.x, pos.y, pos.z);

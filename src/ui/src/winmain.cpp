@@ -610,16 +610,39 @@ signed int PASCAL WinMain(HINSTANCE h_Instance, HINSTANCE h_previous_instance,
 
 void EndUI(void)
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[EndUI] ENTRY\n");
+    fflush(stderr);
+#endif
     // Looking for multiplayer stomp...
     ShiAssert(TeamInfo[1] == NULL or TeamInfo[1]->cteam not_eq 0xFC);
     ShiAssert(TeamInfo[2] == NULL or TeamInfo[2]->cteam not_eq 0xFC);
 
     doUI = FALSE;
+#ifdef FF_LINUX
+    fprintf(stderr, "[EndUI] Calling TheCampaign.Suspend()...\n");
+    fflush(stderr);
+#endif
     TheCampaign.Suspend();
+#ifdef FF_LINUX
+    fprintf(stderr, "[EndUI] Suspend() returned, calling UI_Cleanup()...\n");
+    fflush(stderr);
+#endif
     UI_Cleanup();
+#ifdef FF_LINUX
+    fprintf(stderr, "[EndUI] UI_Cleanup() returned, calling Resume()...\n");
+    fflush(stderr);
+#endif
     TheCampaign.Resume();
-
+#ifdef FF_LINUX
+    fprintf(stderr, "[EndUI] Resume() returned, calling SetFocus()...\n");
+    fflush(stderr);
+#endif
     SetFocus(mainMenuWnd);
+#ifdef FF_LINUX
+    fprintf(stderr, "[EndUI] EXIT\n");
+    fflush(stderr);
+#endif
 }
 
 

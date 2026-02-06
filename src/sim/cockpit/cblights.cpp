@@ -3,7 +3,7 @@
 #include "stdhdr.h"
 #include "airframe.h"
 #include "alr56.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "cbackproto.h"
 #include "aircrft.h"
 

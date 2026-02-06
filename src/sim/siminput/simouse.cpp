@@ -45,7 +45,7 @@ bool clickableMouseMode = false; // Retro 15Feb2004 - this holds the CURRENT STA
 extern float g_fMouseLookSensitivity; //Wombat778 10-08-2003
 #endif
 
-#include "SimIO.h" // Retro 17Jan2004
+#include "simio.h" // Retro 17Jan2004
 #include "mouselook.h" // Retro 18Jan2004
 
 static const int MAX_AXIS_THROW; // Retro 18Jan2004

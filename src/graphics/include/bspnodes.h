@@ -8,7 +8,7 @@
 #ifndef _BSPNODES_H_
 #define _BSPNODES_H_
 
-#include "PolyLib.h"
+#include "polylib.h"
 
 
 typedef enum

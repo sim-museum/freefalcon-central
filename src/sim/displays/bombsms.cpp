@@ -5,7 +5,7 @@
 #include "hardpnt.h"
 #include "simveh.h"
 #include "otwdrive.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "falcsess.h"
 #include "entity.h"
 #include "vehicle.h"

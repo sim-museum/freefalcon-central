@@ -1,6 +1,6 @@
 #include "stdhdr.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/drawsgmt.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/drawsgmt.h"
 #include "classtbl.h"
 #include "entity.h"
 #include "object.h"
@@ -13,14 +13,14 @@
 #include "sfx.h"
 #include "falcsess.h"
 #include "simdrive.h"
-#include "campList.h"
+#include "camplist.h"
 #include "mvrdef.h"
 #include "Unit.h"
 #include "simmover.h"
 #include "dofsnswitches.h"
 #include "MsgInc/RequestSimMoverPosition.h"
 #include "MsgInc/ControlSurfaceMsg.h"
-#include "DrawParticleSys.h" // RV I-Hawk - added to support RV new trails calls
+#include "drawparticlesys.h" // RV I-Hawk - added to support RV new trails calls
 #include "simobj.h"
 
 //sfr: added for checks

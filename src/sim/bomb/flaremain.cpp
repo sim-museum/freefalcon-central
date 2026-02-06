@@ -1,6 +1,6 @@
-#include "Graphics/Include/drawsgmt.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/draw2d.h"
+#include "graphics/include/drawsgmt.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/draw2d.h"
 #include "stdhdr.h"
 #include "otwdrive.h"
 #include "initdata.h"
@@ -11,7 +11,7 @@
 #include "flare.h"
 #include "terrtex.h"
 #include "sfx.h" //RV - I-Hawk - added to support New PS flare effect
-#include "Graphics/Include/drawparticlesys.h"
+#include "graphics/include/drawparticlesys.h"
 
 
 #ifdef USE_SH_POOLS

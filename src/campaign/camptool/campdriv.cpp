@@ -33,7 +33,7 @@ int gDumping = 0;
 #include "campdriv.h"
 #include "cmpevent.h"
 #include "team.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "ThreadMgr.h"
 #include "classtbl.h"
 
@@ -55,7 +55,7 @@ int gDumping = 0;
 #include "Options.h"
 #include "CmpRadar.h"
 
-#include "Graphics/Include/TMap.h"
+#include "graphics/include/tmap.h"
 
 // ========================================
 // Global Variables

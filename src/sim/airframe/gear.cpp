@@ -8,10 +8,10 @@
 #include "aircrft.h"
 #include "otwdrive.h"
 #include "fakerand.h"
-#include "Graphics/Include/tmap.h"
-#include "Graphics/Include/rviewpnt.h"  // to get ground type
+#include "graphics/include/tmap.h"
+#include "graphics/include/rviewpnt.h"  // to get ground type
 #include "vutypes.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "limiters.h"
 #include "fack.h"
 #include "falcsess.h"
@@ -26,7 +26,7 @@
 #include "objectiv.h"
 #include "find.h"
 #include "atcbrain.h"
-#include "Graphics/Include/terrtex.h"
+#include "graphics/include/terrtex.h"
 #include "ffeedbk.h"
 
 // OW FIXME: this had to be added after installing the DX8 Beta 1 SDK
@@ -38,7 +38,7 @@
 #include "digi.h"
 #include "ptdata.h"
 #include "dofsnswitches.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "classtbl.h"
 //#include <crtdbg.h> // JPO debug
 

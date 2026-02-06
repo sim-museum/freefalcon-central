@@ -1,6 +1,6 @@
-#include "Graphics/Include/Render2d.h"
+#include "graphics/include/render2d.h"
 #include "stdhdr.h"
-#include "drawable.h"
+#include "sim/include/drawable.h"
 #include "otwdrive.h"
 #include "cppanel.h"
 #include "tod.h"
@@ -62,8 +62,15 @@ unsigned int DrawableClass::AltMFDColors[] =   // JPO Alternative High contrast 
 // JPO - pick color with intensity and backwards compat
 unsigned int DrawableClass::GetMfdColor(MfdColor type)
 {
-    ShiAssert(GetIntensity() not_eq 0 and 
+#ifdef FF_LINUX
+    // FF_LINUX: Return a default green color if intensity not yet initialized
+    if (GetIntensity() == 0 || GetIntensity() == 0xCCCCCCCC) {
+        return 0xFF00CC00;  // Default green
+    }
+#else
+    ShiAssert(GetIntensity() not_eq 0 and
               GetIntensity() not_eq 0xCCCCCCCC); // we shouldn't ever switch off completely.
+#endif
 
     if ( not g_bEnableColorMfd or greenMode)
         type = MFD_DEFAULT;

@@ -88,7 +88,7 @@ void PlayerStats::LoadStats()
         while (cur)
         {
             if (cur->data.missions)
-                cur->data.rating = (char)min(100.0f, max(0, ((float)cur->data.rating + 0.5f) * 25.0f));
+                cur->data.rating = (char)min(100.0f, max(0.0f, ((float)cur->data.rating + 0.5f) * 25.0f));
 
             cur = cur->Next;
         }

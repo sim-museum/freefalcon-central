@@ -1,6 +1,8 @@
 #ifndef _ATC_BRAIN_H
 #define _ATC_BRAIN_H
 
+#include "camplib.h"  // FF_LINUX: For CampaignTime
+
 #ifdef DEBUG
 //#define TEST_HACK_THAT_LEAKS // This is a BAD thing, but might help track down a bug -- remove soon
 #endif
@@ -182,7 +184,7 @@ private:
     short callsign;
     ObjectiveClass* self;
     int numRwys;
-    ulong minDeagTime;
+    CampaignTime minDeagTime;  // FF_LINUX: Use CampaignTime for binary compat
     runwayStatsStruct *runwayStats;
     runwayQueueStruct **runwayQueue;
     runwayQueueStruct *inboundQueue;
@@ -238,7 +240,7 @@ public:
     {
         return callsign;
     }
-    ulong MinDeagTime(void)
+    CampaignTime MinDeagTime(void)
     {
         return minDeagTime;
     }
@@ -258,7 +260,7 @@ public:
     void RemoveInbound(runwayQueueStruct* info);
     void RemoveFromAllOtherATCs(AircraftClass *aircraft);
     void RemoveFromAllATCs(AircraftClass *aircraft);
-    ulong RemovePlaceHolders(VU_ID id);
+    CampaignTime RemovePlaceHolders(VU_ID id);
     void SetEmergency(int queue);
 
     int GetRunwayTexture(int component);
@@ -267,7 +269,7 @@ public:
     int GetOppositeRunway(int rwindex);
 
     void FindNextEmergency(int queue);
-    ulong FindFlightTakeoffTime(FlightClass *flight, int queue);
+    CampaignTime FindFlightTakeoffTime(FlightClass *flight, int queue);
     int FindBestTakeoffRunway(int checklist = FALSE);
     int FindBestLandingRunway(FalconEntity* landing, int checklist = FALSE);
     void FindEmergencyLandingRunway(int *queue, int *rwindex, FalconEntity* landing);
@@ -277,12 +279,12 @@ public:
     int FindRunwayPt(FlightClass* flight, int vehicleInUnit, int rwindex, float *x, float *y);
     void FindFinalPt(AircraftClass* approaching, int rwindex, float *x, float *y);
     AtcStatusEnum FindBasePt(AircraftClass* approaching, int rwindex, float finalX, float finalY, float *x, float *y);
-    AtcStatusEnum FindFirstLegPt(AircraftClass* approaching, int rwindex, ulong schedTime, float baseX, float baseY, int usebase, float *x, float *y);
+    AtcStatusEnum FindFirstLegPt(AircraftClass* approaching, int rwindex, CampaignTime schedTime, float baseX, float baseY, int usebase, float *x, float *y);
 
-    ulong GetNextAvailRunwayTime(int queue, ulong rwTime, ulong delta);
+    CampaignTime GetNextAvailRunwayTime(int queue, CampaignTime rwTime, CampaignTime delta);
     float DetermineAngle(AircraftClass* approaching, int rwindex, AtcStatusEnum status);
     float GetAltitude(AircraftClass* aircraft, AtcStatusEnum status);
-    void CalculateMinMaxTime(AircraftClass* aircraft, int rwindex, AtcStatusEnum status, ulong *min, ulong *max, float cosAngle);
+    void CalculateMinMaxTime(AircraftClass* aircraft, int rwindex, AtcStatusEnum status, CampaignTime *min, CampaignTime *max, float cosAngle);
     int CalculateStandRateTurnToPt(AircraftClass *aircraft, float x, float y, float *finalHdg);
 
     int IsOnRunway(float x, float y);

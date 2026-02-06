@@ -13,7 +13,7 @@
 #include "CmpGlobl.h"
 #include "CampCell.h"
 #include "CampTerr.h"
-#include "RealWeather.h"
+#include "realweather.h"
 
 class WeatherClass : public RealWeather
 {

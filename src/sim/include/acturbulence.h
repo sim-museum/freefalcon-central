@@ -5,6 +5,7 @@
 // also changed place
 
 #include "AList.h"
+#include <cstdint>  // FF_LINUX: For uint32_t
 //#include "mathlib/vector3.h"
 
 class TurbulanceList : public ProtectedAList
@@ -37,7 +38,7 @@ public:
     static void Draw(class RenderOTW *renderer);   // debug useage
 
 private:
-    static unsigned long lastPurgeTime;
+    static uint32_t lastPurgeTime;  // FF_LINUX: Use uint32_t for binary compat
     float RetieveTurbulence(struct RetrieveTurbulanceParams &rtp);
     int locked;
     AList turbRecordList;

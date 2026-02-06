@@ -6,7 +6,7 @@
 #include "airframe.h"
 #include "Aircrft.h"
 #include "otwdrive.h"
-#include "Graphics/Include/tmap.h"
+#include "graphics/include/tmap.h"
 #include "lantirn.h"
 #include "cpmanager.h"
 #include "cphsi.h"
@@ -649,9 +649,9 @@ void DigitalBrain::CheckForTurn(void)
         {
             //turn left
             if (self->Roll() * RTD > -29.0F)
-                rStick = ((0.5F * af->rstick) - (AP_TURN * min(29 - (self->Roll() * RTD < 0 ? -self->Roll() * RTD : 0), 10) * DTR));
+                rStick = ((0.5F * af->rstick) - (AP_TURN * min(29.0f - (self->Roll() * RTD < 0 ? -self->Roll() * RTD : 0.0f), 10.0f) * DTR));
             else if (self->Roll() * RTD < -30.5F)
-                rStick = ((0.5F * af->rstick) + (AP_TURN * min(29 - (self->Roll() * RTD < 0 ? (-self->Roll() * RTD > 29 ? (-self->Roll() * RTD - 29) : -self->Roll() * RTD) : 0), 10) * DTR));
+                rStick = ((0.5F * af->rstick) + (AP_TURN * min(29.0f - (self->Roll() * RTD < 0 ? (-self->Roll() * RTD > 29 ? (-self->Roll() * RTD - 29) : -self->Roll() * RTD) : 0.0f), 10.0f) * DTR));
             else
                 rStick = 0.0F;
         }
@@ -659,9 +659,9 @@ void DigitalBrain::CheckForTurn(void)
         {
             //turn right
             if (self->Roll() * RTD < 29.0F)
-                rStick = ((0.5F * af->rstick) + (AP_TURN * min(29 - (self->Roll() * RTD > 0 ? self->Roll() * RTD : 0), 10) * DTR));
+                rStick = ((0.5F * af->rstick) + (AP_TURN * min(29.0f - (self->Roll() * RTD > 0 ? self->Roll() * RTD : 0.0f), 10.0f) * DTR));
             else if (self->Roll() * RTD > 30.5F)
-                rStick = ((0.5F * af->rstick) - (AP_TURN * min(29 - (self->Roll() * RTD > 0 ? (self->Roll() * RTD > 29 ? (self->Roll() * RTD - 29) : self->Roll() * RTD) : 0), 10) * DTR));
+                rStick = ((0.5F * af->rstick) - (AP_TURN * min(29.0f - (self->Roll() * RTD > 0 ? (self->Roll() * RTD > 29 ? (self->Roll() * RTD - 29) : self->Roll() * RTD) : 0.0f), 10.0f) * DTR));
             else
                 rStick = 0.0F;
         }

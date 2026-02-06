@@ -4,7 +4,7 @@
 #include "simbase.h"
 #include "MsgInc/WingmanMsg.h"
 #include "simveh.h"
-#include "campBase.h"
+#include "campbase.h"
 #include "otwdrive.h"
 
 void HeliBrain::ReceiveOrders(FalconEvent* theEvent)

@@ -4,8 +4,8 @@
 #ifndef _WINDOWS_
 #include <windows.h>
 #endif
-#include "Graphics/Include/devmgr.h"
-#include "Graphics/Include/device.h"
+#include "graphics/include/devmgr.h"
+#include "graphics/include/device.h"
 
 class FalconDisplayConfiguration
 {

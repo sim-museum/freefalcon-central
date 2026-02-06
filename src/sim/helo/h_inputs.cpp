@@ -1,6 +1,6 @@
 #include "stdhdr.h"
 #include "helo.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "hdigi.h"
 #include "helimm.h"
 #include "fcc.h"

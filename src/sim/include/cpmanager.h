@@ -4,8 +4,8 @@
 
 #include "stdhdr.h"
 #include "otwdrive.h"
-#include "Graphics/Include/imagebuf.h"
-#include "Graphics/Include/Device.h"
+#include "graphics/include/imagebuf.h"
+#include "graphics/include/device.h"
 #include "Render2d.h"
 
 #include "cpsurface.h"
@@ -94,7 +94,11 @@ extern MEM_POOL gCockMemPool;
 #define PADLOCK_FILE_12x9 "12_plock.dat"
 #define PADLOCK_FILE_16x12 "16_plock.dat"
 
+#ifdef FF_LINUX
+#define COCKPIT_DIR "art/ckptart/"
+#else
 #define COCKPIT_DIR "art\\ckptart\\"
+#endif
 
 //====================================================//
 // Miscellaneous Defines

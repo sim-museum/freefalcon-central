@@ -7,6 +7,8 @@ CONDITIONAL COMPILATION :
                               lookups fail after the first lookup.
 ----------------------------------------------------------------------*/
 
+#ifdef _WIN32
+
 #include <cISO646>
 #include "pch.h"
 #include "BugslayerUtil.h"
@@ -1588,3 +1590,5 @@ unsigned WINAPI DumpThread(LPVOID pData)
     pParams->dwMiniDumpWriteDumpLastError = GetLastError() ;
     return (eDUMP_SUCCEEDED == pParams->eReturnValue) ;
 }
+
+#endif // _WIN32

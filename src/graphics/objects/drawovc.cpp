@@ -5,12 +5,12 @@
 
  - Drawable stratus
 \***************************************************************************/
-#include "RenderOW.h"
-#include "Matrix.h"
-#include "TOD.h"
-#include "Tex.h"
-#include "DrawOVC.h"
-#include "RealWeather.h"
+#include "renderow.h"
+#include "matrix.h"
+#include "tod.h"
+#include "tex.h"
+#include "drawovc.h"
+#include "realweather.h"
 
 extern int g_nGfxFix;
 

@@ -24,7 +24,7 @@
 #include "falcgame.h"
 #include "falcsess.h"
 #include "MissEval.h"
-#include "Graphics/Include/drawparticlesys.h"
+#include "graphics/include/drawparticlesys.h"
 
 //sfr: added here for checks
 #include "InvalidBufferException.h"

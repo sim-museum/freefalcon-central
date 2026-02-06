@@ -15,7 +15,7 @@ void VU_ADDRESS::Decode(VU_BYTE **stream, long *rem)
 {
     memcpychk(&recvPort, stream, sizeof(unsigned short), rem);
     memcpychk(&reliableRecvPort, stream, sizeof(unsigned short), rem);
-    memcpychk(&ip, stream, sizeof(unsigned long), rem);
+    memcpychk(&ip, stream, sizeof(uint32_t), rem);  // FF_LINUX: 4 bytes
 }
 
 int VU_ADDRESS::Encode(VU_BYTE **stream)

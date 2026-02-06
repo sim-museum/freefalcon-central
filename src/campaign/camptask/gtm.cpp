@@ -4,7 +4,7 @@
 #include <math.h>
 #include <float.h>
 #include "CmpGlobl.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "F4Vu.h"
 #include "vutypes.h"
 #include "Objectiv.h"
@@ -1475,7 +1475,7 @@ int LoadPrimaryObjectiveList(char* scenario)
     }
 
     DecodePrimaryObjectiveList((uchar*)cd.data, NULL);
-    delete cd.data;
+    delete[] cd.data;  // FF_LINUX: Match new[] with delete[]
     return 1;
 }
 

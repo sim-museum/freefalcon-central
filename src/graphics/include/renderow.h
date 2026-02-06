@@ -13,7 +13,7 @@
 #define _RENDEROW_H_
 
 #include "Edge.h"
-#include "Render3D.h"
+#include "render3d.h"
 //#include "rviewpnt.h"
 
 

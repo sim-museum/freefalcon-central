@@ -9,7 +9,7 @@
 #ifndef _POSBUILDLIST_H_
 #define _POSBUILDLIST_H_
 
-#include "PolyLib.h"
+#include "polylib.h"
 
 
 typedef enum BuildTimePosType { Static, Dynamic };

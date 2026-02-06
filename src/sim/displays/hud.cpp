@@ -1,8 +1,8 @@
 #include "stdhdr.h"
 #include <float.h>
 #include "hud.h"
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "graphics/dxengine/dxengine.h"
+#include "graphics/dxengine/dxvbmanager.h"
 #include "guns.h"
 #include "aircrft.h"
 #include "fcc.h"
@@ -10,8 +10,8 @@
 #include "airframe.h"
 #include "otwdrive.h"
 #include "playerop.h"
-#include "Graphics/Include/RenderOW.h"
-#include "Graphics/Include/Mono2d.h"
+#include "graphics/include/renderow.h"
+#include "graphics/include/mono2d.h"
 #include "simdrive.h"
 #include "atcbrain.h"
 #include "campbase.h"
@@ -25,12 +25,12 @@
 #include "fsound.h"
 #include "soundfx.h"
 #include "smsdraw.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "fack.h"
 #include "lantirn.h"
 #include "missile.h"
 #include "radardoppler.h"
-#include "mlTrig.h"
+#include "mltrig.h"
 #include "statestack.h"
 #include "weather.h"
 
@@ -2308,7 +2308,7 @@ HudDataType::HudDataType(void)
     flags = 0;
 }
 
-#include "SimIO.h" // Retro 4Jan2004
+#include "simio.h" // Retro 4Jan2004
 #include "fmath.h"
 
 // COBRA - RED - Completely rewritten

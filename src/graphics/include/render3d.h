@@ -9,8 +9,8 @@
 #ifndef _RENDER3D_H_
 #define _RENDER3D_H_
 
-#include "StateStack.h"
-#include "Render2D.h"
+#include "statestack.h"
+#include "render2d.h"
 
 
 // Possible values for CullFlag in DrawSquare call

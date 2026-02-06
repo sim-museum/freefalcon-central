@@ -90,6 +90,8 @@ enum FalconMsgID
     SimRoughPositionUpdateMsg,          // 85
     RequestSimMoverPositionMsg,         // 86
     SendSimMoverPositionMsg,            // 87
+    RequestUnitPositionMsg,             // 88
+    SendUnitPositionMsg,                // 89
     LastFalconEvent                     // ...
 };
 

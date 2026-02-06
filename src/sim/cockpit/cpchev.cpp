@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "cpchev.h"
 #include "cpmanager.h"
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/renderow.h"
 #include "otwdrive.h"
 
 #if CPCHEVRON_USE_STRING

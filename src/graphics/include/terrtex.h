@@ -9,8 +9,8 @@
 #define _TERRTEX_H_
 
 #include "grtypes.h"
-#include "Context.h"
-#include "Image.h"
+#include "context.h"
+#include "image.h"
 
 // JPO - increased to 32 bits
 typedef DWORD TextureID;
@@ -65,11 +65,19 @@ typedef struct TileEntry
     int width[TEX_LEVELS]; // texture width in pixels
     int height[TEX_LEVELS]; // texture height in pixels
     BYTE *bits[TEX_LEVELS]; // Pixel data (NULL if not loaded)
+#ifdef FF_LINUX
+    uintptr_t handle[TEX_LEVELS]; // FF_LINUX: Use uintptr_t for TextureHandle* on 64-bit
+#else
     UInt handle[TEX_LEVELS]; // Texture handle (NULL if not available)
+#endif
     int widthN[TEX_LEVELS];     // sfr: night texture width in pixels
     int heightN[TEX_LEVELS];    // sfr: night texture height in pixels
     BYTE *bitsN[TEX_LEVELS]; // Pixel data for Night tiles (NULL if not loaded)
+#ifdef FF_LINUX
+    uintptr_t handleN[TEX_LEVELS]; // FF_LINUX: Use uintptr_t for TextureHandle* on 64-bit
+#else
     UInt handleN[TEX_LEVELS]; // Texture handle for Night tiles (NULL if not available)
+#endif
     int refCount[TEX_LEVELS]; // Reference count
 } TileEntry;
 
@@ -78,7 +86,11 @@ typedef struct SetEntry
     int refCount; // Reference count
 
     DWORD *palette; // 32 bit palette entries (NULL if not loaded)
+#ifdef FF_LINUX
+    uintptr_t palHandle; // FF_LINUX: Use uintptr_t for PaletteHandle* on 64-bit
+#else
     UInt palHandle; // Rasterization engine palette handle (NULL if not available)
+#endif
 
     BYTE terrainType; // Terrain coverage type represented by this texture set
     int numTiles; // How many tiles in this set?
@@ -102,7 +114,11 @@ public:
     void Cleanup(void);
 
     // Function to force a single texture to override all others (for ACMI wireframe)
+#ifdef FF_LINUX
+    void SetOverrideTexture(uintptr_t texHandle)
+#else
     void SetOverrideTexture(UInt texHandle)
+#endif
     {
         overrideHandle = texHandle;
     };
@@ -134,7 +150,11 @@ protected:
     int numSets;
     SetEntry *TextureSets; // Array of texture set records
 
+#ifdef FF_LINUX
+    uintptr_t overrideHandle; // FF_LINUX: Use uintptr_t for TextureHandle* on 64-bit
+#else
     UInt overrideHandle; // If nonNull, use this handle for ALL texture selects
+#endif
 
     Tcolor lightColor; // Current light color
 

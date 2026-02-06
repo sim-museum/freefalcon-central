@@ -6,9 +6,9 @@
 #include "ClassTbl.h"
 #include "feature.h"
 #include "f4find.h"
-#include "ListAdt.h"
+#include "listadt.h"
 #include "Objectiv.h"
-#include "PtData.h"
+#include "ptdata.h"
 #include "Weather.h"
 
 extern short NumPtHeaders;

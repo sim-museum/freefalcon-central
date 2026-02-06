@@ -12,7 +12,7 @@
 #include <tchar.h>
 #include "Mission.h"
 #include "ClassTbl.h"
-#include "CampWp.h"
+#include "campwp.h"
 #include "CampStr.h"
 #include "Campaign.h"
 #include "Brief.h"

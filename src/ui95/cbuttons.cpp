@@ -1193,7 +1193,9 @@ long C_Button::CheckHotSpots(long relx, long rely)
     long x, y, w, h;
 
     if ( not Root_ or (GetFlags() bitand C_BIT_INVISIBLE) or not (GetFlags() bitand C_BIT_ENABLED) or ( not Ready() and not UseHotSpot_))
+    {
         return(0);
+    }
 
 
     if (UseHotSpot_)

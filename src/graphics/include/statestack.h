@@ -8,10 +8,10 @@
 #ifndef _STATESTACK_H_
 #define _STATESTACK_H_
 
-#include "Matrix.h"
-#include "PolyLib.h"
-#include "ColorBank.h"
-#include "BSPNodes.h"
+#include "matrix.h"
+#include "polylib.h"
+#include "colorbank.h"
+#include "bspnodes.h"
 #include "d3d.h"
 #include "vmath.h"
 

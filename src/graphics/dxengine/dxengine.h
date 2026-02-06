@@ -10,11 +10,11 @@
 #include <d3d.h>
 #include <d3dxcore.h>
 #include <d3dxmath.h>
-#include "../include/TexBank.h"
-#include "DxDefines.h"
-#include "DXVbManager.h"
-#include "DX2DEngine.h"
-#include "DXLightEngine.h"
+#include "texbank.h"
+#include "dxdefines.h"
+#include "dxvbmanager.h"
+#include "dx2dengine.h"
+#include "dxlightengine.h"
 
 
 #define DEFAULT_ZBIAS 0 // Base zBias level
@@ -334,7 +334,11 @@ public:
     float GetDetailLevel(D3DVECTOR *WorldPos, float MaxRange);
     void SetupTexturesOnDevice(void);
     void LoadTexture(char *FileName);
+#ifdef FF_LINUX
+    uintptr_t GetTextureHandle(char *TexName); // FF_LINUX: Returns TextureHandle* pointer
+#else
     DWORD GetTextureHandle(char *TexName);
+#endif
     CTextureItem *DX2D_GetTextureItem(char *TexName);
     void DX2D_GetTextureCoords(CTextureItem *Ti, CDrawBaseItem *Item);
     void CleanUpTexturesOnDevice(void);
@@ -392,11 +396,19 @@ public:
     };
     void DX2D_Reset(void);
     void DX2D_InitLists(void);
+#ifdef FF_LINUX
+    void DX2D_AddQuad(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Quad, float Radius, uintptr_t TexHandle);
+    void DX2D_AddTri(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Tri, float Radius, uintptr_t TexHandle);
+    void DX2D_AddBi(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Segment, float Radius, uintptr_t TexHandle);
+    void DX2D_AddSingle(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Segment, float Radius, uintptr_t TexHandle);
+    void DX2D_AddPoly(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Poly, float Radius, DWORD Vertices, uintptr_t TexHandle);
+#else
     void DX2D_AddQuad(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Quad, float Radius, DWORD TexHandle);
     void DX2D_AddTri(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Tri, float Radius, DWORD TexHandle);
     void DX2D_AddBi(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Segment, float Radius, DWORD TexHandle);
     void DX2D_AddSingle(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Segment, float Radius, DWORD TexHandle);
     void DX2D_AddPoly(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Poly, float Radius, DWORD Vertices, DWORD TexHandle);
+#endif
     void DX2D_SetDrawOrder(DWORD *Order);
     void DX2D_SetupSquareCx(float y, float z);
     // void DX2D_TransformBB(D3DXVECTOR3 *Pos, D3DDYNVERTEX *Coord, D3DDYNVERTEX *Dest, DWORD Nr=1);

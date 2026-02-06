@@ -21,7 +21,7 @@
 #include "textids.h"
 #include "classtbl.h"
 #include "ui_cmpgn.h"
-#include "ACSelect.h"
+#include "acselect.h"
 #include "gps.h"
 #include "urefresh.h"
 

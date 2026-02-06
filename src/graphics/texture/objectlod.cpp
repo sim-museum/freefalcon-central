@@ -8,8 +8,8 @@
 #include "stdafx.h"
 #include <io.h>
 #include <fcntl.h>
-#include "Loader.h"
-#include "ObjectLOD.h"
+#include "loader.h"
+#include "objectlod.h"
 
 #ifdef USE_SH_POOLS
 extern MEM_POOL gBSPLibMemPool;

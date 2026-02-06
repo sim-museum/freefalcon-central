@@ -5,10 +5,10 @@
  poles and extra labels on an object.
 \***************************************************************************/
 #include <cISO646>
-#include "Matrix.h"
-#include "RViewPnt.h"
-#include "RenderOW.h"
-#include "Drawpole.h"
+#include "matrix.h"
+#include "rviewpnt.h"
+#include "renderow.h"
+#include "drawpole.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL DrawablePoled::pool;

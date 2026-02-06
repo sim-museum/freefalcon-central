@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <fcntl.h>
 #include <io.h>
+#include <cstdint>  // FF_LINUX: For int32_t
 #include "CmpGlobl.h"
 #include "CampCell.h"
 #include "CampTerr.h"
@@ -13,7 +14,7 @@
 #include "vehicle.h"
 #include "name.h"
 #include "initdata.h"
-#include "Camp2Sim.h"
+#include "camp2sim.h"
 #include "simbase.h"
 #include "f4find.h"
 #include "Team.h"
@@ -28,15 +29,15 @@
 #include "MsgInc/SimCampMsg.h"
 #include "CampStr.h"
 #include "ATM.h"
-#include "PtData.h"
+#include "ptdata.h"
 #include "CmpClass.h"
 #include "Gtmobj.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "Utils/Lzss.h"
 #include "FalcSess.h"
 #include "SimDrive.h"
 #include "OTWDrive.h"
-#include "simFiltr.h"
+#include "simfiltr.h"
 #include "classtbl.h"
 #include "uiwin.h"
 #include "Tacan.h"
@@ -52,7 +53,7 @@
 #include "InvalidBufferException.h"
 
 /* 2001-04-06 S.G. 'CanDetect' */
-#include "Graphics/Include/TMap.h"
+#include "graphics/include/tmap.h"
 
 using namespace std;
 
@@ -150,7 +151,13 @@ ObjectiveClass::ObjectiveClass(int typeindex) : CampBaseClass(typeindex, GetIdFr
     dirty_objective = 0;
     static_data.first_owner = 0;
     static_data.nameid = 0;
-    static_data.class_data = (ObjClassDataType*)Falcon4ClassTable[typeindex - VU_LAST_ENTITY_TYPE].dataPtr;
+    // FF_LINUX: Add bounds check to prevent negative array index
+    if (typeindex >= VU_LAST_ENTITY_TYPE &&
+        (typeindex - VU_LAST_ENTITY_TYPE) < NumEntities) {
+        static_data.class_data = (ObjClassDataType*)Falcon4ClassTable[typeindex - VU_LAST_ENTITY_TYPE].dataPtr;
+    } else {
+        static_data.class_data = NULL;
+    }
     static_data.links = 0;
     static_data.radar_data = 0;
     obj_data.priority = 10;
@@ -160,7 +167,7 @@ ObjectiveClass::ObjectiveClass(int typeindex) : CampBaseClass(typeindex, GetIdFr
     obj_data.supply = 0;
     obj_data.losses = 0;
     obj_data.last_repair = 0;
-    size = ((static_data.class_data->Features * 2) + 7) / 8;
+    size = static_data.class_data ? ((static_data.class_data->Features * 2) + 7) / 8 : 0;
 #ifdef USE_SH_POOLS
     obj_data.fstatus = (uchar *)MemAllocPtr(gObjMemPool, sizeof(uchar) * size, 0);
 #else
@@ -196,10 +203,25 @@ ObjectiveClass::ObjectiveClass(int typeindex) : CampBaseClass(typeindex, GetIdFr
 
 ObjectiveClass::ObjectiveClass(VU_BYTE **stream, long *rem) : CampBaseClass(stream, rem)
 {
+    static int objCtorCount = 0;
+    objCtorCount++;
+    bool doDebug = (objCtorCount <= 5);
+
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] ObjectiveClass ctor[%d] entry, entityType=%d\n", objCtorCount, (int)share_.entityType_); fflush(stderr); }
+
     uchar size, nsize, i;
 
     dirty_objective = 0;
-    static_data.class_data = (ObjClassDataType*)Falcon4ClassTable[share_.entityType_ - VU_LAST_ENTITY_TYPE].dataPtr;
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] ObjectiveClass ctor[%d] getting class_data for entityType=%d\n", objCtorCount, (int)share_.entityType_); fflush(stderr); }
+    // FF_LINUX: Add bounds check to prevent negative array index
+    if (share_.entityType_ >= VU_LAST_ENTITY_TYPE &&
+        (share_.entityType_ - VU_LAST_ENTITY_TYPE) < (unsigned)NumEntities) {
+        static_data.class_data = (ObjClassDataType*)Falcon4ClassTable[share_.entityType_ - VU_LAST_ENTITY_TYPE].dataPtr;
+    } else {
+        static_data.class_data = NULL;
+        if (doDebug) { fprintf(stderr, "[FF_LINUX] ObjectiveClass ctor[%d] WARNING: entityType %d out of range, using NULL class_data\n", objCtorCount, (int)share_.entityType_); fflush(stderr); }
+    }
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] ObjectiveClass ctor[%d] class_data=%p\n", objCtorCount, (void*)static_data.class_data); fflush(stderr); }
 
     //#ifdef CAMPTOOL
     // if (gRenameIds) {
@@ -228,7 +250,10 @@ ObjectiveClass::ObjectiveClass(VU_BYTE **stream, long *rem) : CampBaseClass(stre
 
     if (gCampDataVersion > 1)
     {
-        memcpychk(&obj_data.obj_flags, stream, sizeof(ulong), rem);
+        // FF_LINUX: Read exactly 4 bytes for 32-bit Windows binary compat
+        uint32_t flags32;
+        memcpychk(&flags32, stream, sizeof(uint32_t), rem);
+        obj_data.obj_flags = flags32;
     }
     else
     {
@@ -241,7 +266,8 @@ ObjectiveClass::ObjectiveClass(VU_BYTE **stream, long *rem) : CampBaseClass(stre
     memcpychk(&obj_data.fuel, stream, sizeof(uchar), rem);
     memcpychk(&obj_data.losses, stream, sizeof(uchar), rem);
     memcpychk(&size, stream, sizeof(uchar), rem);
-    nsize = (uchar)(((static_data.class_data->Features * 2) + 7) / 8);
+    // FF_LINUX: Protect against NULL class_data dereference
+    nsize = static_data.class_data ? (uchar)(((static_data.class_data->Features * 2) + 7) / 8) : 0;
 #ifdef USE_SH_POOLS
     obj_data.fstatus = (uchar *)MemAllocPtr(gObjMemPool, sizeof(uchar) * nsize, 0);
 #else
@@ -326,16 +352,21 @@ ObjectiveClass::ObjectiveClass(VU_BYTE **stream, long *rem) : CampBaseClass(stre
     }
 
     obj_data.aiscore = 0;
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] ObjectiveClass ctor[%d] calling ResetObjectiveStatus()\n", objCtorCount); fflush(stderr); }
     ResetObjectiveStatus();
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] ObjectiveClass ctor[%d] ResetObjectiveStatus done, type=%d\n", objCtorCount, GetType()); fflush(stderr); }
 
     if ((GetType() == TYPE_AIRBASE) or (GetType() == TYPE_AIRSTRIP))
     {
         if (GetType() == TYPE_AIRBASE)
         {
+            if (doDebug) { fprintf(stderr, "[FF_LINUX] ObjectiveClass ctor[%d] calling SetTacan()\n", objCtorCount); fflush(stderr); }
             SetTacan(1);
         }
 
+        if (doDebug) { fprintf(stderr, "[FF_LINUX] ObjectiveClass ctor[%d] creating ATCBrain\n", objCtorCount); fflush(stderr); }
         brain = new ATCBrain(this);
+        if (doDebug) { fprintf(stderr, "[FF_LINUX] ObjectiveClass ctor[%d] ATCBrain created\n", objCtorCount); fflush(stderr); }
     }
     else
     {
@@ -371,6 +402,7 @@ ObjectiveClass::ObjectiveClass(VU_BYTE **stream, long *rem) : CampBaseClass(stre
     gObjectiveCount++;
     myolist.AddObj(Id().num_);
 #endif
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] ObjectiveClass ctor[%d] complete\n", objCtorCount); fflush(stderr); }
 }
 
 ObjectiveClass::~ObjectiveClass(void)
@@ -2801,6 +2833,9 @@ Objective NewObjective(void)
 
 Objective NewObjective(short tid, VU_BYTE **stream, long *rem)
 {
+    static int callCount = 0;
+    callCount++;
+
     Objective   o;
     int i;
 
@@ -2809,8 +2844,20 @@ Objective NewObjective(short tid, VU_BYTE **stream, long *rem)
         return NULL;
     }
 
+    if (callCount < 10) {
+        fprintf(stderr, "[FF_LINUX] NewObjective[%d]: tid=%d, calling CampEnterCriticalSection\n", callCount, (int)tid);
+        fflush(stderr);
+    }
     CampEnterCriticalSection();
+    if (callCount < 10) {
+        fprintf(stderr, "[FF_LINUX] NewObjective[%d]: CampEnterCriticalSection done, creating ObjectiveClass\n", callCount);
+        fflush(stderr);
+    }
     o = new ObjectiveClass(stream, rem);
+    if (callCount < 10) {
+        fprintf(stderr, "[FF_LINUX] NewObjective[%d]: ObjectiveClass created %p\n", callCount, (void*)o);
+        fflush(stderr);
+    }
 
     if (RepairObjective)  // Activated by command line parameter '-repair',
     {
@@ -2834,29 +2881,50 @@ Objective NewObjective(short tid, VU_BYTE **stream, long *rem)
         }
     }
 
+    if (callCount < 10) {
+        fprintf(stderr, "[FF_LINUX] NewObjective[%d]: calling CampLeaveCriticalSection\n", callCount);
+        fflush(stderr);
+    }
     CampLeaveCriticalSection();
+    if (callCount < 10) {
+        fprintf(stderr, "[FF_LINUX] NewObjective[%d]: CampLeaveCriticalSection done, inserting to vuDatabase\n", callCount);
+        fflush(stderr);
+    }
 
     // these will be read from the other side as well
     o->SetSendCreate(VuEntity::VU_SC_DONT_SEND);
     vuDatabase->/*Silent*/Insert(o);
+    if (callCount < 10) {
+        fprintf(stderr, "[FF_LINUX] NewObjective[%d]: vuDatabase->Insert done\n", callCount);
+        fflush(stderr);
+    }
     return o;
 }
 
 int LoadBaseObjectives(char* scenario)
 {
+    fprintf(stderr, "[FF_LINUX] LoadBaseObjectives ENTRY: scenario='%s'\n", scenario ? scenario : "(null)");
+    fflush(stderr);
+
     int old_version;
     Objective   o;
     short       num, i, type;
-    long size, newsize;
+    int32_t size, newsize;  // FF_LINUX: Use int32_t for binary compat with 32-bit Windows
     uchar *buffer, *bufptr;
     uchar /* *data,*/*data_ptr;
 
     old_version = gCampDataVersion;
 
+    fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: Calling ReadCampFile()\n");
+    fflush(stderr);
     CampaignData cd = ReadCampFile(scenario, "obj");
+    fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: ReadCampFile returned dataSize=%d\n", (int)cd.dataSize);
+    fflush(stderr);
 
     if (cd.dataSize == -1)
     {
+        fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: No data, returning 0\n");
+        fflush(stderr);
         gCampDataVersion = old_version;
         return 0;
     }
@@ -2869,49 +2937,78 @@ int LoadBaseObjectives(char* scenario)
     long rem = cd.dataSize;
 
     memcpychk(&num, &data_ptr, sizeof(short), &rem);
-    memcpychk(&size, &data_ptr, sizeof(long), &rem);
-    memcpychk(&newsize, &data_ptr, sizeof(long), &rem);
+    memcpychk(&size, &data_ptr, sizeof(int32_t), &rem);  // FF_LINUX: Read 4 bytes for binary compat
+    memcpychk(&newsize, &data_ptr, sizeof(int32_t), &rem);  // FF_LINUX: Read 4 bytes for binary compat
+
+    fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: num=%d size=%d newsize=%d\n",
+            (int)num, (int)size, (int)newsize);
+    fflush(stderr);
 
     long tSize = size + MAX_POSSIBLE_OVERWRITE;
     buffer = new uchar[tSize];
 
+    fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: Calling LZSS_Expand()\n");
+    fflush(stderr);
     if (LZSS_Expand(data_ptr, rem, buffer, size) < 0)
     {
+        fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: LZSS_Expand failed!\n");
+        fflush(stderr);
         // char err[200];
         // sprintf(err, "%s %d: error expanding buffer", __FILE__, __LINE__);
         // throw std::InvalidBufferException(err);
     }
+    fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: LZSS_Expand done\n");
+    fflush(stderr);
 
     //now we have the uncompressed buffer, of size tSize
     bufptr = buffer;
     rem = tSize;
 
+    fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: Creating %d objectives...\n", (int)num);
+    fflush(stderr);
     for (i = 0; i < num; i++)
     {
+        if (i < 5 || (i > 0 && i % 500 == 0)) {
+            fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: Creating obj %d/%d\n", (int)i, (int)num);
+            fflush(stderr);
+        }
         memcpychk(&type, &bufptr, sizeof(short), &rem);
+        if (i < 5) {
+            fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: obj %d type=%d, calling NewObjective\n", (int)i, (int)type);
+            fflush(stderr);
+        }
         o = NewObjective(type, &bufptr, &rem);
+        if (i < 5) {
+            fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: obj %d NewObjective returned %p\n", (int)i, (void*)o);
+            fflush(stderr);
+        }
 
         if (o == NULL)
         {
-            fprintf(stderr, "%s %d: error creating object from stream\n", __FILE__, __LINE__);
+            fprintf(stderr, "%s %d: error creating object from stream (obj %d)\n", __FILE__, __LINE__, (int)i);
+            fflush(stderr);
         }
         else
         {
             o->SetAggregate(1);
         }
     }
+    fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: All %d objectives created\n", (int)num);
+    fflush(stderr);
 
     delete [] buffer;
-    delete cd.data;
+    delete[] cd.data;  // FF_LINUX: Match new[] with delete[]
 
     gCampDataVersion = old_version;
 
+    fprintf(stderr, "[FF_LINUX] LoadBaseObjectives: SUCCESS - returning 1\n");
+    fflush(stderr);
     return 1;
 }
 
 int LoadObjectiveDeltas(char* savefile)
 {
-    long csize;
+    int32_t csize;  // FF_LINUX: Use int32_t for binary compat with 32-bit Windows
     uchar /* *data,*/ *data_ptr;
 
     if (strcmp(savefile, TheCampaign.Scenario) == 0)
@@ -2945,10 +3042,10 @@ int LoadObjectiveDeltas(char* savefile)
     data_ptr = (uchar*)cd.data;
     long rem = cd.dataSize;
 
-    memcpychk(&csize, &data_ptr, sizeof(long), &rem);
+    memcpychk(&csize, &data_ptr, sizeof(int32_t), &rem);  // FF_LINUX: Read 4 bytes for binary compat
 
     DecodeObjectiveDeltas(&data_ptr, &rem, NULL);
-    delete cd.data;
+    delete[] cd.data;  // FF_LINUX: Match new[] with delete[]
     return 1;
 }
 
@@ -3453,7 +3550,12 @@ int DecodeObjectiveDeltas(VU_BYTE **stream, long *rem, FalconSessionEntity *)
     VU_BYTE *buf, *bufhead;
 
     memcpychk(&count, stream, sizeof(short), rem);
-    memcpychk(&size, stream, sizeof(long), rem);
+    // FF_LINUX: Read exactly 4 bytes for 32-bit Windows binary compat
+    {
+        int32_t size32;
+        memcpychk(&size32, stream, sizeof(int32_t), rem);
+        size = size32;
+    }
 
     buf = new VU_BYTE[size];
     bufhead = buf;

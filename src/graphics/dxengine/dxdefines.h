@@ -7,7 +7,7 @@
 //*******************************************************************************************************
 
 //#pragma once
-#include "../../FastMath.h"
+#include "fastmath.h"
 #include <d3dxmath.h>
 
 
@@ -17,7 +17,8 @@
 
 
 //******************************* MACROS ************************************
-//#define F_I32 (DWORD)
+/* F_I32: Float to Int32 conversion macro. Uses FloatToInt32 from mathlib. */
+#define F_I32(x) ((DWORD)FloatToInt32(x))
 #define F_TO_R(r) ((F_I32( r * 255.9f))<<16)
 #define F_TO_A(a) ((F_I32( a * 255.9f))<<24)
 #define F_TO_G(g) ((F_I32( g * 255.9f))<<8)
@@ -336,6 +337,7 @@ typedef union
 
 inline DWORD XMM_ARGB(XMMColor *Source)
 {
+#ifdef _WIN32
 #undef or
 	DWORD r;
 	_asm
@@ -364,6 +366,14 @@ inline DWORD XMM_ARGB(XMMColor *Source)
 	}
 	return r;
 #define or ||
+#else
+	// Linux portable implementation
+	DWORD a = (DWORD)(Source->d3d.a);
+	DWORD r = (DWORD)(Source->d3d.r);
+	DWORD g = (DWORD)(Source->d3d.g);
+	DWORD b = (DWORD)(Source->d3d.b);
+	return (a << 24) | (r << 16) | (g << 8) | b;
+#endif
 }
 
 

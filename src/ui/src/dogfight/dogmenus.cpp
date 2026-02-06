@@ -16,7 +16,7 @@
 #include "dogfight.h"
 #include "Flight.h"
 #include "ClassTbl.h"
-#include "ACSelect.h"
+#include "acselect.h"
 
 void AreYouSure(long TitleID, long MessageID, void (*OkCB)(long, short, C_Base*), void (*CancelCB)(long, short, C_Base*));
 void AreYouSure(long TitleID, _TCHAR *text, void (*OkCB)(long, short, C_Base*), void (*CancelCB)(long, short, C_Base*));

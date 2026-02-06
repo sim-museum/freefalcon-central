@@ -4,14 +4,14 @@
 #include "unit.h"
 #include "sensors.h"
 #include "object.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "simobj.h"
 #include "simdrive.h"
 #include "sms.h"
 /* S.G. */
 #include "vehrwr.h"
 /* S.G. */
-#include "RadarDigi.h"
+#include "radardigi.h"
 /* S.G. */
 #include "visual.h"
 /* S.G. */
@@ -21,7 +21,7 @@
 /* S.G. FOR UP TO TWO MISSILES ON ITS WAY TO A TARGET */
 #include "airframe.h"
 /* S.G. FOR UP TO TWO MISSILES ON ITS WAY TO A TARGET */
-#include "simWeapn.h"
+#include "simweapn.h"
 
 #include "wingorder.h"//Cobra
 

@@ -13,7 +13,7 @@
 #ifndef _TDSKPOST_H_
 #define _TDSKPOST_H_
 
-#include "grTypes.h"
+#include "grtypes.h"
 
 
 #pragma pack (push, 1) // Force 1 byte alignment

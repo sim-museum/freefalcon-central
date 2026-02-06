@@ -14,7 +14,25 @@
 #ifdef WIN32
 #include "prof_win32.h"
 #else
-#error "need to define Prof_get_timestamp() and Prof_Int64"
+/* Linux/portable profiler support */
+#include <stdint.h>
+
+typedef int64_t Prof_Int64;
+
+#if defined(__x86_64__) || defined(__i386__)
+#include <x86intrin.h>
+static inline void Prof_get_timestamp(Prof_Int64 *result)
+{
+    *result = (Prof_Int64)__rdtsc();
+}
+#else
+/* Non-x86 fallback - just use a simple counter */
+static inline void Prof_get_timestamp(Prof_Int64 *result)
+{
+    static Prof_Int64 counter = 0;
+    *result = ++counter;
+}
+#endif
 #endif
 
 

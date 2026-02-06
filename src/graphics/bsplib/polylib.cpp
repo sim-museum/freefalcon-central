@@ -7,9 +7,9 @@
 \***************************************************************************/
 #include <cISO646>
 #include "stdafx.h"
-#include "StateStack.h"
+#include "statestack.h"
 #include "ClipFlags.h"
-#include "PolyLib.h"
+#include "polylib.h"
 
 // The pointers to the active jump tables and rendering state tables.
 const DrawPrimFp *DrawPrimJumpTable = NULL;

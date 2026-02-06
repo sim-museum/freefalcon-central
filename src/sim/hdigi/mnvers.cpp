@@ -68,7 +68,7 @@ float HeliBrain::AutoTrack(float)
     return(0.0f);
 }
 
-int HeliBrain::MachHold(float m1, float, int)
+void HeliBrain::MachHold(float m1, float, int)
 {
 
     m1 = -m1;
@@ -79,10 +79,6 @@ int HeliBrain::MachHold(float m1, float, int)
         m1 = -1.0f;
 
     pStick = m1;
-
-
-    return TRUE;
-
 }
 
 void HeliBrain::Loiter(void)
@@ -160,8 +156,8 @@ void HeliBrain::GammaHold(float desGamma)
     desGamma = max(min(desGamma, 30.0F), -30.0F);
     elevCmd = desGamma - self->GetGamma() * RTD;
 
-    elevCmd *= 0.25F * self->Kias() / 350.0F;
-    elevCmd /= self->platformAngles->cosphi;
+    elevCmd *= 0.25F * self->GetKias() / 350.0F;
+    elevCmd /= self->platformAngles.cosphi;
 
     /*
     MonoLocate (35, 1);

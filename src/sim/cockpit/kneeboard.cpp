@@ -12,13 +12,13 @@
 #include "flight.h"
 #include "playerop.h"
 //#include "brief.h"
-#include "Graphics/Include/TMap.h"
-#include "Graphics/Include/filemem.h"
-#include "Graphics/Include/image.h"
+#include "graphics/include/tmap.h"
+#include "graphics/include/filemem.h"
+#include "graphics/include/image.h"
 #include "kneeboard.h"
 #include "otwdrive.h"
 //#include "cpmanager.h"
-#include "Falclib/include/dispcfg.h"
+#include "falclib/include/dispcfg.h"
 #include "flightdata.h" //MI
 #include "aircrft.h" //MI
 #include "phyconst.h" //MI

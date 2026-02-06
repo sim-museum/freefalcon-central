@@ -32,11 +32,11 @@
 /*                                                                            */
 /******************************************************************************/
 #include "stdhdr.h"
-#include "AirFrame.h"
+#include "airframe.h"
 #include "simbase.h"
 #include "aircrft.h"
 #include "limiters.h"
-#include "Graphics/Include/tmap.h"
+#include "graphics/include/tmap.h"
 #include "otwdrive.h"
 #include "dofsnswitches.h"
 

@@ -2,12 +2,12 @@
 #include "simfile.h"
 #include "object.h"
 #include "object.h"
-#include "simMover.h"
-#include "SimMath.h"
+#include "simmover.h"
+#include "simmath.h"
 #include "entity.h"
-#include "Graphics/Include/display.h"
+#include "graphics/include/display.h"
 #include "irst.h"
-#include "Simbase.h"
+#include "simbase.h"
 #include "missile.h"
 
 IRSTDataType* IRSTDataTable = NULL;

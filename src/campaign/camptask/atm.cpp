@@ -12,7 +12,7 @@
 #include <time.h>
 #include "campmap.h"
 #include "CmpGlobl.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "vutypes.h"
 #include "Objectiv.h"
 #include "Find.h"
@@ -1609,7 +1609,7 @@ Squadron AirTaskingManagerClass::FindBestAir(MissionRequest mis, GridIndex bx, G
                 // RV - Biker - Reduce loiter time for short range AC
                 if (d + db > sq->GetUnitRange())
                 {
-                    MissionData[mis->mission].loitertime = min(45, MissionData[mis->mission].loitertime);
+                    MissionData[mis->mission].loitertime = min((short)45, MissionData[mis->mission].loitertime);
                     db = (MissionData[mis->mission].loitertime * speed) / 60.0F;
 
                     if (d + db > sq->GetUnitRange())

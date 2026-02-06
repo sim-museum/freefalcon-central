@@ -12,17 +12,18 @@
 #include "ui/include/uicomms.h"
 #include "classtbl.h"
 #include "ThreadMgr.h"
-#include "sim/include/SimBase.h"
+#include "sim/include/simbase.h"
 #include "Campaign.h"
 #include "ui/include/queue.h"
 #include "ui/include/logbook.h"
 #include "GameMgr.h"
 #include "MsgInc/SendAircraftSlot.h"
-#include "Sim/Include/Simdrive.h"
-#include "Sim/Include/OTWdrive.h"
+#include "sim/include/simdrive.h"
+#include "sim/include/otwdrive.h"
 
 //sfr: added for checks
 #include "InvalidBufferException.h"
+#include <cstdint>  // FF_LINUX: For uint32_t
 
 #define ACE_KILL(x,y) (log(exp(x) + y))
 #define ACE_DEATH(x,y) (log(exp(x) - (((x * (x - y))>x*0.5F)?(x * (x - y)):x*0.5F)))
@@ -30,7 +31,7 @@
 extern void SetTimeCompression(int newComp);
 extern void SetLabel(SimBaseClass* theObject);
 extern void CheckForNewPlayer(FalconSessionEntity *session);
-extern ulong gCompressTillTime;
+extern uint32_t gCompressTillTime;  // FF_LINUX: Use uint32_t for 32-bit binary compat
 extern int F4SessionType;
 extern void UI_Refresh(void);
 extern int gGameType;

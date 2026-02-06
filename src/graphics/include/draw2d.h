@@ -9,8 +9,8 @@
 #ifndef _DRAW2D_H_
 #define _DRAW2D_H_
 
-#include "DrawObj.h"
-#include "DrawBSP.h" // Included only until we can derive from DrawableObject
+#include "drawobj.h"
+#include "drawbsp.h" // Included only until we can derive from DrawableObject
 
 // types of 2d objects
 #define DRAW2D_AIR_EXPLOSION1 0

@@ -9,7 +9,7 @@
 #ifndef _LODBUILDLIST_H_
 #define _LODBUILDLIST_H_
 
-#include "ObjectLOD.h"
+#include "objectlod.h"
 
 extern class BuildTimeLODList TheLODBuildList;
 

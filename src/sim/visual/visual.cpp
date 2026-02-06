@@ -9,7 +9,11 @@
 
 extern int g_nMissileFix;
 
+#ifdef FF_LINUX
+#define VISUAL_DIR       "sim/sensdata/visual"
+#else
 #define VISUAL_DIR       "sim\\sensdata\\visual"
+#endif
 #define VISUAL_DATASET   "visual.lst"
 
 VisualDataType* VisualDataTable = NULL;

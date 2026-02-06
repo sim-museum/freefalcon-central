@@ -12,11 +12,11 @@
 #include "Find.h"
 #include "Atm.h"
 #include "radar.h"
-#include "SMS.h"
+#include "sms.h"
 #include "airframe.h"
 #include "graphics/include/vmath.h"
 #include "Navunit.h" // M.N. Vector to Carrier
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "MissEval.h"
 #include "classtbl.h"
 #include "falclib.h"

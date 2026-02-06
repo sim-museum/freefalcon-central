@@ -6,7 +6,7 @@
  Manage the visual world's clock and provide periodic callbacks to
  this modules which need to adjust with time of day changes.
 \***************************************************************************/
-#include "TimeMgr.h"
+#include "timemgr.h"
 
 
 // The one and only time manager object
@@ -61,7 +61,10 @@ void TimeManager::Cleanup()
 // as time advances
 void TimeManager::RegisterTimeUpdateCB(void(*fn)(void*), void *self)
 {
-    ShiAssert(IsReady());
+    // Return early if not initialized - prevents crash during startup
+    if (!IsReady()) {
+        return;
+    }
     ShiAssert(fn);
 
     if (CBlist)
@@ -88,7 +91,10 @@ void TimeManager::RegisterTimeUpdateCB(void(*fn)(void*), void *self)
 // periodically called
 void TimeManager::ReleaseTimeUpdateCB(void(*fn)(void*), void *self)
 {
-    ShiAssert(IsReady());
+    // Return early if not initialized - prevents crash during unclean shutdown
+    if (!IsReady()) {
+        return;
+    }
     ShiAssert(fn);
 
     int i = 0;
@@ -106,8 +112,12 @@ void TimeManager::ReleaseTimeUpdateCB(void(*fn)(void*), void *self)
         }
     }
 
-    // Squawk if someone tried to remove a callback that wasn't in the list
-    ShiAssert(i < MAX_TOD_CALLBACKS);
+    // Log warning if someone tried to remove a callback that wasn't in the list
+    // This can happen during cleanup if initialization didn't complete
+    if (i >= MAX_TOD_CALLBACKS)
+    {
+        ShiWarning("ReleaseTimeUpdateCB: callback not found in list (may not have been registered)");
+    }
 }
 
 

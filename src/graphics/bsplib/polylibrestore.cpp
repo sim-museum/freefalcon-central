@@ -7,7 +7,7 @@
  after they've been read back from disk.
 \***************************************************************************/
 #include "stdafx.h"
-#include "PolyLib.h"
+#include "polylib.h"
 
 
 // Called by the parent BNode to decode each polygon

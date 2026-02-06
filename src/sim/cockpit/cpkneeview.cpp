@@ -6,8 +6,8 @@
 #include "otwdrive.h"
 #include "simdrive.h" //MI
 #include "navsystem.h" //MI
-#include "Graphics/Include/renderow.h"
-#include "Graphics/Include/TMap.h"
+#include "graphics/include/renderow.h"
+#include "graphics/include/tmap.h"
 #include "brief.h"
 #include "flight.h"
 #include "aircrft.h"

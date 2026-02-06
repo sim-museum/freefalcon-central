@@ -2,7 +2,7 @@
 #include "digi.h"
 #include "simveh.h"
 #include "object.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "airframe.h"
 #include "aircrft.h"
 #include "guns.h"

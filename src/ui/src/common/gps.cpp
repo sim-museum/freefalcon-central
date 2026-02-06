@@ -14,7 +14,7 @@
 #include "debuggr.h"
 #include "userids.h"
 #include "campaign.h"
-#include "Falclib/Include/IsBad.h"
+#include "falclib/include/isbad.h"
 
 extern C_Handler *gMainHandler;
 

@@ -1,9 +1,9 @@
-#include <cISO646>
+#include <ciso646>
 #include <math.h>
 #include "../include/TimeMgr.h"
 #include "../include/ObjectInstance.h"
 #include "dxdefines.h"
-#include "DxTools.h"
+#include "dxtools.h"
 #include "../../falclib/include/mltrig.h"
 #include "dxengine.h"
 
@@ -12,36 +12,36 @@
 // This function just assign a PMatrix object to a DX Compliant Matrix
 void AssignPmatrixToD3DXMATRIX(D3DXMATRIX *d, Pmatrix *s)
 {
-    d->m00 = s->M11;
-    d->m01 = s->M21;
-    d->m02 = s->M31;
-    d->m03 = 0.0f;
-    d->m10 = s->M12;
-    d->m11 = s->M22;
-    d->m12 = s->M32;
-    d->m13 = 0.0f;
-    d->m20 = s->M13;
-    d->m21 = s->M23;
-    d->m22 = s->M33;
-    d->m23 = 0.0f;
-    d->m30 = 0.0f;
-    d->m31 = 0.0f;
-    d->m32 = 0.0f;
-    d->m33 = 1.0f;
+    d->_11 = s->M11;
+    d->_12 = s->M21;
+    d->_13 = s->M31;
+    d->_14 = 0.0f;
+    d->_21 = s->M12;
+    d->_22 = s->M22;
+    d->_23 = s->M32;
+    d->_24 = 0.0f;
+    d->_31 = s->M13;
+    d->_32 = s->M23;
+    d->_33 = s->M33;
+    d->_34 = 0.0f;
+    d->_41 = 0.0f;
+    d->_42 = 0.0f;
+    d->_43 = 0.0f;
+    d->_44 = 1.0f;
 }
 
 
 void AssignD3DXMATRIXToPmatrix(Pmatrix *d, D3DXMATRIX *s)
 {
-    d->M11 = s->m00;
-    d->M21 = s->m01;
-    d->M31 = s->m02;
-    d->M12 = s->m10;
-    d->M22 = s->m11;
-    d->M32 = s->m12;
-    d->M13 = s->m20;
-    d->M23 = s->m21;
-    d->M33 = s->m22;
+    d->M11 = s->_11;
+    d->M21 = s->_12;
+    d->M31 = s->_13;
+    d->M12 = s->_21;
+    d->M22 = s->_22;
+    d->M32 = s->_23;
+    d->M13 = s->_31;
+    d->M23 = s->_32;
+    d->M33 = s->_33;
 }
 
 #endif
@@ -221,8 +221,8 @@ bool DXScript_Beacon(D3DVECTOR *pos, ObjectInstance *obj, DWORD *Argument)
     // get the Beacon world transformation
     D3DXMATRIX WorldVect = TheDXEngine.AppliedState;
     // kill any world translation, just keep rotation
-    WorldVect.m30 = WorldVect.m31 = WorldVect.m32 = 0.0f;
-    WorldVect.m33 = 1.0f;
+    WorldVect._41 = WorldVect._42 = WorldVect._43 = 0.0f;
+    WorldVect._44 = 1.0f;
     // transform a coordinate of x=1,y=0
     D3DXVec3TransformCoord(&BeaconWorldDir, &BeaconWorldDir, &WorldVect);
     // calculate rotation in WORLD SPACE ALWAYS POSITIVE ( + 2PI )

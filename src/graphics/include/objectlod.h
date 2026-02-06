@@ -8,7 +8,7 @@
 #ifndef _OBJECTLOD_H_
 #define _OBJECTLOD_H_
 
-#include "BSPnodes.h"
+#include "bspnodes.h"
 #include "../../Falclib/Include/FileMemMap.h"
 
 #define MAX_LOD_LOAD_SIZE (100 * 1024) // The Max amount of data Loaded in single call Frame
@@ -56,8 +56,13 @@ protected:
     void Unload(void);
     DWORD Load(void);
     void Free(void);
+    void RequestLoad(void);
+    static void LoaderCallBack(class LoaderQ* request);
 
-    bool OnOrder, OnRelease;
+    int flags;
+    int onOrder;
+    bool OnOrder;  // Alias used by bsplib version
+    bool OnRelease;
     int refCount; // How many instances of this LOD are in use
     short WhoAmI(void)
     {

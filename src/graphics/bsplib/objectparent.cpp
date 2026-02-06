@@ -19,6 +19,10 @@
 
 #include "graphics/dxengine/dxdefines.h"
 extern bool g_bUse_DX_Engine;
+
+#ifdef FF_LINUX
+extern "C" int open_nocase(const char* filepath, int flags, int mode);
+#endif
 unsigned long DXver = 0xFEEF;
 extern int nVer;
 
@@ -81,7 +85,15 @@ void ObjectParent::SetupTable(char *basename)
     // Open the master object file
     strcat(filename, ".DXH");
 
+#ifdef FF_LINUX
+    // fprintf(stderr, "[ObjectParent] Using open_nocase for: %s\n", filename);
+    fflush(stderr);
+    file = open_nocase(filename, _O_RDONLY bitor _O_BINARY bitor _O_SEQUENTIAL, 0);
+    // fprintf(stderr, "[ObjectParent] open_nocase returned: %d\n", file);
+    fflush(stderr);
+#else
     file = open(filename, _O_RDONLY bitor _O_BINARY bitor _O_SEQUENTIAL);
+#endif
 
     if (file < 0)
     {

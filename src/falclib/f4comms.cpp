@@ -11,7 +11,7 @@
 #include "router.h" //KCK This needs to go away
 #include "UI/INCLUDE/uicomms.h" // UI comms manager
 #include "falclib/include/msginc/sendchatmessage.h"
-#include "FALCLIB/INCLUDE/f4find.h"
+#include "falclib/include/f4find.h"
 #include "FalcMesg.h"
 #include "MsgInc/TimingMsg.h"
 #include "Falcmesg.h"
@@ -25,8 +25,8 @@
 #include "pilot.h"
 #include "flight.h"
 #include "voicecomunication/voicecom.h"
-#include "FALCLIB/INCLUDE/MsgInc/PlayerStatusMsg.h"
-#include "FALCLIB/INCLUDE/MsgInc/SimCampMsg.h"
+#include "falclib/include/msginc/playerstatusmsg.h"
+#include "falclib/include/msginc/simcampmsg.h"
 #include "aircrft.h"
 #include "SimBase.h"
 
@@ -149,7 +149,11 @@ int InitCommsStuff(ComDataClass *comData)
     // DanglingConnections = NULL;
 
     // Shutdown any current games/connections
+#ifdef _WIN32
     SendMessage(FalconDisplay.appWin, FM_SHUTDOWN_CAMPAIGN, 0, 0);
+#else
+    SendMessageA(FalconDisplay.appWin, FM_SHUTDOWN_CAMPAIGN, 0, 0);
+#endif
 
     if (gConnectionStatus)
     {

@@ -5,13 +5,13 @@
 #include "simbase.h"
 #include "cphsi.h"
 #include "dispcfg.h"
-#include "Graphics/Include/grinline.h"
+#include "graphics/include/grinline.h"
 #include "dispopts.h"
-#include "flightData.h"
-#include "Graphics/Include/renderow.h"
+#include "flightdata.h"
+#include "graphics/include/renderow.h"
 #include "otwdrive.h"
-#include "FalcLib/include/playerop.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
 #include "aircrft.h" //MI
 #include "simdrive.h" //MI
 
@@ -559,7 +559,7 @@ void RenderADIPoly(tagRECT *srcrect, tagRECT *srcloc, tagRECT *destrect, GLint a
     }
 
     OTWDriver.renderer->context.RestoreState(alpha);
-    OTWDriver.renderer->context.SelectTexture1((GLint) pTex);
+    OTWDriver.renderer->context.SelectTexture1((intptr_t) pTex);
     OTWDriver.renderer->context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 90, pVtx, sizeof(pVtx[0]));
 }
 
@@ -621,7 +621,7 @@ void CPAdi::DisplayBlit3D()
 
         // Setup state
         OTWDriver.renderer->context.RestoreState(STATE_ALPHA_TEXTURE_NOFILTER);
-        OTWDriver.renderer->context.SelectTexture1((GLint) pTex);
+        OTWDriver.renderer->context.SelectTexture1((intptr_t) pTex);
 
         // Render it (finally)
         OTWDriver.renderer->context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 4, pVtx, sizeof(pVtx[0]));

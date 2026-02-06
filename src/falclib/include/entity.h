@@ -38,7 +38,7 @@ struct UnitClassDataType
     MoveType MovementType;
     short MovementSpeed;
     short MaxRange; // Movement/flight range with full supply
-    long Fuel; // Fuel (internal)
+    int Fuel; // Fuel (internal) - use int instead of long for 32/64-bit portability
     short Rate; // Fuel usage- in lbs per minute (cruise speed)
     short PtDataIndex; // Index into pt header data table
     uchar Scores[MAXIMUM_ROLES]; // Score for each type of mission or role
@@ -142,9 +142,9 @@ struct VehicleClassDataType
     _TCHAR Name[15];
     _TCHAR NCTR[5];
     float RCSfactor; // log2( 1 + RCS relative to an F16 )
-    long MaxWt; // Max loaded weight in lbs.
-    long EmptyWt; // Empty weight in lbs.
-    long FuelWt; // Weight of max fuel in lbs.
+    int MaxWt; // Max loaded weight in lbs. - use int for 32/64-bit portability
+    int EmptyWt; // Empty weight in lbs. - use int for 32/64-bit portability
+    int FuelWt; // Weight of max fuel in lbs. - use int for 32/64-bit portability
     short FuelEcon; // Fuel usage in lbs./min.
     short EngineSound; // SoundFX sample index of corresponding engine sound
     short HighAlt; // in hundreds of feet

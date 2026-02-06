@@ -1,7 +1,7 @@
 #ifndef _ALR56_MODEL_H
 #define _ALR56_MODEL_H
 
-#include "PlayerRwr.h"
+#include "playerrwr.h"
 
 class SimBaseClass;
 

@@ -1,8 +1,8 @@
 #include "stdhdr.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "simio.h"
 #include "simmath.h"
-#include "Sim/Include/Fcc.h"
+#include "sim/include/fcc.h"
 
 PilotInputs UserStickInputs;
 extern int UseKeyboardThrottle;

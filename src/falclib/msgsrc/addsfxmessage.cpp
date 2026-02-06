@@ -7,7 +7,7 @@
 
 #include "MsgInc/AddSFXMessage.h"
 #include "mesg.h"
-#include "Sim/Include/SFX.h"
+#include "sim/include/sfx.h"
 #include "falclib.h"
 #include "falcmesg.h"
 #include "falcgame.h"

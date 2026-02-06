@@ -13,7 +13,7 @@
 #include "otwdrive.h"
 #include "radar.h"//me123
 #include "flight.h"//me123
-#include "Graphics/Include/tmap.h"
+#include "graphics/include/tmap.h"
 
 /* S.G. NEED TO KNOW WHICH WEAPON WE FIRED */
 #include "Missile.h"
@@ -21,7 +21,7 @@
 #include "sms.h"//cobra
 #define MANEUVER_DEBUG // MNLOOK
 #ifdef MANEUVER_DEBUG
-#include "Graphics/include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 extern int g_nShowDebugLabels;
 #endif
 

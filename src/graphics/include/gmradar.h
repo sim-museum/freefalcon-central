@@ -9,7 +9,7 @@
 #define _GMRADAR_H_
 
 #include <cISO646>
-#include "Render3D.h"
+#include "render3d.h"
 
 
 static const float GM_NO_GIMBAL_LIMIT = -1.0f;

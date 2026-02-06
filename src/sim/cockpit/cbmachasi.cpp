@@ -2,7 +2,7 @@
 #include <windows.h>
 
 #include "stdhdr.h"
-#include "flightData.h"
+#include "flightdata.h"
 
 #include "cpcb.h"
 #include "cpdigits.h"

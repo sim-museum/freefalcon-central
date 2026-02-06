@@ -11,8 +11,8 @@
 #include <windows.h>
 #include <Mmsystem.h>
 
-#include "grTypes.h"
-#include "Matrix.h"
+#include "grtypes.h"
+#include "matrix.h"
 
 
 extern class JoyInputClass TheJoystick;

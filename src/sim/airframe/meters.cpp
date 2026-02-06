@@ -60,7 +60,7 @@ void AirframeClass::Accelerometers()
     nzcgb = -(zaero + zprop) / GRAVITY;
 
     if (platform->OnGround())
-        nzcgb = max(1, nzcgb);
+        nzcgb = max(1.0f, nzcgb);
 
     /*-----------------------*/
     /* stability axis accels */

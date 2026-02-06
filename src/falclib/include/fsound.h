@@ -11,7 +11,7 @@
 #include <mmsystem.h>
 #pragma warning (pop)
 
-#include "Graphics/include/grtypes.h"
+#include "graphics/include/grtypes.h"
 //#include "../vu2/include/vuentity.h"
 
 class VuEntity;
@@ -108,7 +108,7 @@ extern "C"
 
 class SimBaseClass;
 
-#include "FalcLib/include/alist.h"
+#include "falclib/include/alist.h"
 
 // this object is used to maintain the positional bitand velocity values and to supply an interface to the sound code.
 class F4SoundPos : public ANode

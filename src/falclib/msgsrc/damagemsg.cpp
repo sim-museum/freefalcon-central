@@ -2,7 +2,7 @@
 #include "MsgInc/CampWeaponFireMsg.h"
 #include "mesg.h"
 #include "sim/include/simbase.h"
-#include "sim/include/SimDrive.h"
+#include "sim/include/simdrive.h"
 #include "Find.h"
 #include "Flight.h"
 #include "MissEval.h"

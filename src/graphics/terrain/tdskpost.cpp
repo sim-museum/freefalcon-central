@@ -10,9 +10,9 @@
  This is version that is used to store the map in the disk file.
 \***************************************************************************/
 
-#include "Tpost.h"
-#include "TdskPost.h"
-#include "TMap.h"
+#include "tpost.h"
+#include "tdskpost.h"
+#include "tmap.h"
 
 void DiskblockToMemblock(Tpost *memPost, TdiskPost *diskPost,
                          int LOD, float,

@@ -7,7 +7,7 @@
 #include <math.h>
 #include <float.h>
 #include "CmpGlobl.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "CampCell.h"
 #include "CampTerr.h"
 #include "ASearch.h"
@@ -25,9 +25,9 @@
 #include "tactics.h"
 #include "Tacan.h"
 #include "ClassTbl.h"
-#include "Graphics/Include/TMap.h"
-#include "PtData.h"
-#include "Camp2Sim.h"
+#include "graphics/include/tmap.h"
+#include "ptdata.h"
+#include "camp2sim.h"
 #include "Aircrft.h"
 #include "radar.h"
 #include "debuggr.h"

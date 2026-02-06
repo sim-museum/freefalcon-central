@@ -1,15 +1,16 @@
-#include "ACTurbulence.h"
+#include "acturbulence.h"
 #include "debuggr.h"
 #include "renderow.h"
 #include "weather.h"
+#include <cstdint>  // FF_LINUX: For uint32_t
 
-extern unsigned long    vuxGameTime;
+extern uint32_t         vuxGameTime;  // FF_LINUX: Use uint32_t for binary compat
 
 extern bool g_bDrawWakeTurbulence;
 
 // static class members
 TurbulanceList lTurbulenceList;
-unsigned long AircraftTurbulence::lastPurgeTime = 0;
+uint32_t AircraftTurbulence::lastPurgeTime = 0;  // FF_LINUX: Use uint32_t for binary compat
 
 TurbulanceList::~TurbulanceList()
 {

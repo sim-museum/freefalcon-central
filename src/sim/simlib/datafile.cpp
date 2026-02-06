@@ -1,5 +1,6 @@
 // DatFile parser support routines
 #include "stdhdr.h"
+#include <ctype.h>
 #include "datafile.h"
 #include "simfile.h" // to read in the extra data
 #include "graphics/include/grtypes.h"

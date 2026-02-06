@@ -2,6 +2,7 @@
 #define     _TIMER_THREAD_H_
 
 #include    "Falclib.h"
+#include    <cstdint>  // FF_LINUX: For uint32_t
 
 #define NO_TIMER_THREAD 1
 
@@ -27,16 +28,16 @@ extern void             RealTimeFunction(unsigned long, void *);
 extern void SetTimeCompressionFromRemote(int);
 extern void             SetTimeCompression(int);
 extern void             SetTemporaryCompression(int);
-extern void             SetTime(unsigned long);
+extern void             SetTime(uint32_t);
 
-extern ulong            gCompressTillTime;
-extern unsigned long    vuxRealTime;
-extern unsigned long    vuxGameTime;
-extern unsigned long    vuxTargetGameTime;
-extern unsigned long    vuxLastTargetGameTime;
-extern unsigned long    vuxDeadReconTime;
-extern unsigned long lastTimingMessage;
-extern unsigned long    lastStartTime;
+extern uint32_t         gCompressTillTime;    // FF_LINUX: Use uint32_t for binary compat
+extern uint32_t         vuxRealTime;           // FF_LINUX: Use uint32_t for binary compat
+extern uint32_t         vuxGameTime;           // FF_LINUX: Use uint32_t for binary compat
+extern uint32_t         vuxTargetGameTime;     // FF_LINUX: Use uint32_t for binary compat
+extern uint32_t         vuxLastTargetGameTime; // FF_LINUX: Use uint32_t for binary compat
+extern uint32_t         vuxDeadReconTime;      // FF_LINUX: Use uint32_t for binary compat
+extern uint32_t         lastTimingMessage;     // FF_LINUX: Use uint32_t for binary compat
+extern uint32_t         lastStartTime;         // FF_LINUX: Use uint32_t for binary compat
 extern int              gameCompressionRatio;
 extern int targetGameCompressionRatio;
 extern int              targetCompressionRatio;
@@ -52,6 +53,6 @@ extern void             endTimer(void);
 extern void SetTimeCompression(int newComp);
 extern void SetOnlineTimeCompression(int newComp);
 extern void SetTemporaryCompression(int newComp);
-extern void SetTime(unsigned long currentTime);
+extern void SetTime(uint32_t currentTime);
 
 #endif      // _TIMER_THREAD_H_

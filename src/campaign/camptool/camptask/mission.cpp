@@ -13,15 +13,15 @@
 #include "loadout.h"
 #include "Team.h"
 #include "AIInput.h"
-#include "NoFly.h"
+#include "nofly.h"
 #include "MsgInc/MissionRequestMsg.h"
 #include "CampMap.h"
-#include "Time.h"
+#include <time.h>
 #include "CmpClass.h"
 #include "classtbl.h"
 
 #include "uiwin.h"
-#include "F4Error.h"
+#include "f4error.h"
 extern CampaignTime TimeToArrive(float distance, float speed);
 extern void ShowWPLeg(MapData md, GridIndex x, GridIndex y, GridIndex X, GridIndex Y, int color);
 extern void ShowWP(MapData md, GridIndex X, GridIndex Y, int color);

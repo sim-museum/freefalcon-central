@@ -7,7 +7,7 @@
 
 #include "unit.h"
 #include "AIInput.h"
-#include "SIM/INCLUDE/gndai.h"
+#include "sim/include/gndai.h"
 
 class AircraftClass;
 

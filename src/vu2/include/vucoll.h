@@ -434,6 +434,7 @@ class VuDatabase
     friend class VuCollectionManager;
     friend class VuMainThread;
     friend class VuDatabaseIterator;
+    friend class VuGC;
 
 public:
     /** creates the database of the given size and key. */
@@ -503,6 +504,7 @@ class VuDatabase : public VuHashTable
 
     friend class VuCollectionManager;
     friend class VuMainThread;
+    friend class VuGC;
 
 public:
     /** creates the database of the given size and key. */

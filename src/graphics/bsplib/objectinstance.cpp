@@ -7,8 +7,8 @@
 \***************************************************************************/
 #include <cISO646>
 #include "stdafx.h"
-#include "StateStack.h"
-#include "ObjectInstance.h"
+#include "statestack.h"
+#include "objectinstance.h"
 
 #ifdef USE_SH_POOLS
 extern MEM_POOL gBSPLibMemPool;

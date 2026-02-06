@@ -17,12 +17,22 @@
 
 #ifndef GRAPHICS_USE_RES_MGR // DON'T USE RESMGR
 
+#ifdef FF_LINUX
+// Use case-insensitive file lookup on Linux
+extern "C" int open_nocase(const char* filepath, int flags, int mode);
+#define GR_OPEN(fn, fl)   open_nocase((fn), (fl), 0644)
+#else
 #define GR_OPEN   open
+#endif
 #define GR_CLOSE  close
 #define GR_READ   read
 #define GR_WRITE  write
 #define GR_SEEK   lseek
+#ifdef _WIN32
 #define GR_TELL   tell
+#else
+#define GR_TELL(fd)   lseek((fd), 0, SEEK_CUR)
+#endif
 
 #else // USE RESMGR
 

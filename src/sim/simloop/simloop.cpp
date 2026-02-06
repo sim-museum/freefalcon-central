@@ -10,6 +10,7 @@
 #include "stdhdr.h"
 #ifdef FF_LINUX
 #include <fenv.h>
+#include <pthread.h>
 #endif
 #include "graphics/include/loader.h"
 #include "find.h"
@@ -278,12 +279,15 @@ void SimulationLoopControl::StartGraphics(void)
         OTWDriver.SetActive(FALSE);
     }
 
+    fprintf(stderr, "[StartGraphics] Waiting for currentMode==RunningSim, current=%d\n", currentMode); fflush(stderr);
     while (currentMode not_eq RunningSim)
     {
         Sleep(50);
     }
+    fprintf(stderr, "[StartGraphics] currentMode is RunningSim, setting to StartingGraphics\n"); fflush(stderr);
 
     currentMode = StartingGraphics;
+    fprintf(stderr, "[StartGraphics] currentMode set to StartingGraphics (%d)\n", currentMode); fflush(stderr);
 }
 
 
@@ -346,11 +350,20 @@ void SimulationLoopControl::Loop(void)
     {
 #ifdef FF_LINUX
         loopDebugCounter++;
-        if (loopDebugCounter <= 5 || loopDebugCounter % 100 == 0)
+        static volatile SimLoopControlMode lastReportedMode = Stopped;
+        // Always print when mode changes, or periodically
+        bool shouldPrint = (loopDebugCounter <= 5 || loopDebugCounter % 300 == 0);
+        // Also print when mode changes or when in transitional modes
+        if (currentMode != lastReportedMode || currentMode == StartRunningGraphics)
         {
-            fprintf(stderr, "[Loop] Entry #%d, currentMode=%d (RunningGraphics=%d, StartRunningGraphics=%d)\n",
-                    loopDebugCounter, currentMode, RunningGraphics, StartRunningGraphics);
+            shouldPrint = true;
+        }
+        if (shouldPrint)
+        {
+            fprintf(stderr, "[Loop] Entry #%d, currentMode=%d (Step2=%d, StartRunningGraphics=%d, RunningGraphics=%d)\n",
+                    loopDebugCounter, currentMode, Step2, StartRunningGraphics, RunningGraphics);
             fflush(stderr);
+            lastReportedMode = currentMode;
         }
 #endif
 
@@ -640,7 +653,16 @@ void SimulationLoopControl::Loop(void)
 #if NEW_SYNC
         //START_PROFILE("CA WAIT");
         //bool gotSig = ThreadManager::sim_wait_for_campaign((currentMode == RunningGraphics) ? 5 : INFINITE);
+#ifdef FF_LINUX
+        // FF_LINUX: Don't use INFINITE wait during Step2/startup phases.
+        // The campaign thread may not be signaling properly during initialization,
+        // which causes Loop() to hang. Use a bounded timeout instead.
+        DWORD waitTime = (currentMode == Step2 || currentMode == StartRunningGraphics) ? 50 :
+                         (currentMode == RunningGraphics) ? 5 : 100;
+        bool gotSig = ThreadManager::sim_wait_for_campaign(waitTime);
+#else
         bool gotSig = ThreadManager::sim_wait_for_campaign(INFINITE);
+#endif
 
         //STOP_PROFILE("CA WAIT");
         // life goes on
@@ -656,6 +678,14 @@ void SimulationLoopControl::Loop(void)
 
             ThreadManager::sim_signal_campaign();
         }
+#ifdef FF_LINUX
+        else
+        {
+            // Even if we didn't get the signal, still process real-time functions
+            // to prevent hangs during startup
+            RealTimeFunction(vuxRealTime, NULL);
+        }
+#endif
 
 #else
         RealTimeFunction(vuxRealTime, NULL);
@@ -702,14 +732,42 @@ void SimulationLoopControl::Loop(void)
         //STOP_PROFILE("SIMCYCLE");
 
         // Do any graphics related processing required
+#ifdef FF_LINUX
+        {
+            volatile SimLoopControlMode switchMode = currentMode;
+            if (switchMode == StartRunningGraphics || switchMode == RunningGraphics)
+            {
+                fprintf(stderr, "[Loop] PRE-SWITCH: currentMode=%d\n", switchMode);
+                fflush(stderr);
+            }
+        }
+#endif
         switch (currentMode)
         {
             case StartRunningGraphics:
+                fprintf(stderr, "[Loop] ENTERED case StartRunningGraphics! g_simOwnsGLContext will be checked\n");
+                fflush(stderr);
                 if ( not SimDriver.lastRealTime)
                 {
                     SimDriver.lastRealTime = vuxGameTime;
                 }
-
+#ifdef FF_LINUX
+                // Acquire GL context on this thread (the Loop thread) for rendering.
+                // StartLoop released it before setting currentMode = StartRunningGraphics.
+                {
+                    extern void FF_SimThreadAcquireGL();
+                    extern bool g_simOwnsGLContext;
+                    fprintf(stderr, "[Loop] GL check: g_simOwnsGLContext=%d\n", g_simOwnsGLContext ? 1 : 0);
+                    fflush(stderr);
+                    if (!g_simOwnsGLContext)
+                    {
+                        FF_SimThreadAcquireGL();
+                        fprintf(stderr, "[Loop] Acquired GL context in StartRunningGraphics case\n");
+                        fflush(stderr);
+                    }
+                }
+#endif
+                // Fall through to RunningGraphics
             case RunningGraphics:
                 if (sRewakeSessions)
                 {
@@ -722,9 +780,13 @@ void SimulationLoopControl::Loop(void)
 #ifdef FF_LINUX
                 {
                     static int otwCycleDbg = 0;
-                    if (otwCycleDbg++ % 100 == 0)
+                    otwCycleDbg++;
+                    // Print first 10 cycles, then every 300
+                    if (otwCycleDbg <= 10 || otwCycleDbg % 300 == 0)
                     {
-                        fprintf(stderr, "[Loop] Calling OTWDriver.Cycle() #%d\n", otwCycleDbg);
+                        extern bool g_simOwnsGLContext;
+                        fprintf(stderr, "[Loop] OTWDriver.Cycle() #%d, mode=%d, glOwned=%d, tid=%ld\n",
+                                otwCycleDbg, currentMode, g_simOwnsGLContext ? 1 : 0, (long)pthread_self());
                         fflush(stderr);
                     }
                 }
@@ -768,6 +830,19 @@ void SimulationLoopControl::Loop(void)
                 break;
 
             case StoppingGraphics:
+#ifdef FF_LINUX
+                // Release GL context before signaling StartLoop thread,
+                // which will re-acquire it for cleanup operations.
+                {
+                    extern void FF_SimThreadReleaseGL();
+                    extern bool g_simOwnsGLContext;
+                    if (g_simOwnsGLContext)
+                    {
+                        fprintf(stderr, "[Loop] Releasing GL context at StoppingGraphics\n"); fflush(stderr);
+                        FF_SimThreadReleaseGL();
+                    }
+                }
+#endif
                 SetEvent(wait_for_stop_graphics);
                 currentMode = Step5;
                 break;
@@ -777,15 +852,40 @@ void SimulationLoopControl::Loop(void)
         // FF_LINUX: After the switch, check if StartLoop has changed currentMode to
         // StartRunningGraphics. This is needed because the switch above doesn't have
         // a case for Step2, so we need to check for the transition here.
+        // The mode can transition from Step2 → StartRunningGraphics while we're in
+        // the switch (which has no case for Step2), so we catch it here.
         if (currentMode == StartRunningGraphics)
         {
-            fprintf(stderr, "[Loop] Transitioning from StartRunningGraphics to RunningGraphics!\n");
+            // Acquire GL context on this thread before transitioning to RunningGraphics.
+            extern void FF_SimThreadAcquireGL();
+            extern bool g_simOwnsGLContext;
+            if (!g_simOwnsGLContext)
+            {
+                FF_SimThreadAcquireGL();
+                fprintf(stderr, "[Loop] Acquired GL context (post-switch StartRunningGraphics)\n");
+                fflush(stderr);
+            }
+            fprintf(stderr, "[Loop] Transitioning from StartRunningGraphics to RunningGraphics (post-switch)\n");
             fflush(stderr);
             currentMode = RunningGraphics;
         }
 #endif
     }
     while (1);
+
+#ifdef FF_LINUX
+    // Release GL context when Loop thread exits (StoppingSim break).
+    // This allows the StartLoop thread to re-acquire it for cleanup.
+    {
+        extern void FF_SimThreadReleaseGL();
+        extern bool g_simOwnsGLContext;
+        if (g_simOwnsGLContext)
+        {
+            fprintf(stderr, "[Loop] Releasing GL context on Loop thread exit\n"); fflush(stderr);
+            FF_SimThreadReleaseGL();
+        }
+    }
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1133,6 +1233,9 @@ void SimulationLoopControl::StartLoop(void)
             // Render the first frame to get all requisit data into the IO queue
             //MonoPrint("Done deaggregating. Remaining entities: %d.\n",gLeftToDeaggregate);
 
+#ifdef FF_LINUX
+            fprintf(stderr, "[StartLoop] Entering CampCriticalSection...\n"); fflush(stderr);
+#endif
             // We need to ensure the display list and drawable stuff isn't touched while we're rendering...
             CampEnterCriticalSection();
             /*
@@ -1153,7 +1256,9 @@ void SimulationLoopControl::StartLoop(void)
             */
             CampLeaveCriticalSection();
 
-
+#ifdef FF_LINUX
+            fprintf(stderr, "[StartLoop] CampCriticalSection released, calling SplashScreenUpdate(3)...\n"); fflush(stderr);
+#endif
             OTWDriver.SplashScreenUpdate(3);
 
             ///////////////////////////////////////////////////////////////////////////////
@@ -1190,8 +1295,13 @@ void SimulationLoopControl::StartLoop(void)
              }
             */
             // Ok, so this is hacky.. KCK
+#ifdef FF_LINUX
+            fprintf(stderr, "[StartLoop] Calling FixupGroundHeights()...\n"); fflush(stderr);
+#endif
             FixupGroundHeights();
-
+#ifdef FF_LINUX
+            fprintf(stderr, "[StartLoop] FixupGroundHeights() done, calling SplashScreenUpdate(4)...\n"); fflush(stderr);
+#endif
             OTWDriver.SplashScreenUpdate(4);
 
             ///////////////////////////////////////////////////////////////////////////////
@@ -1214,8 +1324,14 @@ void SimulationLoopControl::StartLoop(void)
             // Go ahead and start rendering frames
             InitializeStatistics();
 #endif
+#ifdef FF_LINUX
+            fprintf(stderr, "[StartLoop] Calling CleanupSplashScreen()...\n"); fflush(stderr);
+#endif
             // stop and cleanup splash screen
             OTWDriver.CleanupSplashScreen();
+#ifdef FF_LINUX
+            fprintf(stderr, "[StartLoop] CleanupSplashScreen() done\n"); fflush(stderr);
+#endif
 
             //TheLoader.WaitLoader();
 
@@ -1229,8 +1345,14 @@ void SimulationLoopControl::StartLoop(void)
                 GameManager.ReleasePlayer(FalconLocalSession);
             }
 
+#ifdef FF_LINUX
+            fprintf(stderr, "[StartLoop] Calling RenderFirstFrame()...\n"); fflush(stderr);
+#endif
             //sfr: im leaving only this one
             OTWDriver.RenderFirstFrame();
+#ifdef FF_LINUX
+            fprintf(stderr, "[StartLoop] RenderFirstFrame() done\n"); fflush(stderr);
+#endif
 
             /*delayCounter = 20;
             // Delay to make the Loader working
@@ -1243,6 +1365,14 @@ void SimulationLoopControl::StartLoop(void)
             g_intellivibeData.IsEndFlight = false;
 
 #ifdef FF_LINUX
+            fprintf(stderr, "[StartLoop] Releasing GL context before handing off to Loop thread (tid=%ld)\n", (long)pthread_self()); fflush(stderr);
+            // Release the GL context so the Loop thread (which runs OTWDriver.Cycle()) can acquire it.
+            // On Windows, D3D devices are not thread-bound, but OpenGL contexts ARE thread-bound.
+            // The Loop thread is a different thread from StartLoop and needs the GL context for rendering.
+            {
+                extern void FF_SimThreadReleaseGL();
+                FF_SimThreadReleaseGL();
+            }
             fprintf(stderr, "[StartLoop] Setting currentMode = StartRunningGraphics\n"); fflush(stderr);
 #endif
             currentMode = StartRunningGraphics;
@@ -1260,6 +1390,16 @@ void SimulationLoopControl::StartLoop(void)
             ///////////////////////////////////////////////////////////////////////////////
 
             WaitForSingleObject(wait_for_stop_graphics, 0xFFFFFFFF);
+
+#ifdef FF_LINUX
+            // Re-acquire the GL context for cleanup operations (Reset3DParameters, ShowSimpleWaitScreen).
+            // The Loop thread released it when it transitioned out of RunningGraphics mode.
+            {
+                extern void FF_SimThreadAcquireGL();
+                FF_SimThreadAcquireGL();
+                fprintf(stderr, "[StartLoop] Re-acquired GL context for cleanup\n"); fflush(stderr);
+            }
+#endif
 
             // Reset any remaining parameter like NVG, TV Mode and so...
             OTWDriver.Reset3DParameters();

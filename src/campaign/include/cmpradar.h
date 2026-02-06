@@ -1,7 +1,7 @@
 #ifndef CMPRADAR_H
 #define CMPRADAR_H
 
-#include "SIM/INCLUDE/phyconst.h"
+#include "sim/include/phyconst.h"
 
 // KCK: This class in placeholder until I get around to actually coding this stuff
 

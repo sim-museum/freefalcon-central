@@ -16,6 +16,11 @@
 #include "../../falclib/include/Fakerand.h"
 #include "../../include/comsup.h"
 
+#ifdef FF_LINUX
+#include "ffviper/ff_linux_debug.h"
+extern unsigned long g_RenderFrameCount;
+#endif
+
 // This variable is the Model ID presently under draw
 DWORD gDebugLodID;
 
@@ -2060,12 +2065,23 @@ extern DWORD LODsLoaded;
 void CDXEngine::FlushBuffers(void)
 {
 #ifdef FF_LINUX
+    static int flushCount = 0;
+    flushCount++;
+    if (flushCount <= 5 || flushCount % 300 == 0) {
+        fprintf(stderr, "[D3D_DIAG] CDXEngine::FlushBuffers #%d ENTER (m_pD3DD=%p, DxEngineStateHandle=%lu)\n",
+                flushCount, (void*)m_pD3DD, (unsigned long)DxEngineStateHandle);
+        fflush(stderr);
+    }
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine::FlushBuffers ENTER\n");
+    FF_DEBUG_RENDER_FLUSH();
     // FF_LINUX: Safety check for NULL D3D device
     if (m_pD3DD == NULL) {
+        FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine::FlushBuffers EXIT (m_pD3DD NULL)\n");
         return;
     }
     // FF_LINUX: Check if DxEngineStateHandle is valid
     if (DxEngineStateHandle == 0) {
+        FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine::FlushBuffers EXIT (DxEngineStateHandle 0)\n");
         return;
     }
 #endif
@@ -2080,6 +2096,9 @@ void CDXEngine::FlushBuffers(void)
 
     // First of all save present renderer State
     DWORD StateHandle;
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: CreateStateBlock\n");
+#endif
     CheckHR(m_pD3DD->CreateStateBlock(D3DSBT_ALL, &StateHandle));
 
     // Setup the state for the DX engine
@@ -2097,6 +2116,9 @@ void CDXEngine::FlushBuffers(void)
     m_pD3DD->SetRenderState(D3DRENDERSTATE_CLIPPING, FALSE);
 
     // Initialize data parameters
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: FlushInit\n");
+#endif
     FlushInit();
 
 #ifndef DEBUG_ENGINE
@@ -2134,19 +2156,34 @@ void CDXEngine::FlushBuffers(void)
     LOCK_VB_MANAGER;
 
     // Start resetting Draw Pointers
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: ResetDrawList\n");
+#endif
     TheVbManager.ResetDrawList();
 
     // Flush all cached VB objects
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: FlushObjects/Blips (RenderState=%d)\n", m_RenderState);
+#endif
     if (m_RenderState == DX_DBS) FlushBlips();
     else FlushObjects();
 
     // Draw the Solid Surfaces
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: DrawSolidSurfaces\n");
+#endif
     DrawSolidSurfaces();
 
     // Flush Dynamic Buffers bitand sorted objects
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: FlushDynamicObjects\n");
+#endif
     FlushDynamicObjects();
 
     //Reset Features
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: ResetFeatures\n");
+#endif
     ResetFeatures();
 
     // Setup VB draw list for a new round
@@ -2157,12 +2194,19 @@ void CDXEngine::FlushBuffers(void)
     UNLOCK_VB_MANAGER;
 
     // Restore Previous State Block and delete it from memory
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: Restoring StateBlock\n");
+#endif
     CheckHR(m_pD3DD->ApplyStateBlock(StateHandle));
     CheckHR(m_pD3DD->DeleteStateBlock(StateHandle));
 
     gDebugLodID = -1;
     m_AlphaStack.StackLevel = 0;
 
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine::FlushBuffers EXIT\n");
+    FF_DEBUG_RENDER_FLUSH();
+#endif
 }
 
 

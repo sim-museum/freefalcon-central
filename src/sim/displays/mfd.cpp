@@ -2,18 +2,18 @@
 #include "mfd.h"
 #include "hud.h"
 #include "sms.h"
-#include "SmsDraw.h"
+#include "smsdraw.h"
 #include "airframe.h"
 #include "Aircrft.h"
 #include "missile.h"
 #include "radar.h"
-#include "PlayerRwr.h"
+#include "playerrwr.h"
 #include "fcc.h"
 #include "otwdrive.h"
 #include "playerop.h"
-#include "Graphics/Include/render2d.h"
-#include "Graphics/Include/canvas3d.h"
-#include "Graphics/Include/tviewpnt.h"
+#include "graphics/include/render2d.h"
+#include "graphics/include/canvas3d.h"
+#include "graphics/include/tviewpnt.h"
 #include "dispcfg.h"
 #include "simdrive.h"
 #include "camp2sim.h"
@@ -29,10 +29,10 @@
 #include "radardoppler.h" //MI
 #include "object.h"
 #include "popmenu.h" // a.s. begin
-#include "Graphics/Include/renderow.h"  // a.s.
-#include "Graphics/Include/grinline.h" // a.s. end
+#include "graphics/include/renderow.h"  // a.s.
+#include "graphics/include/grinline.h" // a.s. end
 
-#include "flightData.h" // MD -- 20040727
+#include "flightdata.h" // MD -- 20040727
 
 //MI
 void DrawBullseyeCircle(VirtualDisplay* display, float cursorX, float cursorY);

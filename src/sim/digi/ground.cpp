@@ -5,7 +5,7 @@
 #include "simbase.h"
 #include "airframe.h"
 #include "Aircrft.h"
-#include "Graphics/Include/tmap.h"
+#include "graphics/include/tmap.h"
 
 #include "limiters.h"
 

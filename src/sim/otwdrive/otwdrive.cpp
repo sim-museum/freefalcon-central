@@ -2073,6 +2073,12 @@ void OTWDriverClass::Enter(void)
     DeviceDependentGraphicsSetup(&FalconDisplay.theDisplayDevice);
     //   MonoPrint("Done with DeviceDependentGraphicsSetup... %d\n",vuxRealTime);
 
+#ifdef FF_LINUX
+    // FF_LINUX: Retry texture creation for entries that were loaded by the Loader
+    // thread before DeviceDependentGraphicsSetup set the DXContext (rc).
+    TheTextureBank.RestoreAll();
+#endif
+
     // Prep popups
     for (i = 0; i < NumPopups; i++)
         popupHas[i] = -1;
@@ -2194,6 +2200,7 @@ void OTWDriverClass::Enter(void)
     viewPos.z     = -15000.0F;
     fprintf(stderr, "[OTWDriver.Enter] View state initialized\n"); fflush(stderr);
 
+    fprintf(stderr, "[OTWDriver.Enter] FindCockpit ckpit_res.dat...\n"); fflush(stderr);
     // Initialize the cockpit manager for the 2D cockpit
     ////////////////////////////////////////////////////////////////////////////////
     //Wombat778 4-15-04 Notes
@@ -2263,6 +2270,7 @@ void OTWDriverClass::Enter(void)
         fclose(pcockpitResFile);
     }
 
+    fprintf(stderr, "[OTWDriver.Enter] Creating CockpitManager (resX=%d, resY=%d)...\n", resX, resY); fflush(stderr);
     if (resX > 0 and resY > 0)
     {
         pCockpitManager = new CockpitManager(OTWImage, "ws_ckpit.dat", TRUE, (float)DisplayOptions.DispWidth / float(resX), DisplayOptions.DispHeight / float(resY), FALSE, eCPVisType, eCPName, eCPNameNCTR);
@@ -2431,6 +2439,7 @@ void OTWDriverClass::Enter(void)
         }
     }
 
+    fprintf(stderr, "[OTWDriver.Enter] CockpitManager created, creating MenuManager...\n"); fflush(stderr);
     pMenuManager = new MenuManager(DisplayOptions.DispWidth, DisplayOptions.DispHeight);
 
     TheHud = new HudClass;
@@ -2459,6 +2468,7 @@ void OTWDriverClass::Enter(void)
     VirtualMFD[4].bottom = MfdSize - 1;
 
     // RED - Create the drawables shared by the MFDs
+    fprintf(stderr, "[OTWDriver.Enter] MFD CreateDrawables...\n"); fflush(stderr);
     MFDClass::CreateDrawables();
 
     for (i = 0; i < NUM_MFDS; i++)
@@ -2474,7 +2484,9 @@ void OTWDriverClass::Enter(void)
     MfdDisplay[1]->SetNewMode(MFDClass::MfdMenu);
 
     //   MonoPrint("Initializing DrawableBSPs.. %d\n",vuxRealTime);
+    fprintf(stderr, "[OTWDriver.Enter] CreateCockpitGeometry...\n"); fflush(stderr);
     CreateCockpitGeometry(&vrCockpit, vrCockpitModel[0], vrCockpitModel[1]);
+    fprintf(stderr, "[OTWDriver.Enter] CreateCockpitGeometry done\n"); fflush(stderr);
 
     /*if(renderer->GetAlphaMode())*/
     vrCockpit->SetSwitchMask(0, 1);

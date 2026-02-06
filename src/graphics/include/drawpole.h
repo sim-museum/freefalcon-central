@@ -7,7 +7,7 @@
 #ifndef _DRAWPOLE_H_
 #define _DRAWPOLE_H_
 
-#include "DrawBSP.h"
+#include "drawbsp.h"
 
 
 class DrawablePoled : public DrawableBSP

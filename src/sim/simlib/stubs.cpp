@@ -1,6 +1,5 @@
 #include "stdhdr.h"
-#include "Renderer/RenderOW.h"
-#include "3Dlib/3d.h"
+#include "graphics/include/renderow.h"
 #include "f4vu.h"
 
 extern "C"
@@ -26,7 +25,11 @@ int _CrtDbgReport(int reportType, const char *filename, int linenumber, const ch
         }
         else if (choice == IDRETRY)
         {
+#ifdef FF_LINUX
+            __asm__("int $3");
+#else
             __asm int 3
+#endif
         }
     }
 

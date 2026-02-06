@@ -8,7 +8,8 @@
 //#include "shi/shi.h"
 #include "sim/include/stdhdr.h"
 #include "Camplib.h"
-#include "Graphics/Include/Ttypes.h"
+#include "graphics/include/ttypes.h"
+#include <cstdint>  // FF_LINUX: For int32_t in fourbyte typedef
 
 // ----------------
 // Type Definitions
@@ -48,7 +49,7 @@ typedef enum { StatuteMiles, NauticalMiles, Kilometers } DistanceUnitType;
 
 // Define these as needed depending on compiler and machine
 typedef short int       twobyte;
-typedef long  int       fourbyte;
+typedef int32_t         fourbyte;   // FF_LINUX: Use int32_t for 32-bit binary compat with Windows
 typedef double          eightbyte;
 
 typedef enum { GroundAltitude, LowAltitude, MediumAltitude, HighAltitude, VeryHighAltitude } AltitudeLevelType;

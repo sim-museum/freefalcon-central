@@ -5,10 +5,10 @@
 
     This sub class draws an out the window view in wire frame mode.
 \***************************************************************************/
-#include "TOD.h"
+#include "tod.h"
 #include "Tpost.h"
-#include "RViewPnt.h"
-#include "RenderWire.h"
+#include "rviewpnt.h"
+#include "renderwire.h"
 
 
 /***************************************************************************\

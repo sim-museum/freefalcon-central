@@ -705,7 +705,8 @@ void O_Output::GetCharXY(short idx, long *cx, long *cy) // Based on cursor locat
 
 void O_Output::Draw(SCREEN *surface, UI95_RECT *cliprect)
 {
-    if ( not Ready()) return;
+    if ( not Ready())
+        return;
 
     switch (_GetOType_())
     {

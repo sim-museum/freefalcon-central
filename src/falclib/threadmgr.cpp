@@ -29,10 +29,18 @@ void ThreadManager::setup()
 
 void ThreadManager::start_campaign_thread(UFUNCTION function)
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[ThreadManager::start_campaign_thread] ENTRY, function=%p\n", (void*)function);
+    fflush(stderr);
+#endif
     ShiAssert(campaign_thread.handle == NULL);
 
     campaign_thread.status or_eq THREAD_STATUS_ACTIVE;
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[ThreadManager::start_campaign_thread] Calling CreateThread...\n");
+    fflush(stderr);
+#endif
     campaign_thread.handle = (HANDLE) CreateThread(
                                  NULL,
                                  0,
@@ -42,9 +50,18 @@ void ThreadManager::start_campaign_thread(UFUNCTION function)
                                  &campaign_thread.id
                              );
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[ThreadManager::start_campaign_thread] CreateThread returned handle=%p\n",
+            (void*)campaign_thread.handle);
+    fflush(stderr);
+#endif
     ShiAssert(campaign_thread.handle);
 
     fast_campaign();
+#ifdef FF_LINUX
+    fprintf(stderr, "[ThreadManager::start_campaign_thread] DONE\n");
+    fflush(stderr);
+#endif
 }
 
 bool ThreadManager::campaign_wait_for_sim(DWORD maxwait)

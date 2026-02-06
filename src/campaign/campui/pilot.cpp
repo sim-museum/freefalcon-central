@@ -195,7 +195,7 @@ int LoadPilotInfo(char* scenario)
     memcpy(CallsignData, data_ptr, sizeof(uchar) * NumCallsigns);
     data_ptr += sizeof(uchar) * NumCallsigns;
 
-    delete cd.data;
+    delete[] cd.data;  // FF_LINUX: Match new[] with delete[]
     return 1;
 }
 

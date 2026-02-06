@@ -11,7 +11,7 @@
 //
 // This file also holds 2 global objects (1 of each class)
 /************************************************************************/
-#include "SimIO.h"
+#include "simio.h"
 #include "mouselook.h"
 
 /************************************************************************/
@@ -134,7 +134,7 @@ MouseView theMouseView;
 /************************************************************************/
 // Class MouseWheelStuff
 // Emulates an absolute physical axis from the mousewheel axis
-// As I can´t set the range of the axis via DX (like I do with 'real' axis)
+// As I canï¿½t set the range of the axis via DX (like I do with 'real' axis)
 // I have to do this manually here.
 // Also, the axis can be either unipolar or bipolar
 /************************************************************************/
@@ -167,9 +167,9 @@ void MouseWheelStuff::AddToAxisValue(long theVal)
     theAxisValue += theVal;
 
     if (isUnipolar)
-        theAxisValue = max(min(theAxisValue, 15000), 0);
+        theAxisValue = max(min(theAxisValue, 15000L), 0L);
     else
-        theAxisValue = max(min(theAxisValue, 10000), -10000);
+        theAxisValue = max(min(theAxisValue, 10000L), -10000L);
 }
 
 /************************************************************************/
@@ -186,8 +186,8 @@ extern float g_fMinimumFOV; // Wombat778 1-15-03
 
 /************************************************************************/
 // reset the value of the axis
-// ) for 'normal' unipolar axis it´s just one axis extreme
-// ) for 'normal' bipolar axis it´s zero
+// ) for 'normal' unipolar axis itï¿½s just one axis extreme
+// ) for 'normal' bipolar axis itï¿½s zero
 // ) for some special axis the value gets computed here. These are axis
 // where default axis values are given (eg FOV min or max would be
 // quite hard on the users so we reset to a middle-ranged default value)

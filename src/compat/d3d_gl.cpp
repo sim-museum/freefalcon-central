@@ -515,8 +515,17 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_GetRenderTarget(IDirect3DDevice7* This,
     return D3D_OK;
 }
 
+static int g_ClearCallCount = 0;
+static int g_DrawPrimitiveCount = 0;
 static HRESULT STDMETHODCALLTYPE D3D7Dev_Clear(IDirect3DDevice7* This, DWORD dwCount, LPD3DRECT lpRects, DWORD dwFlags, D3DCOLOR dwColor, D3DVALUE dvZ, DWORD dwStencil) {
     D3DGL_LOG("Clear flags=0x%x color=0x%x", dwFlags, dwColor);
+    g_ClearCallCount++;
+    if (g_ClearCallCount <= 20) {
+        fprintf(stderr, "[D3D_DIAG] Clear #%d: flags=0x%x color=0x%08X (A=%d R=%d G=%d B=%d)\n",
+                g_ClearCallCount, dwFlags, dwColor,
+                (dwColor >> 24) & 0xFF, (dwColor >> 16) & 0xFF,
+                (dwColor >> 8) & 0xFF, dwColor & 0xFF);
+    }
 
     GLbitfield clearMask = 0;
 
@@ -612,12 +621,14 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetViewport(IDirect3DDevice7* This, LPD
 
     if (!lpViewport) return DDERR_INVALIDPARAMS;
 
-    // FF_LINUX: Check if OpenGL context is valid before making GL calls
+    // FF_LINUX: Only make GL calls if context is current on this thread.
+    // Do NOT call SDL_GL_MakeCurrent here - it would steal the context from the sim thread.
     extern SDL_GLContext g_GLContext;
     extern SDL_Window* g_SDLWindow;
-    if (g_GLContext && g_SDLWindow) {
-        // Make sure GL context is current on this thread
-        SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
+    if (!g_GLContext || !SDL_GL_GetCurrentContext()) {
+        // No GL context at all - just store the viewport data, skip GL calls
+        memcpy(&dev->viewport, lpViewport, sizeof(D3DVIEWPORT7));
+        return D3D_OK;
     }
 
     memcpy(&dev->viewport, lpViewport, sizeof(D3DVIEWPORT7));
@@ -786,6 +797,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitive(IDirect3DDevice7* This, D
     D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("DrawPrimitive type=%d fvf=0x%x count=%d", dptPrimitiveType, dwVertexTypeDesc, dwVertexCount);
 
+    g_DrawPrimitiveCount++;
     dev->DrawVertices(dptPrimitiveType, dwVertexTypeDesc, lpvVertices, dwVertexCount);
     return D3D_OK;
 }
@@ -794,10 +806,32 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
     D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("DrawIndexedPrimitive type=%d count=%d", dptPrimitiveType, dwIndexCount);
 
+    // FF_LINUX: Use the correct DrawVertices which handles XYZRHW and attribute ordering properly
+    // Build a temporary contiguous vertex array from the indexed vertices
     int vertexSize = GetVertexSize(dwVertexTypeDesc);
+
+    // For indexed draws, delegate to DrawVertices one primitive at a time via the index buffer
+    bool isXYZRHW = (dwVertexTypeDesc & D3DFVF_XYZRHW) != 0;
     GLenum primType = dev->GetGLPrimitiveType(dptPrimitiveType);
 
-    dev->SetupVertexFormat(dwVertexTypeDesc);
+    // FF_LINUX: Save GL state that XYZRHW handling will modify
+    GLboolean prevDIP_DepthTest = GL_FALSE, prevDIP_Lighting = GL_FALSE, prevDIP_Fog = GL_FALSE;
+    if (isXYZRHW) {
+        prevDIP_DepthTest = glIsEnabled(GL_DEPTH_TEST);
+        prevDIP_Lighting = glIsEnabled(GL_LIGHTING);
+        prevDIP_Fog = glIsEnabled(GL_FOG);
+
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0, dev->viewport.dwWidth, dev->viewport.dwHeight, 0, 0, 1);
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_LIGHTING);
+        glDisable(GL_FOG);
+    }
 
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
@@ -806,15 +840,21 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
 
         int offset = 0;
 
-        // Position
-        if (dwVertexTypeDesc & D3DFVF_XYZ) {
-            const float* pos = (const float*)(vertex + offset);
-            glVertex3fv(pos);
-            offset += 3 * sizeof(float);
-        } else if (dwVertexTypeDesc & D3DFVF_XYZRHW) {
-            const float* pos = (const float*)(vertex + offset);
-            glVertex4fv(pos);
-            offset += 4 * sizeof(float);
+        // Calculate position size
+        int posSize = 0;
+        if (dwVertexTypeDesc & D3DFVF_XYZ) posSize = 3 * sizeof(float);
+        else if (dwVertexTypeDesc & D3DFVF_XYZRHW) posSize = 4 * sizeof(float);
+        offset = posSize;
+
+        // Texture coords (must be set BEFORE glVertex in GL immediate mode)
+        int texOffset = posSize;
+        if (dwVertexTypeDesc & D3DFVF_NORMAL) texOffset += 3 * sizeof(float);
+        if (dwVertexTypeDesc & D3DFVF_DIFFUSE) texOffset += sizeof(DWORD);
+        if (dwVertexTypeDesc & D3DFVF_SPECULAR) texOffset += sizeof(DWORD);
+        int texCount = (dwVertexTypeDesc & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+        if (texCount > 0) {
+            const float* tc = (const float*)(vertex + texOffset);
+            glTexCoord2fv(tc);
         }
 
         // Normal
@@ -833,19 +873,27 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
             offset += sizeof(DWORD);
         }
 
-        // Specular
-        if (dwVertexTypeDesc & D3DFVF_SPECULAR) {
-            offset += sizeof(DWORD);
-        }
-
-        // Texture coords
-        int texCount = (dwVertexTypeDesc & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
-        if (texCount > 0) {
-            const float* tc = (const float*)(vertex + offset);
-            glTexCoord2fv(tc);
+        // Position (MUST be last in GL immediate mode - triggers vertex submission)
+        if (dwVertexTypeDesc & D3DFVF_XYZ) {
+            const float* pos = (const float*)vertex;
+            glVertex3fv(pos);
+        } else if (dwVertexTypeDesc & D3DFVF_XYZRHW) {
+            const float* pos = (const float*)vertex;
+            glVertex3f(pos[0], pos[1], pos[2]);
         }
     }
     glEnd();
+
+    if (isXYZRHW) {
+        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+        // Restore previous state
+        if (prevDIP_DepthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+        if (prevDIP_Lighting) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
+        if (prevDIP_Fog) glEnable(GL_FOG); else glDisable(GL_FOG);
+    }
 
     return D3D_OK;
 }
@@ -869,6 +917,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveStrided(IDirect3DDe
 }
 
 static int g_DrawPrimitiveVBCount = 0;
+static int g_DrawIdxPrimVBCount = 0;
 
 static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitiveVB(IDirect3DDevice7* This, D3DPRIMITIVETYPE dptPrimitiveType, LPDIRECT3DVERTEXBUFFER7 lpd3dVertexBuffer, DWORD dwStartVertex, DWORD dwNumVertices, DWORD dwFlags) {
     D3D7Device* dev = (D3D7Device*)This;
@@ -882,15 +931,24 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitiveVB(IDirect3DDevice7* This,
 
     // FF_LINUX: Debug output for first few draw calls
     g_DrawPrimitiveVBCount++;
-    if (g_DrawPrimitiveVBCount <= 10) {
+    if (g_DrawPrimitiveVBCount <= 20) {
         bool isXYZRHW = (vb->desc.dwFVF & D3DFVF_XYZRHW) != 0;
         fprintf(stderr, "[DrawPrimitiveVB] #%d: type=%d count=%u fvf=0x%x isXYZRHW=%d viewport=%dx%d\n",
                 g_DrawPrimitiveVBCount, dptPrimitiveType, dwNumVertices, vb->desc.dwFVF,
                 isXYZRHW, dev->viewport.dwWidth, dev->viewport.dwHeight);
-        // Log first vertex position
-        if (dwNumVertices > 0) {
-            const float* pos = (const float*)startVertex;
-            fprintf(stderr, "  first vertex: %.2f, %.2f, %.2f\n", pos[0], pos[1], pos[2]);
+        // Log first few vertex positions and colors
+        int numToLog = (dwNumVertices < 4) ? dwNumVertices : 4;
+        for (int vi = 0; vi < numToLog; vi++) {
+            const char* v = (const char*)startVertex + vi * vertexSize;
+            const float* pos = (const float*)v;
+            if (isXYZRHW) {
+                // XYZRHW: x, y, z, w, then color
+                DWORD color = *(const DWORD*)(v + 4 * sizeof(float));
+                fprintf(stderr, "  v[%d]: pos=(%.1f, %.1f, %.1f, %.4f) color=0x%08X\n",
+                        vi, pos[0], pos[1], pos[2], pos[3], color);
+            } else {
+                fprintf(stderr, "  v[%d]: pos=(%.1f, %.1f, %.1f)\n", vi, pos[0], pos[1], pos[2]);
+            }
         }
         fflush(stderr);
     }
@@ -906,38 +964,179 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
 
     if (!vb || !vb->data) return DDERR_INVALIDPARAMS;
 
-    int vertexSize = GetVertexSize(vb->desc.dwFVF);
+    DWORD fvf = vb->desc.dwFVF;
+    int vertexSize = GetVertexSize(fvf);
     GLenum primType = dev->GetGLPrimitiveType(dptPrimitiveType);
+    bool isXYZRHW = (fvf & D3DFVF_XYZRHW) != 0;
 
-    dev->SetupVertexFormat(vb->desc.dwFVF);
+    // FF_LINUX: Track DrawIndexedPrimitiveVB calls
+    g_DrawIdxPrimVBCount++;
+    // FF_LINUX: Comprehensive terrain state dump for first few non-RHW draws
+    if (g_DrawIdxPrimVBCount <= 5) {
+        int enabledLights = 0;
+        for (int li = 0; li < 8; li++) {
+            if (glIsEnabled(GL_LIGHT0 + li)) enabledLights++;
+        }
+        GLboolean litOn = glIsEnabled(GL_LIGHTING);
+        GLboolean texOn = glIsEnabled(GL_TEXTURE_2D);
+        GLboolean depthOn = glIsEnabled(GL_DEPTH_TEST);
+        GLboolean fogOn = glIsEnabled(GL_FOG);
+        GLboolean cullOn = glIsEnabled(GL_CULL_FACE);
+        GLint boundTex = 0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTex);
+        GLint frontFace = 0;
+        glGetIntegerv(GL_FRONT_FACE, &frontFace);
+        const float* firstVert = (const float*)((const char*)vb->data + dwStartVertex * vertexSize);
+        fprintf(stderr, "[D3D_DIAG] DrawIdxPrimVB #%d: fvf=0x%x isRHW=%d verts=%u idxCount=%u primType=%d | "
+                "lit=%d lights=%d tex2D=%d boundTex=%d depth=%d fog=%d cull=%d frontFace=0x%x | "
+                "firstVert=(%.1f,%.1f,%.1f) viewport=%ux%u+%u+%u\n",
+                g_DrawIdxPrimVBCount, fvf, isXYZRHW, dwNumVertices, dwIndexCount, dptPrimitiveType,
+                litOn, enabledLights, texOn, boundTex, depthOn, fogOn, cullOn, frontFace,
+                firstVert[0], firstVert[1], firstVert[2],
+                dev->viewport.dwWidth, dev->viewport.dwHeight,
+                dev->viewport.dwX, dev->viewport.dwY);
+        fflush(stderr);
+
+        // Dump first terrain draw's full state
+        if (g_DrawIdxPrimVBCount == 3 && !isXYZRHW) {
+            // Dump matrices
+            float mvMat[16], projMat[16];
+            glGetFloatv(GL_MODELVIEW_MATRIX, mvMat);
+            glGetFloatv(GL_PROJECTION_MATRIX, projMat);
+            fprintf(stderr, "[D3D_DIAG] PROJ matrix (GL column-major):\n");
+            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", projMat[0], projMat[4], projMat[8], projMat[12]);
+            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", projMat[1], projMat[5], projMat[9], projMat[13]);
+            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", projMat[2], projMat[6], projMat[10], projMat[14]);
+            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", projMat[3], projMat[7], projMat[11], projMat[15]);
+            fprintf(stderr, "[D3D_DIAG] MV matrix (GL column-major):\n");
+            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", mvMat[0], mvMat[4], mvMat[8], mvMat[12]);
+            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", mvMat[1], mvMat[5], mvMat[9], mvMat[13]);
+            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", mvMat[2], mvMat[6], mvMat[10], mvMat[14]);
+            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", mvMat[3], mvMat[7], mvMat[11], mvMat[15]);
+
+            // Dump light 0 and light 1 params
+            for (int lightIdx = 0; lightIdx < 2; lightIdx++) {
+                GLenum light = GL_LIGHT0 + lightIdx;
+                float amb[4], diff[4], spec[4], pos[4];
+                glGetLightfv(light, GL_AMBIENT, amb);
+                glGetLightfv(light, GL_DIFFUSE, diff);
+                glGetLightfv(light, GL_SPECULAR, spec);
+                glGetLightfv(light, GL_POSITION, pos);
+                fprintf(stderr, "[D3D_DIAG] LIGHT%d: enabled=%d amb=(%.2f,%.2f,%.2f) diff=(%.2f,%.2f,%.2f) "
+                        "spec=(%.2f,%.2f,%.2f) pos=(%.2f,%.2f,%.2f,%.2f)\n",
+                        lightIdx, glIsEnabled(light),
+                        amb[0], amb[1], amb[2], diff[0], diff[1], diff[2],
+                        spec[0], spec[1], spec[2], pos[0], pos[1], pos[2], pos[3]);
+            }
+
+            // Dump material
+            float matAmb[4], matDiff[4], matSpec[4], matEmit[4];
+            glGetMaterialfv(GL_FRONT, GL_AMBIENT, matAmb);
+            glGetMaterialfv(GL_FRONT, GL_DIFFUSE, matDiff);
+            glGetMaterialfv(GL_FRONT, GL_SPECULAR, matSpec);
+            glGetMaterialfv(GL_FRONT, GL_EMISSION, matEmit);
+            fprintf(stderr, "[D3D_DIAG] MATERIAL: amb=(%.2f,%.2f,%.2f) diff=(%.2f,%.2f,%.2f) "
+                    "spec=(%.2f,%.2f,%.2f) emit=(%.2f,%.2f,%.2f)\n",
+                    matAmb[0], matAmb[1], matAmb[2], matDiff[0], matDiff[1], matDiff[2],
+                    matSpec[0], matSpec[1], matSpec[2], matEmit[0], matEmit[1], matEmit[2]);
+
+            // Dump first 3 vertex diffuse colors
+            int posSize2 = (fvf & D3DFVF_XYZ) ? 12 : 16;
+            int diffOffset = posSize2;
+            if (fvf & D3DFVF_NORMAL) diffOffset += 12;
+            if (fvf & D3DFVF_DIFFUSE) {
+                for (int vi = 0; vi < 3 && vi < (int)dwNumVertices; vi++) {
+                    WORD idx = lpwIndices[vi] + dwStartVertex;
+                    const char* v = (const char*)vb->data + idx * vertexSize;
+                    DWORD dc = *(const DWORD*)(v + diffOffset);
+                    fprintf(stderr, "[D3D_DIAG] vertex[%d] diffuse=0x%08X (A=%d R=%d G=%d B=%d)\n",
+                            vi, dc, (dc>>24)&0xFF, (dc>>16)&0xFF, (dc>>8)&0xFF, dc&0xFF);
+                }
+            }
+
+            // Transform first vertex through matrices to find screen position
+            float vx = firstVert[0], vy = firstVert[1], vz = firstVert[2];
+            // eye = MV * vert
+            float ex = mvMat[0]*vx + mvMat[4]*vy + mvMat[8]*vz + mvMat[12];
+            float ey = mvMat[1]*vx + mvMat[5]*vy + mvMat[9]*vz + mvMat[13];
+            float ez = mvMat[2]*vx + mvMat[6]*vy + mvMat[10]*vz + mvMat[14];
+            float ew = mvMat[3]*vx + mvMat[7]*vy + mvMat[11]*vz + mvMat[15];
+            // clip = PROJ * eye
+            float cx = projMat[0]*ex + projMat[4]*ey + projMat[8]*ez + projMat[12]*ew;
+            float cy = projMat[1]*ex + projMat[5]*ey + projMat[9]*ez + projMat[13]*ew;
+            float cz = projMat[2]*ex + projMat[6]*ey + projMat[10]*ez + projMat[14]*ew;
+            float cw = projMat[3]*ex + projMat[7]*ey + projMat[11]*ez + projMat[15]*ew;
+            // NDC
+            float nx = (cw != 0) ? cx/cw : 0;
+            float ny = (cw != 0) ? cy/cw : 0;
+            float nz = (cw != 0) ? cz/cw : 0;
+            // Screen
+            float sx = (nx * 0.5f + 0.5f) * dev->viewport.dwWidth + dev->viewport.dwX;
+            float sy = (1.0f - (ny * 0.5f + 0.5f)) * dev->viewport.dwHeight + dev->viewport.dwY;
+            fprintf(stderr, "[D3D_DIAG] vertex[0] transform: model=(%.1f,%.1f,%.1f) "
+                    "eye=(%.1f,%.1f,%.1f,%.1f) clip=(%.1f,%.1f,%.1f,%.1f) ndc=(%.3f,%.3f,%.3f) "
+                    "screen=(%.0f,%.0f)\n",
+                    vx, vy, vz, ex, ey, ez, ew, cx, cy, cz, cw, nx, ny, nz, sx, sy);
+            fflush(stderr);
+        }
+    }
+
+    // FF_LINUX: Save and set up orthographic projection for XYZRHW vertices
+    GLboolean prevDepthTest2 = GL_FALSE, prevLighting2 = GL_FALSE, prevFog2 = GL_FALSE;
+    if (isXYZRHW) {
+        prevDepthTest2 = glIsEnabled(GL_DEPTH_TEST);
+        prevLighting2 = glIsEnabled(GL_LIGHTING);
+        prevFog2 = glIsEnabled(GL_FOG);
+
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0, dev->viewport.dwWidth, dev->viewport.dwHeight, 0, 0, 1);
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_LIGHTING);
+        glDisable(GL_FOG);
+    }
+
+    // Calculate position size for offset computation
+    int posSize = 0;
+    if (fvf & D3DFVF_XYZ) posSize = 3 * sizeof(float);
+    else if (fvf & D3DFVF_XYZRHW) posSize = 4 * sizeof(float);
+
+    // Calculate texture coordinate offset
+    int texOffset = posSize;
+    if (fvf & D3DFVF_NORMAL) texOffset += 3 * sizeof(float);
+    if (fvf & D3DFVF_DIFFUSE) texOffset += sizeof(DWORD);
+    if (fvf & D3DFVF_SPECULAR) texOffset += sizeof(DWORD);
+    int texCount = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
 
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
         WORD idx = lpwIndices[i] + dwStartVertex;
         const char* vertex = (const char*)vb->data + idx * vertexSize;
 
-        int offset = 0;
+        int offset = posSize;
 
-        // Position
-        if (vb->desc.dwFVF & D3DFVF_XYZ) {
-            const float* pos = (const float*)(vertex + offset);
-            glVertex3fv(pos);
-            offset += 3 * sizeof(float);
-        } else if (vb->desc.dwFVF & D3DFVF_XYZRHW) {
-            const float* pos = (const float*)(vertex + offset);
-            glVertex4fv(pos);
-            offset += 4 * sizeof(float);
+        // FF_LINUX: In GL immediate mode, glVertex* MUST be called LAST.
+        // Set all other attributes first.
+
+        // Texture coords first
+        if (texCount > 0) {
+            const float* tc = (const float*)(vertex + texOffset);
+            glTexCoord2fv(tc);
         }
 
         // Normal
-        if (vb->desc.dwFVF & D3DFVF_NORMAL) {
+        if (fvf & D3DFVF_NORMAL) {
             const float* norm = (const float*)(vertex + offset);
             glNormal3fv(norm);
             offset += 3 * sizeof(float);
         }
 
         // Diffuse color
-        if (vb->desc.dwFVF & D3DFVF_DIFFUSE) {
+        if (fvf & D3DFVF_DIFFUSE) {
             DWORD color = *(const DWORD*)(vertex + offset);
             float r, g, b, a;
             D3DColorToGL(color, &r, &g, &b, &a);
@@ -945,19 +1144,27 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             offset += sizeof(DWORD);
         }
 
-        // Specular
-        if (vb->desc.dwFVF & D3DFVF_SPECULAR) {
-            offset += sizeof(DWORD);
-        }
-
-        // Texture coords
-        int texCount = (vb->desc.dwFVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
-        if (texCount > 0) {
-            const float* tc = (const float*)(vertex + offset);
-            glTexCoord2fv(tc);
+        // Position (MUST be last - triggers vertex submission)
+        if (fvf & D3DFVF_XYZ) {
+            const float* pos = (const float*)vertex;
+            glVertex3fv(pos);
+        } else if (isXYZRHW) {
+            const float* pos = (const float*)vertex;
+            glVertex3f(pos[0], pos[1], pos[2]);
         }
     }
     glEnd();
+
+    if (isXYZRHW) {
+        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+        // Restore previous state
+        if (prevDepthTest2) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+        if (prevLighting2) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
+        if (prevFog2) glEnable(GL_FOG); else glDisable(GL_FOG);
+    }
 
     return D3D_OK;
 }
@@ -980,9 +1187,33 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_GetTexture(IDirect3DDevice7* This, DWOR
     return D3D_OK;
 }
 
+static int g_SetTextureCount = 0;
+static int g_SetTextureWithData = 0;
 static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWORD dwStage, LPDIRECTDRAWSURFACE7 lpTexture) {
     D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("SetTexture stage=%d tex=%p", dwStage, lpTexture);
+    g_SetTextureCount++;
+    if (lpTexture) {
+        D3D7Surface* s = (D3D7Surface*)lpTexture;
+        if (s->pixelData) g_SetTextureWithData++;
+        // Log first 3 SetTexture calls per frame (counters reset at flip)
+        if (g_SetTextureCount <= 3) {
+            // Sample first few pixels to check if texture has real data
+            unsigned char* px = (unsigned char*)s->pixelData;
+            int bpp = s->pixelFormat.dwRGBBitCount ? s->pixelFormat.dwRGBBitCount / 8 : 4;
+            int nonZero = 0;
+            if (px && s->width > 0) {
+                for (int i = 0; i < 64 && i < s->width * bpp; i++) {
+                    if (px[i] != 0) nonZero++;
+                }
+            }
+            fprintf(stderr, "[D3D_DIAG] SetTexture #%d: stage=%d glTex=%u %dx%d bpp=%d dirty=%d hasPixels=%d nonZeroFirst64=%d\n",
+                    g_SetTextureCount, dwStage, s->glTexture, s->width, s->height, bpp*8,
+                    s->isDirty, s->pixelData ? 1 : 0, nonZero);
+        }
+    } else if (g_SetTextureCount <= 3) {
+        fprintf(stderr, "[D3D_DIAG] SetTexture #%d: stage=%d tex=NULL\n", g_SetTextureCount, dwStage);
+    }
 
     if (dwStage >= MAX_TEXTURE_STAGES) return DDERR_INVALIDPARAMS;
 
@@ -992,8 +1223,83 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
     glActiveTexture(GL_TEXTURE0 + dwStage);
     if (lpTexture) {
         D3D7Surface* surf = (D3D7Surface*)lpTexture;
+
+        // FF_LINUX: Lazily create GL texture if it wasn't created yet.
+        // This handles the case where DD7_CreateSurface was called on a thread
+        // without a GL context (the GL calls fail silently, leaving glTexture=0).
+        if (surf->glTexture == 0 && surf->width > 0 && surf->height > 0) {
+            glGenTextures(1, &surf->glTexture);
+            if (surf->glTexture) {
+                glBindTexture(GL_TEXTURE_2D, surf->glTexture);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                surf->isDirty = true;  // Force upload of existing pixel data
+            }
+        }
+
         glBindTexture(GL_TEXTURE_2D, surf->glTexture);
         glEnable(GL_TEXTURE_2D);
+
+        // FF_LINUX: Upload dirty texture data from CPU to GPU
+        // This is critical - without this, textures remain empty (black)
+        if (surf->isDirty && surf->pixelData && surf->width > 0 && surf->height > 0) {
+            int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
+            GLenum format = GL_RGBA;
+            GLenum type = GL_UNSIGNED_BYTE;
+
+            if (bpp == 4) {
+                // 32-bit ARGB (Windows D3D format: 0xAARRGGBB)
+                // OpenGL needs GL_BGRA with GL_UNSIGNED_INT_8_8_8_8_REV for ARGB layout
+                format = GL_BGRA;
+                type = GL_UNSIGNED_INT_8_8_8_8_REV;
+            } else if (bpp == 2) {
+                // 16-bit: check masks to determine format
+                if (surf->pixelFormat.dwRBitMask == 0xF800) {
+                    // RGB565
+                    format = GL_RGB;
+                    type = GL_UNSIGNED_SHORT_5_6_5;
+                } else if (surf->pixelFormat.dwRBitMask == 0x7C00) {
+                    // ARGB1555
+                    format = GL_BGRA;
+                    type = GL_UNSIGNED_SHORT_1_5_5_5_REV;
+                } else if (surf->pixelFormat.dwRBitMask == 0x0F00) {
+                    // ARGB4444
+                    format = GL_BGRA;
+                    type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
+                }
+            }
+
+            // Set pixel row alignment based on pitch
+            int expectedPitch = surf->width * bpp;
+            if (surf->pitch == expectedPitch) {
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            } else {
+                glPixelStorei(GL_UNPACK_ROW_LENGTH, surf->pitch / bpp);
+                glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+            }
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surf->width, surf->height, 0,
+                         format, type, surf->pixelData);
+
+            // FF_LINUX: Check for GL errors after texture upload
+            GLenum texErr = glGetError();
+            if (texErr != GL_NO_ERROR) {
+                static int texErrCount = 0;
+                if (texErrCount++ < 10) {
+                    fprintf(stderr, "[D3D_DIAG] glTexImage2D ERROR: 0x%x for glTex=%u %dx%d bpp=%d format=0x%x type=0x%x\n",
+                            texErr, surf->glTexture, surf->width, surf->height, bpp, format, type);
+                    fflush(stderr);
+                }
+            }
+
+            // Reset pixel store state
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+            glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+            surf->isDirty = false;
+        }
     } else {
         glBindTexture(GL_TEXTURE_2D, 0);
         glDisable(GL_TEXTURE_2D);
@@ -1057,6 +1363,62 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_ApplyStateBlock(IDirect3DDevice7* This,
     // Apply all stored texture stage states
     for (auto& pair : sb.textureStageStates) {
         dev->ApplyTextureStageState(pair.first.first, pair.first.second, pair.second);
+    }
+
+    // FF_LINUX: Also restore lights (missing from original implementation)
+    for (DWORD i = 0; i < MAX_GL_LIGHTS; i++) {
+        // Restore light parameters
+        GLenum glLight = GL_LIGHT0 + i;
+        float ambient[4], diffuse[4], specular[4];
+        D3DColorValueToGL(sb.lights[i].dcvAmbient, ambient);
+        D3DColorValueToGL(sb.lights[i].dcvDiffuse, diffuse);
+        D3DColorValueToGL(sb.lights[i].dcvSpecular, specular);
+        glLightfv(glLight, GL_AMBIENT, ambient);
+        glLightfv(glLight, GL_DIFFUSE, diffuse);
+        glLightfv(glLight, GL_SPECULAR, specular);
+
+        if (sb.lights[i].dltType == D3DLIGHT_DIRECTIONAL) {
+            float dir[4] = { -sb.lights[i].dvDirection.x, -sb.lights[i].dvDirection.y, -sb.lights[i].dvDirection.z, 0.0f };
+            glLightfv(glLight, GL_POSITION, dir);
+        } else if (sb.lights[i].dltType == D3DLIGHT_POINT || sb.lights[i].dltType == D3DLIGHT_SPOT) {
+            float pos[4] = { sb.lights[i].dvPosition.x, sb.lights[i].dvPosition.y, sb.lights[i].dvPosition.z, 1.0f };
+            glLightfv(glLight, GL_POSITION, pos);
+        }
+
+        // Restore light enable state
+        if (sb.lightEnabled[i]) {
+            glEnable(glLight);
+        } else {
+            glDisable(glLight);
+        }
+        memcpy(&dev->lights[i], &sb.lights[i], sizeof(D3DLIGHT7));
+        dev->lightEnabled[i] = sb.lightEnabled[i];
+    }
+
+    // Restore material
+    dev->currentMaterial = sb.material;
+    float matDiffuse[4], matAmbient[4], matSpecular[4], matEmissive[4];
+    D3DColorValueToGL(sb.material.dcvDiffuse, matDiffuse);
+    D3DColorValueToGL(sb.material.dcvAmbient, matAmbient);
+    D3DColorValueToGL(sb.material.dcvSpecular, matSpecular);
+    D3DColorValueToGL(sb.material.dcvEmissive, matEmissive);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, matDiffuse);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, matAmbient);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, matSpecular);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, matEmissive);
+    glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, sb.material.dvPower);
+
+    // Restore transforms
+    dev->projMatrix = sb.projMatrix;
+    dev->viewMatrix = sb.viewMatrix;
+    dev->worldMatrix = sb.worldMatrix;
+    dev->ApplyMatrices();
+
+    // Restore viewport
+    dev->viewport = sb.viewport;
+    if (dev->viewport.dwWidth > 0 && dev->viewport.dwHeight > 0) {
+        glViewport(dev->viewport.dwX, dev->viewport.dwY,
+                   dev->viewport.dwWidth, dev->viewport.dwHeight);
     }
 
     return D3D_OK;
@@ -1432,8 +1794,43 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
         case D3DRENDERSTATE_COLORVERTEX:
             if (value) {
                 glEnable(GL_COLOR_MATERIAL);
+                // Default: vertex color drives ambient and diffuse
+                glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
             } else {
                 glDisable(GL_COLOR_MATERIAL);
+            }
+            break;
+
+        case D3DRENDERSTATE_DIFFUSEMATERIALSOURCE:
+        case D3DRENDERSTATE_AMBIENTMATERIALSOURCE:
+            // D3DMCS_COLOR1 (vertex diffuse) = use vertex color for this property
+            // D3DMCS_COLOR2 (vertex specular) = use specular color
+            // D3DMCS_MATERIAL = use material property
+            // For OpenGL, glColorMaterial controls which property tracks vertex color
+            // The most common combo is DIFFUSE=COLOR1, AMBIENT=COLOR1 → GL_AMBIENT_AND_DIFFUSE
+            if (value == 0 /* D3DMCS_MATERIAL */) {
+                // Material property used, don't track vertex color for this
+                // (We approximate by leaving GL_COLOR_MATERIAL as-is)
+            } else {
+                // Vertex color tracks diffuse+ambient (the common case)
+                glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+            }
+            break;
+
+        case D3DRENDERSTATE_SPECULARMATERIALSOURCE:
+        case D3DRENDERSTATE_EMISSIVEMATERIALSOURCE:
+            // These are harder to map to OpenGL's fixed-function pipeline
+            // glColorMaterial only tracks one pair. The game primarily uses
+            // DIFFUSE+AMBIENT from vertex color, so we accept this limitation.
+            break;
+
+        case D3DRENDERSTATE_ZBIAS:
+            // Map to glPolygonOffset to prevent z-fighting
+            if (value) {
+                glEnable(GL_POLYGON_OFFSET_FILL);
+                glPolygonOffset(0.0f, -(float)value);
+            } else {
+                glDisable(GL_POLYGON_OFFSET_FILL);
             }
             break;
 
@@ -1458,15 +1855,29 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                     glDisable(GL_TEXTURE_2D);
                     break;
                 case D3DTOP_SELECTARG1:
-                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+                    glEnable(GL_TEXTURE_2D);  // In D3D, non-DISABLE implicitly enables texturing
+                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
                     break;
                 case D3DTOP_MODULATE:
-                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+                case D3DTOP_MODULATE2X:
+                    glEnable(GL_TEXTURE_2D);  // In D3D, non-DISABLE implicitly enables texturing
+                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_TEXTURE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB, GL_PRIMARY_COLOR);
+                    if (value == D3DTOP_MODULATE2X)
+                        glTexEnvi(GL_TEXTURE_ENV, GL_RGB_SCALE, 2);
+                    else
+                        glTexEnvi(GL_TEXTURE_ENV, GL_RGB_SCALE, 1);
                     break;
                 case D3DTOP_ADD:
-                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);
+                    glEnable(GL_TEXTURE_2D);  // In D3D, non-DISABLE implicitly enables texturing
+                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_ADD);
                     break;
                 default:
+                    glEnable(GL_TEXTURE_2D);  // In D3D, non-DISABLE implicitly enables texturing
                     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
                     break;
             }
@@ -1505,6 +1916,62 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             break;
 
+        case D3DTSS_COLORARG1:
+            // Set source 0 for GL_COMBINE color operation
+            glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+            if (value == D3DTA_TEXTURE)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_TEXTURE);
+            else if (value == D3DTA_DIFFUSE)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_PRIMARY_COLOR);
+            else if (value == D3DTA_CURRENT)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_PREVIOUS);
+            else if (value == D3DTA_TFACTOR)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_CONSTANT);
+            break;
+
+        case D3DTSS_COLORARG2:
+            // Set source 1 for GL_COMBINE color operation
+            glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+            if (value == D3DTA_TEXTURE)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB, GL_TEXTURE);
+            else if (value == D3DTA_DIFFUSE || value == D3DTA_CURRENT)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB, GL_PRIMARY_COLOR);
+            else if (value == D3DTA_TFACTOR)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB, GL_CONSTANT);
+            break;
+
+        case D3DTSS_ALPHAOP:
+            switch (value) {
+                case D3DTOP_DISABLE:
+                    break;
+                case D3DTOP_SELECTARG1:
+                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+                    break;
+                case D3DTOP_MODULATE:
+                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+                    break;
+                default:
+                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+                    break;
+            }
+            break;
+
+        case D3DTSS_ALPHAARG1:
+            if (value == D3DTA_TEXTURE)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE);
+            else if (value == D3DTA_DIFFUSE)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_PRIMARY_COLOR);
+            else if (value == D3DTA_CURRENT)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_PREVIOUS);
+            break;
+
+        case D3DTSS_ALPHAARG2:
+            if (value == D3DTA_TEXTURE)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_TEXTURE);
+            else if (value == D3DTA_DIFFUSE || value == D3DTA_CURRENT)
+                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_PRIMARY_COLOR);
+            break;
+
         default:
             break;
     }
@@ -1541,22 +2008,14 @@ void D3D7Device::ApplyMatrices() {
     glMatrixMode(GL_PROJECTION);
     glLoadMatrixf((const float*)&projMatrix);
 
-    // Apply modelview matrix (view * world)
+    // Apply modelview matrix using GL operations for correct D3D→GL convention.
+    // D3D uses row-major matrices with row vectors: v' = v * W * V
+    // glLoadMatrixf implicitly transposes (reads row-major as column-major).
+    // glLoadMatrixf(V) gives V_gl = V_d3d^T, glMultMatrixf(W) gives V_gl * W_gl.
+    // Result: V_d3d^T * W_d3d^T = correct GL modelview.
     glMatrixMode(GL_MODELVIEW);
-
-    // Multiply view and world matrices
-    D3DMATRIX modelview;
-    for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            modelview.mat[i][j] =
-                viewMatrix.mat[i][0] * worldMatrix.mat[0][j] +
-                viewMatrix.mat[i][1] * worldMatrix.mat[1][j] +
-                viewMatrix.mat[i][2] * worldMatrix.mat[2][j] +
-                viewMatrix.mat[i][3] * worldMatrix.mat[3][j];
-        }
-    }
-
-    glLoadMatrixf((const float*)&modelview);
+    glLoadMatrixf((const float*)&viewMatrix);
+    glMultMatrixf((const float*)&worldMatrix);
 }
 
 void D3D7Device::SetupVertexFormat(DWORD fvf) {
@@ -1575,9 +2034,56 @@ GLenum D3D7Device::GetGLPrimitiveType(D3DPRIMITIVETYPE d3dType) {
     }
 }
 
+static int g_DrawVerticesCount = 0;
+// Per-frame counters for XYZRHW vs world draws (reset in FF_SimFrameEnd below)
+static int g_RHWDrawCount_local = 0;
+static int g_WorldDrawCount_local = 0;
 void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* vertices, DWORD count) {
     int vertexSize = GetVertexSize(fvf);
     GLenum glPrimType = GetGLPrimitiveType(primType);
+    g_DrawVerticesCount++;
+    bool isRHW = (fvf & D3DFVF_XYZRHW) != 0;
+    if (isRHW) g_RHWDrawCount_local++; else g_WorldDrawCount_local++;
+
+    // Log first few draw calls per frame, separately for RHW and world draws
+    bool shouldLog = false;
+    if (isRHW && g_RHWDrawCount_local <= 2) shouldLog = true;
+    if (!isRHW && g_WorldDrawCount_local <= 3) shouldLog = true;
+
+    if (shouldLog) {
+        GLint boundTex = 0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTex);
+        GLboolean texEnabled = glIsEnabled(GL_TEXTURE_2D);
+        GLboolean litEnabled = glIsEnabled(GL_LIGHTING);
+        GLboolean fogEnabled = glIsEnabled(GL_FOG);
+        GLboolean colorMat = glIsEnabled(GL_COLOR_MATERIAL);
+        int texCount = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+        int enabledLights = 0;
+        for (int li = 0; li < 8; li++) {
+            if (glIsEnabled(GL_LIGHT0 + li)) enabledLights++;
+        }
+        // Log first vertex's data for debugging
+        const float* firstVertex = (const float*)vertices;
+        DWORD firstColor = 0;
+        if (fvf & D3DFVF_DIFFUSE) {
+            int colorOff = isRHW ? 16 : 12; // offset past position
+            if (fvf & D3DFVF_NORMAL) colorOff += 12;
+            firstColor = *(const DWORD*)((const char*)vertices + colorOff);
+        }
+        fprintf(stderr, "[D3D_DIAG] DrawVerts #%d: fvf=0x%x %s nVerts=%d tex=%d/%d boundTex=%d lit=%d(%d lights) fog=%d colMat=%d",
+                g_DrawVerticesCount, fvf, isRHW ? "RHW" : "WORLD", count, texCount, texEnabled,
+                boundTex, litEnabled, enabledLights, fogEnabled, colorMat);
+        if (fvf & D3DFVF_DIFFUSE) {
+            fprintf(stderr, " color=0x%08X", firstColor);
+        }
+        if (isRHW && count > 0) {
+            fprintf(stderr, " v0=(%.1f,%.1f)", firstVertex[0], firstVertex[1]);
+        } else if (count > 0) {
+            fprintf(stderr, " v0=(%.1f,%.1f,%.1f)", firstVertex[0], firstVertex[1], firstVertex[2]);
+        }
+        fprintf(stderr, "\n");
+        fflush(stderr);
+    }
 
     // FF_LINUX: XYZRHW vertices are pre-transformed screen coordinates in DirectX.
     // They bypass the transformation pipeline entirely. In OpenGL, we need to:
@@ -1586,7 +2092,15 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     // 3. Use glVertex3f with x, y, z directly (not glVertex4f which divides by w)
     bool isXYZRHW = (fvf & D3DFVF_XYZRHW) != 0;
 
+    // FF_LINUX: Save GL state that XYZRHW handling will modify
+    GLboolean prevDepthTest = GL_FALSE, prevLighting = GL_FALSE, prevFog = GL_FALSE;
+
     if (isXYZRHW) {
+        // Save states that we're about to change
+        prevDepthTest = glIsEnabled(GL_DEPTH_TEST);
+        prevLighting = glIsEnabled(GL_LIGHTING);
+        prevFog = glIsEnabled(GL_FOG);
+
         // Save current matrices
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
@@ -1599,8 +2113,10 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glPushMatrix();
         glLoadIdentity();
 
-        // Disable depth test for 2D rendering (XYZRHW typically used for UI/HUD)
+        // XYZRHW bypasses D3D transformation and lighting pipeline
         glDisable(GL_DEPTH_TEST);
+        glDisable(GL_LIGHTING);
+        glDisable(GL_FOG);
     }
 
     glBegin(glPrimType);
@@ -1665,8 +2181,10 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();
 
-        // Restore depth test
-        glEnable(GL_DEPTH_TEST);
+        // Restore previous GL state (don't blindly enable - that corrupts state for subsequent draws)
+        if (prevDepthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+        if (prevLighting) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
+        if (prevFog) glEnable(GL_FOG); else glDisable(GL_FOG);
     }
 
 #ifdef FF_LINUX_DEBUG_RENDER
@@ -2221,6 +2739,59 @@ extern int doUI;
 // Swap buffers via SDL (defined in main_linux.cpp)
 extern void FF_SwapBuffers();
 
+// FF_LINUX: Per-frame diagnostic summary and counter reset
+// Called from ImageBuffer::SwapBuffers() on the sim swap path (which bypasses DDS7_Flip)
+static int g_SimFrameCount = 0;
+
+void FF_SimFrameEnd() {
+    g_SimFrameCount++;
+
+    // Log per-frame summary for first 20 sim frames, then every 120 frames
+    if (g_SimFrameCount <= 20 || g_SimFrameCount % 120 == 1) {
+        // Query current GL state
+        GLboolean texEnabled = glIsEnabled(GL_TEXTURE_2D);
+        GLboolean litEnabled = glIsEnabled(GL_LIGHTING);
+        GLboolean fogEnabled = glIsEnabled(GL_FOG);
+        GLint boundTex = 0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTex);
+        GLint fogMode = 0;
+        glGetIntegerv(GL_FOG_MODE, &fogMode);
+        GLfloat fogStart = 0, fogEnd = 0;
+        glGetFloatv(GL_FOG_START, &fogStart);
+        glGetFloatv(GL_FOG_END, &fogEnd);
+        GLfloat fogColor[4] = {0};
+        glGetFloatv(GL_FOG_COLOR, fogColor);
+
+        // Check how many GL lights are enabled
+        int enabledLights = 0;
+        for (int i = 0; i < 8; i++) {
+            if (glIsEnabled(GL_LIGHT0 + i)) enabledLights++;
+        }
+
+        fprintf(stderr, "[D3D_DIAG] SimFrame #%d: Clears=%d SetTex=%d(%d w/data) DrawVerts=%d(rhw=%d world=%d) DrawPrim=%d DrawPrimVB=%d DrawIdxPrimVB=%d | "
+                "tex2D=%d lit=%d fog=%d fogMode=0x%x fogS=%.0f fogE=%.0f fogRGBA=(%.2f,%.2f,%.2f,%.2f) lights=%d boundTex=%d\n",
+                g_SimFrameCount, g_ClearCallCount, g_SetTextureCount, g_SetTextureWithData,
+                g_DrawVerticesCount, g_RHWDrawCount_local, g_WorldDrawCount_local,
+                g_DrawPrimitiveCount, g_DrawPrimitiveVBCount, g_DrawIdxPrimVBCount,
+                texEnabled, litEnabled, fogEnabled, fogMode,
+                fogStart, fogEnd,
+                fogColor[0], fogColor[1], fogColor[2], fogColor[3],
+                enabledLights, boundTex);
+        fflush(stderr);
+    }
+
+    // Reset per-frame counters
+    g_ClearCallCount = 0;
+    g_SetTextureCount = 0;
+    g_SetTextureWithData = 0;
+    g_DrawVerticesCount = 0;
+    g_DrawPrimitiveCount = 0;
+    g_DrawPrimitiveVBCount = 0;
+    g_DrawIdxPrimVBCount = 0;
+    g_RHWDrawCount_local = 0;
+    g_WorldDrawCount_local = 0;
+}
+
 static HRESULT STDMETHODCALLTYPE DDS7_Flip(IDirectDrawSurface7* This, IDirectDrawSurface7* lpDDSurfaceTargetOverride, DWORD dwFlags) {
     D3DGL_LOG("DDS7 Flip");
 
@@ -2230,16 +2801,25 @@ static HRESULT STDMETHODCALLTYPE DDS7_Flip(IDirectDrawSurface7* This, IDirectDra
         flipCount++;
 
         if (!doUI) {
-            // In sim mode: the sim thread owns the GL context and is rendering 3D.
-            // We need to present the frame here since the main loop won't do it.
-            if (flipCount <= 5 || flipCount % 300 == 1) {
-                fprintf(stderr, "[DDS7_Flip] Flip #%d - SIM mode, presenting frame\n", flipCount);
-            }
-            // The D3D7Device has already drawn to the OpenGL context via DrawPrimitiveVB etc.
-            // Just swap the buffers to display the rendered frame.
+            // In sim mode: diagnostics and counter reset handled by FF_SimFrameEnd()
+            // which is called from ImageBuffer::SwapBuffers before FF_SwapBuffers.
+            // If we get here via DDS7_Flip directly, also do the swap.
+            FF_SimFrameEnd();
             FF_SwapBuffers();
+        } else {
+            if (flipCount <= 5 || flipCount % 300 == 1) {
+                fprintf(stderr, "[DDS7_Flip] Flip #%d - UI mode (doUI=%d), NOT presenting\n", flipCount, doUI);
+                fflush(stderr);
+            }
         }
         // In UI mode, FF_PresentPrimarySurface is called from render_frame() in main loop
+    } else {
+        static int nonPrimaryCount = 0;
+        nonPrimaryCount++;
+        if (nonPrimaryCount <= 3) {
+            fprintf(stderr, "[DDS7_Flip] Non-primary surface flip #%d\n", nonPrimaryCount);
+            fflush(stderr);
+        }
     }
 
     return DD_OK;

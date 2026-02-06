@@ -2,7 +2,7 @@
 #include <ddraw.h>
 #include "debuggr.h"
 #include "dxutil/ddutil.h"
-#include "UI/Include/targa.h"
+#include "ui/include/targa.h"
 #include "chandler.h"
 
 #ifdef _UI95_PARSER_

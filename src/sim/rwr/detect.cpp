@@ -1,5 +1,5 @@
 #include "stdhdr.h"
-#include "radarData.h"
+#include "radardata.h"
 #include "simmath.h"
 #include "object.h"
 #include "simbase.h"

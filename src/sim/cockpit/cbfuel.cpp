@@ -4,6 +4,7 @@
 #include "stdhdr.h"
 #include "airframe.h"
 #include "cpgauge.h"
+#include "aircrft.h"
 
 #define FUEL_FLOW_DIGITS 5
 #define MAX_FUEL_FLOW_VAL 99999
@@ -13,7 +14,7 @@ void CBFuelExec(void * pObject)
     CPGauge* pCPGauge;
 
     pCPGauge = (CPGauge*) pObject;
-    pCPGauge->mCurrentVal = pCPGauge->mpCPManager->mpOTWPlatform->af->fuelFlow; //VWF KLUDGE 2/12/97
+    pCPGauge->mCurrentVal = ((AircraftClass*)pCPGauge->mpCPManager->mpOwnship)->af->FuelFlow(); //VWF KLUDGE 2/12/97
 }
 
 void CBFuelDisplay(void * pObject)

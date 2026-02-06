@@ -9,7 +9,7 @@
 #define _PALBANK_H_
 
 #include "Palette.h"
-#include "PolyLib.h"
+#include "polylib.h"
 
 
 // The one and only palette bank.  This would need to be replaced

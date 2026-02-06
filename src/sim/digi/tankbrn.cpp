@@ -8,9 +8,9 @@
 #include "MsgInc/TankerMsg.h"
 #include "falcsess.h"
 #include "Aircrft.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "classtbl.h"
-#include "Graphics/Include/matrix.h"
+#include "graphics/include/matrix.h"
 #include "airframe.h"
 #include "playerop.h"
 #include "MsgInc/SimCampMsg.h"//me123

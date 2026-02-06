@@ -12,7 +12,7 @@
 
 #include "sim/include/stdhdr.h"
 
-#include "sim/include/Icp.h" // for MAX_DED_LEN
+#include "sim/include/icp.h" // for MAX_DED_LEN
 
 // because I start at DED pos 1 with my strings
 #define MY_MAX_DED_LEN (MAX_DED_LEN-1)

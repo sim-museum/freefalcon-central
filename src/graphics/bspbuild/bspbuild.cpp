@@ -21,8 +21,8 @@
 #include "grinline.h"
 #include <Commdlg.h>
 #include "PalBank.h"
-#include "ObjectLod.h"
-#include "PlayerOp.h"
+#include "objectlod.h"
+#include "playerop.h"
 
 // Time stamp from utility library
 extern char FLTtoGeometryTimeStamp[];

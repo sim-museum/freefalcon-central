@@ -2,7 +2,7 @@
 #include "resource.h"
 #include "f4vu.h"
 #include "sim/include/stdhdr.h"
-#include "Falclib/Include/ui.h"
+#include "falclib/include/ui.h"
 
 static int F4SessionManagerOn = FALSE;
 
@@ -203,7 +203,7 @@ BOOL SessionManagerProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
                     if (dialogReturnString[0])
                     {
-                        vuLocalSessionEntity->SetPlayerCallsign(dialogReturnString);
+                        vuLocalSessionEntity->SetCallsign(dialogReturnString);
                         InitSessionStuff(hDlg);
                     }
 
@@ -260,7 +260,7 @@ int InitSessionStuff(HWND hDlg)
     int retval = FALSE;
 
     sprintf(F4SessionMemberName, "%s\0", vuLocalSessionEntity->Callsign());
-    vuLocalSessionEntity->SetPlayerCallsign(F4SessionMemberName);
+    vuLocalSessionEntity->SetCallsign(F4SessionMemberName);
 
     if (vuLocalSessionEntity->Game())
         sprintf(F4SessionGameName, "%s\0", vuLocalSessionEntity->Game()->GameName());

@@ -7,9 +7,9 @@
  It is a bit messy still, but at least its not one giant linear file
  anymore...
  \***************************************************************************/
-#include "Graphics/Include/RViewPnt.h"
-#include "Graphics/Include/RenderOW.h"
-#include "Graphics/Include/DrawBSP.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/renderow.h"
+#include "graphics/include/drawbsp.h"
 #include "stdhdr.h"
 #include "simbase.h"
 #include "simdrive.h"
@@ -103,7 +103,7 @@ float OTWDriverClass::GetDoppler(float x, float y, float z, float dx, float dy, 
     return 1.0f + closure / APPROX_MACH;
 }
 
-#include "SimIO.h" // Retro 17Jan2004
+#include "simio.h" // Retro 17Jan2004
 #include "mouselook.h" // Retro 18Jan2004
 
 void OTWDriverClass::SetExternalCameraPosition(float dT)
@@ -562,7 +562,7 @@ void OTWDriverClass::DisplaceTheCamera(float dT)
     cameraPos.z += zDir->Displ;
 }
 #ifdef USE_WING_SPAN // doesn´t work properly now.
-#include "Sim/Include/Airframe.h" // needed for wing span
+#include "sim/include/airframe.h" // needed for wing span
 #endif
 /*****************************************************************************/
 // Retro 23Dec2003

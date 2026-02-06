@@ -4,6 +4,7 @@
 #include "missdata.h"
 #include "initdata.h"
 #include "datafile.h"
+#include <ctype.h>
 
 #ifdef USE_SH_POOLS
 extern MEM_POOL gReadInMemPool;
@@ -12,7 +13,11 @@ extern MEM_POOL gReadInMemPool;
 MissileDataSetClass* missileDataset = NULL;
 int numMissileDatasets = 0;
 
+#ifdef FF_LINUX
+#define MISSILE_DIR     "sim/misdata"
+#else
 #define MISSILE_DIR     "sim\\misdata"
+#endif
 #define MISSILE_DATASET "mistypes.lst"
 
 void MissileClass::ReadInput(int idx)
@@ -36,7 +41,11 @@ void ReadAllMissileData(void)
     char fName[_MAX_PATH];
 
     // open input file
+#ifdef FF_LINUX
+    sprintf(fileName, "%s/%s", MISSILE_DIR, MISSILE_DATASET);
+#else
     sprintf(fileName, "%s\\%s\0", MISSILE_DIR, MISSILE_DATASET);
+#endif
     mslList = SimlibFileClass::Open(fileName, SIMLIB_READ);
     F4Assert(mslList);
 
@@ -51,7 +60,22 @@ void ReadAllMissileData(void)
     {
         mslList->ReadLine(buffer, 80);
         // Open the basic input file for the missile
+#ifdef FF_LINUX
+        // Strip trailing whitespace/newlines from buffer
+        int len = strlen(buffer);
+        while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
+            buffer[--len] = '\0';
+        }
+        // Convert filename to lowercase for case-sensitive Linux filesystem
+        char lowerBuffer[80];
+        for (int j = 0; buffer[j] && j < 79; j++) {
+            lowerBuffer[j] = tolower((unsigned char)buffer[j]);
+            lowerBuffer[j+1] = '\0';
+        }
+        sprintf(fName, "%s/%s.dat", MISSILE_DIR, lowerBuffer);
+#else
         sprintf(fName, "%s\\%s.dat", MISSILE_DIR, buffer);
+#endif
         inputFile = SimlibFileClass::Open(fName, SIMLIB_READ);
         F4Assert(inputFile);
         // 2002-03-08 ADDED BY S.G. Why not read the name while we're at it...

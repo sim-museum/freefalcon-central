@@ -9,8 +9,8 @@
 #ifndef _DRAWPLAT_H_
 #define _DRAWPLAT_H_
 
-#include "ObjList.h"
-#include "DrawObj.h"
+#include "objlist.h"
+#include "drawobj.h"
 
 
 class DrawablePlatform : public DrawableObject

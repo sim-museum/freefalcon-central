@@ -1,5 +1,5 @@
 #include <cISO646>
-#include "PlayerOp.h"
+#include "playerop.h"
 //#include "stdhdr.h"
 #include "f4find.h"
 RulesClass gRules[rNUM_MODES];
@@ -56,13 +56,13 @@ int LoadAllRules(char *filename)
     {
         char dataFileName[_MAX_PATH];
         sprintf(dataFileName, "%s\\atc.ini", FalconCampaignSaveDirectory);
-        tempRules[i].BumpTimer = max(0, GetPrivateProfileInt("ATC", "PlayerBumpTime", 10, dataFileName));
+        tempRules[i].BumpTimer = ff_max(0, GetPrivateProfileInt("ATC", "PlayerBumpTime", 10, dataFileName));
         tempRules[i].BumpTimer *= 60000;
-        tempRules[i].AiPullTime = max(0, GetPrivateProfileInt("ATC", "AIPullTime", 20, dataFileName));
+        tempRules[i].AiPullTime = ff_max(0, GetPrivateProfileInt("ATC", "AIPullTime", 20, dataFileName));
         tempRules[i].AiPullTime *= 60000;
-        tempRules[i].AiPatience = max(0, GetPrivateProfileInt("ATC", "AIPatience", 120, dataFileName));
+        tempRules[i].AiPatience = ff_max(0, GetPrivateProfileInt("ATC", "AIPatience", 120, dataFileName));
         tempRules[i].AiPatience *= 1000;
-        tempRules[i].AtcPatience = max(0, GetPrivateProfileInt("ATC", "ATCPatience", 180, dataFileName));
+        tempRules[i].AtcPatience = ff_max(0, GetPrivateProfileInt("ATC", "ATCPatience", 180, dataFileName));
         tempRules[i].AtcPatience *= 1000;
     }
 
@@ -91,13 +91,13 @@ void RulesClass::Initialize(void)
 
     char dataFileName[_MAX_PATH];
     sprintf(dataFileName, "%s\\atc.ini", FalconCampaignSaveDirectory);
-    BumpTimer = max(0, GetPrivateProfileInt("ATC", "PlayerBumpTime", 10, dataFileName));
+    BumpTimer = ff_max(0, GetPrivateProfileInt("ATC", "PlayerBumpTime", 10, dataFileName));
     BumpTimer *= 60000;
-    AiPullTime = max(0, GetPrivateProfileInt("ATC", "AIPullTime", 20, dataFileName));
+    AiPullTime = ff_max(0, GetPrivateProfileInt("ATC", "AIPullTime", 20, dataFileName));
     AiPullTime *= 60000;
-    AiPatience = max(0, GetPrivateProfileInt("ATC", "AIPatience", 120, dataFileName));
+    AiPatience = ff_max(0, GetPrivateProfileInt("ATC", "AIPatience", 120, dataFileName));
     AiPatience *= 1000;
-    AtcPatience = max(0, GetPrivateProfileInt("ATC", "ATCPatience", 180, dataFileName));
+    AtcPatience = ff_max(0, GetPrivateProfileInt("ATC", "ATCPatience", 180, dataFileName));
     AtcPatience *= 1000;
 }
 
@@ -151,13 +151,13 @@ int RulesClass::LoadRules(char *filename)
 
     char dataFileName[_MAX_PATH];
     sprintf(dataFileName, "%s\\atc.ini", FalconCampaignSaveDirectory);
-    tempRules[RuleMode].BumpTimer = max(0, GetPrivateProfileInt("ATC", "PlayerBumpTime", 10, dataFileName));
+    tempRules[RuleMode].BumpTimer = ff_max(0, GetPrivateProfileInt("ATC", "PlayerBumpTime", 10, dataFileName));
     tempRules[RuleMode].BumpTimer *= 60000;
-    tempRules[RuleMode].AiPullTime = max(0, GetPrivateProfileInt("ATC", "AIPullTime", 20, dataFileName));
+    tempRules[RuleMode].AiPullTime = ff_max(0, GetPrivateProfileInt("ATC", "AIPullTime", 20, dataFileName));
     tempRules[RuleMode].AiPullTime *= 60000;
-    tempRules[RuleMode].AiPatience = max(0, GetPrivateProfileInt("ATC", "AIPatience", 120, dataFileName));
+    tempRules[RuleMode].AiPatience = ff_max(0, GetPrivateProfileInt("ATC", "AIPatience", 120, dataFileName));
     tempRules[RuleMode].AiPatience *= 1000;
-    tempRules[RuleMode].AtcPatience = max(0, GetPrivateProfileInt("ATC", "ATCPatience", 180, dataFileName));
+    tempRules[RuleMode].AtcPatience = ff_max(0, GetPrivateProfileInt("ATC", "ATCPatience", 180, dataFileName));
     tempRules[RuleMode].AtcPatience *= 1000;
 
     memcpy(this, &(tempRules[RuleMode]), sizeof(RulesStruct));

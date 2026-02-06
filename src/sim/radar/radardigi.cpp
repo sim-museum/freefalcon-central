@@ -4,10 +4,10 @@
 #include "camp2sim.h"
 #include "team.h"
 #include "MsgInc/TrackMsg.h"
-#include "RadarDigi.h"
+#include "radardigi.h"
 #include "campbase.h"
 #include "simmath.h"
-#include "Graphics/Include/drawbsp.h" // 2002-02-26 S.G.
+#include "graphics/include/drawbsp.h" // 2002-02-26 S.G.
 #include "aircrft.h"
 
 extern int g_nShowDebugLabels; // 2002-02-26 S.G.

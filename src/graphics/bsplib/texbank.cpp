@@ -6,20 +6,25 @@
  - Begin Major Rewrite
 \***************************************************************************/
 #include <cISO646>
+#include <cstdint>
 #include "stdafx.h"
 #include <io.h>
 #include <fcntl.h>
 #include "Utils/lzss.h"
-#include "Loader.h"
+#include "loader.h"
 #include "grinline.h"
-#include "StateStack.h"
-#include "ObjectLOD.h"
+#include "statestack.h"
+#include "objectlod.h"
 #include "PalBank.h"
-#include "TexBank.h"
-#include "Image.h"
+#include "texbank.h"
+#include "image.h"
 #include "TerrTex.h"
-#include "FalcLib/include/playerop.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
+#ifdef FF_LINUX
+#include "stdio_compat.h"  // for fopen_nocase
+// DDS_FILE_HEADER is defined in ddraw.h for reading DDS files on 64-bit Linux
+#endif
 
 // Static data members (used to avoid requiring "this" to be passed to every access function)
 int TextureBankClass::nTextures = 0;
@@ -125,6 +130,27 @@ void TextureBankClass::Cleanup(void)
     }
 }
 
+// On-disk structure for TempTexBankEntry matching 32-bit Windows format
+// This is needed because the file was written on 32-bit Windows where:
+// - long is 4 bytes (not 8 bytes like on 64-bit Linux)
+// - pointers are 4 bytes (not 8 bytes like on 64-bit)
+#pragma pack(push, 1)
+struct TempTexBankEntry_OnDisk
+{
+    int32_t fileOffset;      // 4 bytes (was long on Win32)
+    int32_t fileSize;        // 4 bytes (was long on Win32)
+    // Texture members (on 32-bit Windows):
+    int32_t tex_dimensions;  // 4 bytes
+    uint32_t tex_imageData;  // 4 bytes (was void*)
+    uint32_t tex_flags;      // 4 bytes (DWORD)
+    uint32_t tex_chromaKey;  // 4 bytes (DWORD)
+    uint32_t tex_palette;    // 4 bytes (was Palette*)
+    uint32_t tex_texHandle;  // 4 bytes (was TextureHandle*)
+    int32_t palID;           // 4 bytes
+    int32_t refCount;        // 4 bytes
+};  // Total: 40 bytes
+#pragma pack(pop)
+
 void TextureBankClass::ReadPool(int file, char *basename)
 {
     int result;
@@ -160,16 +186,34 @@ void TextureBankClass::ReadPool(int file, char *basename)
     // Setup the pool
     Setup(nTextures);
 
-    // sfr: Ok some ????? did this and now we cannot change Texture class a bit
-    // since this stop working
-    result = read(file, TempTexturePool, sizeof(*TempTexturePool) * nTextures);
+    // Read using the on-disk 32-bit format structure
+    // The file was written on 32-bit Windows with different sizes for long and pointers
+    TempTexBankEntry_OnDisk *diskEntries = new TempTexBankEntry_OnDisk[nTextures];
+    result = read(file, diskEntries, sizeof(TempTexBankEntry_OnDisk) * nTextures);
 
     if (result < 0)
     {
         char message[256];
         sprintf(message, "Reading object texture bank: %s", strerror(errno));
+        delete[] diskEntries;
         ShiError(message);
     }
+
+    for (int i = 0; i < nTextures; i++)
+    {
+        // Copy from on-disk format to runtime format
+        TempTexturePool[i].fileOffset = diskEntries[i].fileOffset;
+        TempTexturePool[i].fileSize = diskEntries[i].fileSize;
+        TempTexturePool[i].tex.dimensions = diskEntries[i].tex_dimensions;
+        // Note: imageData, palette, and texHandle pointers from file are garbage
+        // - they were runtime values when the file was created
+        TempTexturePool[i].tex.flags = diskEntries[i].tex_flags;
+        TempTexturePool[i].tex.chromaKey = diskEntries[i].tex_chromaKey;
+        TempTexturePool[i].palID = diskEntries[i].palID;
+        TempTexturePool[i].refCount = diskEntries[i].refCount;
+    }
+
+    delete[] diskEntries;
 
     for (int i = 0; i < nTextures; i++)
     {
@@ -432,8 +476,11 @@ void TextureBankClass::LoaderCallBack(LoaderQ* request)
 
                     // Nope, go get it.
                     if ( not TexturePool[id].tex.imageData) ReadImageData(id);
-
+#ifndef FF_LINUX
+                    // FF_LINUX: Skip CreateTexture() - this runs on Loader thread with no GL context.
+                    // Textures will be created lazily in GetHandle() on the rendering thread.
                     TexturePool[id].tex.CreateTexture();
+#endif
                     Count--;
                     //TexturePool[id].tex.FreeImage();
                 }
@@ -473,7 +520,7 @@ void TextureBankClass::Select(int id)
 }
 
 
-void TextureBankClass::SelectHandle(DWORD TexHandle)
+void TextureBankClass::SelectHandle(intptr_t TexHandle)
 {
     TheStateStack.context->SelectTexture1(TexHandle);
 }
@@ -486,6 +533,33 @@ BOOL TextureBankClass::IsValidIndex(int id)
 
 void TextureBankClass::RestoreAll()
 {
+#ifdef FF_LINUX
+    // FF_LINUX: Retry texture creation for entries loaded by the Loader thread
+    // before DeviceDependentGraphicsSetup() set the DXContext (rc).
+    // These entries have imageData but no texHandle because CreateTexture() failed
+    // when rc was NULL.
+    if ( not Texture::IsSetup()) return;
+
+    int retryCount = 0, successCount = 0;
+    for (int id = 0; id < nTextures; id++)
+    {
+        if (TexturePool[id].refCount > 0 &&
+            TexturePool[id].tex.imageData != NULL &&
+            TexturePool[id].tex.TexHandle() == 0)
+        {
+            retryCount++;
+            if (TexturePool[id].tex.CreateTexture())
+            {
+                successCount++;
+            }
+        }
+    }
+    if (retryCount > 0)
+    {
+        fprintf(stderr, "[RestoreAll] Retried %d textures, %d succeeded\n", retryCount, successCount);
+        fflush(stderr);
+    }
+#endif
 }
 
 void TextureBankClass::SyncDDSTextures(bool bForce)
@@ -499,8 +573,13 @@ void TextureBankClass::SyncDDSTextures(bool bForce)
 
     for (DWORD id = 0; id < (DWORD)nTextures; id++)
     {
+#ifdef FF_LINUX
+        sprintf(szFile, "%s/%d.dds", baseName, id);
+        fp = fopen_nocase(szFile, "rb");
+#else
         sprintf(szFile, "%s\\%d.dds", baseName, id);
         fp = fopen(szFile, "rb");
+#endif
 
         if ( not fp or bForce)
         {
@@ -533,13 +612,21 @@ void TextureBankClass::UnpackPalettizedTexture(DWORD id)
         TexturePool[id].tex.GetPalette()->Reference();
 
         ReadImageData(id, true);
+#ifdef FF_LINUX
+        sprintf(szFile, "%s/%d", baseName, id);
+#else
         sprintf(szFile, "%s\\%d", baseName, id);
+#endif
         TexturePool[id].tex.DumpImageToFile(szFile, TexturePool[id].palID);
         Release(id);
     }
     else
     {
+#ifdef FF_LINUX
+        sprintf(szFile, "%s/%d.dds", baseName, id);
+#else
         sprintf(szFile, "%s\\%d.dds", baseName, id);
+#endif
         FILE* fp = fopen(szFile, "wb");
         fclose(fp);
     }
@@ -549,7 +636,6 @@ void TextureBankClass::UnpackPalettizedTexture(DWORD id)
 
 void TextureBankClass::ReadImageDDS(DWORD id)
 {
-    DDSURFACEDESC2 ddsd;
     DWORD dwSize, dwMagic;
     char szFile[256];
     FILE *fp;
@@ -557,8 +643,13 @@ void TextureBankClass::ReadImageDDS(DWORD id)
     TexturePool[id].tex.flags = MPR_TI_DDS;
     TexturePool[id].tex.flags and_eq compl MPR_TI_PALETTE;
 
+#ifdef FF_LINUX
+    sprintf(szFile, "%s/%d.dds", baseName, id);
+    fp = fopen_nocase(szFile, "rb");
+#else
     sprintf(szFile, "%s\\%d.dds", baseName, id);
     fp = fopen(szFile, "rb");
+#endif
 
     // RV - RED - Avoid CTD if a missing texture
     if ( not fp) return;
@@ -567,7 +658,16 @@ void TextureBankClass::ReadImageDDS(DWORD id)
     ShiAssert(dwMagic == MAKEFOURCC('D', 'D', 'S', ' '));
 
     // Read first compressed mipmap
+#ifdef FF_LINUX
+    // FF_LINUX: Use fixed 124-byte DDS header struct to avoid 64-bit pointer
+    // size mismatch in DDSURFACEDESC2 (which has LPVOID lpSurface = 8 bytes)
+    DDS_FILE_HEADER ddsd;
+    memset(&ddsd, 0, sizeof(ddsd));
+    fread(&ddsd, 1, sizeof(DDS_FILE_HEADER), fp);
+#else
+    DDSURFACEDESC2 ddsd;
     fread(&ddsd, 1, sizeof(DDSURFACEDESC2), fp);
+#endif
 
     // MLR 1/25/2004 - Little kludge so FF can read DDS files made by dxtex
     if (ddsd.dwLinearSize == 0)
@@ -604,7 +704,14 @@ void TextureBankClass::ReadImageDDS(DWORD id)
             break;
 
         default:
+#ifdef FF_LINUX
+            fprintf(stderr, "[ReadImageDDS] Unknown FourCC 0x%08x for texture %d, skipping\n",
+                    ddsd.ddpfPixelFormat.dwFourCC, id);
+            fclose(fp);
+            return;
+#else
             ShiAssert(false);
+#endif
     }
 
     switch (ddsd.dwWidth)
@@ -642,7 +749,14 @@ void TextureBankClass::ReadImageDDS(DWORD id)
             break;
 
         default:
+#ifdef FF_LINUX
+            fprintf(stderr, "[ReadImageDDS] Unknown width %d for texture %d, skipping\n",
+                    ddsd.dwWidth, id);
+            fclose(fp);
+            return;
+#else
             ShiAssert(false);
+#endif
     }
 
     dwSize = ddsd.dwLinearSize;
@@ -660,13 +774,17 @@ void TextureBankClass::ReadImageDDS(DWORD id)
 
 void TextureBankClass::ReadImageDDSN(DWORD id)
 {
-    DDSURFACEDESC2 ddsd;
     DWORD dwSize, dwMagic;
     char szFile[256];
     FILE *fp;
 
+#ifdef FF_LINUX
+    sprintf(szFile, "%s/%dN.dds", baseName, id);
+    fp = fopen_nocase(szFile, "rb");
+#else
     sprintf(szFile, "%s\\%dN.dds", baseName, id);
     fp = fopen(szFile, "rb");
+#endif
 
     if ( not fp)
     {
@@ -681,7 +799,14 @@ void TextureBankClass::ReadImageDDSN(DWORD id)
     ShiAssert(dwMagic == MAKEFOURCC('D', 'D', 'S', ' '));
 
     // Read first compressed mipmap
+#ifdef FF_LINUX
+    DDS_FILE_HEADER ddsd;
+    memset(&ddsd, 0, sizeof(ddsd));
+    fread(&ddsd, 1, sizeof(DDS_FILE_HEADER), fp);
+#else
+    DDSURFACEDESC2 ddsd;
     fread(&ddsd, 1, sizeof(DDSURFACEDESC2), fp);
+#endif
 
     // MLR 1/25/2004 - Little kludge so FF can read DDS files made by dxtex
     if (ddsd.dwLinearSize == 0)
@@ -786,16 +911,27 @@ void TextureBankClass::RestoreTexturePool()
 
 
 
-DWORD TextureBankClass::GetHandle(DWORD id)
+intptr_t TextureBankClass::GetHandle(DWORD id)
 {
     // if already on release, avoid using or requesting it
-    if (TexFlags[id].OnRelease) return NULL;
+    if (TexFlags[id].OnRelease) return 0;
 
-    // if the Handle is prsent, return it
+    // if the Handle is present, return it
     if (IsValidIndex(id) and TexturePool[id].tex.TexHandle()) return TexturePool[id].tex.TexHandle();
 
+#ifdef FF_LINUX
+    // FF_LINUX: Lazy GL texture creation. The Loader thread loaded image data from disk
+    // but couldn't call CreateTexture() because it has no OpenGL context. Now that we're
+    // on the rendering thread (which owns the GL context), create the texture.
+    if (IsValidIndex(id) and TexturePool[id].tex.imageData and Texture::IsSetup())
+    {
+        TexturePool[id].tex.CreateTexture();
+        if (TexturePool[id].tex.TexHandle()) return TexturePool[id].tex.TexHandle();
+    }
+#endif
+
     // return  a null pointer that means BLANK SURFACE
-    return NULL;
+    return 0;
 }
 
 
@@ -804,6 +940,10 @@ DWORD TextureBankClass::GetHandle(DWORD id)
 bool TextureBankClass::UpdateBank(void)
 {
     DWORD id;
+
+#ifdef FF_LINUX
+    static int ubDbgCount = 0;
+#endif
 
     // till when data to update into caches
     while (LoadIn not_eq LoadOut or ReleaseIn not_eq ReleaseOut)
@@ -828,7 +968,7 @@ bool TextureBankClass::UpdateBank(void)
             if (RatedLoad) return true;
         }
 
-        // check for textures to be released
+        // check for textures to be loaded
         if (LoadIn not_eq LoadOut)
         {
             // get the 1st texture Id from cache
@@ -837,8 +977,18 @@ bool TextureBankClass::UpdateBank(void)
             // if Texture not yet loaded, load it
             if ( not TexturePool[id].tex.imageData) ReadImageData(id);
 
-            // if Texture not yet crated, crate it
-            if ( not TexturePool[id].tex.TexHandle()) TexturePool[id].tex.CreateTexture();
+            // if Texture not yet created, create it
+#ifdef FF_LINUX
+            // FF_LINUX: Skip CreateTexture() here - this function is called from the
+            // Loader thread which has no OpenGL context. GL texture creation will happen
+            // lazily in GetHandle() when called from the rendering thread.
+            // Only load image data on the Loader thread.
+#else
+            if ( not TexturePool[id].tex.TexHandle())
+            {
+                TexturePool[id].tex.CreateTexture();
+            }
+#endif
 
             // clear flag, in any case
             TexFlags[id].OnOrder = false;

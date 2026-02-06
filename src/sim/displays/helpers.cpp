@@ -1,7 +1,7 @@
 #include "stdhdr.h"
-#include "Graphics/Include/display.h"
+#include "graphics/include/display.h"
 #include "cmpclass.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "radardoppler.h" //MI
 #include "simdrive.h" //MI
 #include "aircrft.h" //MI

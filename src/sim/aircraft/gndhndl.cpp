@@ -1,5 +1,5 @@
 #include "stdhdr.h"
-#include "Graphics/Include/drawparticlesys.h"
+#include "graphics/include/drawparticlesys.h"
 #include "f4error.h"
 #include "aircrft.h"
 #include "airframe.h"
@@ -19,14 +19,14 @@
 #include "fakerand.h"
 #include "falcsess.h"
 #include "persist.h"
-#include "Graphics/Include/terrtex.h"
+#include "graphics/include/terrtex.h"
 #include "fack.h"
 #include "playerop.h"
 #include "sms.h"
 #include "digi.h"
 #include "sfx.h"
 #include "dofsnswitches.h"
-#include "Sim/Include/SimVuDrv.h"
+#include "sim/include/simvudrv.h"
 #include "ui/include/uicomms.h" // JB 010107
 extern UIComms *gCommsMgr; // JB 010107
 

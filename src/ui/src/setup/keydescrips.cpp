@@ -2,7 +2,7 @@
 #include "chandler.h"
 #include "sim/include/ascii.h"
 #include "textids.h"
-#include "sim/include/inpFunc.h"
+#include "sim/include/inpfunc.h"
 
 struct kbstr
 {

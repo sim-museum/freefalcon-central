@@ -1,3 +1,24 @@
+#ifdef FF_LINUX
+// Linux compatibility includes
+#include <atlbase.h>
+#include <atlcom.h>
+#include <comdef.h>
+#include <ddraw.h>
+#include <d3d.h>
+#include <d3dxcore.h>
+#include <d3dxmath.h>
+#include <vector>
+#include <string>
+#include <map>
+#include <io.h>
+#include <math.h>
+#include <stdio.h>
+#include "smart.h"
+
+extern CComModule _Module;
+
+#else /* Windows */
+
 #if _MSC_VER < 1200
 #error You need VC6 or higher
 #endif // _MSC_VER < 1200
@@ -33,3 +54,5 @@ extern CComModule _Module;
 #include <stdio.h>
 
 #include "smart.h"
+
+#endif /* FF_LINUX */

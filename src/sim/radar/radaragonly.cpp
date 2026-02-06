@@ -1,10 +1,10 @@
 #include "stdhdr.h"
-#include "Object.h"
+#include "object.h"
 #include "simmover.h"
 #include "camp2sim.h"
 #include "team.h"
-#include "MsgInc/TrackMsg.h"
-#include "RadarAGOnly.h"
+#include "msginc/trackmsg.h"
+#include "radaragonly.h"
 #include "campbase.h"
 
 void CalcRelGeom(SimBaseClass* ownObject, SimObjectType* targetList, TransformMatrix vmat, float elapsedTimeInverse);

@@ -1,7 +1,7 @@
 #include "stdhdr.h"
 #include "hardpnt.h"
 #include "otwdrive.h"
-#include "SimWeapn.h"
+#include "simweapn.h"
 #include "SimVeh.h"
 #include "drawbsp.h"
 #include "Classtbl.h"

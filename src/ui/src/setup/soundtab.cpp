@@ -1,7 +1,7 @@
 #include "falclib.h"
 #include "chandler.h"
 #include "userids.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "sim/include/stdhdr.h"
 #include "ui_setup.h"
 #include "falclib/include/fsound.h"

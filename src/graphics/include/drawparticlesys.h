@@ -6,14 +6,14 @@ MLR
 #ifndef _DRAWPARTICLESYS_H_
 #define _DRAWPARTICLESYS_H_
 
-#include "DrawObj.h"
+#include "drawobj.h"
 #include "context.h"
-#include "Tex.h"
+#include "tex.h"
 #include "falclib/include/alist.h"
-#include "Graphics/Include/Drawbsp.h"
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
-#include "FakeRand.h"
+#include "drawbsp.h"
+#include "../dxengine/dxengine.h"
+#include "../dxengine/dxvbmanager.h"
+#include "fakerand.h"
 #include "falclib/include/fsound.h"
 
 #include "context.h"
@@ -69,7 +69,7 @@ MLR
 
 
 // The (0 / 2PI) normalized ASIN macro
-#define PS_NORM_ASIN(x) (ASinArray[min( ASIN_ARRAY_ITEMS - 1, F_I32(x * ASIN_ARRAY_ITEMS))])
+#define PS_NORM_ASIN(x) (ASinArray[min( (DWORD)(ASIN_ARRAY_ITEMS - 1), F_I32(x * ASIN_ARRAY_ITEMS))])
 // The Lod Bias CX of the zoom, exagerates trails details with distance, this CX is used to reduce to
 // a reasonable value
 #define TRAIL_BIAS_CX    0.2F
@@ -138,7 +138,11 @@ struct timedFloat
 /******************************/
 struct TextureLink
 {
+#ifdef FF_LINUX
+    uintptr_t TexHandle; // FF_LINUX: Use uintptr_t for TextureHandle* on 64-bit
+#else
     DWORD TexHandle;
+#endif
     CTextureItem *TexItem;
 };
 
@@ -235,7 +239,11 @@ typedef struct
     int ColorStage;
     int LightStage;
     // The textuer Handle
+#ifdef FF_LINUX
+    uintptr_t TexHandle; // FF_LINUX: Use uintptr_t for TextureHandle* on 64-bit
+#else
     DWORD TexHandle;
+#endif
     // The Size random CX
     //CTextureItem *TexItem;
     // the Quad UV vertices

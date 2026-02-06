@@ -8,17 +8,17 @@
 #include "radar.h"
 #include "falcmesg.h"
 #include "simdrive.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "otwdrive.h"
 #include "cpmanager.h"
 #include "sms.h"
 #include "playerop.h"
 #include "limiters.h"
-#include "IvibeData.h"
+#include "ivibedata.h"
 #include "falcsess.h"
 
 // MD -- 20031011: added to make the RWR related SetLightBits2() calls work
-#include "PlayerRWR.h"
+#include "playerrwr.h"
 
 // MD -- 20031207: adding for TFR STBY lamp check
 #include "lantirn.h"

@@ -8,7 +8,7 @@
 #ifndef _OBJECTINSTANCE_H_
 #define _OBJECTINSTANCE_H_
 
-#include "ObjectParent.h"
+#include "objectparent.h"
 
 
 typedef struct DOFvalue

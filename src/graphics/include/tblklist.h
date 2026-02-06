@@ -10,7 +10,7 @@
 #ifndef _TBLKLIST_H_
 #define _TBLKLIST_H_
 
-#include "Ttypes.h"
+#include "ttypes.h"
 
 #ifdef USE_SH_POOLS
 #include "SmartHeap/Include/smrtheap.h"

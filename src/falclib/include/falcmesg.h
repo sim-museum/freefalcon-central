@@ -3,6 +3,13 @@
 
 #include "F4Vu.h"
 
+/* Ensure BOOL is defined */
+#ifndef BOOL
+#ifdef FF_LINUX
+typedef int BOOL;
+#endif
+#endif
+
 #pragma pack(1)
 
 typedef struct

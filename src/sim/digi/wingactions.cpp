@@ -15,12 +15,12 @@
 #include "wingorder.h"
 #include "otwdrive.h"
 /* S.G. 2001-07-30 FOR SimDriver */ #include "Simdrive.h"
-/* S.G. 2001-07-30 FOR SimDriver */ #include "FCC.h"
+/* S.G. 2001-07-30 FOR SimDriver */ #include "fcc.h"
 #include "radar.h" // 2002-02-10 S.G.
 #include "campbase.h" // 2002-02-10 S.G.
 #define MANEUVER_DEBUG // MNLOOK
 #ifdef MANEUVER_DEBUG
-#include "Graphics/include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 extern int g_nShowDebugLabels;
 extern float g_fAIMinAlt;
 #endif

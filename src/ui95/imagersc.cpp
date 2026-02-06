@@ -1730,34 +1730,18 @@ void IMAGE_RSC::Blit(SCREEN *surface, long sx, long sy, long sw, long sh, long d
 {
     long soff, doff, ssize;
 
-    static int blitCount = 0;
-    blitCount++;
-
-    if ( not Owner) {
-        if (blitCount <= 5) fprintf(stderr, "[IMAGE_RSC::Blit #%d] No Owner, returning\n", blitCount);
+    if ( not Owner)
         return;
-    }
 
-    if ( not Owner->Data_) {
-        if (blitCount <= 5) fprintf(stderr, "[IMAGE_RSC::Blit #%d] No Data_, returning\n", blitCount);
+    if ( not Owner->Data_)
         return;
-    }
 
-    if (sx >= Header->w or sy >= Header->h) {
-        if (blitCount <= 5) fprintf(stderr, "[IMAGE_RSC::Blit #%d] Out of bounds, returning\n", blitCount);
+    if (sx >= Header->w or sy >= Header->h)
         return;
-    }
 
     // Safety check: ensure surface memory is valid
-    if ( not surface or not surface->mem) {
-        fprintf(stderr, "[IMAGE_RSC::Blit #%d] NULL surface or mem, skipping draw\n", blitCount);
+    if ( not surface or not surface->mem)
         return;
-    }
-
-    if (blitCount <= 5) {
-        fprintf(stderr, "[IMAGE_RSC::Blit #%d] Drawing to surface: w=%d h=%d bpp=%d, mem=%p, img %dx%d at (%ld,%ld)\n",
-                blitCount, surface->width, surface->height, surface->bpp, (void*)surface->mem, Header->w, Header->h, dx, dy);
-    }
 
     if ( not sx and not sy and sw >= Header->w and sh >= Header->h)
     {

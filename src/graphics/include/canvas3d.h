@@ -15,10 +15,10 @@
 #define _CANVAS3D_H_
 
 #include "Ttypes.h"
-#include "ImageBuf.h"
-#include "Context.h"
+#include "imagebuf.h"
+#include "context.h"
 #include "render3d.h"
-#include "Display.h"
+#include "display.h"
 
 
 class Canvas3D : public VirtualDisplay

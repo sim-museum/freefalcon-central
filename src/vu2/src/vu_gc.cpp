@@ -5,7 +5,7 @@
 #include "vu_priv.h"
 #include "vu_gc.h"
 
-#include "falclib/include/F4thread.h"
+#include "falclib/include/f4thread.h"
 
 using namespace std;
 

@@ -10,8 +10,8 @@
 #ifndef _DRAWGRND_H_
 #define _DRAWGRND_H_
 
-#include "DrawBSP.h"
-#include "DrawBrdg.h"
+#include "drawbsp.h"
+#include "drawbrdg.h"
 
 
 class DrawableGroundVehicle : public DrawableBSP

@@ -4,7 +4,7 @@
 
 #include <tchar.h>
 //#include "vutypes.h"
-#include "PlayerOpDef.h"
+#include "playeropdef.h"
 
 enum {RUL_PW_LEN = 20};
 

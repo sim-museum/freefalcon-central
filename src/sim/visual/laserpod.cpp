@@ -1,7 +1,7 @@
 #include "stdhdr.h"
 #include "object.h"
 #include "laserpod.h"
-#include "Graphics/Include/renderir.h"
+#include "graphics/include/renderir.h"
 #include "simmover.h"
 #include "entity.h"
 #include "simmath.h"
@@ -13,7 +13,7 @@
 #include "aircrft.h"
 #include "simdrive.h" //MI
 #include "fcc.h" //MI
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/dispopts.h"
 #include "airframe.h"
 
 /* 2001-09-07 S.G. */ extern bool g_bRP5Comp;

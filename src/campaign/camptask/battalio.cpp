@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "CmpGlobl.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "CampCell.h"
 #include "CampTerr.h"
 #include "ASearch.h"
@@ -24,9 +24,9 @@
 #include "MsgInc/GndTaskingMsg.h"
 #include "classtbl.h"
 #include "AIInput.h"
-#include "PtData.h"
-#include "Graphics/Include/TMap.h"
-#include "Camp2Sim.h"
+#include "ptdata.h"
+#include "graphics/include/tmap.h"
+#include "camp2sim.h"
 #include "FalcSess.h"
 #include "radar.h"
 
@@ -34,7 +34,7 @@
 #include "InvalidBufferException.h"
 
 #include "graphics/include/drawpnt.h"
-#include "Graphics/Include/TMap.h"
+#include "graphics/include/tmap.h"
 
 #include "camplib.h"
 

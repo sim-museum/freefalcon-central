@@ -313,14 +313,11 @@ void VuEntity::SetEntityType(ushort entityType)
         // JPO - make sure its in the range (CTD) VU_LAST_ENTITY_TYPE == 100
         entityTypePtr_ = &vuTypeTable[share_.entityType_];
     }
-    else if (share_.entityType_ >= VU_LAST_ENTITY_TYPE)
-    {
-        entityTypePtr_ = VuxType(share_.entityType_);
-    }
     else
     {
-        assert( not "share_.entityType_ out of range");
-        entityTypePtr_ = 0;
+        // FF_LINUX: Entity types >= vuTypeTableSize use VuxType (class table lookup)
+        // This includes types 6-99 which the original code didn't handle
+        entityTypePtr_ = VuxType(share_.entityType_);
     }
 
     if (entityTypePtr_ == 0)

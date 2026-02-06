@@ -10,15 +10,15 @@
 #include "simmover.h"
 #include "object.h"
 #include "msginc/TrackMsg.h"
-#include "Graphics/Include/Display.h"
+#include "graphics/include/display.h"
 #include "simdrive.h"
 #include "campbase.h"
 #include "team.h"
 #include "CampList.h"
 #include "otwdrive.h"
-#include "PlayerRwr.h"
+#include "playerrwr.h"
 #include "soundfx.h"
-#include "radarData.h"
+#include "radardata.h"
 #include "Battalion.h"
 /* S.G. SO ARH DON'T GIVE A LAUNCH WARNING */ #include "missile.h"
 /* S.G. SO THE PLAYER IS SPOTTED BY GROUND RADAR */ #include "atm.h"
@@ -26,7 +26,7 @@
 static int flash = FALSE;
 
 //MI
-#include "flightData.h"
+#include "flightdata.h"
 #include "icp.h"
 #include "cpmanager.h"
 #include "soundfx.h"
@@ -38,7 +38,7 @@ extern bool g_bRealisticAvionics;
 extern bool g_bIFFRWR; // JB 010727
 extern bool g_bRWR; // JB 010802
 
-#include "SimIO.h" // Retro 3Jan2004
+#include "simio.h" // Retro 3Jan2004
 
 // MLR 2003-11-21 Moved volume control for RWR sounds here.
 void PlayRWRSoundFX(int SfxID, int Override, float Vol, float PScale)
@@ -472,7 +472,7 @@ void PlayerRwrClass::Display(VirtualDisplay *activeDisplay)
     // Decide how many contacts to present
     if (priorityMode == TRUE)
     {
-        last = min(PriorityContacts, numContacts);
+        last = min((int)PriorityContacts, numContacts);
     }
     else
     {
@@ -749,7 +749,7 @@ void PlayerRwrClass::DoAudio(DetectListElement *record)
             break;
 
         case FEC_RADAR_AQUIRE:
-            SEARCH_PERIOD = max(((SimBaseClass*)record->entity)->RdrCycleTime() * SEC_TO_MSEC, radarfileData->Sweeptimeacuire); //me123 from 1
+            SEARCH_PERIOD = max(((SimBaseClass*)record->entity)->RdrCycleTime() * SEC_TO_MSEC, (float)radarfileData->Sweeptimeacuire); //me123 from 1
             break;
 
         case FEC_RADAR_GUIDE:
@@ -1030,7 +1030,7 @@ void PlayerRwrClass::SelectNextEmitter(void)
     // Decide how many contacts are being drawn
     if (priorityMode)
     {
-        last = min(PriorityContacts, numContacts);
+        last = min((int)PriorityContacts, numContacts);
     }
     else
     {

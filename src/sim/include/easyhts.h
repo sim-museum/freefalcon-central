@@ -1,7 +1,7 @@
 #ifndef _EASYHARMPOD_H
 #define _EASYHARMPOD_H
 
-#include "HarmPod.h"
+#include "harmpod.h"
 
 
 class EasyHarmTargetingPod : public HarmTargetingPod

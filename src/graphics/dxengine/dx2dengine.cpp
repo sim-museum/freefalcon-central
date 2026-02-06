@@ -1,7 +1,7 @@
 #include <math.h>
 #include "../include/ObjectInstance.h"
 #include "dxdefines.h"
-#include "DXVBManager.h"
+#include "dxvbmanager.h"
 #include "mmsystem.h"
 #include "../include/TexBank.h"
 #include "dxengine.h"
@@ -13,7 +13,7 @@
 #ifndef DEBUG_ENGINE
 #include "../include/Realweather.h"
 #endif
-#include "../../include/ComSup.h"
+#include "../../include/comsup.h"
 
 //#define DRAW_USING_2D_FANS
 extern bool g_bGreyMFD;
@@ -153,7 +153,11 @@ void CDXEngine::LoadTexture(char *FileName)
 
 
 
+#ifdef FF_LINUX
+uintptr_t CDXEngine::GetTextureHandle(char *TexName)
+#else
 DWORD CDXEngine::GetTextureHandle(char *TexName)
+#endif
 {
 
     // look for an item owning such a name
@@ -477,7 +481,11 @@ inline bool CDXEngine::CheckBufferSpace(DWORD VbIndex, DWORD Size)
 
 // This function add a Quad to the vertex buffers and sorting list...
 // WARNING  Does not check for Visibility, call DX2D_GetVisibility() or DX2D_SetupQuad before...
+#ifdef FF_LINUX
+void CDXEngine::DX2D_AddQuad(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Quad, float Radius, uintptr_t TexHandle)
+#else
 void CDXEngine::DX2D_AddQuad(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Quad, float Radius, DWORD TexHandle)
+#endif
 {
     _MM_ALIGN16 XMMVector V[4];
 
@@ -621,7 +629,11 @@ void CDXEngine::DX2D_AddQuad(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNV
 
 // This function add a Quad to the vertex buffers and sorting list...
 // WARNING  Does not check for Visibility, call DX2D_GetVisibility() or DX2D_SetupQuad before...
+#ifdef FF_LINUX
+void CDXEngine::DX2D_AddTri(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Tri, float Radius, uintptr_t TexHandle)
+#else
 void CDXEngine::DX2D_AddTri(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Tri, float Radius, DWORD TexHandle)
+#endif
 {
     _MM_ALIGN16 XMMVector V[4];
 
@@ -711,7 +723,11 @@ void CDXEngine::DX2D_AddTri(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVE
 
 // This function add a 2 vertex element to the vertex buffers and sorting list...
 // WARNING  Does not check for Visibility, call DX2D_GetVisibility() or DX2D_SetupQuad before...
+#ifdef FF_LINUX
+void CDXEngine::DX2D_AddBi(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Segment, float Radius, uintptr_t TexHandle)
+#else
 void CDXEngine::DX2D_AddBi(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Segment, float Radius, DWORD TexHandle)
+#endif
 {
     _MM_ALIGN16 XMMVector V[2];
 
@@ -833,7 +849,11 @@ void CDXEngine::DX2D_AddBi(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVER
 
 // This function add a SINGLE VERTEX element to the vertex buffers and sorting list...
 // WARNING  Does not check for Visibility, call DX2D_GetVisibility() or DX2D_SetupQuad before...
+#ifdef FF_LINUX
+void CDXEngine::DX2D_AddSingle(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Segment, float Radius, uintptr_t TexHandle)
+#else
 void CDXEngine::DX2D_AddSingle(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Segment, float Radius, DWORD TexHandle)
+#endif
 {
     _MM_ALIGN16 XMMVector V;
 
@@ -946,7 +966,11 @@ void CDXEngine::DX2D_AddSingle(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDY
 
 
 
+#ifdef FF_LINUX
+void CDXEngine::DX2D_AddPoly(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Poly, float Radius, DWORD Vertices, uintptr_t TexHandle)
+#else
 void CDXEngine::DX2D_AddPoly(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNVERTEX *Poly, float Radius, DWORD Vertices, DWORD TexHandle)
+#endif
 {
     _MM_ALIGN16 XMMVector V;
 
@@ -1099,7 +1123,11 @@ DWORD CDXEngine::DX2D_GenerateIndexes(DWORD Start)
     // Setup the starting VB
     DWORD Vb = (DWORD)Draws2D[Start].Vb;
 #endif
+#ifdef FF_LINUX
+    uintptr_t Tex = Draws2D[Start].TexHandle;
+#else
     DWORD Tex = Draws2D[Start].TexHandle;
+#endif
 
     // Setup for lines
     if (Draws2D[Start].Flags bitand POLY_LINE) LineMode = true;
@@ -1545,7 +1573,11 @@ void CDXEngine::DX2D_SetViewMode(void)
 // Sorting and Flushing all the 2D objects
 void CDXEngine::DX2D_Flush2DObjects(void)
 {
+#ifdef FF_LINUX
+    uintptr_t LastTexHandle = (uintptr_t)-1; // FF_LINUX: Use uintptr_t for TextureHandle* comparison
+#else
     DWORD LastTexHandle = -1;
+#endif
 
     // Track of the drawing mode
     bool Mode_2D = false, Mode_3D = false;
@@ -1784,6 +1816,7 @@ float CDXEngine::GetDetailLevel(D3DVECTOR *WorldPos, float MaxRange)
 {
     _MM_ALIGN16 XMMVector CPos;
     // make it in camera space
+#ifdef _MSC_VER
     _asm
     {
         mov edx, DWORD PTR WorldPos // Get th World position
@@ -1792,6 +1825,15 @@ float CDXEngine::GetDetailLevel(D3DVECTOR *WorldPos, float MaxRange)
         mulps xmm0, xmm0; // square of all parameters
         movaps CPos, xmm0; // stores
     }
+#else
+    // C++ alternative for non-MSVC compilers
+    CPos.d3d.x = WorldPos->x - XMMCamera.d3d.x;
+    CPos.d3d.y = WorldPos->y - XMMCamera.d3d.y;
+    CPos.d3d.z = WorldPos->z - XMMCamera.d3d.z;
+    CPos.d3d.x *= CPos.d3d.x;
+    CPos.d3d.y *= CPos.d3d.y;
+    CPos.d3d.z *= CPos.d3d.z;
+#endif
 
     return  sqrtf(CPos.d3d.x + CPos.d3d.y + CPos.d3d.z) / MaxRange * m_LODBiasCx;
 }
@@ -1814,6 +1856,7 @@ void CDXEngine::Draw3DPoint(D3DVECTOR *WorldPos, DWORD Color, bool Emissive, boo
     if ( not CameraSpace)
     {
         // make it in camera space
+#ifdef _MSC_VER
         _asm
         {
             mov edx, DWORD PTR WorldPos // Get th World position
@@ -1822,9 +1865,15 @@ void CDXEngine::Draw3DPoint(D3DVECTOR *WorldPos, DWORD Color, bool Emissive, boo
             subps xmm0, XMMCamera // subtract it
             movups XMMWORD PTR [eax], xmm0 // save in the vertex
         }
+#else
+        VPtr->pos.x = WorldPos->x - XMMCamera.d3d.x;
+        VPtr->pos.y = WorldPos->y - XMMCamera.d3d.y;
+        VPtr->pos.z = WorldPos->z - XMMCamera.d3d.z;
+#endif
     }
     else
     {
+#ifdef _MSC_VER
         _asm
         {
             mov edx, DWORD PTR WorldPos // Get th World position
@@ -1832,6 +1881,11 @@ void CDXEngine::Draw3DPoint(D3DVECTOR *WorldPos, DWORD Color, bool Emissive, boo
             mov eax, DWORD PTR VPtr // Get the Camera position
             movups XMMWORD PTR [eax], xmm0 // save in the vertex
         }
+#else
+        VPtr->pos.x = WorldPos->x;
+        VPtr->pos.y = WorldPos->y;
+        VPtr->pos.z = WorldPos->z;
+#endif
     }
 
     VPtr->dwColour = Color;
@@ -1864,6 +1918,7 @@ void CDXEngine::Draw3DLine(D3DVECTOR *WorldStart, D3DVECTOR *WorldEnd, DWORD Col
     if ( not CameraSpace)
     {
         // make it in camera space
+#ifdef _MSC_VER
         _asm
         {
             mov edx, DWORD PTR WorldStart // Get the World Start position
@@ -1876,9 +1931,18 @@ void CDXEngine::Draw3DLine(D3DVECTOR *WorldStart, D3DVECTOR *WorldEnd, DWORD Col
             subps xmm1, XMMCamera // subtract it
             movups XMMWORD PTR [eax+SIZE D3DSIMPLEVERTEX], xmm1 // save in the 2nd vertex
         }
+#else
+        VPtr->pos.x = WorldStart->x - XMMCamera.d3d.x;
+        VPtr->pos.y = WorldStart->y - XMMCamera.d3d.y;
+        VPtr->pos.z = WorldStart->z - XMMCamera.d3d.z;
+        (VPtr + 1)->pos.x = WorldEnd->x - XMMCamera.d3d.x;
+        (VPtr + 1)->pos.y = WorldEnd->y - XMMCamera.d3d.y;
+        (VPtr + 1)->pos.z = WorldEnd->z - XMMCamera.d3d.z;
+#endif
     }
     else
     {
+#ifdef _MSC_VER
         _asm
         {
             mov edx, DWORD PTR WorldStart // Get the World Start position
@@ -1889,6 +1953,14 @@ void CDXEngine::Draw3DLine(D3DVECTOR *WorldStart, D3DVECTOR *WorldEnd, DWORD Col
             movups xmm1, XMMWORD PTR [ecx] // into XMM0
             movups XMMWORD PTR [eax+SIZE D3DSIMPLEVERTEX], xmm1 // save in the 2nd vertex
         }
+#else
+        VPtr->pos.x = WorldStart->x;
+        VPtr->pos.y = WorldStart->y;
+        VPtr->pos.z = WorldStart->z;
+        (VPtr + 1)->pos.x = WorldEnd->x;
+        (VPtr + 1)->pos.y = WorldEnd->y;
+        (VPtr + 1)->pos.z = WorldEnd->z;
+#endif
     }
 
     VPtr->dwColour = ColorStart;
@@ -2082,9 +2154,9 @@ void CDXEngine::DrawBlip(ObjectInstance *objInst, D3DXMATRIX *RotMatrix, const P
 
     // ************ ADD Other Features ***********
     D3DXMatrixIdentity(&Scale);
-    Scale.m00 = scale * sx;
-    Scale.m11 = scale * sy;
-    Scale.m22 = scale * sz;
+    Scale._11 = scale * sx;
+    Scale._22 = scale * sy;
+    Scale._33 = scale * sz;
     D3DXMatrixMultiply(&State, RotMatrix, &Scale);
     // *******************************************
 

@@ -158,6 +158,16 @@ void NoInputCycle(void)
 //***********************************
 BOOL SetupDIMouseAndKeyboard(HINSTANCE, HWND hWnd)
 {
+#ifdef FF_LINUX
+    // On Linux, SDL handles mouse/keyboard input instead of DirectInput
+    // Return TRUE to indicate success - input is already set up via SDL
+    gOccupiedBySim = TRUE;
+    gyFuzz = gxFuzz = 0;
+    gxPos = DisplayOptions.DispWidth / 2;
+    gyPos = DisplayOptions.DispHeight / 2;
+    gMouseSensitivity = NORM_SENSITIVITY;
+    return TRUE;
+#endif
 
     BOOL SetupResult = TRUE;
     BOOL MouseSetupResult;
@@ -240,8 +250,8 @@ BOOL SetupDIMouseAndKeyboard(HINSTANCE, HWND hWnd)
 // This code checks if the axis specified by a user are really existing on the specified
 // devices.. however..
 // a problem is that the properties (range and deadzone) are set before that check
-// I can´t do this check before enumerating the devices however
-// I don´t know if I can do the property-setting here either
+// I canï¿½t do this check before enumerating the devices however
+// I donï¿½t know if I can do the property-setting here either
 //
 /*****************************************************************************************/
 void SetupGameAxis()
@@ -276,7 +286,7 @@ void SetupGameAxis()
                 // look what axis on that real device is mapped to that game axis..
                 if ((*AxisSetup[GameAxisIndex].axis not_eq -1) and (*AxisSetup[GameAxisIndex].axis < 8)) // 8 is again the max DX axiscount..
                 {
-                    // ok there´s one mapped. now see if it is indeed located on the device..
+                    // ok thereï¿½s one mapped. now see if it is indeed located on the device..
                     if (gpDIDevice[DeviceIndex]->GetObjectInfo(&devobj, AxisOffsets[*AxisSetup[GameAxisIndex].axis], DIPH_BYOFFSET) == DI_OK)
                     {
                         // found it :) now set it up..
@@ -330,7 +340,7 @@ void SetupGameAxis()
                         {
                             // if a deadzone is defined, apply it.. values are from 10000 (100%) to 0 (0%) of
                             // physical range to both sides of the '0' point. Default to 100 (1%)
-                            // unipolar axis don´t have a deadzone 
+                            // unipolar axis donï¿½t have a deadzone 
                             if ((AxisSetup[GameAxisIndex].deadzone) and (*AxisSetup[GameAxisIndex].deadzone))
                             {
                                 DIPROPDWORD dipdw = {{sizeof(DIPROPDWORD), sizeof(DIPROPHEADER), 0, DIPH_DEVICE}, DJOYSTICK_BUFFERSIZE};
@@ -358,7 +368,7 @@ void SetupGameAxis()
                         } // no custom axis shaping
 
 
-                        // tell the program that it´s done.
+                        // tell the program that itï¿½s done.
                         IO.SetAnalogIsUsed((GameAxis_t)GameAxisIndex, true);
                     }
 
@@ -550,7 +560,7 @@ BOOL SetupDIJoystick(HINSTANCE, HWND hWnd)
 #endif
 
     /*******************************************************************************/
-    // ok we enumerated sticks, this doesn´t mean however that they are mapped yet 
+    // ok we enumerated sticks, this doesnï¿½t mean however that they are mapped yet 
     /*******************************************************************************/
     if (gTotalJoy)
     {
@@ -614,7 +624,7 @@ BOOL SetupDIJoystick(HINSTANCE, HWND hWnd)
             PlayerOptions.SetFFB(false);
         }
 
-        /* however we still acquire everything we´ve got in order to poll it in the setup screen.. */
+        /* however we still acquire everything weï¿½ve got in order to poll it in the setup screen.. */
         for (int i = SIM_JOYSTICK1; i < gTotalJoy + SIM_JOYSTICK1; i++)
         {
             JoystickSetupResult = VerifyResult(gpDIDevice[i]->Acquire());
@@ -638,6 +648,13 @@ BOOL SetupDIJoystick(HINSTANCE, HWND hWnd)
 //**********************************************************
 BOOL CleanupDIMouseAndKeyboard()
 {
+#ifdef FF_LINUX
+    // On Linux, SDL handles mouse/keyboard input - no DirectInput cleanup needed
+    gOccupiedBySim = FALSE;
+    gSimInputEnabled = FALSE;
+    return TRUE;
+#endif
+
     BOOL CleanupResult = TRUE;
 
     AcquireDeviceInput(SIM_MOUSE, FALSE);

@@ -5923,6 +5923,7 @@ int __cdecl RES_FSEEK(FILE * stream, long offset, int whence)
 #endif /* RES_STREAMING_IO */
 
 
+#if( RES_STREAMING_IO )
 /* ==================================================================================
 
     R E P L A C E M E N T       _ F I L B U F
@@ -6130,8 +6131,7 @@ int __cdecl _filbuf(FILE * stream)
     return(0xff bitand *stream -> _ptr++);
 }
 
-
-
+#endif /* RES_STREAMING_IO - _filbuf */
 
 
 #if( RES_DEBUG_VERSION )

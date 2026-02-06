@@ -1,4 +1,4 @@
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "stdhdr.h"
 #include "fcc.h"
 #include "missile.h"
@@ -13,7 +13,7 @@
 #include "radar.h"
 #include "camp2sim.h"
 #include "playerop.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "hud.h" //MI
 #include "aircrft.h" // 2002-03-01 MN
 

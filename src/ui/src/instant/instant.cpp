@@ -6,10 +6,11 @@
  Main UI screen stuff for FreeFalcon
 \***************************************************************************/
 #include <windows.h>
+#include <cstdio>  // FF_LINUX: For debug fprintf
 #include "falclib.h"
 #include "targa.h"
 #include "dxutil/ddutil.h"
-#include "Graphics/Include/imagebuf.h"
+#include "graphics/include/imagebuf.h"
 #include "chandler.h"
 #include "ui95_ext.h"
 #include "entity.h"
@@ -32,10 +33,10 @@
 #include "textids.h"
 #include "CmpClass.h"
 #include "ThreadMgr.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "classtbl.h"
 #include "iaction.h"
-#include "Graphics/Include/TMap.h" // JPO for map sizes
+#include "graphics/include/tmap.h" // JPO for map sizes
 #include "fakerand.h" //THW for random startup position
 
 //JAM 21Nov03
@@ -561,14 +562,18 @@ void LoadInstantActionWindows()
 
 static void InstantActionFlyCB(long, short hittype, C_Base *)
 {
+    fprintf(stderr, "[InstantActionFlyCB] Called with hittype=%d\n", (int)hittype);
     C_Window *win;
     C_Button *btn;
     C_Cursor *crsr;
     C_Clock *clk;
     float XPos, YPos;
 
-    if (hittype not_eq C_TYPE_LMOUSEUP)
+    if (hittype not_eq C_TYPE_LMOUSEUP) {
+        fprintf(stderr, "[InstantActionFlyCB] Returning early - not LMOUSEUP\n");
         return;
+    }
+    fprintf(stderr, "[InstantActionFlyCB] Processing click...\n");
 
     win = gMainHandler->FindWindow(IA_SETTINGS_WIN);
 
@@ -673,21 +678,37 @@ static void InstantActionFlyCB(long, short hittype, C_Base *)
             instant_action::set_start_time(static_cast<long>(12.0F * 60.0F * 60.0F));
     }
 
+    fprintf(stderr, "[InstantActionFlyCB] TheCampaign.IsLoaded()=%d\n", TheCampaign.IsLoaded());
     ShiAssert( not TheCampaign.IsLoaded());
 
     // Load a campaign here
     strcpy(gUI_CampaignFile, "Instant");
 
+    fprintf(stderr, "[InstantActionFlyCB] gameCompressionRatio=%d\n", gameCompressionRatio);
     ShiAssert(gameCompressionRatio == 0);
 
     TheCampaign.SetOnlineStatus(0);
 
+    fprintf(stderr, "[InstantActionFlyCB] Calling TheCampaign.LoadCampaign()...\n");
+    fflush(stderr);
     TheCampaign.LoadCampaign(game_InstantAction, gUI_CampaignFile);
+    fprintf(stderr, "[InstantActionFlyCB] LoadCampaign returned\n");
+    fflush(stderr);
 
+    fprintf(stderr, "[InstantActionFlyCB] Calling instant_action::set_start_wave()...\n");
+    fflush(stderr);
     instant_action::set_start_wave(InstantActionSettings.PilotLevel);
+    fprintf(stderr, "[InstantActionFlyCB] Calling instant_action::create_player_flight()...\n");
+    fflush(stderr);
     instant_action::create_player_flight();
+    fprintf(stderr, "[InstantActionFlyCB] create_player_flight returned\n");
+    fflush(stderr);
 
+    fprintf(stderr, "[InstantActionFlyCB] Posting FM_START_INSTANTACTION...\n");
+    fflush(stderr);
     PostMessage(gMainHandler->GetAppWnd(), FM_START_INSTANTACTION, 0, 0);
+    fprintf(stderr, "[InstantActionFlyCB] Done\n");
+    fflush(stderr);
 }
 
 static void InsertScoreCB(long, short hittype, C_Base *)
@@ -967,9 +988,17 @@ static void HookupIAControls(long ID)
     // Hook up Instant Action Buttons
     // Set Fly Button for IA
     ctrl = (C_Button *)winme->FindControl(SINGLE_FLY_CTRL);
+    fprintf(stderr, "[HookupInstantAction] SINGLE_FLY_CTRL=%d, ctrl=%p\n", SINGLE_FLY_CTRL, (void*)ctrl);
 
-    if (ctrl)
+    if (ctrl) {
         ctrl->SetCallback(InstantActionFlyCB);
+        // FF_LINUX: Ensure the fly button is enabled
+        ctrl->SetFlagBitOn(C_BIT_ENABLED);
+        ctrl->Refresh();
+        fprintf(stderr, "[HookupInstantAction] Fly button callback set and enabled\n");
+    } else {
+        fprintf(stderr, "[HookupInstantAction] ERROR: Fly button not found!\n");
+    }
 
     ctrl = (C_Button *)winme->FindControl(MUNITIONS_BUTTON);
 

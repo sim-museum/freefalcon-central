@@ -1,8 +1,8 @@
 #include <time.h>
 #include "stdhdr.h"
 #include "otwdrive.h"
-#include "Graphics/Include/renderow.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/renderow.h"
+#include "graphics/include/drawbsp.h"
 #include "simdrive.h"
 #include "mesg.h"
 #include "MsgInc/AWACSMsg.h"
@@ -14,8 +14,8 @@
 #include "falclib/include/f4find.h"
 
 #include "simio.h" // Retro 25Mar2004
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "graphics/dxengine/dxengine.h"
+#include "graphics/dxengine/dxvbmanager.h"
 
 #include "fsound.h"
 #include "fakerand.h"
@@ -47,7 +47,7 @@ extern char FalconPictureDirectory[_MAX_PATH]; // JB 010623
 
 void ResetVoices(void);
 
-#include "sim/include/IVibeData.h"
+#include "sim/include/ivibedata.h"
 extern IntellivibeData g_intellivibeData;
 extern void *gSharedIntellivibe;
 extern bool g_bShowFlaps;
@@ -165,7 +165,7 @@ void OTWDriverClass::ShowFlaps(void)
 
 // Retro 1Feb2004 start
 // display some dual-throttle debug stuff
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 void OTWDriverClass::ShowEngine(void)
 {
     if (otwPlatform.get() and 

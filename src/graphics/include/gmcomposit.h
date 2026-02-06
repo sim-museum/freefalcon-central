@@ -9,9 +9,9 @@
 #ifndef _GMCOMPOSITE_H_
 #define _GMCOMPOSITE_H_
 
-#include "Tex.h"
-#include "Render2D.h"
-#include "gmRadar.h"
+#include "tex.h"
+#include "render2d.h"
+#include "gmradar.h"
 
 
 static const int GM_TEXTURE_SIZE = 128;

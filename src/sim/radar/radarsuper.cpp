@@ -1,18 +1,18 @@
 #include "stdhdr.h"
-#include "Object.h"
+#include "object.h"
 #include "simmover.h"
 #include "simdrive.h"
 #include "otwdrive.h"
 #include "camp2sim.h"
 #include "team.h"
-#include "Entity.h"
+#include "entity.h"
 #include "classtbl.h"
-#include "Graphics/Include/Display.h"
-#include "MsgInc/TrackMsg.h"
+#include "graphics/include/display.h"
+#include "msginc/trackmsg.h"
 #include "mfd.h"
 #include "campbase.h"
 #include "cmpclass.h"
-#include "RadarSuper.h"
+#include "radarsuper.h"
 
 #include "simio.h"  // MD -- 20040111: added for analog cursor support
 

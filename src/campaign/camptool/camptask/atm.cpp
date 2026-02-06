@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "CmpGlobl.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "APITypes.h"
 #include "Objectiv.h"
 #include "Find.h"

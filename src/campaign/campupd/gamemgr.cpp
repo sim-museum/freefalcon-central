@@ -12,7 +12,7 @@
 #include "OTWDrive.h"
 #include "MsgInc/PlayerStatusMsg.h"
 #include "GameMgr.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "TimerThread.h"
 #include "aircrft.h"
 #include "MsgInc/RadioChatterMsg.h"
@@ -37,7 +37,7 @@ extern int gRebuildBubbleNow;
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-ulong gBumpTime = 0;
+CampaignTime gBumpTime = 0;  // FF_LINUX: Use CampaignTime
 int gBumpFlag = FALSE;
 GameManagerClass GameManager;
 

@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "ClassTbl.h"
 #include "F4Find.h"
-#include "NoFly.h"
+#include "nofly.h"
 #include "find.h"
 #include "Campaign.h"
 

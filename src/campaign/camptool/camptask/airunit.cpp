@@ -7,7 +7,7 @@
 #include <math.h>
 #include "CmpGlobl.h"
 #include "F4Vu.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "CampCell.h"
 #include "CampTerr.h"
 #include "ASearch.h"

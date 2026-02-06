@@ -49,12 +49,47 @@
  *
  */
 
-#include <malloc.h>
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#ifdef FF_LINUX
+#include <sys/sysinfo.h>
+#else
+#include <malloc.h>
+#endif
+
+/* Define TRUE/FALSE if not available */
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
 
 #include "memmgr.h"
+
+/* Define compiler macros if not already defined */
+#ifndef COMPILER_WATCOM
+#define COMPILER_WATCOM 1
+#endif
+#ifndef COMPILER_MSVC
+#define COMPILER_MSVC   2
+#endif
+#ifndef COMPILER_GCC
+#define COMPILER_GCC    3
+#endif
+
+#ifndef LIB_COMPILER
+#  ifdef FF_LINUX
+#    define LIB_COMPILER COMPILER_GCC
+#  elif defined(_MSC_VER)
+#    define LIB_COMPILER COMPILER_MSVC
+#  else
+#    define LIB_COMPILER COMPILER_MSVC
+#  endif
+#endif
 
 #if( LIB_COMPILER == COMPILER_WATCOM )
 #  include <dos.h>

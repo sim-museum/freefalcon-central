@@ -157,7 +157,7 @@ int shiHardCrashOn = 0;
 // The sim thread needs the GL context for OTWDriver.Cycle(), but the main thread
 // owns it during UI mode. These functions transfer ownership.
 static std::mutex g_glContextMutex;
-static bool g_simOwnsGLContext = false;
+bool g_simOwnsGLContext = false;  // Non-static: accessed from simloop.cpp via extern
 
 // Release GL context from current thread (call before another thread acquires it)
 void FF_ReleaseGLContext() {
@@ -206,16 +206,105 @@ void FF_SimThreadReleaseGL() {
 
 // Swap buffers - callable from any thread that owns the GL context
 void FF_SwapBuffers() {
+    static int swapCount = 0;
+    swapCount++;
+
     if (g_SDLWindow && g_GLContext) {
         // Make sure the GL context is current on this thread before swapping
         SDL_GLContext current = SDL_GL_GetCurrentContext();
         if (current != g_GLContext) {
-            // Context not current on this thread, need to make it current
+            // Context not current on this thread - this shouldn't happen normally
+            if (swapCount <= 5) {
+                fprintf(stderr, "[FF_SwapBuffers] #%d: WARNING - GL context not current, making it current\n", swapCount);
+                fflush(stderr);
+            }
             SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
         }
 
-        // Present the frame (game content should already be rendered via DrawPrimitiveVB etc)
+        // Capture screenshot of the GL framebuffer at frame 300 (about 5 seconds in)
+        if (swapCount == 60 || swapCount == 300) {
+            // Check GL errors first
+            GLenum err;
+            int errCount = 0;
+            while ((err = glGetError()) != GL_NO_ERROR && errCount < 10) {
+                fprintf(stderr, "[SCREENSHOT] GL error before capture: 0x%x\n", err);
+                errCount++;
+            }
+
+            // Check viewport
+            GLint vp[4];
+            glGetIntegerv(GL_VIEWPORT, vp);
+            fprintf(stderr, "[SCREENSHOT] Frame %d: GL viewport = (%d, %d, %d, %d)\n",
+                    swapCount, vp[0], vp[1], vp[2], vp[3]);
+            fflush(stderr);
+        }
+        if (swapCount == 60 || swapCount == 300) {
+            int w = 0, h = 0;
+            SDL_GL_GetDrawableSize(g_SDLWindow, &w, &h);
+            if (w > 0 && h > 0) {
+                unsigned char* pixels = new unsigned char[w * h * 3];
+                glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+                // Save as BMP
+                FILE* f = fopen("screenshot_sim.bmp", "wb");
+                if (f) {
+                    int rowSize = (w * 3 + 3) & ~3;
+                    int imageSize = rowSize * h;
+                    // BMP header (14 bytes)
+                    uint16_t bfType = 0x4D42;
+                    uint32_t bfSize = 54 + imageSize;
+                    uint16_t bfReserved = 0;
+                    uint32_t bfOffBits = 54;
+                    fwrite(&bfType, 2, 1, f);
+                    fwrite(&bfSize, 4, 1, f);
+                    fwrite(&bfReserved, 2, 1, f);
+                    fwrite(&bfReserved, 2, 1, f);
+                    fwrite(&bfOffBits, 4, 1, f);
+                    // DIB header (40 bytes)
+                    uint32_t biSize = 40;
+                    int32_t biWidth = w, biHeight = h;
+                    uint16_t biPlanes = 1, biBitCount = 24;
+                    uint32_t biCompression = 0, biSizeImage = imageSize;
+                    int32_t biXPPM = 2835, biYPPM = 2835;
+                    uint32_t biClrUsed = 0, biClrImportant = 0;
+                    fwrite(&biSize, 4, 1, f);
+                    fwrite(&biWidth, 4, 1, f);
+                    fwrite(&biHeight, 4, 1, f);
+                    fwrite(&biPlanes, 2, 1, f);
+                    fwrite(&biBitCount, 2, 1, f);
+                    fwrite(&biCompression, 4, 1, f);
+                    fwrite(&biSizeImage, 4, 1, f);
+                    fwrite(&biXPPM, 4, 1, f);
+                    fwrite(&biYPPM, 4, 1, f);
+                    fwrite(&biClrUsed, 4, 1, f);
+                    fwrite(&biClrImportant, 4, 1, f);
+                    // Pixel data - glReadPixels gives us bottom-up RGB, BMP wants bottom-up BGR
+                    unsigned char* row = new unsigned char[rowSize];
+                    for (int y = 0; y < h; y++) {
+                        memset(row, 0, rowSize);
+                        for (int x = 0; x < w; x++) {
+                            unsigned char* src = pixels + (y * w + x) * 3;
+                            row[x * 3 + 0] = src[2]; // B
+                            row[x * 3 + 1] = src[1]; // G
+                            row[x * 3 + 2] = src[0]; // R
+                        }
+                        fwrite(row, rowSize, 1, f);
+                    }
+                    delete[] row;
+                    fclose(f);
+                    fprintf(stderr, "[FF_SwapBuffers] Screenshot saved: screenshot_sim.bmp (%dx%d)\n", w, h);
+                }
+                delete[] pixels;
+            }
+        }
+
+        // Present the frame
         SDL_GL_SwapWindow(g_SDLWindow);
+    } else {
+        if (swapCount <= 5 || swapCount % 300 == 1) {
+            fprintf(stderr, "[FF_SwapBuffers] #%d: FAILED - window=%p context=%p\n",
+                    swapCount, (void*)g_SDLWindow, (void*)g_GLContext);
+            fflush(stderr);
+        }
     }
 }
 
@@ -1581,6 +1670,13 @@ static void handle_sdl_events(void) {
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
                     g_running = false;
                 }
+                if (event.key.keysym.sym == SDLK_F5 && doUI && !g_autoTestInstantAction) {
+                    // F5: Quick-launch Instant Action (bypasses UI clicking)
+                    fprintf(stderr, "[F5] Launching Instant Action...\n");
+                    g_autoTestInstantAction = true;
+                    strcpy(gUI_CampaignFile, "Instant");
+                    PostGameMessage(FM_LOAD_CAMPAIGN, 0, game_InstantAction);
+                }
                 if (event.key.keysym.sym == SDLK_F11) {
                     // Toggle fullscreen
                     Uint32 flags = SDL_GetWindowFlags(g_SDLWindow);
@@ -1612,6 +1708,7 @@ static void handle_sdl_events(void) {
                 {
                     int x = event.button.x;
                     int y = event.button.y;
+                    fprintf(stderr, "[SDL_EVENT] MOUSEBUTTONDOWN btn=%d at (%d,%d)\n", event.button.button, x, y);
                     // Handle fallback menu clicks
                     if (g_useFallbackMenu && doUI && event.button.button == SDL_BUTTON_LEFT) {
                         HandleFallbackMenuClick(x, y);
@@ -1638,6 +1735,7 @@ static void handle_sdl_events(void) {
                 {
                     int x = event.button.x;
                     int y = event.button.y;
+                    fprintf(stderr, "[SDL_EVENT] MOUSEBUTTONUP btn=%d at (%d,%d)\n", event.button.button, x, y);
                     if (!g_useFallbackMenu || !doUI) {
                         int scaledX = x * 1024 / WINDOW_WIDTH;
                         int scaledY = y * 768 / WINDOW_HEIGHT;
@@ -2042,16 +2140,6 @@ bool ProcessGameMessages() {
 }
 
 static void render_frame(void) {
-    static int renderFrameCount = 0;
-    renderFrameCount++;
-
-    // Debug output every 200 frames to track render path
-    if (renderFrameCount % 200 == 0) {
-        fprintf(stderr, "[render_frame] #%d: doUI=%d, g_simOwnsGLContext=%d\n",
-                renderFrameCount, doUI, g_simOwnsGLContext ? 1 : 0);
-        fflush(stderr);
-    }
-
     // Use fallback menu if enabled (temporary workaround for UI95 issues)
     if (g_useFallbackMenu && doUI) {
         glClear(GL_COLOR_BUFFER_BIT);

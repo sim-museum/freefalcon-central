@@ -110,7 +110,7 @@ long CSoundMgr::StreamImaM16(IMA_STREAM *Info, char *dBuff, long dlen)
     {
         if ( not Info->blockLength)
         {
-            Info->blockLength  = min(Info->slen, SND_ADPCM_MBLOCK_ALIGN);
+            Info->blockLength  = min(Info->slen, (long)SND_ADPCM_MBLOCK_ALIGN);
             Info->blockLength    -= sizeof(IMA_BLOCK) * SND_WAV_MCHAN;
 
             //get the block header
@@ -429,7 +429,7 @@ long CSoundMgr::ImaDecodeM16(char *sBuff, char *dBuff, long bufferLength)
     //step through each byte of IMA ADPCM and decode it to PCM
     while (bufferLength >= blockHeaderSize)
     {
-        blockLength  = (UINT)min(bufferLength, blockAlignment);
+        blockLength  = (UINT)min(bufferLength, (long)blockAlignment);
         bufferLength   -= blockLength;
         blockLength    -= blockHeaderSize;
 

@@ -174,6 +174,9 @@ void Texture::SetupForDevice(DXContext *texRC, char *path)
 #endif
 
     rc = texRC;
+#ifdef FF_LINUX
+    fprintf(stderr, "[Texture::SetupForDevice] rc=%p path=%s\n", (void*)rc, TexturePath); fflush(stderr);
+#endif
     Palette::SetupForDevice(texRC);
 
     TextureHandle::StaticInit(texRC->m_pD3DD);
@@ -182,6 +185,9 @@ void Texture::SetupForDevice(DXContext *texRC, char *path)
 // This is called when we're done working with a given device (as represented by an RC).
 void Texture::CleanupForDevice(DXContext *texRC)
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[Texture::CleanupForDevice] Setting rc=NULL (was %p)\n", (void*)rc); fflush(stderr);
+#endif
     Palette::CleanupForDevice(texRC);
     rc = NULL;
 
@@ -351,7 +357,9 @@ BOOL Texture::LoadImage(char *filename, DWORD newFlags, BOOL addDefaultPath)
         dimensions = ddsd.dwLinearSize;
     }
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(FF_LINUX)
+    // FF_LINUX: Skipped - InterlockedExchangeAdd uses long* (8 bytes on 64-bit Linux)
+    // but m_dwTotalBytes is DWORD (4 bytes), causing buffer overflow
     InterlockedExchangeAdd((long *)&m_dwTotalBytes, dimensions * dimensions);
 #endif
 
@@ -371,7 +379,7 @@ void Texture::FreeImage()
 {
     if (imageData)
     {
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(FF_LINUX)
         InterlockedExchangeAdd((long *)&m_dwTotalBytes, -(dimensions * dimensions));
 #endif
 
@@ -396,6 +404,13 @@ bool Texture::CreateTexture(char *strName)
 #ifdef FF_LINUX
     // Safety check: Don't try to create texture if device isn't set up
     if (rc == NULL || imageData == NULL) {
+        static int ctFailDbg = 0;
+        ctFailDbg++;
+        if (ctFailDbg <= 5 || ctFailDbg % 200 == 0) {
+            fprintf(stderr, "[CreateTexture] #%d FAIL: rc=%p imageData=%p flags=0x%x dim=%d\n",
+                    ctFailDbg, (void*)rc, imageData, flags, dimensions);
+            fflush(stderr);
+        }
         return false;
     }
 #endif
@@ -505,11 +520,8 @@ void Texture::FreePalette()
 // Reload the MPR texels with the ones we have stored locally.
 bool Texture::UpdateMPR(char *strName)
 {
-    ShiAssert(rc not_eq NULL);
-    ShiAssert(imageData);
-    ShiAssert(texHandle);
-
-    if ( not texHandle or not imageData)
+    // FF_LINUX: Soft check instead of assertion - rc may be NULL during mode transitions
+    if (rc == NULL || imageData == NULL || texHandle == NULL)
     {
         return false;
     }
@@ -817,8 +829,8 @@ bool TextureHandle::Create(char *strName, UInt32 info, UInt16 bits, UInt16 width
             }
         }
 
-#ifdef _DEBUG
-
+#if defined(_DEBUG) && !defined(FF_LINUX)
+        // FF_LINUX: Skipped - InterlockedExchangeAdd uses long* (8 bytes) but m_dwTotalBytes is DWORD (4 bytes)
         if (m_pDDS)
         {
             DDSURFACEDESC2 ddsd;
@@ -943,7 +955,7 @@ bool TextureHandle::Load(UInt16 mip, UInt chroma, UInt8 *TexBuffer, bool bDoNotL
             memcpy(m_pImageData, TexBuffer, dwSize);
             m_bImageDataOwned = true;
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(FF_LINUX)
             InterlockedExchangeAdd((long *)&m_dwTotalBytes, dwSize);
             InterlockedExchangeAdd((long *)&m_dwBitmapBytes, dwSize);
 #endif
@@ -977,7 +989,7 @@ bool TextureHandle::Load(UInt16 mip, UInt chroma, UInt8 *TexBuffer, bool bDoNotL
         // Free previously allocated surface memory copy
         if (m_pImageData and m_bImageDataOwned)
         {
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(FF_LINUX)
             InterlockedExchangeAdd((long *)&m_dwTotalBytes, -(m_nImageDataStride * m_nHeight));
 #endif
 

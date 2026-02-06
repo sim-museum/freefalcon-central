@@ -30,7 +30,7 @@ void HeliBrain::RollAndPull(void)
             fCount = 0;
 
             PullToCollisionPoint();
-            MachHold(1.1F * CORNER_SPEED, self->Kias(), TRUE);
+            MachHold(1.1F * CORNER_SPEED, self->GetKias(), TRUE);
         }
         /*--------------*/
         /* me -> him -> */
@@ -90,7 +90,7 @@ void HeliBrain::PullToControlPoint(void)
     trackZ += 2750.0F * (float)sin(el);
 
     AutoTrack(100.0f);
-    MachHold(1.1F * CORNER_SPEED, self->Kias(), TRUE);
+    MachHold(1.1F * CORNER_SPEED, self->GetKias(), TRUE);
 }
 
 void HeliBrain::PullToCollisionPoint(void)
@@ -157,9 +157,9 @@ void HeliBrain::MaintainClosure(void)
     /* mach hold command */
     /*-------------------*/
     if (closure - rngdot > 0.0)
-        MachHold((self->Kias() + (closure - rngdot)), self->Kias(), TRUE);
+        MachHold((self->GetKias() + (closure - rngdot)), self->GetKias(), TRUE);
     else
-        MachHold((self->Kias() + (closure - rngdot)), self->Kias(), FALSE);
+        MachHold((self->GetKias() + (closure - rngdot)), self->GetKias(), FALSE);
 }
 
 float HeliBrain::CollisionTime(void)

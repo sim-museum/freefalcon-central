@@ -39,11 +39,16 @@ void CopyDataToWindow()
 {
     // get pbook window handlers
     C_Window *win = gMainHandler->FindWindow(PB_WIN);
+    if (win == NULL)
+    {
+        return;
+    }
+
     C_EditBox *hostAddressControl = (C_EditBox*)win->FindControl(IP_ADDRESS_1);
     C_Button *servButtonControl = (C_Button*)win->FindControl(COMM_MODE_SERV);
     C_Button *clientButtonControl = (C_Button*)win->FindControl(COMM_MODE_CLIENT);
 
-    if ((win == NULL) or (hostAddressControl == NULL) or (servButtonControl == NULL))
+    if ((hostAddressControl == NULL) or (servButtonControl == NULL))
     {
         return;
     }

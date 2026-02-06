@@ -191,7 +191,7 @@ long ImaDecodeM16(char *sBuff, char *dBuff, long bufferLength)
     //step through each byte of IMA ADPCM and decode it to PCM
     while (bufferLength >= blockHeaderSize)
     {
-        blockLength  = (UINT)min(bufferLength, blockAlignment);
+        blockLength  = (UINT)min(bufferLength, (long)blockAlignment);
         bufferLength   -= blockLength;
         blockLength    -= blockHeaderSize;
 

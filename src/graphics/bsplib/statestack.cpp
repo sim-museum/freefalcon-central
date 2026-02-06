@@ -7,20 +7,20 @@
 \***************************************************************************/
 #include "stdafx.h"
 #include <math.h>
-#include "ColorBank.h"
-#include "ObjectInstance.h"
+#include "colorbank.h"
+#include "objectinstance.h"
 #include "ClipFlags.h"
-#include "StateStack.h"
+#include "statestack.h"
 #include "context.h"
 #include "vmath.h"
 #include "fmath.h"
-#include "FalcLib/include/playerop.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
 
-#include "Graphics/DXEngine/DXTools.h"
-#include "Graphics/DXEngine/DXDefines.h"
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "graphics/dxengine/dxtools.h"
+#include "graphics/dxengine/dxdefines.h"
+#include "graphics/dxengine/dxengine.h"
+#include "graphics/dxengine/dxvbmanager.h"
 extern bool g_bUse_DX_Engine;
 
 

@@ -5,7 +5,7 @@
 #ifndef _DRAWTRCR_H_
 #define _DRAWTRCR_H_
 
-#include "DrawObj.h"
+#include "drawobj.h"
 #define  TRACER_VISIBLE_DISTANCE 20000.0f
 
 

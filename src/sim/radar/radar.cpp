@@ -2,8 +2,8 @@
 #include "falcmesg.h"
 #include "MsgInc/TrackMsg.h"
 #include "simmover.h"
-#include "Graphics/Include/Render2D.h"
-#include "Graphics/Include/Mono2d.h"
+#include "graphics/include/render2d.h"
+#include "graphics/include/mono2d.h"
 #include "mfd.h"
 #include "Object.h"
 #include "falcsess.h"
@@ -244,8 +244,8 @@ float RadarClass::ReturnStrength(SimObjectType* target)
     // See if the target is jamming
     if (target->BaseData()->IsSPJamming())
     {
-        // MODIFIED BY S.G. SO ECM DEVICE ARE ONLY EFFECTIVE FROM ENEMY LOCATED AT AN az OF ±60° IN FRONT/BACK OF THE PLANE
-        // AND AN el OF -30° TO +15°
+        // MODIFIED BY S.G. SO ECM DEVICE ARE ONLY EFFECTIVE FROM ENEMY LOCATED AT AN az OF ï¿½60ï¿½ IN FRONT/BACK OF THE PLANE
+        // AND AN el OF -30ï¿½ TO +15ï¿½
         // S *= radarData->JammingPenalty;
         float ecmAngleFactor = 1;
         int iAz, iEl;
@@ -502,7 +502,11 @@ void RadarClass::SendTrackMsg(SimObjectType* tgtptr, unsigned int trackType, uns
 
 // read in the .dat file
 
+#ifdef FF_LINUX
+static const char RADAR_DIR[] = "sim/radar";
+#else
 static const char RADAR_DIR[] = "sim\\radar";
+#endif
 static const char RADAR_DATASET[] = "radtypes.lst";
 
 
@@ -578,7 +582,11 @@ void ReadAllRadarData(void)
     SimlibFileName fileName;
     SimlibFileName fName;
 
+#ifdef FF_LINUX
+    sprintf(fileName, "%s/%s", RADAR_DIR, RADAR_DATASET);
+#else
     sprintf(fileName, "%s\\%s", RADAR_DIR, RADAR_DATASET);
+#endif
     rclist = SimlibFileClass::Open(fileName, SIMLIB_READ);
 
     if (rclist == NULL) return;
@@ -594,7 +602,11 @@ void ReadAllRadarData(void)
         /*-----------------*/
         /* open input file */
         /*-----------------*/
+#ifdef FF_LINUX
+        sprintf(fName, "%s/%s.dat", RADAR_DIR, buffer);
+#else
         sprintf(fName, "%s\\%s.dat", RADAR_DIR, buffer);
+#endif
         inputFile = SimlibFileClass::Open(fName, SIMLIB_READ);
 
         F4Assert(inputFile);

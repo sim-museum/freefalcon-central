@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <tchar.h>
 #include "cmpglobl.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "f4find.h"
 //temporary until logbook is working
 #include "ui/include/logbook.h"
@@ -15,7 +15,7 @@
 #include "soundgroups.h"
 #include "falcsnd/VoiceManager.h"
 #include "sim/include/sinput.h"
-#include "Graphics/Include/matrix.h"
+#include "graphics/include/matrix.h"
 #include "Weather.h"
 #include "Campaign/include/Cmpclass.h"
 

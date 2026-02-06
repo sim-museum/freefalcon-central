@@ -5,8 +5,8 @@
 
  Volumetric cloud class
 \***************************************************************************/
-#include "Real3DCloud.h"
-#include "RealWeather.h"
+#include "real3dcloud.h"
+#include "realweather.h"
 
 ObjectDisplayList *Real3DCloud::objMgr = NULL;
 

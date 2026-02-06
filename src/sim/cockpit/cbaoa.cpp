@@ -1,6 +1,6 @@
 #include <windows.h>
 #include "cpcb.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "cpgauge.h"
 
 
@@ -19,13 +19,13 @@ void CBAOADisplay(void * pObject)
 
     pCPGauge = (CPGauge*) pObject;
 
-    x1 = pCPGauge->mx + pCPGauge->mpParent->mx;
+    x1 = pCPGauge->mx + pCPGauge->mpParent->mxPanelOffset;
     x2 = pCPGauge->mWidth + x1;
-    y = pCPGauge->my + (pCPGauge->mHeight / 2) + pCPGauge->mpParent->my - 3; //-3 VWFKLUDGE
+    y = pCPGauge->my + (pCPGauge->mHeight / 2) + pCPGauge->mpParent->myPanelOffset - 3; //-3 VWFKLUDGE
 
     pCPGauge->DrawTape(pCPGauge->mCurrentVal, pCPGauge->mx, pCPGauge->my, FALSE);
-    pCPGauge->mpCPRenderer->StartFrame();
+    pCPGauge->mpCPRenderer->StartDraw();
     pCPGauge->mpCPRenderer->SetColor(0x0000585e);
-    pCPGauge->mpCPRenderer->Render2DLine(x1, y, x2, y);
-    pCPGauge->mpCPRenderer->FinishFrame();
+    pCPGauge->mpCPRenderer->Render2DLine((float)x1, (float)y, (float)x2, (float)y);
+    pCPGauge->mpCPRenderer->EndDraw();
 }

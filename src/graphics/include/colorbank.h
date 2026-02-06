@@ -8,7 +8,7 @@
 #ifndef _COLORBANK_H_
 #define _COLORBANK_H_
 
-#include "PolyLib.h"
+#include "polylib.h"
 
 
 // The one and only color bank.  This would need to be replaced

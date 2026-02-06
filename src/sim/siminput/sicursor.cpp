@@ -1,10 +1,10 @@
 #include <stdio.h>
 
 #include "stdhdr.h"
-#include "Graphics/Include/device.h"
-#include "Graphics/Include/Filemem.h"
-#include "Graphics/Include/Image.h"
-#include "Graphics/Include/render2d.h"
+#include "graphics/include/device.h"
+#include "graphics/include/filemem.h"
+#include "graphics/include/image.h"
+#include "graphics/include/render2d.h"
 #include "f4thread.h"
 #include "f4find.h"
 #include "otwdrive.h"
@@ -358,7 +358,7 @@ void ClipAndDrawCursor(int displayWidth, int displayHeight)
 
 
         OTWDriver.renderer->context.RestoreState(STATE_ALPHA_TEXTURE_NOFILTER);
-        OTWDriver.renderer->context.SelectTexture1((GLint) pTex);
+        OTWDriver.renderer->context.SelectTexture1((intptr_t) pTex);
         OTWDriver.renderer->context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 4, pVtx, sizeof(pVtx[0]));
         OTWDriver.renderer->EndDraw();
 

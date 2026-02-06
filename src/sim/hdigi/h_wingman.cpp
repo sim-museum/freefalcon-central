@@ -4,13 +4,13 @@
 #include "simbase.h"
 #include "MsgInc/WingmanMsg.h"
 #include "simveh.h"
-#include "campBase.h"
+#include "campbase.h"
 #include "otwdrive.h"
 //TJL 11/27/03
 #include "helo.h"
 #include "fcc.h"
 #include "sms.h"
-#include "Graphics/Include/drawBSP.h"
+#include "graphics/include/drawbsp.h"
 
 void HeliBrain::ReceiveOrders(FalconEvent* theEvent)
 {

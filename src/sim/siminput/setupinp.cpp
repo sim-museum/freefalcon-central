@@ -6,7 +6,7 @@
 #include "falclib/include/f4find.h"
 #include "simfile.h"
 #include "f4find.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "aircrft.h"
 #include "simdrive.h"
 #include "camp2sim.h"

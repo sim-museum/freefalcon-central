@@ -1,13 +1,13 @@
-#include "F4Thread.h"
+#include "f4thread.h"
 #include "sinput.h"
 #include "simio.h"
 #include "simdrive.h"
-#include "OTWDrive.h"
-#include "inpFunc.h"
+#include "otwdrive.h"
+#include "inpfunc.h"
 #include "cpmanager.h"
 #include "ffeedbk.h"
 #include "datadir.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "ui/include/logbook.h"
 #include "aircrft.h"
 #include "weather.h"
@@ -37,7 +37,7 @@ float UR_HEAD_VIEW = 160.0f;
 float UR_PREV_X = 0.0f;
 float UR_PREV_Y = 0.0f;
 
-#include "TrackIR.h" // Retro 26/09/03
+#include "trackir.h" // Retro 26/09/03
 extern bool g_bEnableTrackIR; // Retro 26/09/03
 extern TrackIR theTrackIRObject; // Retro 27/09/03
 
@@ -74,9 +74,9 @@ int gNumEffectsLoaded = 0;
 
 int g_nThrottleID = DIJOFS_Z; // OW
 
-//#define THE_MPS_WAY_OF_LIFE // Retro 2Jan2004 - with this enabled, old 'IO.analog[].engrVal' algorithm is used. Else it´s mine =)
+//#define THE_MPS_WAY_OF_LIFE // Retro 2Jan2004 - with this enabled, old 'IO.analog[].engrVal' algorithm is used. Else itï¿½s mine =)
 #define AUTOCENTERFUN // this should bring back autocentering with the FFB-button in the advanced controls tab disabled
-#define NO_CENTER_FOR_MY_AXIS_PLEASE // Retro 9Jan2004 - what´s the point ? Doesn´t work too good anyways BTW (has offset)
+#define NO_CENTER_FOR_MY_AXIS_PLEASE // Retro 9Jan2004 - whatï¿½s the point ? Doesnï¿½t work too good anyways BTW (has offset)
 #define USE_IDLE_CUTOFF // Retro 2Feb2004 - with this enable we use analog[].cutoff as well as the ABDetent
 #define SYMMETRIC_THROTTLEDETENTS // Retro 2Feb2004 - ABDetent and cuttof var are set for BOTH throttles by the LEFT throttle 
 
@@ -151,7 +151,7 @@ inline void ProcessJoystickInput(GameAxis_t axis, long *value)
 
         IO.analog[axis].ioVal = *value;
     }
-    else // This one´s better imo, (C) H. Kern of the TU Vienna.. showed it to me in "Konstruktion systemfähiger Messgeräte" ;)
+    else // This oneï¿½s better imo, (C) H. Kern of the TU Vienna.. showed it to me in "Konstruktion systemfï¿½higer Messgerï¿½te" ;)
     {
         if (IO.analog[axis].smoothingFactor)
         {
@@ -240,9 +240,9 @@ void GetJoystickInput()
     DIJOYSTATE joyState;
 
     if ( not gTotalJoy)
-        return; // returning if we don´t have a stick
+        return; // returning if we donï¿½t have a stick
 
-    long device_axis_values[SIM_NUMDEVICES][8]; // 8 axis in a DIJOYSTATE structure.. don´t think we´ll switch to DIJOYSTATE2
+    long device_axis_values[SIM_NUMDEVICES][8]; // 8 axis in a DIJOYSTATE structure.. donï¿½t think weï¿½ll switch to DIJOYSTATE2
 
     /*******************************************************************************/
     // Polling all devices..
@@ -586,7 +586,7 @@ void GetJoystickInput()
     /*******************************************************************************/
     // Copy and process additional axis
     // These are the axis added by Retro; their processing is a bit less elaborate,
-    // and they don´t have ABDetent functionality. Unipolar Axis don´t have
+    // and they donï¿½t have ABDetent functionality. Unipolar Axis donï¿½t have
     // center functionality either.
     /*******************************************************************************/
     extern GameAxisSetup_t AxisSetup[AXIS_MAX];
@@ -992,7 +992,7 @@ AxisIDStuff DIAxisNames[SIM_NUMDEVICES*NUM_OF_STICK_AXIS];
 /*****************************************************************************/
 // Retro 31Dec2003
 // all this one does is to note the name of every axis located on a device -
-// I don´t care if it´s x,y,z,rx,ry,rz,sl0 or sl1 yet
+// I donï¿½t care if itï¿½s x,y,z,rx,ry,rz,sl0 or sl1 yet
 // - just note its name (copy it into that globat array above) and be done
 // with it
 /*****************************************************************************/
@@ -1059,12 +1059,12 @@ BOOL FAR PASCAL EnumDeviceObjects(LPCDIDEVICEOBJECTINSTANCE lpddoi, LPVOID pvRef
 #else // USE_DINPUT_8
 /*****************************************************************************/
 // Retro 16Jan2004 - with dinput8, enumerating device objects seems busted
-// it´s picking up imaginary axis, and does not see real ones.. so I have to
+// itï¿½s picking up imaginary axis, and does not see real ones.. so I have to
 // look for the real existing axis this way. Functionally it is the same
 // as the CallBack function above (EnumDeviceObjects) but it handles all
 // possible axis on a joystick at once.
 //
-// Of course, should the dataformat change (to joystick2) then we´d have to
+// Of course, should the dataformat change (to joystick2) then weï¿½d have to
 // change a bit here (and in the rest of the code )
 /*****************************************************************************/
 void CheckAxisOnDevice(LPDIRECTINPUTDEVICE8 pdev, const char* DevName)
@@ -1121,8 +1121,8 @@ void CheckAxisOnDevice(LPDIRECTINPUTDEVICE8 pdev, const char* DevName)
 /*****************************************************************************/
 // brrrr... trying to get the mousewheel as 'just another axis'
 //
-// of course it isn´t that clear cut: mousewheel has no deadzone, no saturation
-// and I can´t set range props. instead I´ll have to clamp the values depending
+// of course it isnï¿½t that clear cut: mousewheel has no deadzone, no saturation
+// and I canï¿½t set range props. instead Iï¿½ll have to clamp the values depending
 // on if the mapped axis is bipolar or unipolar
 /*****************************************************************************/
 void CheckForMouseAxis(void)
@@ -1191,7 +1191,7 @@ void CheckForMouseAxis(void)
 // autocenter goes OFF (we do it ourselves then), else we turn it back ON so
 // that at least centering spring forces are there, else it feels like ass.
 //
-// I´m ASSuming that this IS a FFB stick  You can´t check this with
+// Iï¿½m ASSuming that this IS a FFB stick  You canï¿½t check this with
 // HasForceFeedback however (at least not here) 
 /*****************************************************************************/
 int ActivateAutoCenter(const bool OnOff, const int theJoyIndex)
@@ -1469,8 +1469,8 @@ BOOL JoystickCreateEffect(DWORD)
     DICONDITION* conditionHolder = NULL;
     char str1[80] = {0}, str2[80] = {0};
     DWORD* axesArray = NULL;
-    long* dirArray = NULL;
-    long* forceData = NULL;
+    LONG* dirArray = NULL;
+    LONG* forceData = NULL;
     char dataFileName[_MAX_PATH];
     GUID guidEffect;
     DWORD SetupResult = FALSE;
@@ -1549,7 +1549,7 @@ BOOL JoystickCreateEffect(DWORD)
             axesArray = new DWORD [effectHolder.cAxes];
             effectHolder.rgdwAxes = axesArray;
 
-            dirArray = new long [effectHolder.cAxes];
+            dirArray = new LONG [effectHolder.cAxes];
             effectHolder.rglDirection = dirArray;
 
             for (j = 0; j < effectHolder.cAxes; j++)
@@ -1626,7 +1626,7 @@ BOOL JoystickCreateEffect(DWORD)
                     forceData = NULL;
                 }
 
-                forceData = new long[customHolder.cChannels * customHolder.cSamples];
+                forceData = new LONG[customHolder.cChannels * customHolder.cSamples];
                 customHolder.rglForceData = forceData;
 
                 for (j = 0; j < customHolder.cChannels; j++)

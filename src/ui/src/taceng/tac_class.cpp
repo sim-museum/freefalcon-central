@@ -18,7 +18,7 @@
 #include "uicomms.h"
 #include "userids.h"
 #include "textids.h"
-#include "F4Error.h"
+#include "f4error.h"
 #include "F4Find.h"
 //#include "sim/include/simbase.h"
 #include "cmpclass.h"
@@ -832,7 +832,7 @@ void tactical_mission::load(void)
 
         FalconLocalSession->SetCountry(static_cast<uchar>(gSelectedTeam));
 
-        SendMessage(FalconDisplay.appWin, FM_LOAD_CAMPAIGN, 0, game_TacticalEngagement);
+        SendMessageA(FalconDisplay.appWin, FM_LOAD_CAMPAIGN, 0, game_TacticalEngagement);
 
         /* victory_condition::enter_critical_section ();
 
@@ -941,7 +941,7 @@ void tactical_mission::new_setup(void)
 
     // FalconLocalSession->SetCountry (team);
 
-    SendMessage(gMainHandler->GetAppWnd(), FM_LOAD_CAMPAIGN, 0, game_TacticalEngagement);
+    SendMessageA(gMainHandler->GetAppWnd(), FM_LOAD_CAMPAIGN, 0, game_TacticalEngagement);
 
     //MonoPrint ("Tactical_Mission::New Setup\n");
 }
@@ -956,7 +956,7 @@ void tactical_mission::revert(void)
 
     // HACK - Robin (unnessary hack)
     //FalconLocalSession->SetCountry(gSelectedTeam);
-    SendMessage(gMainHandler->GetAppWnd(), FM_LOAD_CAMPAIGN, 0, game_TacticalEngagement);
+    SendMessageA(gMainHandler->GetAppWnd(), FM_LOAD_CAMPAIGN, 0, game_TacticalEngagement);
 }
 
 //////////////////////////////////////////////////////////////////////////////

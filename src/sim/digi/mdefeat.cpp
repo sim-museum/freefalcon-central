@@ -7,11 +7,11 @@
 #include "simbase.h"
 #include "airframe.h"
 #include "aircrft.h"
-#include "Graphics/Include/tmap.h"
+#include "graphics/include/tmap.h"
 /* S.G. NEED TO KNOW WHICH WEAPON WE FIRED */#include "Missile.h"
 /* S.G. NEED TO KNOW WHICH WEAPON WE FIRED */#include "vehrwr.h"
 /* S.G. 2001-06-29 */#include "CampBase.h"
-/* S.G. 2001-06-29 */#include "WingOrder.h"
+/* S.G. 2001-06-29 */#include "wingorder.h"
 #include "sms.h" // S.G. 2002-01-02
 #include "flight.h" // MN 2002-03-27
 #include "visual.h"//Cobra for the eyeball ;)

@@ -10,9 +10,9 @@
 #include <io.h>
 #include <fcntl.h>
 #include <process.h>
-#include "Loader.h"
-#include "ObjectLOD.h"
-#include "TexBank.h"
+#include "loader.h"
+#include "objectlod.h"
+#include "texbank.h"
 #pragma warning(disable : 4127)
 #pragma warning(disable : 4706)
 

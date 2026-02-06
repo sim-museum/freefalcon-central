@@ -7,7 +7,7 @@
 #include "hardpnt.h"
 #include "entity.h"
 #include "classtbl.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "playerop.h"
 #include "SimDrive.h"
 #include "fsound.h"
@@ -24,9 +24,9 @@
 #include "find.h"
 #include "commands.h"
 #include "airframe.h" // JPO
-#include "IvibeData.h"
+#include "ivibedata.h"
 
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 
 extern bool g_bRealisticAvionics;
 

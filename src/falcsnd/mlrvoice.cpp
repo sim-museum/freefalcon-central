@@ -1,18 +1,18 @@
 #include <windows.h>
 #include <mmreg.h>
 #include <process.h>
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "fsound.h"
 #include "f4thread.h"
 #include "falclib.h"
 #include "dsound.h"
 #include "psound.h"
-#include "grTypes.h"
+#include "grtypes.h"
 #include "matrix.h"
-#include "SoundFX.h"
+#include "soundfx.h"
 #include "sim/include/simdrive.h"
 #include "sim/include/otwdrive.h"
-#include "mlrVoice.h"
+#include "mlrvoice.h"
 
 extern bool g_bUse3dSound;
 
@@ -614,6 +614,7 @@ void mlrVoice::Exec()
     if (DSoundBuffer == 0)
     {
         status = VSSTOP;
+        return;  // FF_LINUX: Must return early - code below dereferences DSoundBuffer
     }
 
     // Cobra - Treat thunder differently
@@ -847,8 +848,8 @@ void mlrVoice::Exec()
         if (sfx->flags bitand SFX_FLAGS_FREQ)
         {
             Frequency = (long)(Frequency * pscale);
-            Frequency = min(Frequency, DSBFREQUENCY_MAX);
-            Frequency = max(DSBFREQUENCY_MIN, Frequency);
+            Frequency = min(Frequency, (long)DSBFREQUENCY_MAX);
+            Frequency = max((long)DSBFREQUENCY_MIN, Frequency);
         }
 
         ////////////////////////////////////

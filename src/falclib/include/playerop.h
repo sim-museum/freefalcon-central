@@ -5,7 +5,7 @@
 #include "soundgroups.h"
 #include "falclib.h"
 #include "ui/include/logbook.h"
-#include "PlayerOpDef.h"
+#include "playeropdef.h"
 #include "rules.h"
 
 

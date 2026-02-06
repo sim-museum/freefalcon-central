@@ -8,7 +8,7 @@
 #include <float.h>
 #include "campmap.h"
 #include "CmpGlobl.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "CampCell.h"
 #include "CampTerr.h"
 #include "Entity.h"
@@ -20,7 +20,7 @@
 #include "Find.h"
 #include "CampList.h"
 #include "path.h"
-#include "NoFly.h"
+#include "nofly.h"
 #include "AIInput.h"
 #include "GndUnit.h"
 #include "CmpClass.h"

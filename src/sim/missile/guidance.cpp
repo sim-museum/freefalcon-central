@@ -9,7 +9,7 @@
 
 #define MANEUVER_DEBUG
 #ifdef MANEUVER_DEBUG
-#include "Graphics/include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 extern int g_nShowDebugLabels;
 #endif
 

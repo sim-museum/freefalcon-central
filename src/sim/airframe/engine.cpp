@@ -34,11 +34,11 @@
 #include "campbase.h"
 #include "fsound.h"
 #include "soundfx.h"
-#include "simIO.h"
-#include "PilotInputs.h"
+#include "simio.h"
+#include "pilotinputs.h"
 #include "sms.h"  // MD
 #include "Otwdrive.h"//Cobra
-#include "Graphics/Include/RenderOW.h"
+#include "graphics/include/renderow.h"
 
 extern OTWDriverClass OTWDriver;//Cobra
 
@@ -2645,7 +2645,7 @@ int AirframeClass::CheckHome(void)
             {
                 int fuelOnStation;
                 float fuelConsumed = distanceToSta / 6000.0f * 10.0f * 0.67f;
-                fuelConsumed += min(1, distanceToSta / 6000.0f / 80.0f) * (500.0f - (-platform->ZPos()) / 40.0f * 0.5f);
+                fuelConsumed += min(1.0f, distanceToSta / 6000.0f / 80.0f) * (500.0f - (-platform->ZPos()) / 40.0f * 0.5f);
                 fuelOnStation = (int)(platform->GetTotalFuel() - fuelConsumed);
                 HomeFuel = fuelOnStation;
             }

@@ -8,7 +8,7 @@
 #ifndef _DRAWPNT_H_
 #define _DRAWPNT_H_
 
-#include "DrawObj.h"
+#include "drawobj.h"
 
 #ifdef USE_SH_POOLS
 #include "SmartHeap/Include/smrtheap.h"

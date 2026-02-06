@@ -164,7 +164,8 @@ void HeliBrain::Actions(void)
     /* selected by the conflict resolver. Ground avoid modifies the    */
     /* current Pstick and Rstick commands.                             */
     /*-----------------------------------------------------------------*/
-    GroundCheck();
+    // RV - Biker - No more need for GroundCheck
+    // GroundCheck();
     /*
     if (groundAvoidNeeded)
        PullUp();

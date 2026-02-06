@@ -3,7 +3,7 @@
 #include "object.h"
 #include "geometry.h"
 #include "handoff.h"
-#include "Graphics/Include/display.h"
+#include "graphics/include/display.h"
 #include "simmover.h"
 
 SensorClass::SensorClass(SimMoverClass* self)

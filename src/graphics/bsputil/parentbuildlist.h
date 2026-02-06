@@ -9,7 +9,7 @@
 #ifndef _PARENTBUILDLIST_H_
 #define _PARENTBUILDLIST_H_
 
-#include "ObjectParent.h"
+#include "objectparent.h"
 #include "LODBuildList.h"
 
 extern class BuildTimeParentList TheParentBuildList;

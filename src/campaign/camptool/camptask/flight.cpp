@@ -7,7 +7,7 @@
 #include <math.h>
 #include "CmpGlobl.h"
 #include "F4Vu.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "CampCell.h"
 #include "CampTerr.h"
 #include "ASearch.h"
@@ -30,14 +30,14 @@
 #include "MsgInc/RadioChatterMsg.h"
 #include "MsgInc/DivertMsg.h"
 #include "MsgInc/WingmanMsg.h"
-#include "MsgInc/AWACsMsg.h"
+#include "MsgInc/AWACSMsg.h"
 #include "MsgInc/FalconFlightPlanMsg.h"
 #include "wingorder.h"
 #include "AIInput.h"
 #include "CmpClass.h"
 #include "MissEval.h"
 #include "classtbl.h"
-#include "PtData.h"
+#include "ptdata.h"
 #include "Tacan.h"
 #include "SimVeh.h"
 #include "Camp2sim.h"
@@ -47,7 +47,7 @@
 #include "dirtybits.h"
 #include "Aircrft.h"
 #include "CampMap.h"
-#include "GndAI.h"
+#include "gndai.h"
 #include "CampStr.h"
 #include "otwdrive.h"
 #include "MsgInc/AWACSMsg.h"
@@ -55,8 +55,8 @@
 /* 2001-06-07 S.G. */#include "Navunit.h"
 /* 2001-09-07 S.G. RP5 */ extern bool g_bRP5Comp;
 /* 2001-12-10 M.N. */
-#include "SIM/Include/aircrft.h"
-#include "Graphics/Include/TMap.h"
+#include "sim/include/aircrft.h"
+#include "graphics/include/tmap.h"
 
 #include <time.h>
 #include "debuggr.h"

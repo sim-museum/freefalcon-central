@@ -12,6 +12,17 @@
 #include "f4find.h"
 #include "debuggr.h"
 
+#ifdef FF_LINUX
+// Normalize path by converting backslashes to forward slashes
+static void NormalizePath(char* path)
+{
+    for (char* p = path; *p; p++)
+    {
+        if (*p == '\\') *p = '/';
+    }
+}
+#endif
+
 char FalconDataDirectory[_MAX_PATH];
 char FalconPictureDirectory[_MAX_PATH]; // JB 010623
 char FalconTerrainDataDir[_MAX_PATH];
@@ -56,7 +67,11 @@ char* F4FindFile(char filename[], char *buffer, int bufSize, int *fileOffset, in
     char path[MAX_PATH], tmp[MAX_PATH];
     char tmpStr[1024];
 
+#ifdef FF_LINUX
+    sprintf(path, "%s/sounds/files.dir", FalconDataDirectory);
+#else
     sprintf(path, "%s\\sounds\\files.dir", FalconDataDirectory);
+#endif
 
     if (GetPrivateProfileString("Files", filename, "", tmpStr, 1024, path))
     {
@@ -67,7 +82,12 @@ char* F4FindFile(char filename[], char *buffer, int bufSize, int *fileOffset, in
             *(strchr(tmpStr, ',')) = ' ';
 
         sscanf(tmpStr, "%s %d %d", tmp, fileOffset, fileLen);
+#ifdef FF_LINUX
+        sprintf(path, "%s/%s", FalconDataDirectory, tmp);
+        NormalizePath(path);
+#else
         sprintf(path, "%s\\%s", FalconDataDirectory, tmp);
+#endif
         strncpy(buffer, path, min(strlen(path) + 1, (size_t)bufSize - 1));
         buffer[bufSize - 1] = 0;
     }
@@ -78,6 +98,10 @@ char* F4FindFile(char filename[], char *buffer, int bufSize, int *fileOffset, in
         *fileLen = 0;
         *fileOffset = 0;
     }
+
+#ifdef FF_LINUX
+    NormalizePath(buffer);
+#endif
 
     return buffer;
 }
@@ -96,17 +120,30 @@ FILE* F4CreateFile(char* filename, char* path, char* mode)
         ppath += strlen(FalconDataDirectory) + 1;
 
     // Check if the file's already there
+#ifdef FF_LINUX
+    sprintf(filedir, "%s/sounds/files.dir", FalconDataDirectory);
+#else
     sprintf(filedir, "%s\\sounds\\files.dir", FalconDataDirectory);
+#endif
 
     if ( not GetPrivateProfileString("Files", filename, "", tmpStr, 1024, filedir))
     {
+#ifdef FF_LINUX
+        sprintf(tmpStr, "%s/%s,0,0", ppath, filename);
+#else
         sprintf(tmpStr, "%s\\%s,0,0", ppath, filename);
+#endif
 
         if ( not WritePrivateProfileString("Files", filename, tmpStr, filedir))
             return NULL;
     }
 
+#ifdef FF_LINUX
+    sprintf(path, "%s/%s", path, filename);
+    NormalizePath(path);
+#else
     sprintf(path, "%s\\%s", path, filename);
+#endif
 
     if ((fp = fopen(path, mode)) == NULL)
     {
@@ -119,7 +156,7 @@ FILE* F4CreateFile(char* filename, char* path, char* mode)
 
 FILE* F4OpenFile(char *filename, char *mode)
 {
-    char path[MAX_PATH], errstr[80];
+    char path[MAX_PATH], errstr[MAX_PATH + 80];  // Buffer sized for path + message prefix
     int offset, length;
     FILE* fp;
 
@@ -127,13 +164,17 @@ FILE* F4OpenFile(char *filename, char *mode)
     {
         strcpy(path, filename);
         // Couldn't find this file. To create a file call F4CreateFile
-        sprintf(errstr, "Unable to Find file %s in files.dir file.", path);
+        snprintf(errstr, sizeof(errstr), "Unable to Find file %s in files.dir file.", path);
         F4Warning(errstr);
     }
 
+#ifdef FF_LINUX
+    NormalizePath(path);
+#endif
+
     if ((fp = fopen(path, mode)) == NULL)
     {
-        sprintf(errstr, "Unable to open file: %s", path);
+        snprintf(errstr, sizeof(errstr), "Unable to open file: %s", path);
         F4Warning(errstr);
     }
 
@@ -150,7 +191,7 @@ int F4ReadFile(FILE *fp, void *buffer, int size)
     if (fread(buffer, size, 1, fp) == 1)
         return size;
 
-    sprintf(errstr, "Error reading file: %p", fp);
+    snprintf(errstr, sizeof(errstr), "Error reading file: %p", fp);
     F4Warning(errstr);
     return -1;
 }
@@ -165,7 +206,7 @@ int F4WriteFile(FILE *fp, void *buffer, int size)
     if (fwrite(buffer, size, 1, fp) == 1)
         return size;
 
-    sprintf(errstr, "Error writing file: %p", fp);
+    snprintf(errstr, sizeof(errstr), "Error writing file: %p", fp);
     F4Warning(errstr);
     return -1;
 }
@@ -178,7 +219,15 @@ int F4CloseFile(FILE *fp)
 char* F4ExtractPath(char *path)
 {
     if (path)
+    {
+#ifdef FF_LINUX
+        char* lastSep = strrchr(path, '/');
+        if (!lastSep) lastSep = strrchr(path, '\\');
+        if (lastSep) *lastSep = 0;
+#else
         *(strrchr(path, '\\')) = 0;
+#endif
+    }
 
     return (path);
 }

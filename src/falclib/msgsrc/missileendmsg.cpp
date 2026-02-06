@@ -16,16 +16,16 @@
 #include "classtbl.h"
 #include "entity.h"
 #include "campweap.h"
-#include "Graphics/Include/terrtex.h"
-#include "Graphics/Include/Renderow.h"
+#include "graphics/include/terrtex.h"
+#include "graphics/include/renderow.h"
 #include "falclib.h"
 #include "falcmesg.h"
 #include "falcgame.h"
 #include "falcsess.h"
 #include "InvalidBufferException.h"
-#include "Graphics/Include/drawparticlesys.h"
+#include "graphics/include/drawparticlesys.h"
 
-static int random = 0;
+static int randomVal = 0;
 
 FalconMissileEndMessage::FalconMissileEndMessage(VU_ID entityId, VuTargetEntity *target, VU_BOOL loopback) : FalconEvent(MissileEndMsg, FalconEvent::SimThread, entityId, target, loopback)
 {

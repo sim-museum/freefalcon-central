@@ -5,13 +5,13 @@
 #include "simmover.h"
 #include "handoff.h"
 #include "radar.h"
-#include "Object.h"
-#include "SimMath.h"
-#include "MsgInc/TrackMsg.h"
-#include "BeamRider.h"
-#include "Battalion.h"
-/* S.G. SO ARH DON'T SEND A LAUNCH SIGNAL WHEN COMMAND GUIDED */ #include "Missile.h"
-#include "RadarDoppler.h" // 2002-03-13 S.G.
+#include "object.h"
+#include "simmath.h"
+#include "msginc/trackmsg.h"
+#include "beamrider.h"
+#include "battalion.h"
+/* S.G. SO ARH DON'T SEND A LAUNCH SIGNAL WHEN COMMAND GUIDED */ #include "missile.h"
+#include "radardoppler.h" // 2002-03-13 S.G.
 
 
 static const float CM_EFFECTIVE_ANGLE = 30.0f * DTR; // If used, should be in class table data...

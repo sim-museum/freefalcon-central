@@ -7,7 +7,7 @@
  RGB data.  The memory allocated by the BMPread() call must be freed by a
  call to BMPfree().
 \***************************************************************************/
-#include "F4Error.h"
+#include "f4error.h"
 #include "BMP.h"
 
 

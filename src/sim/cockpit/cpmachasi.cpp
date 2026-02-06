@@ -2,7 +2,7 @@
 #include "falclib.h"
 #include "dispcfg.h"
 #include "cpmachasi.h"
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/renderow.h"
 #include "otwdrive.h"
 
 

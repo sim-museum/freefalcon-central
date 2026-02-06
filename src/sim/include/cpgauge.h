@@ -40,7 +40,7 @@ public:
     };
 #endif
 
-    CPGauge(CPObjectInitStruct *, CPGaugeInitStruct *);
+    CPGauge(ObjectInitStr *, CPGaugeInitStruct *);
 
     int mWidthTapeBitmap;
     int mHeightTapeBitmap;
@@ -49,6 +49,7 @@ public:
     float mMinTapeValue;
     int mMinValPosition;
     DWORD* mpTapeBitmapHandle;
+    DWORD* mpBackgroundBitmapHandle;
     float mCurrentVal;
 
     virtual ~CPGauge();

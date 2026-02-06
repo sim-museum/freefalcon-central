@@ -1,4 +1,4 @@
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "stdhdr.h"
 #include "ClassTbl.h"
 #include "Entity.h"
@@ -12,7 +12,7 @@
 #include "simdrive.h"
 #include "otwdrive.h"
 #include "hardpnt.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "object.h"
 #include "simobj.h"
 #include "MsgInc/WingmanMsg.h"
@@ -21,15 +21,15 @@
 #include "Unit.h"
 #include "MsgInc/LandingMessage.h"
 #include "MsgInc/DamageMsg.h"
-#include "radarDoppler.h"
+#include "radardoppler.h"
 #include "acmi/src/include/acmirec.h"
 #include "fakerand.h"
 #include "falcsess.h"
 #include "guns.h"
-#include "Graphics/Include/rviewpnt.h"
+#include "graphics/include/rviewpnt.h"
 #include "team.h"
 #include "dofsnswitches.h"
-#include "DrawParticleSys.h" // I-Hawk
+#include "drawparticlesys.h" // I-Hawk
 #include "sfx.h" // I-Hawk 
 
 #ifdef USE_SH_POOLS

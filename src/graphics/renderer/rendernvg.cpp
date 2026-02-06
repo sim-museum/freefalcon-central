@@ -5,16 +5,16 @@
 
     This sub class draws an out the window view in simulated IR (green on black)
 \***************************************************************************/
-#include "Tmap.h"
+#include "tmap.h"
 #include "Tpost.h"
-#include "TOD.h"
-#include "Tex.h"
-#include "Draw2D.h"
-#include "DrawOVC.h"
-#include "ColorBank.h"
-#include "RenderNVG.h"
-#include "RealWeather.h"
-#include "FalcLib/include/playerop.h"
+#include "tod.h"
+#include "tex.h"
+#include "draw2d.h"
+#include "drawovc.h"
+#include "colorbank.h"
+#include "rendernvg.h"
+#include "realweather.h"
+#include "falclib/include/playerop.h"
 
 extern bool g_bGreyMFD;
 extern bool bNVGmode;

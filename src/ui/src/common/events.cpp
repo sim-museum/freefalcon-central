@@ -18,7 +18,7 @@
 #include "MsgInc/LandingMessage.h"
 #include "MsgInc/EjectMsg.h"
 #include "MsgInc/PlayerStatusMsg.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "classtbl.h"
 #include "chandler.h"
 #include "ui95_ext.h"

@@ -5,17 +5,17 @@
 
     This sub class draws an out the window view in simulated IR (green on black)
 \***************************************************************************/
-#include "TOD.h"
-#include "Tmap.h"
+#include "tod.h"
+#include "tmap.h"
 #include "Tpost.h"
-#include "Tex.h"
-#include "Draw2D.h"
-#include "ColorBank.h"
-#include "RViewPnt.h"
-#include "RenderTV.h"
-#include "RealWeather.h"
-#include "FalcLib/include/playerop.h"
-#include "Graphics/DXEngine/DXEngine.h"
+#include "tex.h"
+#include "draw2d.h"
+#include "colorbank.h"
+#include "rviewpnt.h"
+#include "rendertv.h"
+#include "realweather.h"
+#include "falclib/include/playerop.h"
+#include "graphics/dxengine/dxengine.h"
 
 extern bool g_bUse_DX_Engine;
 extern bool g_bGreyMFD;

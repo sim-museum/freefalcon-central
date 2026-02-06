@@ -9,6 +9,9 @@
 // - Server context menu: Play, Refresh, Add to favorites (C_PopupList)
 // - Password protected servers
 
+#ifdef _MSC_VER
+// Full Windows COM/ATL implementation
+
 #include <windows.h>
 #include "falclib.h"
 #include "f4vu.h"
@@ -1437,4 +1440,23 @@ STDMETHODIMP CGNetUpdater::ServerListReceived(int nServers)
         return e.Error();
     }
 }
+
+#else // !_MSC_VER - Linux stub implementations
+
+#include <windows.h>
+#include "falclib.h"
+
+// Linux: Server browser functionality not available (requires Windows COM/ATL)
+void HookupServerBrowserControls(long ID)
+{
+    (void)ID;
+    // Not implemented on Linux - server browser requires Windows COM
+}
+
+void ServerBrowserExit()
+{
+    // Not implemented on Linux
+}
+
+#endif // _MSC_VER
 

@@ -9,7 +9,7 @@
 #define _FARRTEX_H_
 
 #include "TerrTex.h"
-#include "Falclib/Include/FileMemMap.h"
+#include "falclib/include/filememmap.h"
 
 struct IDirectDrawPalette;
 
@@ -20,7 +20,11 @@ extern class FarTexDB TheFarTextures;
 typedef struct FarTexEntry
 {
     BYTE *bits; // 8 bit pixel data (NULL if not loaded)
+#ifdef FF_LINUX
+    uintptr_t handle; // FF_LINUX: Use uintptr_t to hold TextureHandle* on 64-bit
+#else
     UInt handle; // Rasterization engine texture handle (NULL if not available)
+#endif
     int refCount; // Reference count
 } FarTexEntry;
 

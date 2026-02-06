@@ -428,7 +428,7 @@ THREAT_LIST *C_Map::AddThreat(CampEntity ent)
                     for (i = 0; i < 8; i++)
                         // 2001-03-14 MODIFIED BY S.G. SO IF THERE IS NO RADAR RANGE DATA, THE radar_short VALUE IS USED INSTEAD
                         // Team_[ent->GetTeam()].Threats->Type[_THREAT_RADAR_LOW_]->SetRadius(ent->GetCampID(),i,static_cast<long>(min(ent->GetArcRange(i)*FT_TO_KM,radar_short)));
-                        Team_[ent->GetTeam()].Threats->Type[_THREAT_RADAR_LOW_]->SetRadius(ent->GetCampID(), i, static_cast<long>(((ObjectiveClass *)ent)->HasRadarRanges() ? (min(ent->GetArcRange(i)*FT_TO_KM, radar_short)) : radar_short));
+                        Team_[ent->GetTeam()].Threats->Type[_THREAT_RADAR_LOW_]->SetRadius(ent->GetCampID(), i, static_cast<long>(((ObjectiveClass *)ent)->HasRadarRanges() ? (min(ent->GetArcRange(i)*FT_TO_KM, static_cast<float>(radar_short))) : radar_short));
 
                     threat->RadarLow = Team_[ent->GetTeam()].Threats->Type[_THREAT_RADAR_LOW_]->GetThreat(ent->GetCampID());
                 }
@@ -493,7 +493,7 @@ THREAT_LIST *C_Map::AddThreat(CampEntity ent)
                         Team_[ent->GetTeam()].Threats->Type[_THREAT_RADAR_LOW_]->AddCircle(ent->GetCampID(), C_Threat::THR_SLICE, x, y, radar_short);
 
                         for (i = 0; i < 8; i++)
-                            Team_[ent->GetTeam()].Threats->Type[_THREAT_RADAR_LOW_]->SetRadius(ent->GetCampID(), i, static_cast<short>(min(ent->GetArcRange(i)*FT_TO_KM, radar_short)));
+                            Team_[ent->GetTeam()].Threats->Type[_THREAT_RADAR_LOW_]->SetRadius(ent->GetCampID(), i, static_cast<short>(min(ent->GetArcRange(i)*FT_TO_KM, static_cast<float>(radar_short))));
 
                         threat->RadarLow = Team_[ent->GetTeam()].Threats->Type[_THREAT_RADAR_LOW_]->GetThreat(ent->GetCampID());
                     }
@@ -509,7 +509,7 @@ THREAT_LIST *C_Map::AddThreat(CampEntity ent)
                         Team_[ent->GetTeam()].Threats->Type[_THREAT_SAM_LOW_]->AddCircle(ent->GetCampID(), C_Threat::THR_SLICE, x, y, sam_short);
 
                         for (i = 0; i < 8; i++)
-                            Team_[ent->GetTeam()].Threats->Type[_THREAT_SAM_LOW_]->SetRadius(ent->GetCampID(), i, static_cast<short>(min(ent->GetArcRange(i)*FT_TO_KM, sam_short)));
+                            Team_[ent->GetTeam()].Threats->Type[_THREAT_SAM_LOW_]->SetRadius(ent->GetCampID(), i, static_cast<short>(min(ent->GetArcRange(i)*FT_TO_KM, static_cast<float>(sam_short))));
 
                         threat->SamLow = Team_[ent->GetTeam()].Threats->Type[_THREAT_SAM_LOW_]->GetThreat(ent->GetCampID());
                     }

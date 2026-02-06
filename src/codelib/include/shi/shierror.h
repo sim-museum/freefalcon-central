@@ -24,14 +24,27 @@
 
 
 // ShiError is always kills the program even when not in debug mode.
+#ifdef FF_LINUX
+// On Linux, don't exit() on errors during porting - log and continue
 #define ShiError( string )                                             \
 {    \
  char buffer[580];    \
     \
  sprintf( buffer, "Error:  %0d  %s  %s", __LINE__, __FILE__, __DATE__ ); \
  MessageBox(NULL, buffer, string, MB_OK); \
+ fprintf(stderr, "    [ShiError] FF_LINUX: not exiting, continuing...\n"); fflush(stderr); \
+}
+#else
+#define ShiError( string )                                             \
+{    \
+ char buffer[580];    \
+    \
+ sprintf( buffer, "Error:  %0d  %s  %s", __LINE__, __FILE__, __DATE__ ); \
+ MessageBox(NULL, buffer, string, MB_OK); \
+ fprintf(stderr, "    [ShiError] Windows mode: calling exit(-1)\n"); fflush(stderr); \
  exit(-1);    \
 }
+#endif
 
 // ShiAssert compiles to code only when in debug mode.  Otherwise, the expression is not evaluated.
 #ifdef _DEBUG

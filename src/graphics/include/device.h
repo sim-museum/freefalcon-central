@@ -9,7 +9,7 @@
 #define _DEVICE_H_
 
 #include <cISO646>
-#include "ImageBuf.h"
+#include "imagebuf.h"
 
 class DisplayDevice
 {

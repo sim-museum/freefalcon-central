@@ -3,6 +3,8 @@ John Robbins
 Microsoft Systems Journal, October 1997 - Bugslayer!
 ----------------------------------------------------------------------*/
 
+#ifdef _WIN32
+
 #include "PCH.h"
 #include "BugslayerUtil.h"
 #include "CRTDBG_Internals.h"
@@ -624,6 +626,8 @@ void __stdcall ValidateAllBlocks(void *)
 {
 }
 
-#endif
+#endif // _DEBUG
 
 //lint +e717
+
+#endif // _WIN32

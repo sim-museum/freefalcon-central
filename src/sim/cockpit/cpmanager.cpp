@@ -5,6 +5,13 @@
 #include <stdio.h>
 #ifdef FF_LINUX
 #include "compat/stdio_compat.h"
+#include <cstring>
+// FF_LINUX: Convert backslashes to forward slashes in-place for Linux path compatibility
+static void FixPathSeparators(char* path) {
+    for (char* p = path; *p; ++p) {
+        if (*p == '\\') *p = '/';
+    }
+}
 #endif
 
 #include "stdhdr.h"
@@ -171,6 +178,11 @@ void ReadImage(char* pfilename, GLubyte** image, GLulong** palette)
     int totalWidth;
     CImageFileMemory  texFile;
 
+#ifdef FF_LINUX
+    // FF_LINUX: Convert backslashes to forward slashes for Linux
+    FixPathSeparators(pfilename);
+#endif
+
     // Make sure we recognize this file type
     result = texFile.imageType = CheckImageType(pfilename);
     ShiAssert(texFile.imageType not_eq IMAGE_TYPE_UNKNOWN);
@@ -178,6 +190,17 @@ void ReadImage(char* pfilename, GLubyte** image, GLulong** palette)
     // Open the input file
     result = texFile.glOpenFileMem(pfilename);
     ShiAssert(result == 1);
+
+#ifdef FF_LINUX
+    // FF_LINUX: If file open failed, return gracefully instead of crashing
+    if (result != 1)
+    {
+        fprintf(stderr, "[ReadImage] Failed to open: %s\n", pfilename);
+        *image = NULL;
+        if (palette) *palette = NULL;
+        return;
+    }
+#endif
 
     // Read the image data (note that ReadTextureImage will close texFile for us)
     texFile.glReadFileMem();
@@ -189,6 +212,12 @@ void ReadImage(char* pfilename, GLubyte** image, GLulong** palette)
         std::ostringstream msg;
         msg << "Failed to read image: " << pfilename;
         ShiError(msg.str().c_str());
+#ifdef FF_LINUX
+        // FF_LINUX: Return gracefully instead of using uninitialized data
+        *image = NULL;
+        if (palette) *palette = NULL;
+        return;
+#endif
     }
 
     // Store the image size (check it in debug mode)
@@ -1261,22 +1290,34 @@ void CockpitManager::LoadBuffer(FILE* pcockpitDataFile)
             {
                 //sprintf(psurfaceFile, "%s%s", cockpitFolder /*COCKPIT_DIR*/, pfileName);
                 sprintf(psurfaceFile, "%s\\%s", cockpitFolder /*COCKPIT_DIR*/, pfileName);
+#ifdef FF_LINUX
+                FixPathSeparators(psurfaceFile);
+#endif
             }
             else
             {
                 sprintf(psurfaceFile, "%s%d\\%s", cockpitFolder /*COCKPIT_DIR*/, MapVisId(m_eCPVisType), pfileName);
+#ifdef FF_LINUX
+                FixPathSeparators(psurfaceFile);
+#endif
 
                 //if( not ResExistFile(psurfaceFile))
                 if ( not FileExists(psurfaceFile))
                 {
                     //sprintf(psurfaceFile, "%s\\%s\\%s", cockpitFolder /*COCKPIT_DIR*/, m_eCPName, pfileName);
                     sprintf(psurfaceFile, "%s\\%s\\%s", cockpitFolder /*COCKPIT_DIR*/, tmp_eCPName.c_str(), pfileName);
+#ifdef FF_LINUX
+                    FixPathSeparators(psurfaceFile);
+#endif
 
                     //if( not ResExistFile(psurfaceFile))
                     if ( not FileExists(psurfaceFile))
                     {
                         //sprintf(psurfaceFile, "%s\\%s\\%s", cockpitFolder /*COCKPIT_DIR*/, m_eCPNameNCTR, pfileName);
                         sprintf(psurfaceFile, "%s\\%s\\%s", cockpitFolder /*COCKPIT_DIR*/, tmp_eCPNameNCTR.c_str(), pfileName);
+#ifdef FF_LINUX
+                        FixPathSeparators(psurfaceFile);
+#endif
 
                         //if( not ResExistFile(psurfaceFile))
                         if ( not FileExists(psurfaceFile))
@@ -1284,6 +1325,9 @@ void CockpitManager::LoadBuffer(FILE* pcockpitDataFile)
                             // F16C fallback
                             //sprintf(psurfaceFile, "%s%s", cockpitFolder /*COCKPIT_DIR*/, pfileName);
                             sprintf(psurfaceFile, "%s\\%s", cockpitFolder /*COCKPIT_DIR*/, pfileName);
+#ifdef FF_LINUX
+                            FixPathSeparators(psurfaceFile);
+#endif
                         }
                     }
                 }
@@ -2281,22 +2325,36 @@ void CockpitManager::CreateSurface(int idNum, FILE* pcockpitDataFile)
             sscanf(ptoken, "%s", pfileName);
 
             if (m_eCPVisType == MapVisId(VIS_F16C))
+            {
                 sprintf(psurfaceFile, "%s%s", cockpitFolder /*COCKPIT_DIR*/, pfileName);
+#ifdef FF_LINUX
+                FixPathSeparators(psurfaceFile);
+#endif
+            }
             else
             {
                 sprintf(psurfaceFile, "%s%d\\%s", cockpitFolder /*COCKPIT_DIR*/, MapVisId(m_eCPVisType), pfileName);
+#ifdef FF_LINUX
+                FixPathSeparators(psurfaceFile);
+#endif
 
                 // RV - Biker - No more res manager
                 //if( not ResExistFile(psurfaceFile))
                 if ( not FileExists(psurfaceFile))
                 {
                     sprintf(psurfaceFile, "%s%s\\%s", cockpitFolder /*COCKPIT_DIR*/, m_eCPName, pfileName);
+#ifdef FF_LINUX
+                    FixPathSeparators(psurfaceFile);
+#endif
 
                     // RV - Biker - No more res manager
                     //if( not ResExistFile(psurfaceFile))
                     if ( not FileExists(psurfaceFile))
                     {
                         sprintf(psurfaceFile, "%s%s\\%s", cockpitFolder /*COCKPIT_DIR*/, m_eCPNameNCTR, pfileName);
+#ifdef FF_LINUX
+                        FixPathSeparators(psurfaceFile);
+#endif
 
                         // RV - Biker - No more res manager
                         //if( not ResExistFile(psurfaceFile))
@@ -2304,6 +2362,9 @@ void CockpitManager::CreateSurface(int idNum, FILE* pcockpitDataFile)
                         {
                             // F16C fallback
                             sprintf(psurfaceFile, "%s%s", cockpitFolder /*COCKPIT_DIR*/, pfileName);
+#ifdef FF_LINUX
+                            FixPathSeparators(psurfaceFile);
+#endif
                         }
                     }
                 }
@@ -5080,7 +5141,11 @@ void CockpitManager::SaveCockpitDefaults(void)
     char tmpStr1[_MAX_PATH];
     AircraftClass *playerAC = SimDriver.GetPlayerAircraft();
 
+#ifdef FF_LINUX
+    sprintf(dataFileName, "%s/config/%s.ini", FalconDataDirectory, LogBook.Callsign());
+#else
     sprintf(dataFileName, "%s\\config\\%s.ini", FalconDataDirectory, LogBook.Callsign());
+#endif
 
     // Save HUD Data  COBRA - RED - No more used
     sprintf(tmpStr, "%d", TheHud->GetHudColor());
@@ -5334,7 +5399,11 @@ void CockpitManager::LoadCockpitDefaults(void)
     CPButtonObject* theButton;
     AircraftClass *playerAC = SimDriver.GetPlayerAircraft();
 
+#ifdef FF_LINUX
+    sprintf(dataFileName, "%s/config/%s.ini", FalconDataDirectory, LogBook.Callsign());
+#else
     sprintf(dataFileName, "%s\\config\\%s.ini", FalconDataDirectory, LogBook.Callsign());
+#endif
 
     // Load HUD Data
     TheHud->SetHudColor(GetPrivateProfileInt("Hud", "Color", TheHud->GetHudColor(), dataFileName)); // COBRA - RED - NO MORE USED
@@ -5951,6 +6020,10 @@ int FileExists(char *file)
     FILE *fp;
     int retval = false;
 
+#ifdef FF_LINUX
+    // FF_LINUX: Convert backslashes to forward slashes before any file access
+    FixPathSeparators(file);
+#endif
 
     if (g_bResizeUsesResMgr)
         return ResExistFile(file);

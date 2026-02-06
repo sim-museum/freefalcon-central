@@ -63,7 +63,7 @@ void LoadNames(char* filename)
     NameIndex = new short[NameEntries];
     memcpychk(NameIndex, &data_ptr, sizeof(short) * NameEntries, &rem);
 
-    delete cd.data;
+    delete[] cd.data;  // FF_LINUX: Match new[] with delete[]
 }
 
 void LoadNameStream(void)

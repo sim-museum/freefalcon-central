@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <cstdint>  // FF_LINUX: For int32_t/uint32_t
 #include <conio.h>
 #include <stddef.h>
 #include <fcntl.h>
@@ -7,7 +8,7 @@
 #include <math.h>
 #include "CmpGlobl.h"
 #include "F4Vu.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "CampCell.h"
 #include "CampTerr.h"
 #include "ASearch.h"
@@ -177,14 +178,33 @@ SquadronClass::SquadronClass(ushort type) :
 
 SquadronClass::SquadronClass(VU_BYTE **stream, long *rem) : AirUnitClass(stream, rem)
 {
+    static int squadronCtorCount = 0;
+    squadronCtorCount++;
+    bool doDebug = (squadronCtorCount <= 3);
+
+    if (doDebug) {
+        fprintf(stderr, "[FF_LINUX] SquadronClass ctor[%d] entry: rem=%ld gCampDataVersion=%d\n",
+                squadronCtorCount, *rem, gCampDataVersion);
+    }
+
     if (load_log)
     {
         fprintf(load_log, "%08x SquadronClass ", *stream - start_load_stream);
         fflush(load_log);
     }
 
-    memcpychk(&fuel, stream, sizeof(long), rem);
+    // FF_LINUX: Read exactly 4 bytes for 32-bit Windows binary compat
+    {
+        int32_t fuel32;
+        memcpychk(&fuel32, stream, sizeof(int32_t), rem);
+        fuel = fuel32;
+    }
     memcpychk(&specialty, stream, sizeof(uchar), rem);
+
+    if (doDebug) {
+        fprintf(stderr, "[FF_LINUX] SquadronClass ctor[%d] after fuel+specialty: rem=%ld\n",
+                squadronCtorCount, *rem);
+    }
 
     if (gCampDataVersion < 69)
     {
@@ -199,6 +219,11 @@ SquadronClass::SquadronClass(VU_BYTE **stream, long *rem) : AirUnitClass(stream,
     else
     {
         memcpychk(stores, stream, sizeof(uchar)*MAXIMUM_WEAPTYPES, rem);
+    }
+
+    if (doDebug) {
+        fprintf(stderr, "[FF_LINUX] SquadronClass ctor[%d] after stores: rem=%ld\n",
+                squadronCtorCount, *rem);
     }
 
     if (gCampDataVersion < 47)
@@ -231,7 +256,19 @@ SquadronClass::SquadronClass(VU_BYTE **stream, long *rem) : AirUnitClass(stream,
         InitPilots();
     }
 
-    memcpychk(schedule, stream, sizeof(long)*VEHICLE_GROUPS_PER_UNIT, rem);
+    if (doDebug) {
+        fprintf(stderr, "[FF_LINUX] SquadronClass ctor[%d] after pilot_data: rem=%ld\n",
+                squadronCtorCount, *rem);
+    }
+
+    // FF_LINUX: Read exactly 4 bytes per element for 32-bit Windows binary compat
+    {
+        uint32_t schedule32[VEHICLE_GROUPS_PER_UNIT];
+        memcpychk(schedule32, stream, sizeof(uint32_t) * VEHICLE_GROUPS_PER_UNIT, rem);
+        for (int i = 0; i < VEHICLE_GROUPS_PER_UNIT; i++) {
+            schedule[i] = schedule32[i];
+        }
+    }
     memcpychk(&airbase_id, stream, sizeof(VU_ID), rem);
     memcpychk(&hot_spot, stream, sizeof(VU_ID), rem);
 
@@ -1886,7 +1923,10 @@ void SquadronClass::ReadDirty(VU_BYTE **stream, long *rem)
 
     if (bits bitand DIRTY_FUEL)
     {
-        memcpychk(&fuel, stream, sizeof(long), rem);
+        // FF_LINUX: Read exactly 4 bytes for 32-bit Windows binary compat
+        int32_t fuel32;
+        memcpychk(&fuel32, stream, sizeof(int32_t), rem);
+        fuel = fuel32;
     }
 
     if (bits bitand DIRTY_SQUAD_STORES)

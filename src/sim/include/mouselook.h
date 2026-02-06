@@ -8,7 +8,7 @@
 #ifndef MOUSELOOK_INCLUDE_INCLUDED
 #define MOUSELOOK_INCLUDE_INCLUDED
 
-#include "SimIO.h"
+#include "simio.h"
 
 /************************************************************************/
 //

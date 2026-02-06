@@ -4,7 +4,7 @@
 #include "misslist.h"
 #include "bomb.h"
 #include "bombfunc.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "fsound.h"
 #include "soundfx.h"
 #include "simsound.h"
@@ -15,14 +15,14 @@
 #include "MsgInc/WeaponFireMsg.h"
 #include "campbase.h"
 #include "Simdrive.h"
-#include "Graphics/Include/drawsgmt.h"
+#include "graphics/include/drawsgmt.h"
 #include "otwdrive.h"
 #include "sfx.h"
 #include "falcsess.h"
 #include "fakerand.h"
 #include "camp2sim.h"
 #include "object.h"
-#include "Graphics/Include/drawparticlesys.h"
+#include "graphics/include/drawparticlesys.h"
 
 extern int tgtId;
 

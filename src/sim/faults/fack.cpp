@@ -7,7 +7,7 @@
 #include "simdrive.h"
 #include "aircrft.h"
 #include "cmpclass.h"
-#include "flightData.h"
+#include "flightdata.h"
 
 extern bool g_bRealisticAvionics;
 //-------------------------------------------------

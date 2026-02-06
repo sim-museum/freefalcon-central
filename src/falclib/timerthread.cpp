@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <process.h>
+#include <cstdint>  // FF_LINUX: For uint32_t
 #include "TimerThread.h"
 #include "FalcSess.h"
 #include "Cmpclass.h"
@@ -7,7 +8,7 @@
 #include "sim/include/simdrive.h"
 
 // Time compression globals
-unsigned long       lastStartTime;
+uint32_t            lastStartTime;  // FF_LINUX: Use uint32_t for binary compat
 int                 gameCompressionRatio = 0;
 int                 targetGameCompressionRatio = 0;
 int                 targetCompressionRatio = 0;
@@ -167,7 +168,7 @@ void SetTemporaryCompression(int newComp)
 }
 
 // This is the one and only way to change time
-void SetTime(unsigned long currentTime)
+void SetTime(uint32_t currentTime)  // FF_LINUX: Use uint32_t for binary compat
 {
     vuxGameTime = currentTime;
     vuxDeadReconTime = 0;

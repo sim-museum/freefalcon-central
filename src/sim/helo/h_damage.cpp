@@ -1,7 +1,7 @@
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/drawsgmt.h"
-#include "Graphics/Include/drawpuff.h"
-#include "Graphics/Include/drawparticlesys.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/drawsgmt.h"
+#include "graphics/include/drawpuff.h"
+#include "graphics/include/drawparticlesys.h"
 #include "stdhdr.h"
 #include "falcmesg.h"
 #include "helo.h"
@@ -20,7 +20,7 @@
 #include "sms.h"
 #include "sfx.h"
 #include "fakerand.h"
-#include "Sim/Include/Simstatc.h"
+#include "sim/include/simstatc.h"
 
 void CalcTransformMatrix(SimBaseClass* theObject);
 void DecomposeMatrix(Trotation* matrix, float* pitch, float* roll, float* yaw);

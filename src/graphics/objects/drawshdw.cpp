@@ -4,13 +4,13 @@
 
     Derived class to draw BSP'ed objects with shadows (specificly for aircraft)
 \***************************************************************************/
-#include "Matrix.h"
-#include "RViewPnt.h"
-#include "RenderOW.h"
-#include "DrawShdw.h"
+#include "matrix.h"
+#include "rviewpnt.h"
+#include "renderow.h"
+#include "drawshdw.h"
 #include "tod.h"
 #include "weather.h"
-#include "RealWeather.h"
+#include "realweather.h"
 
 
 #ifdef USE_SH_POOLS

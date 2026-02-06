@@ -48,7 +48,7 @@
 #include "MsgInc/RequestAircraftSlot.h"
 #include "vu2.h"
 #include "F4Find.h"
-#include "F4Error.h"
+#include "f4error.h"
 #include "gps.h"
 #include "camplist.h" // M.N. Needed for Front/FLOTlist
 

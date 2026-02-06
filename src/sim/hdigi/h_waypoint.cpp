@@ -1,13 +1,13 @@
 #include "stdhdr.h"
 #include "hdigi.h"
 #include "otwdrive.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "campwp.h"
 #include "simveh.h"
 #include "fcc.h"
 #include "unit.h"
 #include "helimm.h"
-#include "Graphics/Include/drawBSP.h"
+#include "graphics/include/drawbsp.h"
 
 // Brain Choices
 #define GENERIC_BRAIN     0

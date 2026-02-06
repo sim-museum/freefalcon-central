@@ -4,12 +4,12 @@
 
 #include "stdhdr.h"
 #include "dispcfg.h"
-#include "Graphics/Include/Setup.h"
-#include "Graphics/Include/RenderOW.h"
+#include "graphics/include/setup.h"
+#include "graphics/include/renderow.h"
 #include "otwdrive.h"
-#include "Graphics/Include/image.h"
-#include "Graphics/Include/device.h"
-#include "RedMacros.h"
+#include "graphics/include/image.h"
+#include "graphics/include/device.h"
+#include "redmacros.h"
 
 // RV - Biker - Theater switching stuff
 extern char FalconSplashThrDirectory[];
@@ -29,7 +29,7 @@ static const int COVER_LEFT = 159;
 
 // Pointers to the global resources used while the loading screen is up
 BYTE *originalImage = NULL;
-unsigned long *originalPalette = NULL;
+unsigned int *originalPalette = NULL;
 int origImageType = IMAGE_TYPE_UNKNOWN;
 
 // Some data about the source image
@@ -63,8 +63,8 @@ void OTWDriverClass::SetupSplashScreen(void)
     if (OTWImage->targetXres() >= 1600)
     {
         // RV - Biker - Theater switching for splash files
-        //filename = "art\\splash\\load16.gif";
-        sprintf(filename, "%s\\%s", FalconSplashThrDirectory, "load16.gif");
+        //filename = "art/splash/load16.gif";
+        sprintf(filename, "%s/%s", FalconSplashThrDirectory, "load16.gif");
         tmpFile = fopen(filename, "r");
 
         //Check if file does exist
@@ -76,15 +76,15 @@ void OTWDriverClass::SetupSplashScreen(void)
         else
         {
             // RV - Biker
-            //filename = "art\\splash\\load10.gif";
-            sprintf(filename, "%s\\%s", FalconSplashThrDirectory, "load10.gif");
+            //filename = "art/splash/load10.gif";
+            sprintf(filename, "%s/%s", FalconSplashThrDirectory, "load10.gif");
         }
     }
     else if (OTWImage->targetXres() >= 1280)
     {
         // RV - Biker
-        //filename = "art\\splash\\load12.gif";
-        sprintf(filename, "%s\\%s", FalconSplashThrDirectory, "load12.gif");
+        //filename = "art/splash/load12.gif";
+        sprintf(filename, "%s/%s", FalconSplashThrDirectory, "load12.gif");
         tmpFile = fopen(filename, "r");
 
         if (tmpFile)
@@ -94,26 +94,26 @@ void OTWDriverClass::SetupSplashScreen(void)
         else
         {
             // RV - Biker
-            //filename = "art\\splash\\load10.gif";
-            sprintf(filename, "%s\\%s", FalconSplashThrDirectory, "load10.gif");
+            //filename = "art/splash/load10.gif";
+            sprintf(filename, "%s/%s", FalconSplashThrDirectory, "load10.gif");
         }
     }
     else if (OTWImage->targetXres() >= 1024)
     {
         // RV - Biker
-        //filename = "art\\splash\\load10.gif";
-        sprintf(filename, "%s\\%s", FalconSplashThrDirectory, "load10.gif");
+        //filename = "art/splash/load10.gif";
+        sprintf(filename, "%s/%s", FalconSplashThrDirectory, "load10.gif");
     }
     // RV - Biker for such low res we don't do theater specific splash files
     else if (OTWImage->targetXres() >= 800)
     {
-        //filename = "art\\splash\\load8.gif";
-        sprintf(filename, "art\\splash\\load8.gif");
+        //filename = "art/splash/load8.gif";
+        sprintf(filename, "art/splash/load8.gif");
     }
     else
     {
-        //filename = "art\\splash\\load6.gif";
-        sprintf(filename, "art\\splash\\load6.gif");
+        //filename = "art/splash/load6.gif";
+        sprintf(filename, "art/splash/load6.gif");
     }
 
     // RV - Biker - Try to open file
@@ -125,7 +125,7 @@ void OTWDriverClass::SetupSplashScreen(void)
     }
     else
     {
-        sprintf(filename, "art\\splash\\load10.gif");
+        sprintf(filename, "art/splash/load10.gif");
     }
 
     texFile.imageType = CheckImageType(filename);
@@ -202,9 +202,9 @@ void OTWDriverClass::SplashScreenUpdate(int frame)
     BYTE *imagePtr = NULL;
     void *buffer = NULL;
     int x, y;
-    unsigned long tweakedPalette[256];
-    unsigned long *srcPal = NULL, *dstPal = NULL;
-    unsigned long *startLit = NULL, *stopLit = NULL, *startInvar = NULL, *stop = NULL;
+    unsigned int tweakedPalette[256];
+    unsigned int *srcPal = NULL, *dstPal = NULL;
+    unsigned int *startLit = NULL, *stopLit = NULL, *startInvar = NULL, *stop = NULL;
 
 
     // RED - Consistency check
@@ -311,8 +311,8 @@ void OTWDriverClass::ShowSimpleWaitScreen(char *name)
 
     // RV - RED - Rewritten with Image Scaling
     // Always look for 1600 x 1200 Image
-    //sprintf (filename, "art\\splash\\%s16.gif", name);
-    sprintf(filename, "%s\\%s16.gif", FalconSplashThrDirectory, name);
+    //sprintf (filename, "art/splash/%s16.gif", name);
+    sprintf(filename, "%s/%s16.gif", FalconSplashThrDirectory, name);
 
     // RV - Biker - Try to open file
     tmpFile = fopen(filename, "r");
@@ -323,7 +323,7 @@ void OTWDriverClass::ShowSimpleWaitScreen(char *name)
     }
     else
     {
-        sprintf(filename, "art\\splash\\%s16.gif", name);
+        sprintf(filename, "art/splash/%s16.gif", name);
     }
 
     width = 1600;

@@ -36,18 +36,22 @@
 #include "acmi/src/include/acmirec.h"
 #include "sim/include/simdrive.h"
 // Begin - Uplink stuff
+#ifdef _MSC_VER
 #include "include/comsup.h"
+#endif
 #include "fsound.h"
-#include "SoundFX.h"
+#include "soundfx.h"
 #include "graphics/include/drawparticlesys.h"
-#include "SIM/include/sfx.h"
+#include "sim/include/sfx.h"
 
+#ifdef _MSC_VER
 #pragma warning(disable:4192)
 #import "gnet/bin/core.tlb"
 #import "gnet/bin/shared.tlb" named_guids
 #pragma warning(default:4192)
 
 extern GNETCORELib::IUplinkPtr m_pUplink;
+#endif
 // End - Uplink stuff
 
 enum
@@ -1487,6 +1491,7 @@ static void RemoveOldPeopleTreeCB(TREELIST *old)
     ReceiveChatString(FalconNullId, buffer);
 
     // Begin Uplink stuff
+#ifdef _MSC_VER
     if (m_pUplink not_eq NULL and FalconLocalGame and FalconLocalGame->IsLocal())
     {
         try
@@ -1499,7 +1504,7 @@ static void RemoveOldPeopleTreeCB(TREELIST *old)
             MonoPrint("StartCampaignGame: Error 0x%X occured during UpLink startup", e.Error());
         }
     }
-
+#endif
     // End Uplink stuff
 }
 
@@ -1846,6 +1851,7 @@ void UpdateLocalGameTree()
                 ReceiveChatString(FalconNullId, buffer);
 
                 // Begin Uplink stuff
+#ifdef _MSC_VER
                 if (m_pUplink not_eq NULL and FalconLocalGame and FalconLocalGame->IsLocal())
                 {
                     try
@@ -1858,7 +1864,7 @@ void UpdateLocalGameTree()
                         MonoPrint("StartCampaignGame: Error 0x%X occured during UpLink startup", e.Error());
                     }
                 }
-
+#endif
                 // End Uplink stuff
             }
         }

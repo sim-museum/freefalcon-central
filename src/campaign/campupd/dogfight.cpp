@@ -1,4 +1,5 @@
 #include "stdhdr.h"
+#include <cstdint>  // FF_LINUX: For uint32_t
 #include "dogfight.h"
 #include "initData.h"
 #include "simbase.h"
@@ -35,13 +36,13 @@
 #include "TimerThread.h"
 #include "Team.h"
 #include "Campaign.h"
-#include "ui95/CHandler.h"
+#include "ui95/chandler.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
-extern void SetTime(unsigned long currentTime);
+extern void SetTime(uint32_t currentTime);  // FF_LINUX: Use uint32_t for binary compat
 extern void CheckFlyButton(void);
 
 // Imported Variables

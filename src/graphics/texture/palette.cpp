@@ -7,9 +7,9 @@
 \***************************************************************************/
 #include <cISO646>
 #include "stdafx.h"
-#include "TOD.h"
+#include "tod.h"
 #include "Palette.h"
-#include "Tex.h"
+#include "tex.h"
 
 
 static DXContext *rc = NULL;
@@ -59,6 +59,13 @@ void Palette::Setup32(DWORD *data32)
 {
     ShiAssert(palHandle == NULL);
     ShiAssert(data32);
+
+    if (!data32) {
+        // Handle gracefully if texture load failed
+        refCount = 1;
+        memset(paletteData, 0, sizeof(paletteData));
+        return;
+    }
 
     // Start our reference count at 1
     refCount = 1;
@@ -439,7 +446,9 @@ PaletteHandle::PaletteHandle(IDirectDraw7 *pDD, UInt16 PalBitsPerEntry, UInt16 P
     m_pPalData = new DWORD[256];
     ShiAssert(m_pPalData);
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(FF_LINUX)
+    // FF_LINUX: Skipped - InterlockedIncrement uses long* which is 8 bytes on 64-bit Linux
+    // but these DWORD variables are only 4 bytes, causing buffer overflow
     InterlockedIncrement((long *) &m_dwNumHandles); // Number of instances
     InterlockedExchangeAdd((long *) &m_dwTotalBytes, sizeof(*this));
     InterlockedExchangeAdd((long *) &m_dwTotalBytes, sizeof(DWORD[256]) * 2);
@@ -448,7 +457,7 @@ PaletteHandle::PaletteHandle(IDirectDraw7 *pDD, UInt16 PalBitsPerEntry, UInt16 P
 
 PaletteHandle::~PaletteHandle()
 {
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(FF_LINUX)
     //InterlockedDecrement((long *) &m_dwNumHandles); // Number of instances
     //InterlockedExchangeAdd((long *) &m_dwTotalBytes, -sizeof(*this));
     //InterlockedExchangeAdd((long *) &m_dwTotalBytes, -(sizeof(DWORD[256]) * 2));
@@ -518,7 +527,7 @@ void PaletteHandle::AttachToTexture(TextureHandle *pTex)
     m_arrAttachedTextures.push_back(pTex);
     pTex->PaletteAttach(this);
 
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(FF_LINUX)
     InterlockedExchangeAdd((long *) &m_dwTotalBytes, sizeof(pTex));
 #endif
 }

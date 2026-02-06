@@ -5,11 +5,11 @@
     Derived class to do special position processing for foot soldiers on the
  ground.
 \***************************************************************************/
-#include "TimeMgr.h"
-#include "Matrix.h"
-#include "RViewPnt.h"
-#include "RenderOW.h"
-#include "DrawGuys.h"
+#include "timemgr.h"
+#include "matrix.h"
+#include "rviewpnt.h"
+#include "renderow.h"
+#include "drawguys.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL DrawableGuys::pool;

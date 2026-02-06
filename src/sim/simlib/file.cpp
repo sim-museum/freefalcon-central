@@ -34,6 +34,7 @@
 #include "stdhdr.h"
 #include "direct.h"
 #include "simfile.h"
+#include <ctype.h>
 #include "errno.h"
 #include "error.h"
 #include "f4find.h"
@@ -43,6 +44,10 @@
 extern "C" {
 #include "codelib/resources/reslib/src/resmgr.h"
 };
+
+#ifdef FF_LINUX
+extern "C" FILE* fopen_nocase(const char* filepath, const char* mode);
+#endif
 
 void SwapCRLF(char *buf);
 
@@ -61,7 +66,7 @@ SIM_FLOAT SimLibMinorFrameRate = 50.0F;
 SIM_FLOAT SimLibMajorFrameTime = 0.06F;
 SIM_FLOAT SimLibMajorFrameRate = 16.667F;
 SIM_FLOAT SimLibTimeOfDay;
-SIM_ULONG SimLibElapsedTime;
+VU_TIME SimLibElapsedTime;  // FF_LINUX: Use VU_TIME for binary compat
 float SimLibElapsedSeconds; // COBRA - RED - Added Variable of Elasped Simulation Seconds
 float SimLibFrameElapsed, SimLibLastFrameTime; // COBRA - RED - Added Variable of Elasped Frame Time
 SIM_UINT SimLibFrameCount = 0;
@@ -163,9 +168,21 @@ SimlibFileClass* SimlibFileClass::Open(char *fName, int flags)
     else
         strcpy(fileName, fName);
 
+#ifdef FF_LINUX
+    // Normalize path separators for Linux
+    for (char* p = fileName; *p; p++) {
+        if (*p == '\\') *p = '/';
+    }
+#endif
+
     // Try the actual open
     fHandle = new SimlibFileClass;
-    fHandle->fptr = ResFOpen(fileName, access);
+#ifdef FF_LINUX
+    // Use case-insensitive file lookup on Linux
+    fHandle->fptr = fopen_nocase(fileName, access);
+#else
+    fHandle->fptr = RES_FOPEN(fileName, access);
+#endif
 
     // Did it open ?
     if (fHandle->fptr == NULL)
@@ -454,7 +471,7 @@ int SimlibFileClass::Close(void)
 
     F4Assert(fptr);
 
-    if (ResFClose(fptr) == 0)
+    if (RES_FCLOSE(fptr) == 0)
     {
 #ifdef _DEBUG
         fnumOpen --;

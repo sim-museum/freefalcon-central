@@ -7,14 +7,14 @@
 \***************************************************************************/
 #include <cISO646>
 #include "stdafx.h"
-#include "StateStack.h"
+#include "statestack.h"
 #include "ClipFlags.h"
-#include "TexBank.h"
-#include "ObjectInstance.h"
+#include "texbank.h"
+#include "objectinstance.h"
 #include "Scripts.h"
-#include "BSPnodes.h"
+#include "bspnodes.h"
 #include "falclib/include/mltrig.h"
-#include "falclib/include/IsBad.h"
+#include "falclib/include/isbad.h"
 
 #pragma warning(disable : 4291)
 
@@ -316,7 +316,7 @@ void BRoot::Draw(void)
 {
     // Compute the offset to the first texture in the texture set
     int texOffset = TheStateStack.CurrentInstance->TextureSet *
-                    (nTexIDs / max(1, TheStateStack.CurrentInstance->ParentObject->nTextureSets)); // Cobra - TexSets = 0 CTD
+                    (nTexIDs / max(1, (int)TheStateStack.CurrentInstance->ParentObject->nTextureSets)); // Cobra - TexSets = 0 CTD
     TheStateStack.SetTextureTable(pTexIDs + texOffset);
 
     if (ScriptNumber > 0)

@@ -129,7 +129,7 @@ void C_Resmgr::Cleanup()
 #ifdef USE_SH_POOLS
         MemFreePtr(Idx_);
 #else
-        delete Idx_;
+        delete[] Idx_;
 #endif
         Idx_ = NULL;
     }
@@ -139,7 +139,7 @@ void C_Resmgr::Cleanup()
 #ifdef USE_SH_POOLS
         MemFreePtr(Data_);
 #else
-        delete Data_;
+        delete[] Data_;
 #endif
         Data_ = NULL;
     }

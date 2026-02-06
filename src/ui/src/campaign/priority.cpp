@@ -118,7 +118,7 @@ void PositionSlider(long value, C_Slider *slider)
     if (slider)
     {
         range = slider->GetSliderMax() - slider->GetSliderMin();
-        maxval = max(1, slider->GetSteps());
+        maxval = max(1L, slider->GetSteps());
 
         pos  = range * value / maxval;
         pos += slider->GetSliderMin();
@@ -136,7 +136,7 @@ long SliderValue(C_Slider *slider)
     if (slider)
     {
         range = slider->GetSliderMax() - slider->GetSliderMin();
-        maxval = max(1, slider->GetSteps());
+        maxval = max(1L, slider->GetSteps());
 
         pos = slider->GetSliderPos() - slider->GetSliderMin();
         value = pos * maxval / range;

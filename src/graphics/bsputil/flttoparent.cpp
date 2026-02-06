@@ -10,8 +10,8 @@
 #include <stdlib.h>
 #include <MgAPIall.h>
 #include "shi/ShiError.h"
-#include "StateStack.h"
-#include "ObjectParent.h"
+#include "statestack.h"
+#include "objectparent.h"
 #include "LODBuildList.h"
 #include "FLTreader.h"
 #include "FLTerror.h"

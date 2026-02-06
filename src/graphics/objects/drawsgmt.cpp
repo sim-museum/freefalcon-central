@@ -1,4 +1,4 @@
-#include "Drawsgmt.h"
+#include "drawsgmt.h"
 
 /***************************************************************************\
     DrawSgmt.cpp
@@ -9,26 +9,26 @@
 \***************************************************************************/
 #ifdef MLR_NEWTRAILCODE
 
-#include "TimeMgr.h"
-#include "TOD.h"
+#include "timemgr.h"
+#include "tod.h"
 #include "falclib/include/token.h"
 /*
-#include "RenderOW.h"
-#include "RViewPnt.h"
-#include "Tex.h"
+#include "renderow.h"
+#include "rviewpnt.h"
+#include "tex.h"
 */
-#include "DrawSgmt.h"
-#include "StateStack.h"
-#include "RenderOW.h"
-#include "Matrix.h"
-#include "TOD.h"
-#include "Tex.h"
-#include "RealWeather.h"
-#include "Sim/Include/Simbase.h"
+#include "drawsgmt.h"
+#include "statestack.h"
+#include "renderow.h"
+#include "matrix.h"
+#include "tod.h"
+#include "tex.h"
+#include "realweather.h"
+#include "sim/include/simbase.h"
 #include "sfx.h"
 #include "OTWDrive.h"
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "graphics/dxengine/dxengine.h"
+#include "graphics/dxengine/dxvbmanager.h"
 
 extern int g_nGfxFix;
 extern char FalconDataDirectory[];
@@ -137,7 +137,11 @@ void LoadTrails()
     */
     TrailtexIDs = 0;
 
+#ifdef FF_LINUX
+    sprintf(path, "%s/terrdata/%s", FalconDataDirectory, TRAILFILE);
+#else
     sprintf(path, "%s\\terrdata\\%s", FalconDataDirectory, TRAILFILE);  // MLR 12/14/2003 - This should probably be fixed
+#endif
     fp = fopen(path, "r");
 
     if (fp == NULL)
@@ -1433,12 +1437,12 @@ if(n)
 
     Derived class to handle drawing segmented trails (like contrails).
 \***************************************************************************/
-#include "TimeMgr.h"
-#include "TOD.h"
-#include "RenderOW.h"
-#include "RViewPnt.h"
-#include "Tex.h"
-//#include "DrawSgmt.h"
+#include "timemgr.h"
+#include "tod.h"
+#include "renderow.h"
+#include "rviewpnt.h"
+#include "tex.h"
+//#include "drawsgmt.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL DrawableTrail::pool;
@@ -1547,7 +1551,11 @@ void LoadTrails()
 
     if (fp == NULL)
     {
+#ifdef FF_LINUX
+        sprintf(path, "%s/%s", FalconObjectDataDir, TRAILFILE);
+#else
         sprintf(path, "%s\\%s", FalconObjectDataDir, TRAILFILE);
+#endif
         fp = fopen(path, "r");
 
         if (fp == NULL) return;

@@ -14,8 +14,8 @@
 //*********************************************************************/
 #include "stdhdr.h"
 
-#include "TrackIR.h"
-#include "OTWDrive.h"
+#include "trackir.h"
+#include "otwdrive.h"
 #include "sinput.h"
 
 //#define DEBUG_TRACKIR_STUFF 0
@@ -350,7 +350,7 @@ NPRESULT __stdcall NP_StopDataTransmission()
 // Update:
 //
 // Description:Made it work in C, some horrible code there I guess..
-// There´s a 200byte mem-leak here too...
+// Thereï¿½s a 200byte mem-leak here too...
 //
 //*********************************************************************/
 NPRESULT NPClient_Init(char* csDLLPath)

@@ -7,14 +7,14 @@
 \***************************************************************************/
 #include <cISO646>
 #include <math.h>
-#include "Tmap.h"
-#include "TViewPnt.h"
+#include "tmap.h"
+#include "tviewpnt.h"
 #include "Tpost.h"
-#include "DrawBSP.h"
+#include "drawbsp.h"
 #include "TerrTex.h"
-#include "GMRadar.h"
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "gmradar.h"
+#include "graphics/dxengine/dxengine.h"
+#include "graphics/dxengine/dxvbmanager.h"
 
 #pragma warning(disable : 4127)
 #pragma warning(disable : 4706)

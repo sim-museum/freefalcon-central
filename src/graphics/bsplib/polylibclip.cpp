@@ -7,9 +7,9 @@
 \***************************************************************************/
 #include <cISO646>
 #include "stdafx.h"
-#include "StateStack.h"
-#include "ColorBank.h"
-#include "PolyLib.h"
+#include "statestack.h"
+#include "colorbank.h"
+#include "polylib.h"
 #include "ClipFlags.h"
 
 

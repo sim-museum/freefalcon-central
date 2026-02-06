@@ -5,7 +5,7 @@
 #include "F4Vu.h"
 #include "CampList.h"
 #include "Find.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "Unit.h"
 #include "Team.h"
 #include "Options.h"

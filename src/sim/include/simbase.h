@@ -2,11 +2,11 @@
 #define _SIMBASE_H
 
 #include <cISO646>
-#include "FalcLib/include/f4vu.h"
-#include "Falclib/include/FalcEnt.h"
+#include "falclib/include/f4vu.h"
+#include "falclib/include/falcent.h"
 #include "geometry.h"
-#include "Falclib/include/camp2sim.h"
-#include "Falclib/include/fsound.h"
+#include "falclib/include/camp2sim.h"
+#include "falclib/include/fsound.h"
 //#include "Simdrive.h"
 #include "initdata.h"
 

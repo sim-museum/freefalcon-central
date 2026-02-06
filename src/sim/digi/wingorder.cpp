@@ -11,8 +11,8 @@
 #include "radar.h"
 #include "classtbl.h"
 #include "team.h"
-#include "PlayerOp.h"
-#include "Sim/Include/SimVuDrv.h"
+#include "playerop.h"
+#include "sim/include/simvudrv.h"
 
 #define IGNORE_SENDER 0
 

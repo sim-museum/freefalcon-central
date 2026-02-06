@@ -617,6 +617,10 @@ void TextureDB::StoreMPRPalette(SetEntry *pSet)
 // This function is called by anyone wishing the use of a particular texture.
 void TextureDB::Request(TextureID texID)
 {
+#ifdef FF_LINUX
+    if (!IsReady()) return;
+#endif
+
     int set = ExtractSet(texID);
     int tile = ExtractTile(texID);
     int res = ExtractRes(texID);
@@ -666,6 +670,10 @@ void TextureDB::Request(TextureID texID)
 // This function must eventually be called by anyone who calls the Request function above.
 void TextureDB::Release(TextureID texID)
 {
+#ifdef FF_LINUX
+    if (!IsReady()) return;
+#endif
+
     int set = ExtractSet(texID);
     int tile = ExtractTile(texID);
     int res = ExtractRes(texID);
@@ -712,11 +720,28 @@ TexPath* TextureDB::GetPath(TextureID texID, int type, int offset)
     TexPath *a;
     TexPath *stop;
 
+#ifdef FF_LINUX
+    // FF_LINUX: Safety check - return NULL if texture DB not initialized
+    if (!IsReady()) {
+        return NULL;
+    }
+#endif
+
     int set = ExtractSet(texID);
     int tile = ExtractTile(texID);
 
     ShiAssert(set >= 0);
     ShiAssert(set < numSets);
+
+#ifdef FF_LINUX
+    // FF_LINUX: Bounds check to prevent crash on invalid texture IDs
+    if (set < 0 || set >= numSets) {
+        return NULL;
+    }
+    if (tile < 0 || tile >= TextureSets[set].numTiles) {
+        return NULL;
+    }
+#endif
 
     a = TextureSets[set].tiles[tile].Paths;
     stop = a + TextureSets[set].tiles[tile].nPaths;
@@ -743,11 +768,26 @@ TexArea* TextureDB::GetArea(TextureID texID, int type, int offset)
     TexArea *a;
     TexArea *stop;
 
+#ifdef FF_LINUX
+    if (!IsReady()) {
+        return NULL;
+    }
+#endif
+
     int set = ExtractSet(texID);
     int tile = ExtractTile(texID);
 
     ShiAssert(set >= 0);
     ShiAssert(set < numSets);
+
+#ifdef FF_LINUX
+    if (set < 0 || set >= numSets) {
+        return NULL;
+    }
+    if (tile < 0 || tile >= TextureSets[set].numTiles) {
+        return NULL;
+    }
+#endif
 
     a = TextureSets[set].tiles[tile].Areas;
     stop = a + TextureSets[set].tiles[tile].nAreas;
@@ -770,6 +810,12 @@ TexArea* TextureDB::GetArea(TextureID texID, int type, int offset)
 
 BYTE TextureDB::GetTerrainType(TextureID texID)
 {
+#ifdef FF_LINUX
+    if (!IsReady()) {
+        return 0;
+    }
+#endif
+
     int set = ExtractSet(texID);
 
     if ((set < 0) or (set >= numSets))
@@ -934,12 +980,12 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
         // Pass the palette to MPR if it isn't already there
         if (pSet->palHandle == 0)
         {
-            pSet->palHandle = (UInt)new PaletteHandle(private_rc->m_pDD, 32, 256);
+            pSet->palHandle = (uintptr_t)new PaletteHandle(private_rc->m_pDD, 32, 256);
             ShiAssert(pSet->palHandle);
             StoreMPRPalette(pSet);
         }
 
-        pTile->handle[res] = (UInt)new TextureHandle;
+        pTile->handle[res] = (uintptr_t)new TextureHandle;
         ShiAssert(pTile->handle[res]);
 
         // Attach the palette
@@ -993,7 +1039,7 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
 
 
         // Day texture
-        pTile->handle[res] = (UInt)new TextureHandle;
+        pTile->handle[res] = (uintptr_t)new TextureHandle;
         ShiAssert(pTile->handle[res]);
 
         ((TextureHandle *)pTile->handle[res])->Create(
@@ -1004,7 +1050,7 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
         );
 
         // Night texture
-        pTile->handleN[res] = (UInt)new TextureHandle;
+        pTile->handleN[res] = (uintptr_t)new TextureHandle;
         ShiAssert(pTile->handleN[res]);
 
         ((TextureHandle *)pTile->handleN[res])->Create(
@@ -1425,7 +1471,11 @@ bool TextureDB::DumpImageToFile(TileEntry* pTile, DWORD *palette, int res, bool 
 
 void TextureDB::ReadImageDDS(TileEntry* pTile, int res)
 {
+#ifdef FF_LINUX
+    DDS_FILE_HEADER ddsd;
+#else
     DDSURFACEDESC2 ddsd;
+#endif
     DWORD dwMagic;
     char szFileName[256], szTemp[256], *token;
     char sep[] = ".";
@@ -1455,7 +1505,8 @@ void TextureDB::ReadImageDDS(TileEntry* pTile, int res)
     ShiAssert(dwMagic == MAKEFOURCC('D', 'D', 'S', ' '));
 
     // Read first compressed mipmap
-    fread(&ddsd, 1, sizeof(DDSURFACEDESC2), fp);
+    memset(&ddsd, 0, sizeof(ddsd));
+    fread(&ddsd, 1, sizeof(ddsd), fp);
 
     // MLR 1/25/2004 - Little kludge so FF can read DDS files made by dxtex
     if (ddsd.dwLinearSize == 0)
@@ -1543,7 +1594,8 @@ void TextureDB::ReadImageDDS(TileEntry* pTile, int res)
     fread(&dwMagic, 1, sizeof(DWORD), fp);
     ShiAssert(dwMagic == MAKEFOURCC('D', 'D', 'S', ' '));
 
-    fread(&ddsd, 1, sizeof(DDSURFACEDESC2), fp);
+    memset(&ddsd, 0, sizeof(ddsd));
+    fread(&ddsd, 1, sizeof(ddsd), fp);
 
     // MLR 1/25/2004 - Little kludge so FF can read DDS files made by dxtex
     if (ddsd.dwLinearSize == 0)

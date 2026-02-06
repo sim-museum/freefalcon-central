@@ -23,7 +23,7 @@ static const float COS_SUN_EFFECT_HALF_ANGLE = (float)cos(20.0f * DTR);  //me123
 extern bool g_bRealisticAvionics;
 extern int g_nRNESpeed;
 
-#include "SimIO.h" // Retro 3Jan2004
+#include "simio.h" // Retro 3Jan2004
 
 void FireControlComputer::AirAirMode(void)
 {

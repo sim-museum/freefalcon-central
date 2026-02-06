@@ -12,7 +12,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "CmpGlobl.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "vutypes.h"
 #include "Objectiv.h"
 #include "division.h"

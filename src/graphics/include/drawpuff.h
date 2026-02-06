@@ -8,7 +8,7 @@
 #ifndef _DRAWPUFF_H_
 #define _DRAWPUFF_H_
 
-#include "DrawBSP.h"
+#include "drawbsp.h"
 
 class DrawablePuff : public DrawableBSP
 {

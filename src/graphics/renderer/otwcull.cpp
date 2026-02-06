@@ -12,10 +12,10 @@
 \***************************************************************************/
 #include <cISO646>
 #include <math.h>
-#include "TMap.h"
+#include "tmap.h"
 #include "Tpost.h"
-#include "RViewPnt.h"
-#include "RenderOW.h"
+#include "rviewpnt.h"
+#include "renderow.h"
 
 
 static const int MAX_POSITIVE_I =  25000;

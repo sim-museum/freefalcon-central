@@ -1,24 +1,24 @@
 #include "stdhdr.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/drawsgmt.h"
-#include "Graphics/Include/rviewpnt.h"
-#include "Graphics/Include/RenderOW.h"
-#include "DrawParticleSys.h" //RV - I-Hawk - Added to support RV new trails
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/drawsgmt.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/renderow.h"
+#include "drawparticlesys.h" //RV - I-Hawk - Added to support RV new trails
 #include "ClassTbl.h"
 #include "Entity.h"
 #include "simobj.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "hud.h"
 #include "fcc.h"
 #include "digi.h"
 #include "facbrain.h"
 #include "tankbrn.h"
 #include "radar.h"
-#include "radarAGOnly.h"
-#include "radarDigi.h"
+#include "radaragonly.h"
+#include "radardigi.h"
 #include "radar360.h"
-#include "radarSuper.h"
-#include "radarDoppler.h"
+#include "radarsuper.h"
+#include "radardoppler.h"
 #include "irst.h"
 #include "eyeball.h"
 #include "sms.h"
@@ -54,41 +54,43 @@
 #include "navsystem.h"
 #include "dogfight.h"
 #include "falcsess.h"
-#include "Graphics/Include/terrtex.h"
+#include "graphics/include/terrtex.h"
 #include "laserpod.h"
 #include "ui/include/logbook.h"
 #include "MsgInc/TankerMsg.h"
 #include "MsgInc/RadioChatterMsg.h"
-#include "hardPnt.h"
+#include "hardpnt.h"
 #include "ptdata.h"
 #include "atcbrain.h"
 #include "ffeedbk.h"
-#include "easyHts.h"
-#include "VehRwr.h"
+#include "easyhts.h"
+#include "vehrwr.h"
+#ifdef _WIN32
 #include <mbstring.h>
+#endif
 #include "codelib/tools/lists/lists.h"
 #include "acmi/src/include/acmitape.h"
 #include "dofsnswitches.h"
 #include "team.h"
-#include "Graphics/Include/drawgrnd.h"
-#include "Graphics/Include/matrix.h"
-#include "Graphics/Include/tod.h"
+#include "graphics/include/drawgrnd.h"
+#include "graphics/include/matrix.h"
+#include "graphics/include/tod.h"
 #include "objectiv.h"
 #include "lantirn.h"
 #include "flight.h" /* MN added */
 #include "Cmpclass.h" /* MN added */
 #include "MissEval.h" /* MN added */
 #include "profiler.h" // MLR 5/21/2004 - 
-#include "ACTurbulence.h" // MLR 9/12/2004 - 
+#include "acturbulence.h" // MLR 9/12/2004 - 
 #include "dogfight.h" //TJL 08/01/04
 #include "feature.h" //Cobra
 #include "bomb.h"
 #include "simbase.h"
 // MD -- 20040110: added for analog cursor cupport
-#include "SimIO.h"
+#include "simio.h"
 #include "mavdisp.h"
 #include "laserpod.h"
-#include "HarmPod.h"
+#include "harmpod.h"
 
 #define RESCALE(in,inmin,inmax,outmin,outmax) ( ((float)(in) - (inmin)) * ((outmax) - (outmin)) / ((inmax) - (inmin)) + (outmin))
 
@@ -107,7 +109,7 @@ extern bool g_bMultiEngineSound;
 extern bool g_bAllHaveIFF; // Cobra - Give all aircraft IFF interrogator
 
 //MI
-#include "PlayerRWR.h"
+#include "playerrwr.h"
 #include "commands.h"
 extern bool g_bINS;
 extern bool g_bNewEngineSounds;
@@ -575,7 +577,13 @@ void AircraftClass::CleanupData()
 
 void AircraftClass::Init(SimInitDataClass* initData)
 {
+#ifdef FF_LINUX
+    fprintf(stderr, "[AircraftClass::Init] ENTER\n"); fflush(stderr);
+#endif
     SimVehicleClass::Init(initData);
+#ifdef FF_LINUX
+    fprintf(stderr, "[AircraftClass::Init] SimVehicleClass::Init done\n"); fflush(stderr);
+#endif
 
     int i;
     WayPointClass* atWaypoint;
@@ -585,8 +593,15 @@ void AircraftClass::Init(SimInitDataClass* initData)
     int afIdx;
     long dt;
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[AircraftClass::Init] classPtr=%p, initData=%p\n", (void*)classPtr, (void*)initData); fflush(stderr);
+#endif
+
     if (initData)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Checking SType/SPType...\n"); fflush(stderr);
+#endif
         if (GetSType() == STYPE_AIR_FIGHTER_BOMBER and GetSPType() == SPTYPE_F16C)
         {
             acFlags or_eq isF16 bitor isComplex;
@@ -606,8 +621,17 @@ void AircraftClass::Init(SimInitDataClass* initData)
         }
 
         // Airframe Stuff
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Creating AirframeClass...\n"); fflush(stderr);
+#endif
         af = new AirframeClass(this);
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] AirframeClass created: %p\n", (void*)af); fflush(stderr);
+#endif
         af->SetFlag(AirframeClass::IsDigital);
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] SetFlag done, mFaults=%p\n", (void*)mFaults); fflush(stderr);
+#endif
 
         if (mFaults)
         {
@@ -615,13 +639,22 @@ void AircraftClass::Init(SimInitDataClass* initData)
         }
 
         mFaults = new FackClass;
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] FackClass created, isDigital=%d\n", isDigital); fflush(stderr);
+#endif
 
         if (isDigital)
         {
+#ifdef FF_LINUX
+            fprintf(stderr, "[AircraftClass::Init] Checking RunningInstantAction...\n"); fflush(stderr);
+#endif
             if (SimDriver.RunningInstantAction())
             {
                 af->SetFlag(AirframeClass::NoFuelBurn);
             }
+#ifdef FF_LINUX
+            fprintf(stderr, "[AircraftClass::Init] RunningInstantAction check done\n"); fflush(stderr);
+#endif
         }
         else
         {
@@ -642,6 +675,9 @@ void AircraftClass::Init(SimInitDataClass* initData)
         af->initialY    = initData->y;
         af->initialZ    = initData->z;
         af->initialFuel = (float)initData->fuel;
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Initial pos set: x=%.1f y=%.1f z=%.1f\n", af->initialX, af->initialY, af->initialZ); fflush(stderr);
+#endif
 
         //KCK Kludge
         // sfr: dont need this anymore
@@ -654,6 +690,9 @@ void AircraftClass::Init(SimInitDataClass* initData)
         numWaypoints    = initData->numWaypoints;
         curWaypoint     = waypoint;
         atWaypoint      = waypoint;
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Waypoints: numWaypoints=%d waypoint=%p\n", numWaypoints, (void*)waypoint); fflush(stderr);
+#endif
 
         for (i = 0; i < numWaypoints; i++)
         {
@@ -665,9 +704,15 @@ void AircraftClass::Init(SimInitDataClass* initData)
 
             curWaypoint = curWaypoint->GetNextWP();
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Waypoint loop done\n"); fflush(stderr);
+#endif
 
         curWaypoint = waypoint;
         VU_TIME st = waypoint->GetWPArrivalTime();
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] st=%lu SimLibElapsedTime=%lu\n", (unsigned long)st, (unsigned long)SimLibElapsedTime); fflush(stderr);
+#endif
 
         if (SimLibElapsedTime < st)
         {
@@ -675,46 +720,84 @@ void AircraftClass::Init(SimInitDataClass* initData)
         }
 
         mFaults->SetStartTime(st); // set base time
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] SetStartTime done, currentWaypoint=%d\n", initData->currentWaypoint); fflush(stderr);
+#endif
 
         for (i = 0; i < initData->currentWaypoint; i++)
         {
             atWaypoint = curWaypoint;
             curWaypoint = curWaypoint->GetNextWP();
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Waypoint index loop done, curWaypoint=%p\n", (void*)curWaypoint); fflush(stderr);
+#endif
 
         // Calculate current heading
         if (curWaypoint)
         {
+#ifdef FF_LINUX
+            fprintf(stderr, "[AircraftClass::Init] Inside curWaypoint check, getting WPAction...\n"); fflush(stderr);
+#endif
             // Are we waiting for takeoff ?
 
             // RV - Biker - Don't initialize AI on carrier
             bool allowGroundInit = true;
 
+#ifdef FF_LINUX
+            fprintf(stderr, "[AircraftClass::Init] Getting UnitAirbase from campBase=%p\n", (void*)initData->campBase); fflush(stderr);
+#endif
             CampEntity ent = ((Flight)(initData->campBase))->GetUnitAirbase();
+#ifdef FF_LINUX
+            fprintf(stderr, "[AircraftClass::Init] UnitAirbase ent=%p\n", (void*)ent); fflush(stderr);
+#endif
 
             if (ent and ent->IsTaskForce() and initData->playerSlot == NO_PILOT)
                 allowGroundInit = false;
 
+#ifdef FF_LINUX
+            int wpAction = curWaypoint->GetWPAction();
+            fprintf(stderr, "[AircraftClass::Init] WPAction=%d (WP_TAKEOFF=%d) allowGroundInit=%d\n", wpAction, WP_TAKEOFF, allowGroundInit); fflush(stderr);
+#endif
+
             if (curWaypoint->GetWPAction() == WP_TAKEOFF and allowGroundInit == true)
             {
+#ifdef FF_LINUX
+                fprintf(stderr, "[AircraftClass::Init] Calling OnGroundInit...\n"); fflush(stderr);
+#endif
                 OnGroundInit(initData);
+#ifdef FF_LINUX
+                fprintf(stderr, "[AircraftClass::Init] OnGroundInit done\n"); fflush(stderr);
+#endif
             }
             else
             {
+#ifdef FF_LINUX
+                fprintf(stderr, "[AircraftClass::Init] Else branch (not WP_TAKEOFF)\n"); fflush(stderr);
+#endif
                 // RV - Biker - AI start at carrier pos with higher alt
                 if (ent and ent->IsTaskForce())
                 {
                     af->initialX = ent->XPos() + 1.0f * NM_TO_FT - rand() % 12000;
                     af->initialY = ent->YPos() + 1.0f * NM_TO_FT - rand() % 12000;
-                    af->initialZ = min(af->initialZ, -5000 - rand() % 2000);
+                    af->initialZ = min(af->initialZ, (float)(-5000 - rand() % 2000));
                 }
+#ifdef FF_LINUX
+                fprintf(stderr, "[AircraftClass::Init] Calling AddTakeOff, waypoint=%p\n", (void*)waypoint); fflush(stderr);
+#endif
 
                 mFaults->AddTakeOff(waypoint->GetWPArrivalTime());
+#ifdef FF_LINUX
+                fprintf(stderr, "[AircraftClass::Init] AddTakeOff done\n"); fflush(stderr);
+#endif
 
                 if (curWaypoint == atWaypoint)
                     curWaypoint = curWaypoint->GetNextWP();
 
                 atWaypoint->GetLocation(&wp1X, &wp1Y, &wp1Z);
+#ifdef FF_LINUX
+                fprintf(stderr, "[AircraftClass::Init] Got atWaypoint location: %.1f, %.1f, %.1f\n", wp1X, wp1Y, wp1Z); fflush(stderr);
+#endif
 
                 if (curWaypoint == NULL)
                 {
@@ -722,6 +805,9 @@ void AircraftClass::Init(SimInitDataClass* initData)
                     wp1Y = initData->y;
                     curWaypoint = atWaypoint;
                 }
+#ifdef FF_LINUX
+                fprintf(stderr, "[AircraftClass::Init] RunningInstantAction=%d isDigital=%d\n", SimDriver.RunningInstantAction(), isDigital); fflush(stderr);
+#endif
 
                 if (SimDriver.RunningInstantAction() and not isDigital)
                 {
@@ -730,9 +816,21 @@ void AircraftClass::Init(SimInitDataClass* initData)
                 }
                 else
                 {
+#ifdef FF_LINUX
+                    fprintf(stderr, "[AircraftClass::Init] Getting wp2 location from curWaypoint=%p\n", (void*)curWaypoint); fflush(stderr);
+#endif
                     curWaypoint->GetLocation(&wp2X, &wp2Y, &wp2Z);
+#ifdef FF_LINUX
+                    fprintf(stderr, "[AircraftClass::Init] wp2 location: %.1f, %.1f, %.1f\n", wp2X, wp2Y, wp2Z); fflush(stderr);
+#endif
                     af->initialPsi = (float)atan2(wp2Y - wp1Y, wp2X - wp1X);
+#ifdef FF_LINUX
+                    fprintf(stderr, "[AircraftClass::Init] initialPsi=%.3f, getting arrival times\n", af->initialPsi); fflush(stderr);
+#endif
                     dt = curWaypoint->GetWPArrivalTime() - atWaypoint->GetWPDepartureTime();
+#ifdef FF_LINUX
+                    fprintf(stderr, "[AircraftClass::Init] dt=%ld SEC_TO_MSEC=%ld\n", dt, (long)SEC_TO_MSEC); fflush(stderr);
+#endif
 
                     if (dt > 10 * SEC_TO_MSEC)
                     {
@@ -744,6 +842,9 @@ void AircraftClass::Init(SimInitDataClass* initData)
                     {
                         af->initialMach = 0.7F;
                     }
+#ifdef FF_LINUX
+                    fprintf(stderr, "[AircraftClass::Init] initialMach=%.3f\n", af->initialMach); fflush(stderr);
+#endif
                 }
 
             }
@@ -753,6 +854,9 @@ void AircraftClass::Init(SimInitDataClass* initData)
             af->initialPsi = 0.0F;
             af->initialMach = 0.7F;
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] After waypoint if block, initialMach=%.3f\n", af->initialMach); fflush(stderr);
+#endif
 
         // KCK Hack: To make EOM work ok...
         // REMOVE BEFORE FLIGHT
@@ -769,43 +873,85 @@ void AircraftClass::Init(SimInitDataClass* initData)
         //if (af->initialMach > 1000.0F)
         //af->initialMach = 1000.F; // max fps
 
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Mach clamped, afIdx lookup from vehicleDataIndex=%d\n", classPtr->vehicleDataIndex); fflush(stderr);
+#endif
 
         afIdx = SimACDefTable[classPtr->vehicleDataIndex].airframeIdx;
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] afIdx=%d NumACDefEntries=%d\n", afIdx, NumACDefEntries); fflush(stderr);
+#endif
 
         // FRB - Garbage check
         if (afIdx > NumACDefEntries)
             afIdx = 1;
 
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Calling af->InitData(%d)...\n", afIdx); fflush(stderr);
+#endif
         af->InitData(afIdx);
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] af->InitData done\n"); fflush(stderr);
+#endif
 
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Checking auxaeroData=%p\n", (void*)af->auxaeroData); fflush(stderr);
+#endif
         //TJL 12/20/03 This will allow for all F-16's to set the isF16 flag
         // without having to have the same specific type like the code above
         if (af->auxaeroData->typeAC == 1 or af->auxaeroData->typeAC == 2)
         {
             acFlags or_eq isF16;
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] F16 flag check done\n"); fflush(stderr);
+#endif
 
         //TJL 01/11/04 Set Two Engines
         if (af->auxaeroData->nEngines == 2)
         {
             acFlags or_eq hasTwoEngines;
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Engine flag check done, creating SMS...\n"); fflush(stderr);
+#endif
 
 
         // Weapons Stuff
         Sms = new SMSClass(this, initData->weapon, initData->weapons);
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] SMS created: %p\n", (void*)Sms); fflush(stderr);
+#endif
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Creating FCC, NumHardpoints=%d\n", Sms->NumHardpoints()); fflush(stderr);
+#endif
         FCC = new FireControlComputer(this, Sms->NumHardpoints());
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] FCC created: %p\n", (void*)FCC); fflush(stderr);
+#endif
         //FCC->Sms = Sms;
         FCC->SetSms(Sms); // MLR 4/10/2004 -
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] FCC->SetSms done\n"); fflush(stderr);
+#endif
 
         if (Sms->NumHardpoints() > 0)
         {
+#ifdef FF_LINUX
+            fprintf(stderr, "[AircraftClass::Init] Getting gun from hardPoint[0]=%p\n", (void*)Sms->hardPoint[0]); fflush(stderr);
+#endif
             Guns = Sms->hardPoint[0]->GetGun();
+#ifdef FF_LINUX
+            fprintf(stderr, "[AircraftClass::Init] Guns=%p\n", (void*)Guns); fflush(stderr);
+#endif
 
             if (Guns)
             {
                 // MLR 12/13/2003 - Set the guns trail ID
                 Guns->SetTrailID(af->auxaeroData->gunTrailID);
+#ifdef FF_LINUX
+                fprintf(stderr, "[AircraftClass::Init] Gun TrailID set\n"); fflush(stderr);
+#endif
             }
         }
 
@@ -815,30 +961,68 @@ void AircraftClass::Init(SimInitDataClass* initData)
         // that if we're in the air (ie haven't gone thru OnGroundInit() as
         // a result of being at a takeoff point), that we're above the terrain.
         // also the original check was inadequate.
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Checking ground level...\n"); fflush(stderr);
+#endif
         if ( not OnGround() and af->initialZ > OTWDriver.GetGroundLevel(af->x, af->y) - 500.0f)
         {
             af->initialZ = OTWDriver.GetGroundLevel(af->x, af->y) - 500.0F;
             af->z = af->initialZ;
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Ground level check done\n"); fflush(stderr);
+#endif
 
         // Get the controls
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Calling af->Init(%d)...\n", afIdx); fflush(stderr);
+#endif
         af->Init(afIdx);
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] af->Init done\n"); fflush(stderr);
+#endif
 
-
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Checking hasSwingWing...\n"); fflush(stderr);
+#endif
         if (af->auxaeroData->hasSwingWing)
         {
             acFlags or_eq hasSwing;
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] hasSwingWing check done\n"); fflush(stderr);
+#endif
 
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Checking isComplex=%d\n", af->auxaeroData->isComplex); fflush(stderr);
+#endif
         if (af->auxaeroData->isComplex)
         {
             acFlags or_eq isComplex;
+#ifdef FF_LINUX
+            fprintf(stderr, "[AircraftClass::Init] Calling MakeComplex()...\n"); fflush(stderr);
+#endif
             MakeComplex();
+#ifdef FF_LINUX
+            fprintf(stderr, "[AircraftClass::Init] MakeComplex done\n"); fflush(stderr);
+#endif
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] isComplex check done\n"); fflush(stderr);
+#endif
 
         // Turn on the canopy.
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Calling SetSwitch(COMP_CANOPY)...\n"); fflush(stderr);
+#endif
         SetSwitch(COMP_CANOPY, TRUE);
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] SetSwitch done\n"); fflush(stderr);
+#endif
 
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Checking ACMI recording...\n"); fflush(stderr);
+#endif
         if (gACMIRec.IsRecording())
         {
             acmiSwitch.hdr.time = SimLibElapsedTime * MSEC_TO_SEC + OTWDriver.todOffset;
@@ -849,8 +1033,14 @@ void AircraftClass::Init(SimInitDataClass* initData)
             acmiSwitch.data.prevSwitchVal = TRUE;
             gACMIRec.SwitchRecord(&acmiSwitch);
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] ACMI check done\n"); fflush(stderr);
+#endif
 
         // Add Laser designator and harm pod for F16's
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Checking IsComplex for laser/harm pods...\n"); fflush(stderr);
+#endif
         if (IsComplex())
         {
             SetSwitch(COMP_EXH_NOZZLE, 1);
@@ -904,16 +1094,28 @@ void AircraftClass::Init(SimInitDataClass* initData)
                 }
             }
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] IsComplex check done\n"); fflush(stderr);
+#endif
 
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Checking Guns=%p\n", (void*)Guns); fflush(stderr);
+#endif
         if (Guns)
         {
             float x, y, z;
             af->GetGunLocation(&x, &y, &z);
             Guns->SetPosition(x, y, z, af->auxaeroData->gunElevation * DTR, af->auxaeroData->gunAzimuth * DTR);
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Guns check done\n"); fflush(stderr);
+#endif
 
         // Add Sensor
         // Quick, count the sensors
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Starting sensor setup...\n"); fflush(stderr);
+#endif
         {
             int sensorType, sensorIdx, hasHarm, hasLGB, needsRadar;
 
@@ -1005,9 +1207,15 @@ void AircraftClass::Init(SimInitDataClass* initData)
                 sensorArray[i]->SetType(SensorClass::TargetingPod);
             }
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Sensor setup done, numSensors=%d\n", numSensors); fflush(stderr);
+#endif
 
         // If I only had a brain
         // we need the waypoint data initialized before we build the brain
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Creating brain, GetCampaignObject=%p\n", (void*)GetCampaignObject()); fflush(stderr);
+#endif
         switch (((UnitClass*)GetCampaignObject())->GetUnitMission())
         {
             case AMIS_FAC:
@@ -1020,10 +1228,19 @@ void AircraftClass::Init(SimInitDataClass* initData)
                 break;
 
             default:
+#ifdef FF_LINUX
+                fprintf(stderr, "[AircraftClass::Init] Creating DigitalBrain...\n"); fflush(stderr);
+#endif
                 theBrain = new DigitalBrain(this, af);
+#ifdef FF_LINUX
+                fprintf(stderr, "[AircraftClass::Init] DigitalBrain created: %p\n", (void*)theBrain); fflush(stderr);
+#endif
                 break;
         }
 
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Brain created, calling DBrain()->SetTaxiPoint...\n"); fflush(stderr);
+#endif
         DBrain()->SetTaxiPoint(initData->ptIndex);
         DBrain()->SetSkill(initData->skill);
         //DBrain()->SetSkill(4);
@@ -1075,7 +1292,13 @@ void AircraftClass::Init(SimInitDataClass* initData)
         // END OF MODIFIED SECTION
 
         CalcTransformMatrix(this);
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Creating PilotInputs...\n"); fflush(stderr);
+#endif
         theInputs   = new PilotInputs;
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] PilotInputs created: %p\n", (void*)theInputs); fflush(stderr);
+#endif
 
         if (Sms->NumHardpoints() and isDigital)
         {
@@ -1083,11 +1306,23 @@ void AircraftClass::Init(SimInitDataClass* initData)
             FCC->SetMasterMode(FireControlComputer::Missile);
             FCC->SetSubMode(FireControlComputer::Aim9);
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] Checking PreFlight...\n"); fflush(stderr);
+#endif
 
         if ( not g_bRealisticAvionics or not OnGround())  // JPO set up the systems
         {
+#ifdef FF_LINUX
+            fprintf(stderr, "[AircraftClass::Init] Calling PreFlight()...\n"); fflush(stderr);
+#endif
             PreFlight();
+#ifdef FF_LINUX
+            fprintf(stderr, "[AircraftClass::Init] PreFlight done\n"); fflush(stderr);
+#endif
         }
+#ifdef FF_LINUX
+        fprintf(stderr, "[AircraftClass::Init] End of initData block\n"); fflush(stderr);
+#endif
     }
 
     // FRB - Open canopy before entering 3D
@@ -1175,6 +1410,9 @@ void AircraftClass::Init(SimInitDataClass* initData)
 
     NightLight = FALSE;
     WideView = FALSE;
+#ifdef FF_LINUX
+    fprintf(stderr, "[AircraftClass::Init] EXIT - Init complete\n"); fflush(stderr);
+#endif
 }
 
 Tpoint AircraftClass::GetTurbulence(void)

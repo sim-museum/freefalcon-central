@@ -9,16 +9,33 @@
 #ifndef TYPES_H         /* Prevent file from being included twice. */
 #define TYPES_H
 
-typedef unsigned char  UBYTE, BYTE;
+typedef unsigned char  UBYTE;
 typedef unsigned short USHORT;
-typedef unsigned long  ULONG;
-
 typedef signed char    SBYTE;
-typedef signed short   SSHORT, SHORT;
-typedef signed long    SLONG,  LONG;
+typedef signed short   SSHORT;
+typedef signed long    SLONG;
 
+/* Only define Windows-like types if not already defined by windows.h */
+#ifndef _WINDOWS_
+#ifndef BYTE
+typedef unsigned char  BYTE;
+#endif
+#ifndef ULONG
+typedef unsigned long  ULONG;
+#endif
+#ifndef SHORT
+typedef signed short   SHORT;
+#endif
+#ifndef LONG
+typedef signed long    LONG;
+#endif
+#ifndef DWORD
 typedef unsigned long  DWORD;
+#endif
+#ifndef WORD
 typedef unsigned short WORD;
+#endif
+#endif /* _WINDOWS_ */
 
 typedef int            COUNTER;
 typedef int            INDEX;

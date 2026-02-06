@@ -7,7 +7,7 @@
 #include "graphics/include/matrix.h"
 #include "falclib/include/f4thread.h"
 #include "falclib/include/f4vu.h"
-#include "Graphics/Include/TerrTex.h"
+#include "graphics/include/terrtex.h"
 #include "inpFunc.h" //Wombat778 10-10-2003 added for 3d clickable cockpit
 //#include "cpmanager.h" //sfr: dependencies: other files may include this
 #include "simbase.h"

@@ -5,7 +5,7 @@
 #include "mesg.h"
 #include "object.h"
 #include "MsgInc/WingmanMsg.h"
-#include "campBase.h"
+#include "campbase.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL HeliBrain::pool;

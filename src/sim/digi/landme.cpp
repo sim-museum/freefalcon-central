@@ -16,19 +16,19 @@
 #include "airunit.h"
 #include "otwdrive.h"
 #include "camplist.h"
-#include "Graphics/Include/drawBSP.h"
+#include "graphics/include/drawbsp.h"
 #include "simmath.h"
 #include "phyconst.h"
 #include "classtbl.h"
-#include "Graphics/Include/tmap.h"
+#include "graphics/include/tmap.h"
 #include "Team.h"
 #include "playerop.h"
 #include "radar.h"
 #include "sms.h"
 #include "cpmanager.h"
 #include "hud.h"
-#include "Graphics/Include/tod.h"
-#include "Fakerand.h"
+#include "graphics/include/tod.h"
+#include "fakerand.h"
 #include "wingorder.h"
 
 extern int gameCompressionRatio;
@@ -403,7 +403,7 @@ void DigitalBrain::Land(void)
     AircraftClass *leader = NULL;
     AircraftClass *component = NULL;
     float cosAngle, heading, deltaTime, testDist, distland;
-    ulong mini, maxi;
+    CampaignTime mini, maxi;  // FF_LINUX: Use CampaignTime
     float baseX, baseY, finalX, finalY, finalZ, x, y, z, dx,
           dy, dist, speed, minSpeed, relx, rely, cosHdg, sinHdg;
     mlTrig Trig;
@@ -2401,7 +2401,7 @@ void DigitalBrain::TakeOff()
             if (af->gearHandle > -1.0F)
                 af->gearHandle = -1.0F;
 
-            // 2001-10-16 added by M.N. #1 performs a 90° base leg to waypoint 2 at takeoff
+            // 2001-10-16 added by M.N. #1 performs a 90ï¿½ base leg to waypoint 2 at takeoff
             // Needed so that lead that will perform the leg will first fly out before it starts the leg
             if (af->z - af->groundZ > -200.0F or (fabs(xft) < 200.0F and fabs(yft) < 200.0F))
             {
@@ -2410,7 +2410,7 @@ void DigitalBrain::TakeOff()
 
             elements = self->GetCampaignObject()->NumberOfComponents();
 
-            // 2001-10-16 M.N. added elemleader check -> perform a 90° base leg until element lead has taken off
+            // 2001-10-16 M.N. added elemleader check -> perform a 90ï¿½ base leg until element lead has taken off
             if ( not isWing and elements > 1) // Code for the flightlead
             {
                 // wingy or lead
@@ -2497,7 +2497,7 @@ void DigitalBrain::TakeOff()
 
                                 ShiAssert(Airbase->brain);
 
-                                if (Airbase->brain and Airbase->brain->UseSectionTakeoff(flight, rwIndex)) // If our wingman took off with us, stay on a 90° leg
+                                if (Airbase->brain and Airbase->brain->UseSectionTakeoff(flight, rwIndex)) // If our wingman took off with us, stay on a 90ï¿½ leg
                                     factor = 0.0F;
                             }
 

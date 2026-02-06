@@ -24,6 +24,7 @@
 #include <cISO646>
 #include <stddef.h>
 #include <memory.h>
+#include <stdio.h>  // FF_LINUX: For fprintf debug
 #ifdef INCLUDE_FILE_COMPRESSION
 #include "bitio.cpp"
 #endif
@@ -607,8 +608,11 @@ extern "C"
         uchar *inputHead;
         LZSS_COMP_CTXT ctxt;
 
+        fprintf(stderr, "[LZSS_Expand] Called: srcSize=%d, size=%d\n", srcSize, size);
+
         if (size <= 0)
         {
+            fprintf(stderr, "[LZSS_Expand] Early return: size <= 0\n");
             return -1;
         }
 

@@ -9,10 +9,10 @@
 \***************************************************************************/
 #include <limits.h>
 #include <math.h>
-#include "Tmap.h"
-#include "TblkList.h"
-#include "Tlevel.h"
-#include "Tblock.h"
+#include "tmap.h"
+#include "tblklist.h"
+#include "tlevel.h"
+#include "tblock.h"
 
 
 #ifdef USE_SH_POOLS

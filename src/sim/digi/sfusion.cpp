@@ -13,7 +13,7 @@
 /* 2001-03-21 S.G. */#include "flight.h"
 /* 2001-03-21 S.G. */#include "atm.h"
 
-#include "RWR.h" // 2002-02-11 S.G.
+#include "rwr.h" // 2002-02-11 S.G.
 #include "Radar.h" // 2002-02-11 S.G.
 #include "simdrive.h" // 2002-02-17 S.G.
 

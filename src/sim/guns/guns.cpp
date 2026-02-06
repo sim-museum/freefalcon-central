@@ -12,8 +12,8 @@
 #include "fsound.h"
 #include "soundfx.h"
 #include "fakerand.h"
-#include "Graphics/Include/drawsgmt.h"
-#include "Graphics/Include/RViewPnt.h"
+#include "graphics/include/drawsgmt.h"
+#include "graphics/include/rviewpnt.h"
 #include "feature.h"
 #include "acmi/src/include/acmirec.h"
 #include "playerop.h"
@@ -22,11 +22,11 @@
 #include "camplib.h"
 #include "campweap.h"
 #include "camp2sim.h"
-#include "Graphics/Include/terrtex.h"
+#include "graphics/include/terrtex.h"
 #include "camplist.h"
 #include "aircrft.h"
-#include "IvibeData.h"
-#include "DrawParticleSys.h" // RV - I-Hawk - added to support RV new trails code
+#include "ivibedata.h"
+#include "drawparticlesys.h" // RV - I-Hawk - added to support RV new trails code
 
 
 #ifdef USE_SH_POOLS

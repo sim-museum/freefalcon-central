@@ -34,7 +34,7 @@ static int extraVertCount; // created by clipping.
 \***************************************************************************/
 void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int CullFlag, bool gifPicture, bool terrain, bool sort) //JAM 14Sep03
 {
-#ifdef FF_LINUX
+#if defined(FF_LINUX) && defined(FF_LINUX_DEBUG)
     static int clipFanDbg = 0;
     clipFanDbg++;
     bool doDebug = (clipFanDbg <= 20) || (clipFanDbg % 500 == 0);
@@ -44,6 +44,10 @@ void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int
                 (void*)vertPointers, count, CullFlag, clipFanDbg);
         fflush(stderr);
     }
+#else
+    // Suppress unused variable warnings
+    (void)gifPicture;
+    bool doDebug = false;
 #endif
     ThreeDVertex **v, **p, **lastIn, **nextOut;
     ThreeDVertex **inList, **outList, **temp;

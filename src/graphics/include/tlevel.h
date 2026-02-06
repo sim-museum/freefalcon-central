@@ -11,9 +11,9 @@
 #define _TLEVEL_H_
 
 #include <cISO646>
-#include "Loader.h"
-#include "Ttypes.h"
-#include "Falclib/Include/FileMemMap.h"
+#include "loader.h"
+#include "ttypes.h"
+#include "falclib/include/filememmap.h"
 #include "Tdskpost.h"
 
 typedef union tBlockAddress

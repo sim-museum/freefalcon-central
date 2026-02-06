@@ -10,6 +10,11 @@
 #define OBJ_TAG_STR( f, l ) ( f " Line " #l )
 #define OBJ_TAG OBJ_TAG_STR( __FILE__, __LINE__ )
 
+// Debug macro for Reference/Release tracking (empty in non-debug builds)
+#ifndef SIM_OBJ_REF_ARGS
+#define SIM_OBJ_REF_ARGS
+#endif
+
 class SimBaseClass;
 class FalconEntity;
 

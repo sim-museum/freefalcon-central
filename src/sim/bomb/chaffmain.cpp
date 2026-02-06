@@ -1,4 +1,4 @@
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "stdhdr.h"
 #include "otwdrive.h"
 #include "initdata.h"
@@ -8,7 +8,7 @@
 #include "entity.h"
 #include "chaff.h"
 #include "sfx.h" //I-Hawk 
-#include "Graphics/Include/drawparticlesys.h" //I-Hawk
+#include "graphics/include/drawparticlesys.h" //I-Hawk
 
 #ifdef USE_SH_POOLS
 MEM_POOL ChaffClass::pool;

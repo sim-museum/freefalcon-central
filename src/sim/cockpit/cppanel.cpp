@@ -321,10 +321,30 @@ void CPPanel::DisplayBlit3D()
     int OffsetX = (int)OTWDriver.pCockpitManager->PitTurbulence.x / 2;
     int OffsetY = (int)OTWDriver.pCockpitManager->PitTurbulence.y / 2;
 
-
+#ifdef FF_LINUX
+    static int dbgSurfCallCount = 0;
+    dbgSurfCallCount++;
+    if (dbgSurfCallCount <= 3 || dbgSurfCallCount % 300 == 0)
+    {
+        fprintf(stderr, "[CPPanel::DisplayBlit3D] #%d: mNumSurfaces=%d, mNumObjects=%d, mNumButtonViews=%d\n",
+                dbgSurfCallCount, mNumSurfaces, mNumObjects, mNumButtonViews);
+        fflush(stderr);
+    }
+#endif
 
     for (i = 0; i < mNumSurfaces; i++)
     {
+#ifdef FF_LINUX
+        // FF_LINUX: Safety check for NULL surface pointer
+        if (!mpSurfaceData[i].psurface)
+        {
+            if (dbgSurfCallCount <= 3) {
+                fprintf(stderr, "[CPPanel::DisplayBlit3D] Surface %d is NULL, skipping\n", i);
+                fflush(stderr);
+            }
+            continue;
+        }
+#endif
 
 #if 0
 
@@ -340,12 +360,45 @@ void CPPanel::DisplayBlit3D()
 
     F4LeaveCriticalSection(OTWDriver.pCockpitManager->mpCockpitCritSec);
 
+#ifdef FF_LINUX
+    if (dbgSurfCallCount <= 3 || dbgSurfCallCount % 300 == 0)
+    {
+        fprintf(stderr, "[CPPanel::DisplayBlit3D] Surfaces done, processing objects...\n");
+        fflush(stderr);
+    }
+#endif
+
     // loop thru and display all objects for this panel
     for (i = 0; i < mNumObjects; i++)
     {
         if (mpObjects[i])
+        {
+#ifdef FF_LINUX
+            if (dbgSurfCallCount <= 3)
+            {
+                fprintf(stderr, "[CPPanel::DisplayBlit3D] Object %d/%d, ptr=%p, id=%d\n",
+                        i, mNumObjects, (void*)mpObjects[i], mpObjects[i]->mIdNum);
+                fflush(stderr);
+            }
+#endif
             mpObjects[i]->DisplayBlit3D();
+#ifdef FF_LINUX
+            if (dbgSurfCallCount <= 3)
+            {
+                fprintf(stderr, "[CPPanel::DisplayBlit3D] Object %d/%d done\n", i, mNumObjects);
+                fflush(stderr);
+            }
+#endif
+        }
     }
+
+#ifdef FF_LINUX
+    if (dbgSurfCallCount <= 3 || dbgSurfCallCount % 300 == 0)
+    {
+        fprintf(stderr, "[CPPanel::DisplayBlit3D] Objects done, processing button views...\n");
+        fflush(stderr);
+    }
+#endif
 
     //Wombat778 3-23-04  Enabled now that there is code to back this up
     // currently only supported for views
@@ -355,6 +408,14 @@ void CPPanel::DisplayBlit3D()
         if (mpButtonViews[i])
             mpButtonViews[i]->DisplayBlit3D();
     }
+
+#ifdef FF_LINUX
+    if (dbgSurfCallCount <= 3 || dbgSurfCallCount % 300 == 0)
+    {
+        fprintf(stderr, "[CPPanel::DisplayBlit3D] #%d complete\n", dbgSurfCallCount);
+        fflush(stderr);
+    }
+#endif
 }
 
 //====================================================//

@@ -326,3 +326,28 @@ void HeliBrain::OverBank(float delta)
         AddMode(OverBMode);
     }
 }
+
+int HeliBrain::AltitudeHold(float desAlt)
+{
+    float alterr;
+    int retval = 0;
+
+    // normalized to 1000ft
+    alterr = (desAlt - self->ZPos()) * 0.001F;
+
+    // 0.5 throtl is neutral, 1.0 if full up, 0.0 is full down
+    // if we want to move up, alterr will be negative
+    throtl = 0.5F - (alterr * 0.5F);
+
+    // check throttle between 0 and 1
+    if (throtl > 1.0)
+    {
+        throtl = 1.0;
+    }
+    else if (throtl < 0.0)
+    {
+        throtl = 0.0;
+    }
+
+    return (retval);
+}

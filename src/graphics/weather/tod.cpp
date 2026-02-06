@@ -6,14 +6,14 @@
 #include <time.h>
 #include "grmath.h"
 #include "grinline.h"
-#include "PalBank.h"
-#include "TimeMgr.h"
-#include "RViewpnt.h"
-#include "RenderOW.h"
+#include "palbank.h"
+#include "timemgr.h"
+#include "rviewpnt.h"
+#include "renderow.h"
 #include "tod.h"
-#include "Falclib/include/PlayerOp.h"
-#include "Star.h"
-#include "RealWeather.h"
+#include "falclib/include/playerop.h"
+#include "star.h"
+#include "realweather.h"
 #include <fstream>
 #include <iostream>
 
@@ -45,23 +45,23 @@ void CTimeOfDay::Setup(char *dataPath)
 
     // Construct the input filename we need
     if (skycolor)
-        sprintf(todfile, "%s\\tod\\%s", dataPath, skycolor[PlayerOptions.skycol - 1].todname);
+        sprintf(todfile, "%s/tod/%s", dataPath, skycolor[PlayerOptions.skycol - 1].todname);
 
-    sprintf(starfile, "%s\\star.dat", dataPath);
+    sprintf(starfile, "%s/star.dat", dataPath);
 
     if ( not skycolor or not (in = fopen(todfile, "r"))) // Oops, the todfile is not there ? Use default one
     {
-        sprintf(todfile, "%s\\tod\\tod.lst.default", dataPath);
+        sprintf(todfile, "%s/tod/tod.lst.default", dataPath);
 
         if ( not (in = fopen(todfile, "r"))) // Oops, the todfile is not there ? Use default one
-            sprintf(todfile, "%s\\tod.lst", dataPath);
+            sprintf(todfile, "%s/tod.lst", dataPath);
         else
             fclose(in);
     }
     else
         fclose(in);
 
-    sprintf(todfile, "%s\\tod.lst", dataPath);
+    sprintf(todfile, "%s/tod.lst", dataPath);
     in = fopen(todfile, "r");
 
     if (in == NULL)
@@ -70,6 +70,7 @@ void CTimeOfDay::Setup(char *dataPath)
         sprintf(string, "TOD file open failed:  %s", todfile);
         ShiError(string);
         // We need to exit gracefully
+        fprintf(stderr, "    [TOD] Returning early due to missing file\n"); fflush(stderr);
         return;
     }
 
@@ -181,10 +182,15 @@ void CTimeOfDay::Setup(char *dataPath)
 
 void CTimeOfDay::Cleanup()
 {
-    ShiAssert(IsReady());
+    // Return early if not initialized - prevents crash during unclean shutdown
+    if (!IsReady()) {
+        return;
+    }
 
     // Stop receiving time updates
-    TheTimeManager.ReleaseTimeUpdateCB(TimeUpdateCallback, this);
+    if (TheTimeManager.IsReady()) {
+        TheTimeManager.ReleaseTimeUpdateCB(TimeUpdateCallback, this);
+    }
 
     // Clean up and release the start position data
     TheStar.Cleanup();
@@ -640,7 +646,7 @@ int CTimeOfDay::ReadTODFile(FILE *in, TimeOfDayStruct *tod, int countflag)
             if ( not countflag)
                 ++tod;
 
-            fscanf(in, "%ld:%ld:%ld", &ivar1, &ivar2, &ivar3);
+            fscanf(in, "%u:%u:%u", &ivar1, &ivar2, &ivar3);
             ivar1 *= 3600000;
             ivar2 *= 60000;
             ivar3 *= 1000;

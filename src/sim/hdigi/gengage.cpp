@@ -6,7 +6,7 @@
 #include "missile.h"
 #include "fcc.h"
 #include "sms.h"
-#include "Graphics/Include/drawobj.h"
+#include "graphics/include/drawobj.h"
 #include "camp2sim.h"
 #include "hardpnt.h"
 #include "campbase.h"
@@ -485,7 +485,7 @@ void HeliBrain::WeaponSelection(void)
         {
             if (self->Sms->curWeapon)
             {
-                theMissile   = (MissileClass *)(self->Sms->curWeapon);
+                theMissile   = (MissileClass *)(self->Sms->curWeapon.get());
 
                 thisRmax  = theMissile->GetRMax(-self->ZPos(), self->Vt(), targetData->az, targetPtr->BaseData()->Vt(), targetData->ataFrom);
                 thisRmin  = 0.1F * thisRmax; // Shouldn't we call GetRMin???
@@ -496,7 +496,7 @@ void HeliBrain::WeaponSelection(void)
                 {
                     theMissile->SetTarget(targetPtr);
                     pctRange = thisPctRange;
-                    curMissile = (MissileClass *)(self->Sms->curWeapon);
+                    curMissile = (MissileClass *)(self->Sms->curWeapon.get());
                     curMissileStation = self->Sms->curWpnStation;
                     curMissileNum     = self->Sms->curWpnNum;
                     //       MonoPrint( "HELO BRAIN Missile Selected!\n" );
@@ -540,7 +540,7 @@ void HeliBrain::WeaponSelection(void)
         // Do I have AA Missiles?
         if (curAA == NULL && self->Sms->hardPoint[i]->GetWeaponClass() == wcAimWpn)
         {
-            self->Sms->curWeapon = NULL;
+            self->Sms->curWeapon.reset();
             self->Sms->SetCurHardpoint(-1);
             self->Sms->curWpnNum = 0;
             self->Sms->WeaponStep();
@@ -550,7 +550,7 @@ void HeliBrain::WeaponSelection(void)
                 MonoPrint("Helo found AA Missile.  Class = %d\n",
                           self->Sms->hardPoint[i]->GetWeaponClass());
 
-                curAA = (MissileClass *)(self->Sms->curWeapon);
+                curAA = (MissileClass *)(self->Sms->curWeapon.get());
                 curAAStation = self->Sms->CurHardpoint();
                 curAANum     = self->Sms->curWpnNum;
 
@@ -563,7 +563,7 @@ void HeliBrain::WeaponSelection(void)
         }
         else if (curAG == NULL && self->Sms->hardPoint[i]->GetWeaponClass() == wcAgmWpn)
         {
-            self->Sms->curWeapon = NULL;
+            self->Sms->curWeapon.reset();
             self->Sms->SetCurHardpoint(-1);
             self->Sms->curWpnNum = 0;
             self->Sms->WeaponStep();
@@ -573,7 +573,7 @@ void HeliBrain::WeaponSelection(void)
                 // MonoPrint( "Helo found AG Missile.  Class = %d\n",
                 // self->Sms->hardPoint[i]->GetWeaponClass() );
 
-                curAG = (MissileClass *)(self->Sms->curWeapon);
+                curAG = (MissileClass *)(self->Sms->curWeapon.get());
                 curAGStation = self->Sms->CurHardpoint();
                 curAGNum     = self->Sms->curWpnNum;
 
@@ -592,7 +592,7 @@ void HeliBrain::WeaponSelection(void)
                  (self->Sms->hardPoint[i]->GetWeaponClass() == wcRocketWpn &&
                   self->Sms->hardPoint[i]->weaponCount >= 0))
         {
-            self->Sms->curWeapon = NULL;
+            self->Sms->curWeapon.reset();
             self->Sms->SetCurHardpoint(-1);
             self->Sms->curWpnNum = 0;
             self->Sms->WeaponStep();
@@ -602,7 +602,7 @@ void HeliBrain::WeaponSelection(void)
                 // MonoPrint( "Helo found Rocket.  Class = %d\n",
                 // self->Sms->hardPoint[i]->GetWeaponClass() );
 
-                curRock = (MissileClass *)(self->Sms->curWeapon);
+                curRock = (MissileClass *)(self->Sms->curWeapon.get());
                 curRockStation = self->Sms->CurHardpoint();
                 curRockNum     = self->Sms->curWpnNum;
 
@@ -632,7 +632,7 @@ void HeliBrain::WeaponSelection(void)
                 curMissile = curAA;
                 curMissileStation = curAAStation;
                 curMissileNum     = curAANum;
-                self->Sms->curWeapon = curAA;
+                self->Sms->curWeapon.reset(curAA);
                 self->Sms->SetCurHardpoint(curAAStation);
                 self->Sms->curWpnNum = curAANum;
                 self->FCC->SetMasterMode(FireControlComputer::Missile);
@@ -646,7 +646,7 @@ void HeliBrain::WeaponSelection(void)
             }
             else
             {
-                self->Sms->curWeapon = NULL;
+                self->Sms->curWeapon.reset();
                 self->Sms->SetCurHardpoint(-1);
                 self->Sms->curWpnNum = -1;
                 self->FCC->SetMasterMode(FireControlComputer::Nav);
@@ -666,7 +666,7 @@ void HeliBrain::WeaponSelection(void)
                 curMissile = curAG;
                 curMissileStation = curAGStation;
                 curMissileNum     = curAGNum;
-                self->Sms->curWeapon = curAG;
+                self->Sms->curWeapon.reset(curAG);
                 self->Sms->SetCurHardpoint(curAGStation);
                 self->Sms->curWpnNum = curAGNum;
                 self->FCC->SetMasterMode(FireControlComputer::AirGroundMissile);
@@ -678,7 +678,7 @@ void HeliBrain::WeaponSelection(void)
                 curMissile = curRock;
                 curMissileStation = curRockStation;
                 curMissileNum     = curRockNum;
-                self->Sms->curWeapon = curRock;
+                self->Sms->curWeapon.reset(curRock);
                 self->Sms->SetCurHardpoint(curRockStation);
                 self->Sms->curWpnNum = curRockNum;
                 self->FCC->SetMasterMode(FireControlComputer::AirGroundRocket);
@@ -687,7 +687,7 @@ void HeliBrain::WeaponSelection(void)
             }
             else
             {
-                self->Sms->curWeapon = NULL;
+                self->Sms->curWeapon.reset();
                 self->Sms->SetCurHardpoint(-1);
                 self->Sms->curWpnNum = -1;
                 self->FCC->SetMasterMode(FireControlComputer::Nav);
@@ -702,7 +702,7 @@ void HeliBrain::WeaponSelection(void)
     }
     else
     {
-        self->Sms->curWeapon = NULL;
+        self->Sms->curWeapon.reset();
         self->Sms->SetCurHardpoint(-1);
         self->Sms->curWpnNum = 0;
         self->FCC->SetMasterMode(FireControlComputer::Nav);

@@ -8,13 +8,13 @@
 #include "simdrive.h"
 #include "dofsnswitches.h"
 #include "simio.h"
-#include "Graphics/Include/drawgrnd.h"
+#include "graphics/include/drawgrnd.h"
 #include "soundfx.h"
 #include "fsound.h"
 #include "fakerand.h"
 #include "sms.h"
-#include "Graphics/Include/tod.h"
-#include "TrackIr.h"
+#include "graphics/include/tod.h"
+#include "trackir.h"
 
 extern ACMISwitchRecord acmiSwitch;
 extern ACMIDOFRecord DOFRec;
@@ -138,7 +138,7 @@ void AircraftClass::CalculateAileronAndFlap(float qfactor, float *al, float *ar,
             if (TEFExtend) // forcibly extended
                 gdelta = 1;
             else if (af->auxaeroData->flapGearRelative) // else dependent on gear deployment
-                gdelta = max(0, af->gearPos);
+                gdelta = max(0.0f, af->gearPos);
             else gdelta = 1; // else always
 
             // work out how much flap we would have at this vcas

@@ -6,7 +6,7 @@
 #include "missile.h"
 #include "fcc.h"
 #include "sms.h"
-#include "Graphics/Include/drawobj.h"
+#include "graphics/include/drawobj.h"
 #include "camp2sim.h"
 #include "hardpnt.h"
 #include "campbase.h"

@@ -8,13 +8,13 @@
     own instance of this class.
 \***************************************************************************/
 #include <math.h>
-#include "TerrTex.h"
-#include "Edge.h"
+#include "terrtex.h"
+#include "edge.h"
 #include "ttypes.h"
-#include "TBlkList.h"
-#include "TBlock.h"
-#include "Tmap.h"
-#include "Tviewpnt.h"
+#include "tblklist.h"
+#include "tblock.h"
+#include "tmap.h"
+#include "tviewpnt.h"
 
 extern int g_nLowDetailFactor;
 extern float g_fTexDetailFactor;
@@ -103,7 +103,7 @@ void TViewPoint::Cleanup(void)
 }
 
 extern unsigned long vuxGameTime;
-#include "SIM/INCLUDE/Phyconst.h"
+#include "sim/include/phyconst.h"
 
 // Move the viewer and swap blocks as needed (X North, Y East, Z Down)
 void TViewPoint::Update(const Tpoint *position)

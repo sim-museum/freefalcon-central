@@ -33,8 +33,13 @@
 #include "limiters.h"
 #include "datafile.h"
 #include "aircrft.h"
+#include <ctype.h>
 
+#ifdef FF_LINUX
+#define AIRFRAME_DIR     "sim/acdata"
+#else
 #define AIRFRAME_DIR     "sim\\acdata"
+#endif
 #define AIRFRAME_DATASET "actypes.lst"
 
 #ifdef USE_SH_POOLS
@@ -384,8 +389,15 @@ void ReadAllAirframeData(void)
     /*-----------------*/
     /* open input file */
     /*-----------------*/
+#ifdef FF_LINUX
+    sprintf(fileName, "%s/%s", AIRFRAME_DIR, AIRFRAME_DATASET);
+#else
     sprintf(fileName, "%s\\%s\0", AIRFRAME_DIR, AIRFRAME_DATASET);
+#endif
     aclist = SimlibFileClass::Open(fileName, SIMLIB_READ);
+    if (!aclist) {
+        return;
+    }
     num_sets = atoi(aclist->GetNext());
 
     /*
@@ -413,7 +425,22 @@ void ReadAllAirframeData(void)
         /*-----------------*/
         /* open input file */
         /*-----------------*/
+#ifdef FF_LINUX
+        // Strip trailing whitespace/newlines from buffer
+        int len = strlen(buffer);
+        while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
+            buffer[--len] = '\0';
+        }
+        // Convert filename to lowercase for case-sensitive Linux filesystem
+        char lowerBuffer[80];
+        for (int j = 0; buffer[j] && j < 79; j++) {
+            lowerBuffer[j] = tolower((unsigned char)buffer[j]);
+            lowerBuffer[j+1] = '\0';
+        }
+        sprintf(fName, "%s/%s.dat", AIRFRAME_DIR, lowerBuffer);
+#else
         sprintf(fName, "%s\\%s.dat", AIRFRAME_DIR, buffer);
+#endif
         inputFile = SimlibFileClass::Open(fName, SIMLIB_READ);
 
         F4Assert(inputFile);

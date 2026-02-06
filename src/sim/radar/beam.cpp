@@ -2,7 +2,7 @@
 #include "f4vu.h"
 #include "object.h"
 #include "sensors.h"
-#include "radarDoppler.h"
+#include "radardoppler.h"
 #include "geometry.h"
 #include "simmover.h"
 #include "simdrive.h"

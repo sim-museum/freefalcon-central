@@ -11,9 +11,9 @@
 #define _TVIEWPNT_H_
 
 #include <cISO646>
-#include "Matrix.h"
-#include "Ttypes.h"
-#include "TBlkList.h"
+#include "matrix.h"
+#include "ttypes.h"
+#include "tblklist.h"
 
 
 typedef struct TpathFeature

@@ -6,8 +6,8 @@
     Subclass for drawing puffy clouds.
 \***************************************************************************/
 #include <math.h>
-#include "Matrix.h"
-#include "DrawPuff.h"
+#include "matrix.h"
+#include "drawpuff.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL DrawablePuff::pool;

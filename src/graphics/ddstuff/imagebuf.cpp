@@ -1023,9 +1023,24 @@ void ImageBuffer::ComposeRoundRot(ImageBuffer *srcBuffer, RECT *srcRect, RECT *d
 void ImageBuffer::SwapBuffers(bool bDontFlip)
 {
 #ifdef FF_LINUX
+    static int sbDebugCount = 0;
+    sbDebugCount++;
+    bool shouldLog = (sbDebugCount <= 10 || sbDebugCount % 300 == 1);
+
     // FF_LINUX: Safety check - ensure buffers are set up
     if (!IsReady() || m_pDDSFront == NULL || m_pDDSBack == NULL) {
+        if (shouldLog) {
+            fprintf(stderr, "[ImageBuffer::SwapBuffers] #%d: Early exit - IsReady=%d front=%p back=%p\n",
+                    sbDebugCount, IsReady(), (void*)m_pDDSFront, (void*)m_pDDSBack);
+            fflush(stderr);
+        }
         return;
+    }
+    if (shouldLog) {
+        fprintf(stderr, "[ImageBuffer::SwapBuffers] #%d: bDontFlip=%d caps=0x%x DDSCAPS_FLIP=%d\n",
+                sbDebugCount, bDontFlip, m_ddsdFront.ddsCaps.dwCaps,
+                (m_ddsdFront.ddsCaps.dwCaps & DDSCAPS_FLIP) ? 1 : 0);
+        fflush(stderr);
     }
 #else
     ShiAssert(IsReady());
@@ -1059,6 +1074,14 @@ void ImageBuffer::SwapBuffers(bool bDontFlip)
     // OW
     if ( not bDontFlip and (m_ddsdFront.ddsCaps.dwCaps bitand DDSCAPS_FLIP))
     {
+#ifdef FF_LINUX
+        static int flipCount = 0;
+        flipCount++;
+        if (flipCount <= 5 || flipCount % 300 == 1) {
+            fprintf(stderr, "[SwapBuffers] Calling Flip path #%d\n", flipCount);
+            fflush(stderr);
+        }
+#endif
         hr = m_pDDSFront->Flip(NULL, DDFLIP_WAIT);
         // hr = m_pDDSFront->Flip(NULL, DDFLIP_NOVSYNC);
         ShiAssert(SUCCEEDED(hr));
@@ -1074,7 +1097,19 @@ void ImageBuffer::SwapBuffers(bool bDontFlip)
     // Skip the Blt (which would just copy empty/old UI data) and present the OpenGL framebuffer directly.
     extern int doUI;
     extern void FF_SwapBuffers();
+    {
+        static int simSwapCount = 0;
+        simSwapCount++;
+        if (simSwapCount <= 5 || simSwapCount % 300 == 1) {
+            fprintf(stderr, "[ImageBuffer::SwapBuffers] #%d: doUI=%d, about to check !doUI path\n",
+                    simSwapCount, doUI);
+            fflush(stderr);
+        }
+    }
     if (!doUI) {
+        // FF_LINUX: Log per-frame diagnostics and reset counters before presenting
+        extern void FF_SimFrameEnd();
+        FF_SimFrameEnd();
         FF_SwapBuffers();
         return;
     }

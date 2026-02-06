@@ -12,7 +12,7 @@
 #include "CampBase.h"
 #include "F4Thread.h"
 #include "CmpClass.h"
-#include "sim/include/SimBase.h"
+#include "sim/include/simbase.h"
 #include "rules.h"
 #include "dispcfg.h"
 #include "ui95/chandler.h"

@@ -22,13 +22,14 @@
 
 #define CHIPSET_LITTLE_ENDIAN
 
-typedef signed char    Int8;
-typedef short          Int16;
-typedef long           Int32;
+#include <stdint.h>
+typedef int8_t         Int8;
+typedef int16_t        Int16;
+typedef int32_t        Int32;   // Use fixed-width type for 64-bit compatibility
 
-typedef unsigned char  UInt8;
-typedef unsigned short UInt16;
-typedef unsigned long  UInt32;
+typedef uint8_t        UInt8;
+typedef uint16_t       UInt16;
+typedef uint32_t       UInt32;  // Use fixed-width type for 64-bit compatibility
 
 #endif /* _MINT_H_ */
 

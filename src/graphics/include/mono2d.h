@@ -10,7 +10,7 @@
 #define _MONO2D_H_
 
 #include "Ttypes.h"
-#include "Display.h"
+#include "display.h"
 
 
 class MonochromeDisplay : public VirtualDisplay

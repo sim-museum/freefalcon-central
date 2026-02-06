@@ -5,7 +5,7 @@
 #include "stdhdr.h"
 #include "airframe.h"
 #include "aircrft.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "phyconst.h"
 #include "guns.h"
 

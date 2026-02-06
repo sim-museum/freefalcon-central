@@ -5,11 +5,11 @@
 */
 
 #include <windows.h>
-#include "Graphics/Include/RViewPnt.h"
-#include "Graphics/Include/render3d.h"
-#include "Graphics/Include/drawBSP.h"
-#include "Graphics/Include/matrix.h"
-#include "Graphics/Include/loader.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/render3d.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/matrix.h"
+#include "graphics/include/loader.h"
 #include "entity.h"
 #include "squadron.h"
 #include "cmpclass.h"

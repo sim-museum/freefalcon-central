@@ -5,7 +5,7 @@
 #include "otwdrive.h"
 #include "cpmanager.h"
 #include "phyconst.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "navsystem.h"
 
 void AircraftClass::RunINS(void)

@@ -5,6 +5,15 @@
 // NOTE: All angles are in degrees (0-360 or -90 to 90) and converted to radians internally
 //
 
+// Forward declarations
+class Render3D;
+class RenderOTW;
+class RViewPoint;
+class ImageBuffer;
+class C_BSPList;
+struct Tpoint;
+struct Trotation;
+
 class C_3dViewer
 {
 private:

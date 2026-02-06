@@ -9,7 +9,7 @@
 #include "falclib.h"
 #include "targa.h"
 #include "dxutil/ddutil.h"
-#include "Graphics/Include/imagebuf.h"
+#include "graphics/include/imagebuf.h"
 #include "ui95_dd.h"
 #include "chandler.h"
 #include "ui95_ext.h"
@@ -28,7 +28,7 @@
 #include "squadron.h"
 #include "cmpclass.h"
 #include "campmap.h"
-#include "CampJoin.h"
+#include "campjoin.h"
 #include "division.h"
 #include "campstr.h"
 #include "find.h"
@@ -1380,7 +1380,7 @@ static void CampSelectGameCB(long, short hittype, C_Base *control)
                 if (game)
                 {
                     if (game->GetGameType() == game_Campaign)
-                        SendMessage(gMainHandler->GetAppWnd(), FM_JOIN_CAMPAIGN, JOIN_PRELOAD_ONLY, game_Campaign);
+                        SendMessageA(gMainHandler->GetAppWnd(), FM_JOIN_CAMPAIGN, JOIN_PRELOAD_ONLY, game_Campaign);
                 }
             }
         }

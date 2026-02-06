@@ -4,7 +4,7 @@
 //#include <windows.h>
 
 #include "cpobject.h"
-#include "Graphics/Include/image.h"
+#include "graphics/include/image.h"
 
 #ifdef USE_SH_POOLS
 extern MEM_POOL gCockMemPool;

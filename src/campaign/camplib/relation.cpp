@@ -5,7 +5,7 @@
 #include "CmpGlobl.h"
 #include "team.h"
 #include "falcmesg.h"
-#include "cmpClass.h"
+#include "CmpClass.h"
 #include "Dispcfg.h"
 #include "Falcuser.h"
 #include "entity.h" // 2002-04-20 MN for DDP datafile

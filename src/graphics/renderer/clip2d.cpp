@@ -7,7 +7,7 @@
  These function provides 2D viewport clipping services.
 \***************************************************************************/
 #include <cISO646>
-#include "Render2D.h"
+#include "render2d.h"
 
 
 // The use of the global storage defined here introduces a requirement that only

@@ -1,5 +1,5 @@
 #include "stdhdr.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "sms.h"
 #include "missile.h"
 #include "misldisp.h"
@@ -16,20 +16,19 @@
 #include "hardpnt.h"
 #include "camp2sim.h"
 #include "sfx.h"
-#include "SmsDraw.h"
+#include "smsdraw.h"
 #include "aircrft.h"
 #include "airframe.h"
 #include "fcc.h"
 #include "entity.h"
-#include "Classtbl.h"
-#include "Gunsfunc.h"
-#include "Misslist.h"
-#include "Entity.h"
+#include "classtbl.h"
+#include "gunsfunc.h"
+#include "misslist.h"
 #include "wpndef.h"
 #include "vehicle.h"
-#include "Falcgame.h"
-#include "FalcSess.h"
-#include "Graphics/Include/objectparent.h"
+#include "falcgame.h"
+#include "falcsess.h"
+#include "graphics/include/objectparent.h"
 #include "limiters.h"
 #include "campweap.h"
 #include "playerop.h"
@@ -37,12 +36,12 @@
 #include "ffeedbk.h"
 #include "simdrive.h"
 #include "falcmesg.h"
-#include "MsgInc/TrackMsg.h"
-#include "Unit.h"
+#include "msginc/trackmsg.h"
+#include "unit.h"
 #include "radardoppler.h" //MI
 #include "missdata.h" // 2002-03-08 S.G.
 #include "rdrackdata.h"
-#include "harmPod.h" // RV - I-Hawk
+#include "harmpod.h" // RV - I-Hawk
 
 SensorClass* FindLaserPod(SimMoverClass* theObject);
 //extern VuAntiDatabase *vuAntiDB;

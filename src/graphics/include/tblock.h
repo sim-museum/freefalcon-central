@@ -11,10 +11,10 @@
 #ifndef _TBLOCK_H_
 #define _TBLOCK_H_
 
-#include "Ttypes.h"
-#include "Tpost.h"
-#include "TLevel.h"
-#include "TMap.h"
+#include "ttypes.h"
+#include "tpost.h"
+#include "tlevel.h"
+#include "tmap.h"
 
 
 class TBlock

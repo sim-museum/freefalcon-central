@@ -63,7 +63,7 @@ void WinAmpFrontEnd::InitWinAmp()
         ampexists = true;
         // preinit volume (to 80% for now), so that I can sync
         // that with the DED display (via the 'volume' variable
-        SendMessage(winamp_win, WM_USER, volume, 122);
+        SendMessageA(winamp_win, WM_USER, volume, 122);
     }
 
     for (int i = 0; i < 2; i++)
@@ -83,7 +83,7 @@ void WinAmpFrontEnd::StopAndFadeout()
         return;
 
     copyCurTitle();
-    SendMessage(winamp_win, WM_COMMAND, WINAMP_BUTTON4_SHIFT, 0);
+    SendMessageA(winamp_win, WM_COMMAND, WINAMP_BUTTON4_SHIFT, 0);
 }
 /*****************************************************************************/
 // Plays previous track in playlists, or restarts single track
@@ -94,7 +94,7 @@ void WinAmpFrontEnd::Previous()
         return;
 
     copyCurTitle();
-    SendMessage(winamp_win, WM_COMMAND, WINAMP_BUTTON1, 0);
+    SendMessageA(winamp_win, WM_COMMAND, WINAMP_BUTTON1, 0);
 }
 /*****************************************************************************/
 // Starts Playback.
@@ -105,7 +105,7 @@ void WinAmpFrontEnd::Start()
         return;
 
     copyCurTitle();
-    SendMessage(winamp_win, WM_COMMAND, WINAMP_BUTTON2, 0);
+    SendMessageA(winamp_win, WM_COMMAND, WINAMP_BUTTON2, 0);
 }
 /*****************************************************************************/
 // Stops Playback
@@ -116,7 +116,7 @@ void WinAmpFrontEnd::Stop()
         return;
 
     copyCurTitle();
-    SendMessage(winamp_win, WM_COMMAND, WINAMP_BUTTON4, 0);
+    SendMessageA(winamp_win, WM_COMMAND, WINAMP_BUTTON4, 0);
 }
 /*****************************************************************************/
 // Plays next track in playlist, or restarts single track
@@ -127,7 +127,7 @@ void WinAmpFrontEnd::Next()
         return;
 
     copyCurTitle();
-    SendMessage(winamp_win, WM_COMMAND, WINAMP_BUTTON5, 0);
+    SendMessageA(winamp_win, WM_COMMAND, WINAMP_BUTTON5, 0);
 }
 /*****************************************************************************/
 // Increasy volume by 1%
@@ -137,7 +137,7 @@ void WinAmpFrontEnd::VolUp()
     if ((ampexists) and (volume < 255))
     {
         volume++;
-        SendMessage(winamp_win, WM_COMMAND, WINAMP_VOLUMEUP, 0);
+        SendMessageA(winamp_win, WM_COMMAND, WINAMP_VOLUMEUP, 0);
     }
 }
 /*****************************************************************************/
@@ -148,7 +148,7 @@ void WinAmpFrontEnd::VolDown()
     if ((ampexists) and (volume > 0))
     {
         volume--;
-        SendMessage(winamp_win, WM_COMMAND, WINAMP_VOLUMEDOWN, 0);
+        SendMessageA(winamp_win, WM_COMMAND, WINAMP_VOLUMEDOWN, 0);
     }
 }
 /*****************************************************************************/
@@ -160,7 +160,7 @@ void WinAmpFrontEnd::TogglePlayback()
     if ( not ampexists)
         return;
 
-    int ret = SendMessage(winamp_win, WM_USER, 0, 104);
+    int ret = SendMessageA(winamp_win, WM_USER, 0, 104);
 
     switch (ret)
     {

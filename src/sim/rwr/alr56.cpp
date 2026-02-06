@@ -6,11 +6,11 @@
 #include "fsound.h"
 #include "mfd.h"
 #include "msginc/TrackMsg.h"
-#include "Graphics/Include/Display.h"
+#include "graphics/include/display.h"
 #include "airunit.h"
 #include "aircrft.h"
 #include "alr56.h"
-#include "radarData.h"
+#include "radardata.h"
 
 ALR56Class::ALR56Class(int idx, SimMoverClass* self) : PlayerRwrClass(idx, self)
 {

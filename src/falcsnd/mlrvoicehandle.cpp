@@ -1,11 +1,12 @@
 #if 1
 #include <windows.h>
+#include <cstdint>  // FF_LINUX: For uint32_t
 #include "fsound.h"
 #include "falclib.h"
 #include "alist.h"
-#include "mlrVoice.h"
+#include "mlrvoice.h"
 
-extern unsigned long    vuxRealTime;
+extern uint32_t         vuxRealTime;  // FF_LINUX: Use uint32_t for binary compat
 
 
 /*

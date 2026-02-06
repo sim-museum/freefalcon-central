@@ -1,14 +1,14 @@
-#include <cISO646>
+#include <ciso646>
 #include "../include/polylib.h"
-#include "../../include/ComSup.h"
-#include "DXdefines.h"
+#include "../../include/comsup.h"
+#include "dxdefines.h"
 #include "../include/ObjectInstance.h"
-#include "DXEngine.h"
+#include "dxengine.h"
 #include "dxvbmanager.h"
-#include "DXTools.h"
+#include "dxtools.h"
 #ifndef DEBUG_ENGINE
-#include "../../sim/INCLUDE/ivibedata.h"
-#include "../../FALCLIB/include/fakerand.h"
+#include "../../sim/include/ivibedata.h"
+#include "../../falclib/include/fakerand.h"
 #endif
 CRITICAL_SECTION cs_VbManager;
 

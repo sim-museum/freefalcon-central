@@ -8,8 +8,8 @@
 #include "airframe.h"
 #include "otwdrive.h"
 #include "playerop.h"
-#include "Graphics/Include/Render2d.h"
-#include "Graphics/Include/Mono2d.h"
+#include "graphics/include/render2d.h"
+#include "graphics/include/mono2d.h"
 #include "simdrive.h"
 #include "atcbrain.h"
 #include "campbase.h"
@@ -24,17 +24,17 @@
 #include "soundfx.h"
 #include "classtbl.h"
 #include "navsystem.h"
-#include "flightData.h"
-#include "Icp.h"
+#include "flightdata.h"
+#include "icp.h"
 
-#include "RadarDoppler.h"  // MD -- 20040219: added for GM SP pseudo waypoint tracking
+#include "radardoppler.h"  // MD -- 20040219: added for GM SP pseudo waypoint tracking
 
 #include "harmpod.h" // RV - I-Hawk
 
 //MI for RALT and MSLFloor stuff
 extern bool g_bRealisticAvionics;
 extern bool g_bFallingHeadingTape;
-#include "flightData.h"
+#include "flightdata.h"
 extern bool g_bINS;
 
 //HUD Fixes on/off switch. Smeghead, 16-Oct-2003.
@@ -1427,7 +1427,7 @@ void HudClass::DrawILS(void)
     }
     else
     {
-        //lines are 2° left and right, not like above
+        //lines are 2ï¿½ left and right, not like above
         display->Line(0.18F * hDev - 0.018F, 0.18F, 0.18F * hDev + 0.018F, 0.18F);
         display->Line(0.18F * hDev - 0.018F, 0.09F, 0.18F * hDev + 0.018F, 0.09F);
         display->Line(0.18F * hDev - 0.018F, -0.18F, 0.18F * hDev + 0.018F, -0.18F);
@@ -1458,7 +1458,7 @@ void HudClass::DrawILS(void)
     }
     else
     {
-        //lines are 2° left and right, not like above
+        //lines are 2ï¿½ left and right, not like above
         display->Line(0.18F, 0.18F * vDev - 0.018F, 0.18F, 0.18F * vDev + 0.018F);
         display->Line(0.09F, 0.18F * vDev - 0.018F, 0.09F, 0.18F * vDev + 0.018F);
         display->Line(-0.18F, 0.18F * vDev - 0.018F, -0.18F, 0.18F * vDev + 0.018F);
@@ -2024,7 +2024,7 @@ int HudClass::FindRollAngle(float Alt)
       Alt is hight above terrain*/
     if (Alt <= 3000)
     {
-        //Below 3000ft we always have 60°
+        //Below 3000ft we always have 60ï¿½
         if (((AircraftClass*)ownship)->af->platform->IsPlayer())
         {
             if ((cockpitFlightData.roll * RTD) <= 60 and cockpitFlightData.roll * RTD >= -60)
@@ -2041,7 +2041,7 @@ int HudClass::FindRollAngle(float Alt)
     {
         if (((AircraftClass*)ownship)->af->platform->IsPlayer())
         {
-            float factor = 2000 / 30; //30° less bank in 2000ft
+            float factor = 2000 / 30; //30ï¿½ less bank in 2000ft
             float Roll = (Alt - 3000) / factor;
             float Angle = 60 - Roll;
 
@@ -2059,7 +2059,7 @@ int HudClass::FindRollAngle(float Alt)
     {
         if (((AircraftClass*)ownship)->af->platform->IsPlayer())
         {
-            float factor = 5000 / 5; //5° less bank in 5000ft
+            float factor = 5000 / 5; //5ï¿½ less bank in 5000ft
             float Roll = (Alt - 5000) / factor;
             float Angle = 30 - Roll;
 
@@ -2076,7 +2076,7 @@ int HudClass::FindRollAngle(float Alt)
     {
         if (((AircraftClass*)ownship)->af->platform->IsPlayer())
         {
-            float factor = 15000 / 10; //10° less bank in 15000ft
+            float factor = 15000 / 10; //10ï¿½ less bank in 15000ft
             float Roll = (Alt - 15000) / factor;
             float Angle = 25 - Roll;
 
@@ -2093,7 +2093,7 @@ int HudClass::FindRollAngle(float Alt)
     {
         if (((AircraftClass*)ownship)->af->platform->IsPlayer())
         {
-            float factor = 25000 / 5; //5° less bank in 25000ft
+            float factor = 25000 / 5; //5ï¿½ less bank in 25000ft
             float Roll = (Alt - 25000) / factor;
             float Angle = 15 - Roll;
 
@@ -2119,7 +2119,7 @@ int HudClass::FindPitchAngle(float Alt)
 
     if (Alt <= 5000)
     {
-        //Below 5000ft we always have 30°
+        //Below 5000ft we always have 30ï¿½
         if (((AircraftClass*)ownship)->af->platform->IsPlayer())
         {
             if ((cockpitFlightData.pitch * RTD) <= 30 and 
@@ -2135,7 +2135,7 @@ int HudClass::FindPitchAngle(float Alt)
     {
         if (((AircraftClass*)ownship)->af->platform->IsPlayer())
         {
-            float factor = 5000 / 5; //5° less bank in 5000ft
+            float factor = 5000 / 5; //5ï¿½ less bank in 5000ft
             float Pitch = (Alt - 5000) / factor;
             float Angle = 30 - Pitch;
 
@@ -2152,7 +2152,7 @@ int HudClass::FindPitchAngle(float Alt)
     {
         if (((AircraftClass*)ownship)->af->platform->IsPlayer())
         {
-            float factor = 15000 / 10; //10° less bank in 15000ft
+            float factor = 15000 / 10; //10ï¿½ less bank in 15000ft
             float Pitch = (Alt - 15000) / factor;
             float Angle = 25 - Pitch;
 
@@ -2169,7 +2169,7 @@ int HudClass::FindPitchAngle(float Alt)
     {
         if (((AircraftClass*)ownship)->af->platform->IsPlayer())
         {
-            float factor = 25000 / 5; //5° less bank in 25000ft
+            float factor = 25000 / 5; //5ï¿½ less bank in 25000ft
             float Pitch = (Alt - 25000) / factor;
             float Angle = 15 - Pitch;
 
@@ -2640,7 +2640,7 @@ void HudClass::DrawCMDSTRG(void)
     LocalizerDev *= RTD;
     GlideSlopeDev *= RTD;
 
-    //up to 5° we're on a correction
+    //up to 5ï¿½ we're on a correction
     float CorrectionLimit = 5.0F;
 
     //set correction sensitivity
@@ -2680,7 +2680,7 @@ void HudClass::DrawCMDSTRG(void)
     }
 
 
-    //Calculate 45° intercept Bearing2
+    //Calculate 45ï¿½ intercept Bearing2
     float headingDiff = RWYHeading - curHeading;
 
     //left or right turn?

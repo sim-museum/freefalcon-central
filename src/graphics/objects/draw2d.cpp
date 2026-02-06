@@ -7,19 +7,19 @@
 ** 14-Jul-97 (edg)  We go dancing in .....
 */
 #include <cISO646>
-#include "TimeMgr.h"
-#include "TOD.h"
-#include "RenderOW.h"
-#include "RViewPnt.h"
-#include "Tex.h"
+#include "timemgr.h"
+#include "tod.h"
+#include "renderow.h"
+#include "rviewpnt.h"
+#include "tex.h"
 #include "falclib/include/fakerand.h"
 #include "Draw2d.h"
-#include "FalcLib/include/dispopts.h" //JAM 04Oct03
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "falclib/include/dispopts.h" //JAM 04Oct03
+#include "graphics/dxengine/dxengine.h"
+#include "graphics/dxengine/dxvbmanager.h"
 
 //JAM 18Nov03
-#include "RealWeather.h"
+#include "realweather.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL Drawable2D::pool;

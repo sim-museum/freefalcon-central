@@ -7,7 +7,7 @@
 #include "otwdrive.h"
 #include "camp2sim.h"
 #include "team.h"
-#include "Graphics/Include/Display.h"
+#include "graphics/include/display.h"
 #include "MsgInc/TrackMsg.h"
 #include "mfd.h"
 #include "Entity.h"

@@ -71,7 +71,7 @@ RemoteImage *RemoteLB::Receive(RemoteImage *Image, short packetno, short length,
 
     if (offset < size)
     {
-        memcpy(remotedata->ImageData + offset, data, min(length, size - offset));
+        memcpy(remotedata->ImageData + offset, data, min(static_cast<long>(length), size - offset));
         remotedata->blockflag[packetno] = 1;
         i = 0;
 

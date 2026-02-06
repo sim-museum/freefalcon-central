@@ -347,7 +347,7 @@ C_Parser::C_Parser()
 C_Parser::~C_Parser()
 {
     if (script_)
-        delete script_;
+        delete[] script_;
 }
 
 void C_Parser::Setup(C_Handler *handler, C_Image *ImgMgr, C_Font *FontList, C_Sound *SndMgr, C_PopupMgr *PopupMgr, C_Animation *AnimMgr, C_String *StringMgr, C_Movie *MovieMgr)
@@ -737,7 +737,7 @@ BOOL C_Parser::LoadScript(char *filename)
     scriptlen_ = size;
 
     if (script_)
-        delete script_;
+        delete[] script_;
 
     script_ = new char [size + 5]; // just in case :)
 
@@ -751,7 +751,7 @@ BOOL C_Parser::LoadScript(char *filename)
                 fprintf(Perror_, "LoadScript read failed (%s)\n", filename);
         }
 
-        delete script_;
+        delete[] script_;
         UI_CLOSE(ifp);
         return(FALSE);
     }

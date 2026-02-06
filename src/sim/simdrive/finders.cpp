@@ -3,7 +3,7 @@
 #include "simbase.h"
 #include "falclist.h"
 #include "team.h"
-#include "campBase.h"
+#include "campbase.h"
 
 SimBaseClass* SimulationDriver::FindFac(SimBaseClass* center)
 {

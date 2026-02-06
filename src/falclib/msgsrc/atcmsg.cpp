@@ -14,7 +14,7 @@
 #include "ptdata.h"
 #include "MsgInc/RadioChatterMsg.h"
 #include "airframe.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "falclib.h"
 
 #include "digi.h"

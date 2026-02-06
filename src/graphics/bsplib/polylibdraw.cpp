@@ -7,13 +7,13 @@
 \***************************************************************************/
 #include <cISO646>
 #include "stdafx.h"
-#include "StateStack.h"
-#include "ColorBank.h"
-#include "TexBank.h"
-#include "PolyLib.h"
+#include "statestack.h"
+#include "colorbank.h"
+#include "texbank.h"
+#include "polylib.h"
 #include "context.h"
 #include "TerrTex.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/dispopts.h"
 
 extern int verts;
 

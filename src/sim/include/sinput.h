@@ -18,8 +18,8 @@
 
 #include "tchar.h"
 #include "stdhdr.h"
-#include "Graphics/Include/grtypes.h"
-#include "Graphics/Include/imagebuf.h"
+#include "graphics/include/grtypes.h"
+#include "graphics/include/imagebuf.h"
 #include "vu2.h"
 
 #define SI_MOUSE_TIME_DELTA 1500 //in ms
@@ -36,7 +36,11 @@
 #define NW_CURSOR 8
 
 #define SIM_CURSOR_FILE "6_cursor.dat"
+#ifdef FF_LINUX
+#define SIM_CURSOR_DIR "/art/ckptart/"
+#else
 #define SIM_CURSOR_DIR "\\art\\ckptart\\"
+#endif
 
 typedef struct
 {

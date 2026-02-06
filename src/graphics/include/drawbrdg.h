@@ -8,9 +8,9 @@
 #ifndef _DRAWBRDG_H_
 #define _DRAWBRDG_H_
 
-#include "ObjList.h"
-#include "DrawRdbd.h"
-#include "DrawBldg.h"
+#include "objlist.h"
+#include "drawrdbd.h"
+#include "drawbldg.h"
 
 
 class DrawableBridge : public DrawableObject

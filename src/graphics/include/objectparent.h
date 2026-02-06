@@ -8,7 +8,7 @@
 #ifndef _OBJECTPARENT_H_
 #define _OBJECTPARENT_H_
 
-#include "ObjectLOD.h"
+#include "objectlod.h"
 
 
 // Update this each time the object file formats change

@@ -4,13 +4,13 @@
 #include "object.h"
 #include "aircrft.h"
 #include "playerop.h"
-#include "Graphics/Include/display.h"
+#include "graphics/include/display.h"
 #include "simbase.h"
 #include "sms.h"
 #include "simweapn.h"
 #include "simdrive.h"
 #include "missile.h"
-#include "radarDoppler.h" //JPG
+#include "radardoppler.h" //JPG
 #include "campbase.h"
 #include "falcent.h"
 #include "classtbl.h"

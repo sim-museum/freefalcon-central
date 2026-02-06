@@ -9,18 +9,18 @@
 #include "simveh.h"
 #include "otwdrive.h"
 #include "classtbl.h"
-#include "Simdrive.h"
-#include "BeamRider.h"
+#include "simdrive.h"
+#include "beamrider.h"
 #include "fcc.h"
 #include "falcsess.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Vehicle.h"
+#include "graphics/include/drawbsp.h"
+#include "vehicle.h"
 #include "aircrft.h"
 #include "fack.h"
 #include "falcmesg.h"
-#include "MsgInc/TrackMsg.h"
-#include "Fsound.h" // MN
-#include "SoundFX.h" // MN
+#include "msginc/trackmsg.h"
+#include "fsound.h" // MN
+#include "soundfx.h" // MN
 
 extern short NumRocketTypes; // M.N.
 extern int g_nMissileFix; // MN

@@ -73,14 +73,27 @@ void PaletteBankClass::ReadPool(int file)
 #endif
     ShiAssert(PalettePool);
 
-    // Read the data for each palette
-    result = read(file, PalettePool, sizeof(*PalettePool) * nPalettes);
+    // The file was written on 32-bit Windows where Palette had a 4-byte pointer.
+    // On 64-bit Linux, pointers are 8 bytes, so we can't read the struct directly.
+    // Read each palette's paletteData separately, skipping the old 32-bit pointer and refCount.
+    // File format per palette: paletteData[256] (1024 bytes) + 4-byte ptr + 4-byte int = 1032 bytes
+    const int FILE_PALETTE_SIZE = 1024 + 4 + 4;  // 32-bit on-disk size
 
-    if (result < 0)
+    for (int i = 0; i < nPalettes; i++)
     {
-        char message[256];
-        sprintf(message, "Reading object palette bank:  %s", strerror(errno));
-        ShiError(message);
+        // Read the palette data (the actual color values)
+        result = read(file, PalettePool[i].paletteData, sizeof(PalettePool[i].paletteData));
+        if (result < 0)
+        {
+            char message[256];
+            sprintf(message, "Reading object palette bank entry %d:  %s", i, strerror(errno));
+            ShiError(message);
+        }
+
+        // Skip the 32-bit pointer and refCount that were written to the file (8 bytes)
+        // These values are meaningless anyway - they were runtime values when file was created
+        char skip[8];
+        read(file, skip, 8);
     }
 }
 

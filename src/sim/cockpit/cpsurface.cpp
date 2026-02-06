@@ -4,10 +4,10 @@
 #include "cpsurface.h"
 #include "cpmanager.h"
 #include "dispcfg.h"
-#include "Graphics/Include/grinline.h"
-#include "FalcLib/include/playerop.h"
-#include "FalcLib/include/dispopts.h"
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/grinline.h"
+#include "falclib/include/playerop.h"
+#include "falclib/include/dispopts.h"
+#include "graphics/include/renderow.h"
 
 extern bool g_bCrackFix; //Wombat778 3-22-04 REMOVED 4-01-04
 extern bool g_bFilter2DPit; //Wombat778 3-30-04
@@ -341,7 +341,7 @@ void CPSurface::DisplayBlit3D(BYTE blitType, BOOL Persistance, RECT *pDestRect, 
                     OTWDriver.renderer->context.RestoreState(STATE_TEXTURE_NOFILTER);
             }
 
-            OTWDriver.renderer->context.SelectTexture1((GLint) pTex);
+            OTWDriver.renderer->context.SelectTexture1((intptr_t) pTex);
 
             // Render it (finally)
             OTWDriver.renderer->context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 4, pVtx, sizeof(pVtx[0]));
@@ -430,7 +430,7 @@ void CPSurface::DisplayBlit3D(BYTE blitType, BOOL Persistance, RECT *pDestRect, 
                     // COBRA - RED - Pit Vibrations
                     OTWDriver.pCockpitManager->AddTurbulence(pVtx);
 
-                    OTWDriver.renderer->context.SelectTexture1((GLint) pTex);
+                    OTWDriver.renderer->context.SelectTexture1((intptr_t) pTex);
 
                     // Render it (finally)
                     OTWDriver.renderer->context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 4, pVtx, sizeof(pVtx[0]));

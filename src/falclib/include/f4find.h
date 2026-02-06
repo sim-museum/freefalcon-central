@@ -11,6 +11,10 @@
 #ifndef _F4FIND_H
 #define _F4FIND_H
 
+#ifdef FF_LINUX
+#include "compat/compat_types.h"
+#endif
+
 #define FALCON_REGISTRY_KEY       "Software\\MicroProse\\Falcon\\4.0"
 
 extern char FalconDataDirectory[_MAX_PATH];

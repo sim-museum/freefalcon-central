@@ -7,7 +7,7 @@
 #include "cpcb.h"
 #include "cptext.h"
 #include "hud.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "fack.h"
 
 void CBExSpeedAlt(void* ptext)

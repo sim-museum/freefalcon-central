@@ -6,6 +6,7 @@
  - And then there was light
 \***************************************************************************/
 
+#include <cstdio>  // FF_LINUX: For debug fprintf
 #include "CmpGlobl.h"
 #include "CampCell.h"
 #include "CampTerr.h"
@@ -23,7 +24,7 @@
 #include "F4Comms.h"
 #include "otwdrive.h"
 #include "tmap.h"
-#include "FakeRand.h"
+#include "fakerand.h"
 
 
 extern int gCurrentDataVersion;
@@ -45,19 +46,25 @@ WeatherClass::~WeatherClass()
 
 void WeatherClass::Init(bool instantAction)
 {
+    fprintf(stderr, "[FF_LINUX] WeatherClass::Init entry (instantAction=%d)\n", (int)instantAction);
     condCounter = 0;
     lastCheck = Camp_GetCurrentTime();
+    fprintf(stderr, "[FF_LINUX] WeatherClass::Init: lastCheck=%u\n", lastCheck);
     weatherDay = TheCampaign.GetCurrentDay();
+    fprintf(stderr, "[FF_LINUX] WeatherClass::Init: weatherDay=%d\n", (int)weatherDay);
 
 
     if ( not instantAction)
     {
         lockedCondition = TRUE;
+        fprintf(stderr, "[FF_LINUX] WeatherClass::Init: Calling UpdateCondition(%d)\n", PlayerOptions.weatherCondition);
         // Cobra - no random weather
         // UpdateCondition(min(1+rand()%4,4));
         UpdateCondition(PlayerOptions.weatherCondition);
+        fprintf(stderr, "[FF_LINUX] WeatherClass::Init: UpdateCondition returned\n");
     }
 
+    fprintf(stderr, "[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()\n");
     switch (TimeOfDayGeneral())
     {
         case TOD_NIGHT:
@@ -115,8 +122,10 @@ void WeatherClass::Init(bool instantAction)
     stratus2Z = (float) - stratus2Base * 100.0f;
 
     ShadingFactor = 0;
+    fprintf(stderr, "[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()\n");
 
     GenerateClouds();
+    fprintf(stderr, "[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init\n");
 }
 
 void WeatherClass::UpdateCondition(int condition, bool bForce)
@@ -266,7 +275,7 @@ void WeatherClass::UpdateWeather()
         int h = FloatToInt32((windHeading - .5f * PI) * 3.f);
         FalconWeatherMessage *message = new FalconWeatherMessage(vuLocalSessionEntity->Id(), FalconLocalGame);
 
-        tDelta = (CampaignTime)max(min((time - lastCheck), 2 * CampaignMinutes), 0.f);
+        tDelta = (CampaignTime)max(min((time - lastCheck), (CampaignTime)(2 * CampaignMinutes)), (CampaignTime)0);
         lastCheck = time;
 
         seed = (float)(rand() % 100) / 100.f;
@@ -645,7 +654,7 @@ int WeatherClass::CampLoad(char* name, int type)
         }
     }
 
-    delete cd.data;
+    delete[] cd.data;  // FF_LINUX: Match new[] with delete[]
 
     // RED - Update the weather condition
     realWeather->UpdateCondition();

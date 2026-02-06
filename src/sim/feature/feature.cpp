@@ -1,4 +1,4 @@
-#include "Graphics/Include/drawbldg.h"
+#include "graphics/include/drawbldg.h"
 #include "stdhdr.h"
 #include "simfeat.h"
 #include "initdata.h"
@@ -10,10 +10,10 @@
 #include "Objectiv.h"
 #include "ptdata.h"
 #include "entity.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "Feature.h"
 #include "sfx.h"
-#include "Graphics/Include/RViewPnt.h"
+#include "graphics/include/rviewpnt.h"
 #include "atcbrain.h"
 
 #ifdef USE_SH_POOLS
@@ -27,7 +27,7 @@ int GetTextureIdxFromHeading(int hdg);
 int SimFeatures = 0;
 #endif
 
-SimFeatureClass::SimFeatureClass(VU_BYTE** stream) : SimStaticClass(stream)
+SimFeatureClass::SimFeatureClass(VU_BYTE** stream, long *rem) : SimStaticClass(stream, rem)
 {
     InitData();
 #ifdef DEBUG

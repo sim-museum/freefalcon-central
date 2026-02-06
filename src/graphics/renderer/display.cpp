@@ -289,19 +289,9 @@ void VirtualDisplay::SetViewport(float l, float t, float r, float b)
     leftPixel = viewportXtoPixel(-1.0f);
     rightPixel = viewportXtoPixel(1.0f);
 
-    ShiAssert(floor(topPixel)   >= 0.0f);
-    ShiAssert(ceil(bottomPixel) >= 0.0f);
-    ShiAssert(floor(leftPixel)  >= 0.0f);
-    ShiAssert(ceil(rightPixel)  >= 0.0f);
-    // ASSO: changed xRes to txRes and yRes to tyRes
-    ShiAssert(floor(topPixel)  <= tyRes);
-    ShiAssert(ceil(bottomPixel) <= tyRes);
-    ShiAssert(floor(leftPixel)  <= txRes);
-    ShiAssert(ceil(rightPixel)  <= txRes);
-
 #ifdef FF_LINUX
-    // FF_LINUX: Clamp negative pixel values to prevent DWORD underflow
-    // This can happen during certain viewport transitions
+    // FF_LINUX: Clamp pixel values BEFORE assertions to prevent crashes
+    // This can happen due to viewport setup timing differences on Linux
     if (leftPixel < 0.0f) leftPixel = 0.0f;
     if (topPixel < 0.0f) topPixel = 0.0f;
     if (rightPixel < 0.0f) rightPixel = 0.0f;
@@ -312,6 +302,18 @@ void VirtualDisplay::SetViewport(float l, float t, float r, float b)
     if (rightPixel > txRes) rightPixel = txRes;
     if (bottomPixel > tyRes) bottomPixel = tyRes;
 #endif
+
+    ShiAssert(floor(topPixel)   >= 0.0f);
+    ShiAssert(ceil(bottomPixel) >= 0.0f);
+    ShiAssert(floor(leftPixel)  >= 0.0f);
+    ShiAssert(ceil(rightPixel)  >= 0.0f);
+    // ASSO: changed xRes to txRes and yRes to tyRes
+    ShiAssert(floor(topPixel)  <= tyRes);
+    ShiAssert(ceil(bottomPixel) <= tyRes);
+    ShiAssert(floor(leftPixel)  <= txRes);
+    ShiAssert(ceil(rightPixel)  <= txRes);
+
+    // Resolution bounds clamping moved to earlier in the function for FF_LINUX
 
     TheDXEngine.SetViewport((DWORD)leftPixel, (DWORD)topPixel, (DWORD)rightPixel, (DWORD)bottomPixel);
 }

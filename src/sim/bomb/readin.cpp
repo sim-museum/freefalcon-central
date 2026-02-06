@@ -6,6 +6,7 @@
 #include "bombdata.h"
 #include "initdata.h"
 #include "datafile.h"
+#include <ctype.h>
 
 #ifdef USE_SH_POOLS
 extern MEM_POOL gReadInMemPool;
@@ -14,7 +15,11 @@ extern MEM_POOL gReadInMemPool;
 BombDataSetClass* BombDataset = NULL;
 int numBombDatasets = 0;
 
+#ifdef FF_LINUX
+#define Bomb_DIR     "sim/bombdata"
+#else
 #define Bomb_DIR     "sim\\bombdata"
+#endif
 #define Bomb_DATASET "bombtypes.lst"
 
 BombAuxData DefaultBombAuxData;
@@ -93,7 +98,11 @@ void ReadAllBombData(void)
     /*-----------------*/
     /* open input file */
     /*-----------------*/
+#ifdef FF_LINUX
+    sprintf(fileName, "%s/%s", Bomb_DIR, Bomb_DATASET);
+#else
     sprintf(fileName, "%s\\%s\0", Bomb_DIR, Bomb_DATASET);
+#endif
     mslList = SimlibFileClass::Open(fileName, SIMLIB_READ);
 
     //   F4Assert(mslList);
@@ -114,7 +123,22 @@ void ReadAllBombData(void)
         /*-------------------------------------------*/
         /* Open the basic input file for the Bomb */
         /*-------------------------------------------*/
+#ifdef FF_LINUX
+        // Strip trailing whitespace/newlines from buffer
+        int len = strlen(buffer);
+        while (len > 0 && (buffer[len-1] == '\n' || buffer[len-1] == '\r' || buffer[len-1] == ' ' || buffer[len-1] == '\t')) {
+            buffer[--len] = '\0';
+        }
+        // Convert filename to lowercase for case-sensitive Linux filesystem
+        char lowerBuffer[80];
+        for (int j = 0; buffer[j] && j < 79; j++) {
+            lowerBuffer[j] = tolower((unsigned char)buffer[j]);
+            lowerBuffer[j+1] = '\0';
+        }
+        sprintf(fName, "%s/%s.dat", Bomb_DIR, lowerBuffer);
+#else
         sprintf(fName, "%s\\%s.dat", Bomb_DIR, buffer);
+#endif
         inputFile = SimlibFileClass::Open(fName, SIMLIB_READ);
 
         //F4Assert(inputFile);

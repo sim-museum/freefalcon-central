@@ -10,7 +10,7 @@
 
 #include <cISO646>
 #include "grtypes.h"
-#include "Context.h"
+#include "context.h"
 
 struct IDirectDrawPalette;
 class Texture;

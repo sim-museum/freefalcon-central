@@ -1,8 +1,8 @@
 #include "stdhdr.h"
-#include "Graphics/Include/renderow.h"
-#include "Graphics/Include/Drawbsp.h"
-#include "Graphics/Include/Drawgrnd.h"
-#include "Graphics/Include/Drawpnt.h"
+#include "graphics/include/renderow.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/drawgrnd.h"
+#include "graphics/include/drawpnt.h"
 #include "object.h"
 #include "simdrive.h"
 #include "simfiltr.h"
@@ -12,8 +12,8 @@
 #include "ground.h"
 #include "camp2sim.h"
 #include "Unit.h"
-#include "playerOp.h"
-#include "Graphics/Include/tod.h"
+#include "playerop.h"
+#include "graphics/include/tod.h"
 #include "otwdrive.h"
 
 

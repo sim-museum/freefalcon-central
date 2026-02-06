@@ -1,5 +1,7 @@
 /** Fast Math Functions **/
 
+#ifdef _WIN32
+// Windows: use MSVC inline assembly
 // Float to 32-bit integer
 inline DWORD F_I32(float x)
 {
@@ -28,3 +30,22 @@ inline float F_ABS(float x)
 
     return r;
 }
+
+#else
+// Linux/portable: use standard C functions
+#include <math.h>
+#include <stdint.h>
+
+// Float to 32-bit integer
+inline DWORD F_I32(float x)
+{
+    return (DWORD)(int32_t)x;
+}
+
+// Absolute value
+inline float F_ABS(float x)
+{
+    return fabsf(x);
+}
+
+#endif

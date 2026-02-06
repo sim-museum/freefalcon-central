@@ -6,7 +6,7 @@
  -Script interpreter for training scripts
 \***************************************************************************/
 
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/renderow.h"
 #include "stdhdr.h"
 #include "soundfx.h"
 #include "cpmanager.h"
@@ -1681,49 +1681,49 @@ bool TrainingScriptClass::AddFunction(char *funcname, ScriptFunctionType functio
 void TrainingScriptClass::InitFunctions()
 {
     //The list of functions that we recognize.
-    AddFunction("Print", CmdPrint);
-    AddFunction("WaitPrint", CmdWaitPrint);
-    AddFunction("WaitInput", CmdWaitInput);
-    AddFunction("Wait", CmdWait);
-    AddFunction("WaitMouse", CmdWaitMouse);
-    AddFunction("WaitSoundStop", CmdWaitSoundStop);
-    AddFunction("WaitSound", CmdWaitSound);
-    AddFunction("Sound", CmdSound);
-    AddFunction("EndSection", CmdEndSection);
-    AddFunction("EndScript", CmdEndScript);
-    AddFunction("Block", CmdBlock);
-    AddFunction("Allow", CmdAllow);
-    AddFunction("If", CmdIfTrue);
-    AddFunction("IfNot", CmdIfNotTrue);
-    AddFunction("Jump", CmdJumpSection);
-    AddFunction("Call", CmdCallSection);
-    AddFunction("SetCursor", CmdSetCursor);
-    AddFunction("SetColor", CmdSetColor);
-    AddFunction("SetFont", CmdSetFont);
-    AddFunction("Oval", CmdOval);
-    AddFunction("Line", CmdLine);
-    AddFunction("EnterCritical", CmdEnterCritical);
-    AddFunction("EndCritical", CmdEndCritical);
-    AddFunction("SimCommand", CmdSimCommand);
-    AddFunction("While", CmdWhile);
-    AddFunction("WhileNot", CmdWhileNot);
-    AddFunction("CallIf", CmdCallIf);
-    AddFunction("CallIfNot", CmdCallIfNot);
-    AddFunction("Clear", CmdClear);
-    AddFunction("ClearLast", CmdClearLast);
-    AddFunction("SetFlash", CmdSetFlash);
-    AddFunction("SetCursorCallback", CmdSetCursorCallback);
-    AddFunction("SetCursorDial", CmdSetCursorDial);
-    AddFunction("WaitCallbackVisible", CmdWaitCallbackVisible);
-    AddFunction("WaitDialVisible", CmdWaitDialVisible);
-    AddFunction("SetTextBoxed", CmdSetTextBoxed);
-    AddFunction("MoveCursor", CmdMoveCursor);
-    AddFunction("SetTextOrientation", CmdSetTextOrientation);
-    AddFunction("SetViewCallback", CmdSetViewCallback);
-    AddFunction("SetViewDial", CmdSetViewDial);
-    AddFunction("SetPanTilt", CmdSetPanTilt);
-    AddFunction("MovePanTilt", CmdMovePanTilt);
-    AddFunction("SetCursor3D", CmdSetCursor3D);
+    AddFunction("Print", &TrainingScriptClass::CmdPrint);
+    AddFunction("WaitPrint", &TrainingScriptClass::CmdWaitPrint);
+    AddFunction("WaitInput", &TrainingScriptClass::CmdWaitInput);
+    AddFunction("Wait", &TrainingScriptClass::CmdWait);
+    AddFunction("WaitMouse", &TrainingScriptClass::CmdWaitMouse);
+    AddFunction("WaitSoundStop", &TrainingScriptClass::CmdWaitSoundStop);
+    AddFunction("WaitSound", &TrainingScriptClass::CmdWaitSound);
+    AddFunction("Sound", &TrainingScriptClass::CmdSound);
+    AddFunction("EndSection", &TrainingScriptClass::CmdEndSection);
+    AddFunction("EndScript", &TrainingScriptClass::CmdEndScript);
+    AddFunction("Block", &TrainingScriptClass::CmdBlock);
+    AddFunction("Allow", &TrainingScriptClass::CmdAllow);
+    AddFunction("If", &TrainingScriptClass::CmdIfTrue);
+    AddFunction("IfNot", &TrainingScriptClass::CmdIfNotTrue);
+    AddFunction("Jump", &TrainingScriptClass::CmdJumpSection);
+    AddFunction("Call", &TrainingScriptClass::CmdCallSection);
+    AddFunction("SetCursor", &TrainingScriptClass::CmdSetCursor);
+    AddFunction("SetColor", &TrainingScriptClass::CmdSetColor);
+    AddFunction("SetFont", &TrainingScriptClass::CmdSetFont);
+    AddFunction("Oval", &TrainingScriptClass::CmdOval);
+    AddFunction("Line", &TrainingScriptClass::CmdLine);
+    AddFunction("EnterCritical", &TrainingScriptClass::CmdEnterCritical);
+    AddFunction("EndCritical", &TrainingScriptClass::CmdEndCritical);
+    AddFunction("SimCommand", &TrainingScriptClass::CmdSimCommand);
+    AddFunction("While", &TrainingScriptClass::CmdWhile);
+    AddFunction("WhileNot", &TrainingScriptClass::CmdWhileNot);
+    AddFunction("CallIf", &TrainingScriptClass::CmdCallIf);
+    AddFunction("CallIfNot", &TrainingScriptClass::CmdCallIfNot);
+    AddFunction("Clear", &TrainingScriptClass::CmdClear);
+    AddFunction("ClearLast", &TrainingScriptClass::CmdClearLast);
+    AddFunction("SetFlash", &TrainingScriptClass::CmdSetFlash);
+    AddFunction("SetCursorCallback", &TrainingScriptClass::CmdSetCursorCallback);
+    AddFunction("SetCursorDial", &TrainingScriptClass::CmdSetCursorDial);
+    AddFunction("WaitCallbackVisible", &TrainingScriptClass::CmdWaitCallbackVisible);
+    AddFunction("WaitDialVisible", &TrainingScriptClass::CmdWaitDialVisible);
+    AddFunction("SetTextBoxed", &TrainingScriptClass::CmdSetTextBoxed);
+    AddFunction("MoveCursor", &TrainingScriptClass::CmdMoveCursor);
+    AddFunction("SetTextOrientation", &TrainingScriptClass::CmdSetTextOrientation);
+    AddFunction("SetViewCallback", &TrainingScriptClass::CmdSetViewCallback);
+    AddFunction("SetViewDial", &TrainingScriptClass::CmdSetViewDial);
+    AddFunction("SetPanTilt", &TrainingScriptClass::CmdSetPanTilt);
+    AddFunction("MovePanTilt", &TrainingScriptClass::CmdMovePanTilt);
+    AddFunction("SetCursor3D", &TrainingScriptClass::CmdSetCursor3D);
 }
 
 int

@@ -6,11 +6,11 @@
     This class provides management of a single drawing device in a system.
 \***************************************************************************/
 #include "stdafx.h"
-#include "Device.h"
+#include "device.h"
 #include "context.h"
 #include "falclib/include/dispcfg.h"
 #include "movie/avimovie.h"
-#include "FalcLib/include/playerop.h"
+#include "falclib/include/playerop.h"
 
 // The pixel depth is hardwired for now
 static const int BITS_PER_PIXEL = 16;
@@ -37,6 +37,7 @@ DisplayDevice::~DisplayDevice()
 // are constructed.
 void DisplayDevice::Setup(int driverNum, int devNum, int width, int height, int depth, bool fullScreen, BOOL dblBuffer, HWND win, BOOL bWillCallSwapBuffer)
 {
+    fprintf(stderr, "  [DisplayDevice::Setup] Starting %dx%dx%d, fullscreen=%d\n", width, height, depth, fullScreen); fflush(stderr);
     RECT rect;
     DWORD style;
     WNDCLASS wc;
@@ -81,22 +82,30 @@ void DisplayDevice::Setup(int driverNum, int devNum, int width, int height, int 
             char message[80];
             sprintf(message, "Requested unavailable resolution %0dx%0dx%0d", width, height, depth);
             ShiError(message);
+            // On Linux, ShiError doesn't exit - use resolution 0 as fallback
+            resNum = 0;
+            break;
         }
     }
 
     // Create an MPR device handle for this device
+    fprintf(stderr, "  [DisplayDevice::Setup] Calling CreateContext...\n"); fflush(stderr);
     m_DXCtx = FalconDisplay.devmgr.CreateContext(driverNumber, devNum, resNum, fullScreen, win);
+    fprintf(stderr, "  [DisplayDevice::Setup] CreateContext returned m_DXCtx=%p\n", (void*)m_DXCtx); fflush(stderr);
 
     if ( not m_DXCtx)
     {
         // try default device
         driverNumber = 0;
+        fprintf(stderr, "  [DisplayDevice::Setup] First context failed, trying default...\n"); fflush(stderr);
 
         m_DXCtx = FalconDisplay.devmgr.CreateContext(driverNumber, 0, resNum, fullScreen, win);
 
         if ( not m_DXCtx)
             return;
     }
+
+    fprintf(stderr, "  [DisplayDevice::Setup] Context created, setting up window...\n"); fflush(stderr);
 
     // See if we need to build our own window
     if (win)
@@ -165,7 +174,9 @@ void DisplayDevice::Setup(int driverNum, int devNum, int width, int height, int 
 
 
     // Ensure the rendering window is visible
+    fprintf(stderr, "  [DisplayDevice::Setup] Calling ShowWindow...\n"); fflush(stderr);
     ShowWindow(appWin, SW_SHOW);
+    fprintf(stderr, "  [DisplayDevice::Setup] ShowWindow done\n"); fflush(stderr);
 
 
     // Select the requested mode of operation
@@ -178,14 +189,18 @@ void DisplayDevice::Setup(int driverNum, int devNum, int width, int height, int 
 #endif
 
         // Create the primary surface(s)
+        fprintf(stderr, "  [DisplayDevice::Setup] Setting up fullscreen image...\n"); fflush(stderr);
         if (dblBuffer)
             image.Setup(this, width, height, Primary, Flip, appWin, FALSE, TRUE, bWillCallSwapBuffer);
         else
             image.Setup(this, width, height, Primary, IsHardware() ? VideoMem : SystemMem, appWin, FALSE, TRUE, bWillCallSwapBuffer);
     }
-
     else
+    {
+        fprintf(stderr, "  [DisplayDevice::Setup] Setting up windowed image, IsHardware=%d...\n", IsHardware()); fflush(stderr);
         image.Setup(this, width, height, Primary, IsHardware() ? VideoMem : SystemMem, appWin, TRUE, FALSE, bWillCallSwapBuffer);
+    }
+    fprintf(stderr, "  [DisplayDevice::Setup] image.Setup done\n"); fflush(stderr);
 
     // Make sure we haven't gotten confused about how many contexts we have
     // ShiAssert( ContextMPR::StateSetupCounter == 0 );
@@ -193,9 +208,13 @@ void DisplayDevice::Setup(int driverNum, int devNum, int width, int height, int 
         ContextMPR::StateSetupCounter = 0; // Force it for now.  Shouldn't be required.
 
     // Create a rendering context for the primary surface
+    fprintf(stderr, "  [DisplayDevice::Setup] Calling SetRenderTarget, targetSurface=%p...\n", (void*)image.targetSurface()); fflush(stderr);
     m_DXCtx->SetRenderTarget(image.targetSurface());
+    fprintf(stderr, "  [DisplayDevice::Setup] SetRenderTarget done\n"); fflush(stderr);
 
+    fprintf(stderr, "  [DisplayDevice::Setup] Calling movieInit...\n"); fflush(stderr);
     movieInit(2, m_DXCtx->m_pDD);
+    fprintf(stderr, "  [DisplayDevice::Setup] Complete!\n"); fflush(stderr);
 }
 
 

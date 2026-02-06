@@ -15,7 +15,7 @@
 #include "stdhdr.h"
 #include "airframe.h"
 #include "aircrft.h"
-#include "Graphics/Include/Matrix.h"
+#include "graphics/include/matrix.h"
 
 typedef double DTransformMatrix[3][3];
 

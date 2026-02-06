@@ -9,17 +9,11 @@
 ** We go dancing in......
 */
 
-#if _MSC_VER >= 1300
 #include <iostream>
 #include <iomanip>
 #include <string>
 #include <fstream>
-#else
-#include <iostream.h>
-#include <iomanip.h>
-#include <string.h>
-#include <fstream.h>
-#endif //_MSC_VER
+#include <cstring>
 
 #include <math.h>
 #include <stdlib.h>

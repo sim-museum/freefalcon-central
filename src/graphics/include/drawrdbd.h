@@ -9,7 +9,7 @@
 #define _DRAWRDBD_H_
 
 #include "Edge.h"
-#include "DrawBldg.h"
+#include "drawbldg.h"
 
 
 class DrawableRoadbed : public DrawableBuilding

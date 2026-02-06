@@ -1,10 +1,12 @@
-#include "3dlib/inline.h"
+#include "graphics/include/grinline.h"
+#include "graphics/include/renderow.h"
 
 #include "cpmanager.h"
 #include "cpgauge.h"
+#include "otwdrive.h"
 
 
-CPGauge::CPGauge(CPObjectInitStruct* BaseInitData, CPGaugeInitStruct *GaugeInitData) : CPObject(BaseInitData)
+CPGauge::CPGauge(ObjectInitStr* BaseInitData, CPGaugeInitStruct *GaugeInitData) : CPObject(BaseInitData)
 {
 
     mWidthTapeBitmap = GaugeInitData->widthTapeBitmap;
@@ -77,9 +79,9 @@ void CPGauge::DrawTape(float Value, int x, int y, BOOL WrapAroundOn)
         LowerDestBound = mHeight;
     }
 
-    OTWDriver.renderer->StartFrame();
-    OTWDriver.renderer->Render2DBitmap(0, UpperSrcBound, x, y + mpParent->my, mWidthTapeBitmap, mHeight, mWidthTapeBitmap, mpTapeBitmapHandle);
-    OTWDriver.renderer->FinishFrame();
+    OTWDriver.renderer->StartDraw();
+    OTWDriver.renderer->Render2DBitmap(0, UpperSrcBound, x, y + mpParent->myPanelOffset, mWidthTapeBitmap, mHeight, mWidthTapeBitmap, mpTapeBitmapHandle);
+    OTWDriver.renderer->EndDraw();
 }
 
 void CPGauge::Display(Render2D *pCockpitRenderer, BOOL RedrawObject)
@@ -90,7 +92,7 @@ void CPGauge::Display(Render2D *pCockpitRenderer, BOOL RedrawObject)
         return;
     }
 
-    CPObject::Display(OTWDriver.renderer, TRUE);
+    CPObject::DisplayBlit();
 
     mDirtyFlag = FALSE;
 }

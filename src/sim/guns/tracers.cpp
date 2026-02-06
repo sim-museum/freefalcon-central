@@ -1,12 +1,12 @@
 #include "stdhdr.h"
 #include "otwdrive.h"
 #include "guns.h"
-#include "Graphics/Include/DrawTrcr.h"
-#include "Graphics/Include/Draw2d.h"
-#include "Graphics/Include/drawsgmt.h"
+#include "graphics/include/drawtrcr.h"
+#include "graphics/include/draw2d.h"
+#include "graphics/include/drawsgmt.h"
 #include "fakerand.h"
 #include "playerop.h"
-#include "DrawParticleSys.h" // RV - I-Hawk - added to support RV new trails code
+#include "drawparticlesys.h" // RV - I-Hawk - added to support RV new trails code
 
 extern bool g_bUse_DX_Engine;
 

@@ -5,14 +5,14 @@
 #include "airframe.h"
 #include "campwp.h"
 #include "object.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "aircrft.h"
 #include "objectiv.h"
 #include "simdrive.h"
-#include "Graphics/Include/tmap.h"
+#include "graphics/include/tmap.h"
 #define MANEUVER_DEBUG
 #ifdef MANEUVER_DEBUG
-#include "Graphics/include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 extern int g_nShowDebugLabels;
 #endif
 

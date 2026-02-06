@@ -81,11 +81,11 @@ void HeliBrain::MissileEngage(void)
     /* Find current missile's tof, rmax, etc */
     /*---------------------------------------*/
 
-    tof = curMissile->GetTOF((-self->ZPos()), self->Vt(), targetData->ataFrom,
-                             targetPtr->BaseData()->Vt(), targetData->range);
+    tof = ((MissileClass*)curMissile)->GetTOF((-self->ZPos()), self->GetVt(), targetData->ataFrom,
+                             targetPtr->BaseData()->GetVt(), targetData->range);
 
-    rMax = curMissile->GetRMax((-self->ZPos()), self->Vt(), targetData->az,
-                               targetPtr->BaseData()->Vt(), targetData->ataFrom);
+    rMax = ((MissileClass*)curMissile)->GetRMax((-self->ZPos()), self->GetVt(), targetData->az,
+                               targetPtr->BaseData()->GetVt(), targetData->ataFrom);
 
 
     /*---------------------------------*/
@@ -155,7 +155,7 @@ void HeliBrain::MissileEngage(void)
         /* Set the throttle for desired closure */
         /*--------------------------------------*/
         rngdot = (targetData->rangedot) * FTPSEC_TO_KNOTS;
-        desSpeed = self->Kias() + desiredClosure - rngdot;
+        desSpeed = self->GetKias() + desiredClosure - rngdot;
 
         if (desSpeed < 200.0) desSpeed = 200.0F;
     }

@@ -1,9 +1,9 @@
 #include <windows.h>
 #include "sim/include/phyconst.h"
-#include "graphics/include/TimeMgr.h"
+#include "graphics/include/timemgr.h"
 #include "graphics/include/imagebuf.h"
 #include "graphics/include/renderow.h"
-#include "graphics/include/RViewPnt.h"
+#include "graphics/include/rviewpnt.h"
 #include "graphics/include/drawbsp.h"
 #include "objectiv.h"
 #include "dispcfg.h"
@@ -15,13 +15,13 @@
 #include "c3dview.h"
 #include "playerop.h"
 #include "TexBank.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/dispopts.h"
 
-#include "Sim/Include/navsystem.h" //Wombat778 11-3-2003
+#include "sim/include/navsystem.h" //Wombat778 11-3-2003
 
 extern C_Handler *gMainHandler;
 
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "graphics/dxengine/dxvbmanager.h"
 extern bool g_bUse_DX_Engine;
 
 extern bool g_bReconLatLong; //Wombat778 11-3-2003

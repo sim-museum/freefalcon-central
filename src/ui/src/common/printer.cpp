@@ -1,10 +1,14 @@
 // Trivial COM Printer interface
 // Julian Onions
 #include <windows.h>
+#include <tchar.h>
 #include "falclib.h"
+
+#ifdef _MSC_VER
 #import "GMPrint.tlb"
 #include <atlbase.h>
 #include "include/comsup.h"
+#endif
 
 extern int g_nPrintToFile;
 extern bool g_bAppendToBriefingFile;
@@ -33,6 +37,7 @@ SendStringToPrinter(_TCHAR *string, _TCHAR *title)
         return 1;
     }
 
+#ifdef _MSC_VER
     // if ( not g_nPrintToFile or g_nPrintToFile bitand 0x02) // 0x00 + 0x02 means print out
     //THW 2004-04-12 Never print out if HTML-Briefings are enabled
     if ( not g_bBriefHTML or not g_nPrintToFile or (g_nPrintToFile bitand 0x02)) // 0x00 + 0x02 means print out
@@ -84,6 +89,15 @@ SendStringToPrinter(_TCHAR *string, _TCHAR *title)
         p_prt.Release();
         CoUninitialize();
     }
+#else
+    // Linux: No COM printing support - write to file instead
+    if ( not g_bBriefHTML or not g_nPrintToFile or (g_nPrintToFile bitand 0x02))
+    {
+        char filename[_MAX_PATH];
+        sprintf(filename, "%s.txt", title);
+        WriteBriefingToFile(string, filename);
+    }
+#endif
 
     return retval;
 }
@@ -97,7 +111,7 @@ void PrintTime(char *output, FILETIME TimeToPrint)
 {
     WORD Date, Time;
 
-    if (FileTimeToLocalFileTime(&TimeToPrint, &TimeToPrint) and 
+    if (FileTimeToLocalFileTime(&TimeToPrint, &TimeToPrint) and
         FileTimeToDosDateTime(&TimeToPrint, &Date, &Time))
     {
         // What a silly way to print out the file date/time. Oh well,
@@ -123,7 +137,7 @@ int WriteBriefingToFile(_TCHAR *string, char *fname)
     char fullname[MAX_PATH];
     HANDLE fileID;
     extern char FalconDataDirectory[_MAX_PATH];
-    unsigned long bytes, strsize;
+    DWORD bytes, strsize;
     char tmpString[255];
 
     FILETIME CurrentTime;

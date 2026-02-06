@@ -9,13 +9,13 @@
 #include "stdafx.h"
 #include <io.h>
 #include <fcntl.h>
-#include "Loader.h"
-#include "ObjectLOD.h"
-#include "Falclib/Include/IsBad.h"
+#include "loader.h"
+#include "objectlod.h"
+#include "falclib/include/isbad.h"
 
-#include "Graphics/DXEngine/DXDefines.h"
-#include "Graphics/DXEngine/DXEngine.h"
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "graphics/dxengine/dxdefines.h"
+#include "graphics/dxengine/dxengine.h"
+#include "graphics/dxengine/dxvbmanager.h"
 
 extern bool g_bUse_DX_Engine;
 
@@ -194,42 +194,60 @@ void ObjectLOD::SetupTable(int file, char *basename)
 
 void ObjectLOD::CleanupTable(void)
 {
+    fprintf(stderr, "        [ObjectLOD::CleanupTable] Starting, TheObjectLODs=%p, TheObjectLODsCount=%d\n",
+            (void*)TheObjectLODs, TheObjectLODsCount); fflush(stderr);
+
     // Make sure all objects are freed
-    for (int i = 0; i < TheObjectLODsCount; i++)
-    {
-        ShiAssert(TheObjectLODs[i].refCount == 0);
-
-        if (TheObjectLODs[i].root)
+    if (TheObjectLODs != NULL) {
+        fprintf(stderr, "        [ObjectLOD::CleanupTable] Iterating %d LODs...\n", TheObjectLODsCount); fflush(stderr);
+        for (int i = 0; i < TheObjectLODsCount; i++)
         {
-            // Mark for release the LOD
-            TheObjectLODs[i].OnRelease = true;
-            // Put into Release List
-            CacheRelease[ReleaseIn++] = i;
+            ShiAssert(TheObjectLODs[i].refCount == 0);
 
-            // ring the in pointer
-            if (ReleaseIn >= (TheObjectLODsCount + CACHE_MARGIN)) ReleaseIn = 0;
+            if (TheObjectLODs[i].root)
+            {
+                // Mark for release the LOD
+                TheObjectLODs[i].OnRelease = true;
+                // Put into Release List
+                if (CacheRelease) {
+                    CacheRelease[ReleaseIn++] = i;
+                    // ring the in pointer
+                    if (ReleaseIn >= (TheObjectLODsCount + CACHE_MARGIN)) ReleaseIn = 0;
+                }
+            }
         }
+        fprintf(stderr, "        [ObjectLOD::CleanupTable] LOD iteration done\n"); fflush(stderr);
     }
 
 
     // Must wait until loader is done before we delete the object out from under it.
+    fprintf(stderr, "        [ObjectLOD::CleanupTable] WaitUpdates()...\n"); fflush(stderr);
     WaitUpdates();
+    fprintf(stderr, "        [ObjectLOD::CleanupTable] WaitUpdates() done\n"); fflush(stderr);
 
     // Free our array of object LODs
-    delete[] TheObjectLODs;
+    fprintf(stderr, "        [ObjectLOD::CleanupTable] Deleting TheObjectLODs...\n"); fflush(stderr);
+    if (TheObjectLODs) delete[] TheObjectLODs;
     TheObjectLODs = NULL;
     TheObjectLODsCount = 0;
+    fprintf(stderr, "        [ObjectLOD::CleanupTable] TheObjectLODs deleted\n"); fflush(stderr);
 
     // Free our tag list buffer
-    delete[] tagListBuffer;
+    fprintf(stderr, "        [ObjectLOD::CleanupTable] Deleting tagListBuffer...\n"); fflush(stderr);
+    if (tagListBuffer) delete[] tagListBuffer;
     tagListBuffer = NULL;
+    fprintf(stderr, "        [ObjectLOD::CleanupTable] tagListBuffer deleted\n"); fflush(stderr);
 
     // Close our data file
+    fprintf(stderr, "        [ObjectLOD::CleanupTable] ObjectLodMap.Close()...\n"); fflush(stderr);
     ObjectLodMap.Close();
+    fprintf(stderr, "        [ObjectLOD::CleanupTable] ObjectLodMap closed\n"); fflush(stderr);
     //close( objectFile );
 
     // Free our critical section
+    fprintf(stderr, "        [ObjectLOD::CleanupTable] DeleteCriticalSection()...\n"); fflush(stderr);
     DeleteCriticalSection(&cs_ObjectLOD);
+    fprintf(stderr, "        [ObjectLOD::CleanupTable] Critical section deleted\n"); fflush(stderr);
 
     if (LodBufferSize)
     {

@@ -7,7 +7,7 @@
 #include "airunit.h"
 #include "Pilot.h"
 #include "loadout.h"
-#include "SIM/INCLUDE/initdata.h"
+#include "sim/include/initdata.h"
 
 
 class PackageClass;

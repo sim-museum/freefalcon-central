@@ -112,7 +112,11 @@ typedef struct
     LPDIRECT3DVERTEXBUFFER7 Vb; // Assigned Vb;
     DWORD Index, Index2; // The indexes in the VBuffer
     DWORD NrVertices; // vertices
+#ifdef FF_LINUX
+    uintptr_t TexHandle; // FF_LINUX: Use uintptr_t for TextureHandle* on 64-bit
+#else
     DWORD TexHandle; // The Texture Handle
+#endif
     DWORD Flags;
     float Height;
 } DrawItemType;

@@ -7,7 +7,7 @@
 #ifndef _DRAWSHDW_H_
 #define _DRAWSHDW_H_
 
-#include "DrawBSP.h"
+#include "drawbsp.h"
 
 
 class DrawableShadowed : public DrawableBSP

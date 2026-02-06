@@ -9,7 +9,7 @@
 #include <targa.h>
 #include "falclib.h"
 #include "dxutil/ddutil.h"
-#include "Graphics/Include/imagebuf.h"
+#include "graphics/include/imagebuf.h"
 #include "dispcfg.h"
 #include "chandler.h"
 #include "ui95_ext.h"

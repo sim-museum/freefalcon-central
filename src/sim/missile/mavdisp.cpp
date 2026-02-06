@@ -1,9 +1,9 @@
-#include "Graphics/Include/TViewPnt.h"
-#include "Graphics/Include/renderir.h"
-#include "Graphics/Include/rendertv.h"
-#include "Graphics/Include/RViewPnt.h"
-#include "Graphics/Include/Mono2D.h"
-#include "Graphics/Include/DrawBSP.h"
+#include "graphics/include/tviewpnt.h"
+#include "graphics/include/renderir.h"
+#include "graphics/include/rendertv.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/mono2d.h"
+#include "graphics/include/drawbsp.h"
 #include "stdhdr.h"
 #include "Classtbl.h"
 #include "missile.h"
@@ -14,7 +14,7 @@
 #include "sensclas.h"
 #include "sms.h"
 #include "aircrft.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/dispopts.h"
 
 #define LOCK_RING_MAX_SIZE     0.65F  //JPG 21 Jan 04 - was 0.5F
 #define LOCK_RING_MIN_SIZE     0.25F

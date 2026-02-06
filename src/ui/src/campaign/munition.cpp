@@ -6,10 +6,10 @@
  *
  **********************/
 
-#include "Graphics/Include/TimeMgr.h"
-#include "Graphics/Include/RViewPnt.h"
-#include "Graphics/Include/render3d.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/timemgr.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/render3d.h"
+#include "graphics/include/drawbsp.h"
 #include "vu2.h"
 #include "F4Thread.h"
 #include "cmpclass.h"

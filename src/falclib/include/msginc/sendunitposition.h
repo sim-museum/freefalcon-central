@@ -8,7 +8,7 @@
 */
 
 #include "Falcmesg.h"
-#include "Sim/Include/simmover.h"
+#include "sim/include/simmover.h"
 
 
 class SendUnitPosition : public FalconEvent

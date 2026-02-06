@@ -5,7 +5,7 @@
 #include "FalcLib.h"
 #include "CampList.h"
 #include "CampBase.h"
-#include "SIM/include/atcBrain.h"
+#include "sim/include/atcbrain.h"
 #include "CmpRadar.h"
 #include "MsgInc/ObjectiveMsg.h"
 

@@ -15,7 +15,7 @@
 #include "Weather.h"
 #include "airframe.h"
 #include "ptdata.h"
-#include "Graphics/Include/drawobj.h"
+#include "graphics/include/drawobj.h"
 #include "classtbl.h"
 #include "otwdrive.h"
 #include "falcsnd/voicemapper.h"
@@ -38,7 +38,7 @@
 #include "tacan.h"
 #include "cmpglobl.h"
 #include "team.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 
 
 //ATCBrain::atcList = NULL;
@@ -52,7 +52,7 @@ extern DWORD gSimThreadID;
 #endif
 
 extern float get_air_speed(float, int);
-extern ulong gBumpTime;
+extern CampaignTime gBumpTime;  // FF_LINUX: Use CampaignTime
 extern int gBumpFlag;
 extern short NumPtHeaders;
 extern short NumPts;
@@ -63,6 +63,11 @@ extern int g_nATCTaxiOrderFix;
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ATCBrain::ATCBrain(ObjectiveClass* mySelf)
 {
+    static int atcCtorCount = 0;
+    atcCtorCount++;
+    bool doDebug = (atcCtorCount <= 3);
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] ATCBrain ctor[%d] entry\n", atcCtorCount); fflush(stderr); }
+
     int i, rwindex, count, shortest, ptindex;
     ObjClassDataType *oc;
 
@@ -70,6 +75,7 @@ ATCBrain::ATCBrain(ObjectiveClass* mySelf)
 
     oc = mySelf->GetObjectiveClassData();
     numRwys = oc->DataRate;
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] ATCBrain ctor[%d] numRwys=%d\n", atcCtorCount, numRwys); fflush(stderr); }
 
     //DSP HACK
     if (numRwys > 4)
@@ -109,9 +115,18 @@ ATCBrain::ATCBrain(ObjectiveClass* mySelf)
     }
 
     rwindex = oc->PtDataIndex;
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] ATCBrain ctor[%d] entering rwindex loop, initial rwindex=%d\n", atcCtorCount, rwindex); fflush(stderr); }
+    int rwLoopCount = 0;
 
     while (rwindex)
     {
+        rwLoopCount++;
+        if (doDebug && rwLoopCount <= 10) { fprintf(stderr, "[FF_LINUX] ATCBrain ctor[%d] rwindex loop iter %d, rwindex=%d\n", atcCtorCount, rwLoopCount, rwindex); fflush(stderr); }
+        if (rwLoopCount > 10000) {
+            fprintf(stderr, "[FF_LINUX] ATCBrain ctor[%d] INFINITE LOOP DETECTED in rwindex loop! Breaking.\n", atcCtorCount);
+            fflush(stderr);
+            break;
+        }
         if (GetQueue(rwindex) < numRwys)
         {
             if (PtHeaderDataTable[rwindex].type == RunwayPt)
@@ -969,7 +984,7 @@ void ATCBrain::ProcessPlayers(void)
     int queue;
     runwayQueueStruct *playerInfo;
     FalconSessionEntity *session;
-    ulong min, max;
+    CampaignTime min, max;  // FF_LINUX: Use CampaignTime
     AircraftClass *player;
     FalconRadioChatterMessage *radioMessage;
 
@@ -1363,7 +1378,7 @@ void ATCBrain::ProcessPlayers(void)
 void ATCBrain::RequestClearance(AircraftClass* approaching, int addflight)
 {
     int queue, rwindex;
-    ulong landTime, max, min;
+    CampaignTime landTime, max, min;  // FF_LINUX: Use CampaignTime
     float cosAngle;
     runwayQueueStruct *info;
     float finalX, finalY, baseX, baseY, x , y;
@@ -1509,7 +1524,7 @@ void ATCBrain::RequestEmerClearance(AircraftClass* approaching)
     int queue, rwindex;
     runwayQueueStruct *info;
     float cosAngle;
-    ulong min, max, landTime;
+    CampaignTime min, max, landTime;  // FF_LINUX: Use CampaignTime
     AtcStatusEnum status;
     FalconRadioChatterMessage *radioMessage = NULL;
 
@@ -1639,7 +1654,7 @@ void ATCBrain::RequestTakeoff(AircraftClass* departing)
     }
     else
     {
-        ulong takeoffTime = 0, time;
+        CampaignTime takeoffTime = 0, time;  // FF_LINUX: Use CampaignTime
         int queue = 0, rwindex = 0;
         AircraftClass *aircraft = NULL;
         FalconRadioChatterMessage *radioMessage = NULL;
@@ -2263,7 +2278,7 @@ void ATCBrain::RescheduleFlightTakeoff(int queue, Flight flight)
         queue = GetQueue(rwindex);
     }
 
-    ulong takeoffTime = FindFlightTakeoffTime(flight, queue);
+    CampaignTime takeoffTime = FindFlightTakeoffTime(flight, queue);  // FF_LINUX: Use CampaignTime
 
     VuListIterator flightIter(flight->GetComponents());
     aircraft = (AircraftClass*) flightIter.GetFirst();
@@ -2776,12 +2791,12 @@ float ATCBrain::DetermineAngle(AircraftClass* aircraft, int rwindex, AtcStatusEn
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-ulong ATCBrain::FindFlightTakeoffTime(FlightClass *flight, int queue)
+CampaignTime ATCBrain::FindFlightTakeoffTime(FlightClass *flight, int queue)
 {
-    ulong takeoffTime, delta;
+    CampaignTime takeoffTime, delta;  // FF_LINUX: Use CampaignTime
     runwayQueueStruct *cur = runwayQueue[queue];
     runwayQueueStruct *prev = NULL;
-    ulong emerDelta = 0;
+    CampaignTime emerDelta = 0;  // FF_LINUX: Use CampaignTime
 
     //according to Kevin this should never happen
     ShiAssert(flight->GetCurrentUnitWP());
@@ -2855,11 +2870,11 @@ ulong ATCBrain::FindFlightTakeoffTime(FlightClass *flight, int queue)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-ulong ATCBrain::GetNextAvailRunwayTime(int queue, ulong rwTime, ulong delta)
+CampaignTime ATCBrain::GetNextAvailRunwayTime(int queue, CampaignTime rwTime, CampaignTime delta)
 {
     runwayQueueStruct *cur = runwayQueue[queue];
     runwayQueueStruct *prev = NULL;
-    ulong tempDelta;
+    CampaignTime tempDelta;  // FF_LINUX: Use CampaignTime
 
     if ( not cur)
     {
@@ -3291,7 +3306,7 @@ int ATCBrain::CheckVector(AircraftClass *aircraft, runwayQueueStruct* info)
     float norm, vt, cosHdg, sinHdg, relx, rely;
     float turnDist, speed, deltaTime;
     float baseX, baseY, finalX, finalY;
-    ulong turnTime;
+    CampaignTime turnTime;  // FF_LINUX: Use CampaignTime
 
     speed = aircraft->af->MinVcas() * KNOTS_TO_FTPSEC;
     aircraft->DBrain()->GetTrackPoint(x, y, z);
@@ -3589,7 +3604,7 @@ AtcStatusEnum ATCBrain::FindBasePt(AircraftClass* approaching, int rwindex, floa
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-AtcStatusEnum ATCBrain::FindFirstLegPt(AircraftClass* approaching, int rwindex, ulong schedTime, float pointX, float pointY, int usebase, float *x, float *y)
+AtcStatusEnum ATCBrain::FindFirstLegPt(AircraftClass* approaching, int rwindex, CampaignTime schedTime, float pointX, float pointY, int usebase, float *x, float *y)
 {
     float dist = 0.0F, totalDist = 0.0F, legAngle = 0.0F, legHeading = 0.0F, hdgToPt = 0.0F;
     float dx = 0.0F, dy = 0.0F, PatternSpd = 0.0F, decelTime = 0.0F, avgDecelSpd = 0.0F;
@@ -5569,11 +5584,11 @@ void ATCBrain::CheckList(runwayQueueStruct *list)
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-ulong ATCBrain::RemovePlaceHolders(VU_ID id)
+CampaignTime ATCBrain::RemovePlaceHolders(VU_ID id)
 {
     runwayQueueStruct *info = NULL;
     runwayQueueStruct *deleteInfo = NULL;
-    ulong takeoffTime = 0;
+    CampaignTime takeoffTime = 0;  // FF_LINUX: Use CampaignTime
     int i;
 
     for (i = 0; i < numRwys; i++)

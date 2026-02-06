@@ -1,6 +1,6 @@
 #include "stdhdr.h"
 #include "otwdrive.h"
-#include "Graphics/Include/grtypes.h"
+#include "graphics/include/grtypes.h"
 
 void OTWDriverClass::BuildHeadMatrix(int doFlip, int order, float headYaw, float headPitch, float headRoll)
 {

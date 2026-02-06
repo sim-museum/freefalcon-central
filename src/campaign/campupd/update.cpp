@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include "CmpGlobl.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "CampCell.h"
 #include "CampTerr.h"
 #include "ASearch.h"
@@ -28,7 +28,7 @@
 #include "CUIEvent.h"
 #include "MsgInc/RadioChatterMsg.h"
 #include "MsgInc/CampWeaponFireMsg.h"
-#include "MsgInc/AWACsMsg.h"
+#include "MsgInc/AWACSMsg.h"
 #include "MissEval.h"
 #include "CmpClass.h"
 #include "classtbl.h"

@@ -8,7 +8,7 @@
 #ifndef _DEVMGR_H_
 #define _DEVMGR_H_
 
-#include "Device.h"
+#include "device.h"
 
 #include <string>
 #include <vector>

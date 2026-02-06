@@ -104,6 +104,8 @@ inline int PRANDInt6(void)
 #else  // "real" randomness for above functions
 
 // COBRA - RED - The Real Superfast Random Function is this one
+#ifdef _WIN32
+// Windows: use MSVC inline assembly with RDTSC
 inline long GenerateFastRandom(void)
 {
 #undef xor
@@ -125,6 +127,28 @@ inline long GenerateFastRandom(void)
     return(FastRandom);
 #define xor ^
 }
+#else
+// Linux/portable: use RDTSC via intrinsics or fallback
+#if defined(__x86_64__) || defined(__i386__)
+#include <x86intrin.h>
+inline long GenerateFastRandom(void)
+{
+    static long LastRandom = 0;
+    unsigned long long tsc = __rdtsc();
+    long FastRandom = (long)(tsc >> 32) ^ (long)(tsc & 0xFFFFFFFF);
+    FastRandom += LastRandom;
+    LastRandom += (long)(tsc >> 32);
+    return FastRandom;
+}
+#else
+// Non-x86 fallback using standard rand
+#include <stdlib.h>
+inline long GenerateFastRandom(void)
+{
+    return (long)rand();
+}
+#endif
+#endif // _WIN32
 
 
 inline int PRANDInt5(void)

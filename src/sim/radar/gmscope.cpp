@@ -1,10 +1,10 @@
 #include "stdhdr.h"
-#include "Graphics/Include/gmComposit.h"
-#include "Graphics/Include/Drawbsp.h"
+#include "graphics/include/gmcomposit.h"
+#include "graphics/include/drawbsp.h"
 #include "geometry.h"
 #include "debuggr.h"
 #include "object.h"
-#include "radarDoppler.h"
+#include "radardoppler.h"
 #include "simbase.h"
 #include "otwdrive.h"
 #include "simdrive.h"
@@ -22,7 +22,7 @@
 #include "sms.h" //MI
 #include "missile.h" //MI
 #include "profiler.h" // MLR 5/21/2004 - 
-#include "FastMath.h"
+#include "fastmath.h"
 
 #include "Campwp.h"  // MD -- 20040214: added for SP ground stabilization pseudo waypoint
 #include "Hud.h"  // MD -- 20040306: added for TTG display in GMscope

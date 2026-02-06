@@ -1,9 +1,9 @@
 #include "stdhdr.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/drawsgmt.h"
-#include "Graphics/Include/drawpuff.h"
-#include "Graphics/Include/RenderOW.h"
-#include "DrawParticleSys.h" //RV - I-Hawk - Added to support RV new trails
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/drawsgmt.h"
+#include "graphics/include/drawpuff.h"
+#include "graphics/include/renderow.h"
+#include "drawparticlesys.h" //RV - I-Hawk - Added to support RV new trails
 #include "falcmesg.h"
 #include "aircrft.h"
 #include "fsound.h"
@@ -28,14 +28,14 @@
 #include "fack.h"
 #include "falcsess.h"
 #include "Classtbl.h"
-#include "SimEject.h"
+#include "simeject.h"
 #include "simweapn.h"
 #include "playerop.h"
 #include "weather.h"
 #include "ffeedbk.h"
 #include "dofsnswitches.h" //MI
-#include "IvibeData.h"
-#include "ACTurbulence.h"
+#include "ivibedata.h"
+#include "acturbulence.h"
 
 extern void *gSharedIntellivibe;
 
@@ -1427,7 +1427,7 @@ void AircraftClass::AddEngineTrails(int ttype, DWORD *tlist, DWORD *tlist_trail)
     */
 
     int nTrails;
-    int nEngines = min(MAXENGINES, af->auxaeroData->nEngines);
+    int nEngines = min((int)MAXENGINES, af->auxaeroData->nEngines);
     int nContrails;
     Tpoint ContrailsLocation[MAXENGINES];
 
@@ -1649,7 +1649,7 @@ void AircraftClass::AddEngineTrails(int ttype, DWORD *tlist, DWORD *tlist_trail)
 
 void AircraftClass::CancelEngineTrails(DWORD *tlist, DWORD *tlist_trail)
 {
-    int nEngines = min(MAXENGINES, af->auxaeroData->nEngines);
+    int nEngines = min((int)MAXENGINES, af->auxaeroData->nEngines);
 
     for (int i = 0; i < nEngines; i++)
     {

@@ -1,10 +1,10 @@
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/renderow.h"
 #include "stdhdr.h"
 #include "otwdrive.h"
 #include "airframe.h"
 #include "aircrft.h"
 #include "object.h"
-#include "Graphics/Include/tod.h"
+#include "graphics/include/tod.h"
 #include "playerop.h"
 //#include "simdrive.h"
 

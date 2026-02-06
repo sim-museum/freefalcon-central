@@ -1,13 +1,13 @@
 #include "falclib.h"
 #include "chandler.h"
 #include "userids.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include <mmsystem.h>
 #include "sim/include/stdhdr.h"
 #include "sim/include/simio.h"
 #include "ui_setup.h"
 #include <tchar.h>
-#include "sim/include/inpFunc.h"
+#include "sim/include/inpfunc.h"
 #include "sim/include/commands.h"
 #include "f4find.h"
 #include "sim/include/sinput.h"

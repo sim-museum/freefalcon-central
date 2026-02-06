@@ -114,7 +114,7 @@ void HeliBrain::SensorFusion(void)
             /*------------------*/
             /* closing velocity */
             /*------------------*/
-            totV = ((SimBaseClass*)obj->BaseData())->Vt() + self->Vt() * (float)cos(localData->ata * DTR);
+            totV = ((SimBaseClass*)obj->BaseData())->GetVt() + self->GetVt() * (float)cos(localData->ata * DTR);
 
             /*------------*/
             /* 10 NM rmax */
@@ -157,7 +157,7 @@ void HeliBrain::SensorFusion(void)
             /*------------------*/
             /* closing velocity */
             /*------------------*/
-            totV     = ((SimBaseClass*)obj->BaseData())->Vt() * (float)cos(localData->ataFrom * DTR) + self->Vt();
+            totV     = ((SimBaseClass*)obj->BaseData())->GetVt() * (float)cos(localData->ataFrom * DTR) + self->GetVt();
 
             /*------------------------*/
             /* time to turn on target */

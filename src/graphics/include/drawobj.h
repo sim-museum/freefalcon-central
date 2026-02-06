@@ -11,7 +11,7 @@
 
 #include <cISO646>
 #include <math.h>
-#include "grTypes.h"
+#include "grtypes.h"
 
 class DrawableObject
 {

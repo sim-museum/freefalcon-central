@@ -7,14 +7,14 @@
 **      MLR - this file is a cluster fuck.
 **            Hello, Init() anybody???
 */
-#include "Graphics/Include/Rviewpnt.h"
-#include "Graphics/Include/drawsgmt.h"
-#include "Graphics/Include/drawparticlesys.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/draw2d.h"
-#include "Graphics/Include/drawtrcr.h"
-#include "Graphics/Include/drawgrnd.h"
-#include "Graphics/Include/terrtex.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/drawsgmt.h"
+#include "graphics/include/drawparticlesys.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/draw2d.h"
+#include "graphics/include/drawtrcr.h"
+#include "graphics/include/drawgrnd.h"
+#include "graphics/include/terrtex.h"
 #include "weather.h"
 #include "stdhdr.h"
 #include "otwdrive.h"

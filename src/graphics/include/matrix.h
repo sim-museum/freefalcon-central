@@ -8,7 +8,7 @@
 #ifndef _MATRIX_H_
 #define _MATRIX_H_
 
-#include "grTypes.h"
+#include "grtypes.h"
 
 
 /***************************************************************************\

@@ -10,9 +10,9 @@
 #define _RVIEWPNT_H_
 
 
-#include "TViewPnt.h"
-#include "ObjList.h"
-#include "Tex.h"
+#include "tviewpnt.h"
+#include "objlist.h"
+#include "tex.h"
 
 typedef struct ObjectListRecord
 {

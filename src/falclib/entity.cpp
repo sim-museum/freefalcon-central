@@ -9,10 +9,10 @@
 #include "f4find.h"
 #include "WeapList.h"
 #include "rdrackdata.h"
-#include "sim/include/visualData.h"
-#include "sim/include/irstData.h"
-#include "sim/include/rwrData.h"
-#include "sim/include/radarData.h"
+#include "sim/include/visualdata.h"
+#include "sim/include/irstdata.h"
+#include "sim/include/rwrdata.h"
+#include "sim/include/radardata.h"
 #include "falclib/include/alist.h"
 #include "falclib/include/token.h"
 
@@ -155,6 +155,7 @@ int LoadClassTable(char *filename)
     RegQueryValueEx(theKey, "objectdir", 0, &type, (LPBYTE)FalconObjectDataDir, &size);
     RegCloseKey(theKey);
 #endif
+    // Find the last path component (handles both / and \)
     objSet = newstr = strchr(FalconObjectDataDir, '\\');
 
     while (newstr)
@@ -163,56 +164,97 @@ int LoadClassTable(char *filename)
         newstr = strchr(objSet, '\\');
     }
 
+    // Also check for forward slashes (Linux paths)
+    if (!objSet) {
+        objSet = newstr = strchr(FalconObjectDataDir, '/');
+        while (newstr)
+        {
+            objSet = newstr + 1;
+            newstr = strchr(objSet, '/');
+        }
+    }
+
+    // Fallback to "objects" if no path separator found
+    if (!objSet || !*objSet) {
+        objSet = (char*)"objects";
+    }
+
     // Check file integrity
     // FileVerify();
 
+    printf("  Loading class table (InitClassTableAndData)...\n"); fflush(stdout);
     InitClassTableAndData(filename, objSet);
+    printf("  Class table loaded. Falcon4ClassTable=%p\n", (void*)Falcon4ClassTable); fflush(stdout);
     ReadClassTable();
 #ifndef MISSILE_TEST_PROG
 #ifndef ACMI
 #ifndef IACONVERT
 
+    printf("  Loading: UnitData...\n"); fflush(stdout);
     if ( not LoadUnitData(filename)) ShiError("Failed to load unit data");
 
+    printf("  Loading: FeatureEntryData...\n"); fflush(stdout);
     if ( not LoadFeatureEntryData(filename)) ShiError("Failed to load feature entries");
 
+    printf("  Loading: ObjectiveData...\n"); fflush(stdout);
     if ( not LoadObjectiveData(filename)) ShiError("Failed to load objective data");
 
+    printf("  Loading: WeaponData...\n"); fflush(stdout);
     if ( not LoadWeaponData(filename)) ShiError("Failed to load weapon data");
 
+    printf("  Loading: FeatureData...\n"); fflush(stdout);
     if ( not LoadFeatureData(filename)) ShiError("Failed to load feature data");
 
+    printf("  Loading: VehicleData...\n"); fflush(stdout);
     if ( not LoadVehicleData(filename)) ShiError("Failed to load vehicle data");
 
+    printf("  Loading: WeaponListData...\n"); fflush(stdout);
     if ( not LoadWeaponListData(filename)) ShiError("Failed to load weapon list");
 
+    printf("  Loading: PtHeaderData...\n"); fflush(stdout);
     if ( not LoadPtHeaderData(filename)) ShiError("Failed to load point headers");
 
+    printf("  Loading: PtData...\n"); fflush(stdout);
     if ( not LoadPtData(filename)) ShiError("Failed to load point data");
 
+    printf("  Loading: RadarData...\n"); fflush(stdout);
     if ( not LoadRadarData(filename)) ShiError("Failed to load radar data");
 
+    printf("  Loading: IRSTData...\n"); fflush(stdout);
     if ( not LoadIRSTData(filename)) ShiError("Failed to load IRST data");
 
+    printf("  Loading: RwrData...\n"); fflush(stdout);
     if ( not LoadRwrData(filename)) ShiError("Failed to load Rwr data");
 
+    printf("  Loading: VisualData...\n"); fflush(stdout);
     if ( not LoadVisualData(filename)) ShiError("Failed to load Visual data");
 
+    printf("  Loading: SimWeaponData...\n"); fflush(stdout);
     if ( not LoadSimWeaponData(filename)) ShiError("Failed to load SimWeapon data");
 
+    printf("  Loading: ACDefData...\n"); fflush(stdout);
     if ( not LoadACDefData(filename)) ShiError("Failed to load AC Definition data");
 
+    printf("  Loading: SquadronStoresData...\n"); fflush(stdout);
     if ( not LoadSquadronStoresData(filename)) ShiError("Failed to load Squadron stores data");
 
+    printf("  Loading: RocketData...\n"); fflush(stdout);
     if ( not LoadRocketData(filename)) ShiError("Failed to load Rocket data"); // added by M.N.
 
+    printf("  Loading: DirtyData...\n"); fflush(stdout);
     if ( not LoadDirtyData(filename)) ShiError("Failed to load Dirty data priorities");   // added by M.N.
 
+    printf("  Loading: MissionData...\n"); fflush(stdout);
     LoadMissionData();
+    printf("  Loading: VisIdMap...\n"); fflush(stdout);
     LoadVisIdMap();
+    printf("  Loading: RackTables...\n"); fflush(stdout);
     LoadRackTables();
+    printf("  Loading: RDRackData...\n"); fflush(stdout);
     RDLoadRackData();
 
+    printf("  All data files loaded! Checking Falcon4ClassTable...\n"); fflush(stdout);
+    printf("  Falcon4ClassTable = %p, NumEntities = %d\n", (void*)Falcon4ClassTable, NumEntities); fflush(stdout);
     F4Assert(Falcon4ClassTable);
     WriteClassTable();
 
@@ -280,23 +322,24 @@ int LoadClassTable(char *filename)
     F4GenericUSTruckType = 534;
     // F4GenericCrewType = GetClassID(DOMAIN_LAND,CLASS_VEHICLE,TYPE_FOOT,STYPE_FOOT_SQUAD,SPTYPE_DPRKARTSQD,VU_ANY,VU_ANY,VU_ANY);
     // Set our special rack Ids
+    // Note: dataPtr at this point is a pointer into WeaponDataTable, so we use proper pointer subtraction
     i = GetClassID(DOMAIN_ABSTRACT, CLASS_WEAPON, TYPE_RACK, STYPE_RACK, SPTYPE_SINGLE, VU_ANY, VU_ANY, VU_ANY);
-    gRackId_Single_Rack = (short)(((int)Falcon4ClassTable[i].dataPtr - (int)WeaponDataTable) / sizeof(WeaponClassDataType));
+    gRackId_Single_Rack = (short)((WeaponClassDataType*)Falcon4ClassTable[i].dataPtr - WeaponDataTable);
     i = GetClassID(DOMAIN_ABSTRACT, CLASS_WEAPON, TYPE_RACK, STYPE_RACK, SPTYPE_TRIPLE, VU_ANY, VU_ANY, VU_ANY);
-    gRackId_Triple_Rack = (short)(((int)Falcon4ClassTable[i].dataPtr - (int)WeaponDataTable) / sizeof(WeaponClassDataType));
+    gRackId_Triple_Rack = (short)((WeaponClassDataType*)Falcon4ClassTable[i].dataPtr - WeaponDataTable);
     i = GetClassID(DOMAIN_ABSTRACT, CLASS_WEAPON, TYPE_RACK, STYPE_RACK, SPTYPE_QUAD, VU_ANY, VU_ANY, VU_ANY);
-    gRackId_Quad_Rack = (short)(((int)Falcon4ClassTable[i].dataPtr - (int)WeaponDataTable) / sizeof(WeaponClassDataType));
+    gRackId_Quad_Rack = (short)((WeaponClassDataType*)Falcon4ClassTable[i].dataPtr - WeaponDataTable);
     i = GetClassID(DOMAIN_ABSTRACT, CLASS_WEAPON, TYPE_RACK, STYPE_RACK, SPTYPE_SIX, VU_ANY, VU_ANY, VU_ANY);
-    gRackId_Six_Rack = (short)(((int)Falcon4ClassTable[i].dataPtr - (int)WeaponDataTable) / sizeof(WeaponClassDataType));
+    gRackId_Six_Rack = (short)((WeaponClassDataType*)Falcon4ClassTable[i].dataPtr - WeaponDataTable);
     i = GetClassID(DOMAIN_ABSTRACT, CLASS_WEAPON, TYPE_RACK, STYPE_RACK, SPTYPE_2RAIL, VU_ANY, VU_ANY, VU_ANY);
-    gRackId_Two_Rack = (short)(((int)Falcon4ClassTable[i].dataPtr - (int)WeaponDataTable) / sizeof(WeaponClassDataType));
+    gRackId_Two_Rack = (short)((WeaponClassDataType*)Falcon4ClassTable[i].dataPtr - WeaponDataTable);
     i = GetClassID(DOMAIN_ABSTRACT, CLASS_WEAPON, TYPE_RACK, STYPE_RACK, SPTYPE_SINGLE_AA, VU_ANY, VU_ANY, VU_ANY);
-    gRackId_Single_AA_Rack = (short)(((int)Falcon4ClassTable[i].dataPtr - (int)WeaponDataTable) / sizeof(WeaponClassDataType));
+    gRackId_Single_AA_Rack = (short)((WeaponClassDataType*)Falcon4ClassTable[i].dataPtr - WeaponDataTable);
     i = GetClassID(DOMAIN_ABSTRACT, CLASS_WEAPON, TYPE_RACK, STYPE_RACK, SPTYPE_MAVRACK, VU_ANY, VU_ANY, VU_ANY);
-    gRackId_Mav_Rack = (short)(((int)Falcon4ClassTable[i].dataPtr - (int)WeaponDataTable) / sizeof(WeaponClassDataType));
+    gRackId_Mav_Rack = (short)((WeaponClassDataType*)Falcon4ClassTable[i].dataPtr - WeaponDataTable);
     // Find our "Rocket Type". That is, the rocket all aircraft rocket pods will fire.
     i = GetClassID(DOMAIN_AIR, CLASS_VEHICLE, TYPE_ROCKET, STYPE_ROCKET, SPTYPE_2_75mm, VU_ANY, VU_ANY, VU_ANY);
-    gRocketId = (short)(((int)Falcon4ClassTable[i].dataPtr - (int)WeaponDataTable) / sizeof(WeaponClassDataType));
+    gRocketId = (short)((WeaponClassDataType*)Falcon4ClassTable[i].dataPtr - WeaponDataTable);
     // Special hardcoded class data for sessions/groups/games
     WriteClassTable();
     Falcon4ClassTable[F4SessionType].vuClassData.managementDomain_ = VU_GLOBAL_DOMAIN;
@@ -384,8 +427,16 @@ int LoadUnitData(char *filename)
     FILE* fp;
     short entries;
 
+    printf("LoadUnitData: trying to open file %s with extension UCD\n", filename);
+    fflush(stdout);
     if ((fp = OpenCampFile(filename, "UCD", "rb")) == NULL)
+    {
+        printf("LoadUnitData: OpenCampFile returned NULL!\n");
+        fflush(stdout);
         return 0;
+    }
+    printf("LoadUnitData: file opened successfully\n");
+    fflush(stdout);
 
     fseek(fp, 0, SEEK_END); // JPO - work out if the file looks the right size.
     unsigned int size = ftell(fp);
@@ -419,8 +470,17 @@ int LoadUnitData(char *filename)
         if (fread(&entries, sizeof(short), 1, fp) < 1)
             return 0;
 
-        if (size not_eq sizeof(UnitClassDataType) * entries + 2)
+        // Debug: print sizes to help diagnose 32/64-bit portability issues
+        unsigned int expectedSize = sizeof(UnitClassDataType) * entries + 2;
+        printf("LoadUnitData: file size=%u, entries=%d, sizeof(UnitClassDataType)=%zu, expected=%u\n",
+               size, entries, sizeof(UnitClassDataType), expectedSize);
+
+        if (size not_eq expectedSize)
+        {
+            printf("LoadUnitData: size mismatch! file=%u expected=%u\n", size, expectedSize);
+            fclose(fp);
             return 0;
+        }
     }
 
     UnitDataTable = new UnitClassDataType[entries];

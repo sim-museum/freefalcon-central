@@ -702,7 +702,11 @@ GLint GIF_UnpackImage(GLint bits, CImageFileMemory *fi, GLint currentFlag)
                     ++line;
             }
 
-            thiscode = *--u;
+            // FF_LINUX: Check bounds before decrement to prevent buffer underflow
+            if (u > firstcodestack)
+                thiscode = *--u;
+            else
+                break;
         };
 
         if (nextcode < 4096 and oldcode not_eq NO_CODE)

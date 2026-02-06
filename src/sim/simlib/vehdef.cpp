@@ -6,7 +6,11 @@
 #include "simfile.h"
 #include "soundfx.h"
 
+#ifdef FF_LINUX
+#define SIM_VEHICLE_DEFINITION_FILE    "sim/vehdef/vehicle.lst"
+#else
 #define SIM_VEHICLE_DEFINITION_FILE    "sim\\vehdef\\vehicle.lst"
+#endif
 
 #ifdef USE_SH_POOLS
 extern MEM_POOL gReadInMemPool;

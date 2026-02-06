@@ -7,10 +7,10 @@
  ground and reoriented so that it's "up" vector is aligned with the
  terrain normal.)
 \***************************************************************************/
-#include "Matrix.h"
-#include "RViewPnt.h"
-#include "RenderOW.h"
-#include "DrawGrnd.h"
+#include "matrix.h"
+#include "rviewpnt.h"
+#include "renderow.h"
+#include "drawgrnd.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL DrawableGroundVehicle::pool;

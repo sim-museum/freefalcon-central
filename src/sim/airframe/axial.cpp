@@ -26,7 +26,7 @@
 /*                                                                            */
 /******************************************************************************/
 #include "stdhdr.h"
-#include "Graphics/Include/drawparticlesys.h"
+#include "graphics/include/drawparticlesys.h"
 #include "airframe.h"
 #include "fack.h"
 #include "aircrft.h"

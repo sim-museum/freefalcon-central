@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <cstdio>
 #include "TheaterDef.h"
 #include "stdhdr.h"
 #include "datafile.h"
@@ -133,7 +134,7 @@ void LoadTheaterDef(char *name)
 void LoadTheaterList()
 {
     char tlist[_MAX_PATH];
-    sprintf(tlist, "%s\\%s", FalconDataDirectory, THEATERLIST);
+    sprintf(tlist, "%s/%s", FalconDataDirectory, THEATERLIST);
     FILE *fp = fopen(tlist, "r");
 
     if (fp == NULL)   // yikes- make something up
@@ -152,6 +153,14 @@ void LoadTheaterList()
 
         if (cp = strchr(line, '\n'))
             * cp = '\0';
+
+        if (cp = strchr(line, '\r'))
+            * cp = '\0';
+
+        // Convert backslashes to forward slashes for Linux
+        for (cp = line; *cp; cp++) {
+            if (*cp == '\\') *cp = '/';
+        }
 
         LoadTheaterDef(line);
     }
@@ -324,7 +333,7 @@ bool TheaterList::SetNewTheater(TheaterDef *td)
     char tmpPath[_MAX_PATH];
     FILE* zipFile;
 
-    sprintf(tmpPath, "%s\\%s", FalconDataDirectory, ZIPFILE_NAME);
+    sprintf(tmpPath, "%s/%s", FalconDataDirectory, ZIPFILE_NAME);
     zipFile = fopen(tmpPath, "r");
 
     if ( not zipFile)
@@ -332,7 +341,7 @@ bool TheaterList::SetNewTheater(TheaterDef *td)
         char string[300];
         sprintf(string, "Failed to open %s\n", tmpPath);
         OutputDebugString(string);
-        ShiError(string);
+        ShiWarning(string);  // Changed from ShiError to ShiWarning - not fatal
         numZips = 0;
     }
     else
@@ -344,7 +353,11 @@ bool TheaterList::SetNewTheater(TheaterDef *td)
         {
             char tmp[256];
             fscanf(zipFile, "%*c%s", tmp);
-            sprintf(tmpPath, "%s\\%s", FalconZipsThrDirectory, tmp);
+            // Convert backslashes in zip path
+            for (char *cp = tmp; *cp; cp++) {
+                if (*cp == '\\') *cp = '/';
+            }
+            sprintf(tmpPath, "%s/%s", FalconZipsThrDirectory, tmp);
 
             if ( not strnicmp(td->m_name, "Korea", 5))
                 resourceHandle[i] = ResAttach(FalconDataDirectory, tmpPath, FALSE);
@@ -372,30 +385,44 @@ bool TheaterList::SetNewTheater(TheaterDef *td)
     ResAddPath(FalconCockpitThrDirectory, TRUE);
     ResAddPath(FalconTacrefThrDirectory, FALSE);
 
+    fprintf(stderr, "  [SetNewTheater] ReadIndex...\n");
     ReadIndex("Strings");
+    fprintf(stderr, "  [SetNewTheater] LoadPriorityTables...\n");
     LoadPriorityTables();
+    fprintf(stderr, "  [SetNewTheater] TheaterReload...\n");
     TheaterReload(FalconTerrainDataDir, Falcon3DDataDir);
 
+    fprintf(stderr, "  [SetNewTheater] ResSetDirectory...\n");
     ResSetDirectory(FalconDataDirectory);
+    fprintf(stderr, "  [SetNewTheater] UnloadClassTable...\n");
     UnloadClassTable();
+    fprintf(stderr, "  [SetNewTheater] LoadClassTable...\n");
     LoadClassTable("Falcon4");
+    fprintf(stderr, "  [SetNewTheater] ReadCampAIInputs...\n");
     ReadCampAIInputs("Falcon4");
+    fprintf(stderr, "  [SetNewTheater] FreeTactics...\n");
     FreeTactics();
+    fprintf(stderr, "  [SetNewTheater] LoadTactics...\n");
     LoadTactics("Falcon4");
+    fprintf(stderr, "  [SetNewTheater] LoadTrails...\n");
     LoadTrails();
 
+    fprintf(stderr, "  [SetNewTheater] Freeing SIM data...\n");
     // RV - Biker - Reload SIM stuff
     FreeAllAirframeData();
     FreeAllMissileData();
     FreeAllBombData();
     FreeDigitalBrainData();
 
+    fprintf(stderr, "  [SetNewTheater] Reading SIM data...\n");
     ReadAllAirframeData();
     ReadAllMissileData();
     ReadAllBombData();
     ReadDigitalBrainData();
 
+    fprintf(stderr, "  [SetNewTheater] SetCurrentTheater...\n");
     SetCurrentTheater(td);
+    fprintf(stderr, "  [SetNewTheater] Complete!\n");
     return true;
 }
 
@@ -423,10 +450,16 @@ void TheaterList::SetPathName(char *dest, char *src, char *reldir)
     if (src == NULL or src[0] == 0)
         strcpy(dest, reldir);
     else if ((src[1] == ':' and isalpha(src[0])) or
-             (src[0] == '\\' and src[1] == '\\')) // probably full pathname
+             (src[0] == '\\' and src[1] == '\\') or
+             (src[0] == '/')) // probably full pathname
         strcpy(dest, src);
     else
-        sprintf(dest, "%s\\%s", reldir, src);
+        sprintf(dest, "%s/%s", reldir, src);
+
+    // Convert backslashes to forward slashes for Linux compatibility
+    for (char *cp = dest; *cp; cp++) {
+        if (*cp == '\\') *cp = '/';
+    }
 }
 
 void TheaterList::SetCurrentTheater(TheaterDef *td)

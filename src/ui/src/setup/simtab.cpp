@@ -1,7 +1,7 @@
 #include "falclib.h"
 #include "chandler.h"
 #include "userids.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "sim/include/stdhdr.h"
 #include "ui_setup.h"
 #include "f4find.h"
@@ -535,7 +535,7 @@ void SetSkillCB(long, short hittype, C_Base *control)
 // object. This object is already constructed at startup when the corresponding
 // playeroptions variable (subTitles) is set to true.
 /*****************************************************************************/
-#include "RadioSubTitle.h"
+#include "radiosubtitle.h"
 extern int g_nSubTitleTTL;
 extern int g_nNumberOfSubTitles;
 extern char g_strRadioflightCol[0x40]; // Retro 27Dec2003

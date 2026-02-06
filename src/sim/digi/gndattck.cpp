@@ -5,7 +5,7 @@
 #include "sms.h"
 #include "smsdraw.h"
 #include "campwp.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "otwdrive.h"
 #include "airframe.h"
 #include "aircrft.h"
@@ -179,15 +179,15 @@ void DigitalBrain::GroundAttackMode(void)
 
     //================================================
 
+    // Cobra - Having problems ID'ing JSOWs on HPs
+    int hasJSOW = FALSE;
+    int reSetup = FALSE;  // Moved here to avoid goto crossing initialization
+
     //================================================
     // Cobra - bypass targeting stuff while flying out
     //================================================
     if (onStation == Downwind)
         goto DownwindBypass;
-
-
-    // Cobra - Having problems ID'ing JSOWs on HPs
-    int hasJSOW = FALSE;
 
     if (
         (hasBomb == TRUE + 4) or
@@ -306,8 +306,6 @@ void DigitalBrain::GroundAttackMode(void)
     {
         SetGroundTarget(NULL);
     }
-
-    int reSetup = FALSE;
 
     if ( not groundTargetPtr)
     {

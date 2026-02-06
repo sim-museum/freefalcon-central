@@ -6,8 +6,8 @@
     Derived class from DrawableBSP which handles large flat objects which
  can lie beneath other objects (ie: runways, carries, bridges).
 ***************************************************************************/
-#include "DrawBldg.h"
-#include "DrawPlat.h"
+#include "drawbldg.h"
+#include "drawplat.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL DrawablePlatform::pool;

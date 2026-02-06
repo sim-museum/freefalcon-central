@@ -1,6 +1,6 @@
 #include "MsgInc/TrackMsg.h"
-#include "Sim/Include/Sms.h"
-#include "Sim/Include/Object.h"
+#include "sim/include/sms.h"
+#include "sim/include/object.h"
 #include "mesg.h"
 #include "rwr.h"
 #include "aircrft.h"

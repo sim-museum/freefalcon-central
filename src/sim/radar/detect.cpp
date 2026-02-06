@@ -8,7 +8,7 @@
 #include "otwdrive.h"
 #include "Entity.h"
 #include "campbase.h"
-#include "radarDoppler.h"
+#include "radardoppler.h"
 #include "simmover.h"//me123
 
 /* 2001-09-07 S.G. RP5 */ extern bool g_bRP5Comp;

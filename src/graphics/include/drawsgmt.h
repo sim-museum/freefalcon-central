@@ -11,13 +11,13 @@
 #ifndef _DRAWSGMT_H_
 #define _DRAWSGMT_H_
 
-#include "DrawObj.h"
-#include "RenderOW.h"
+#include "drawobj.h"
+#include "renderow.h"
 
 #include "context.h"
-#include "Tex.h"
+#include "tex.h"
 #include "falclib/include/alist.h"
-#include "TimeMgr.h"
+#include "timemgr.h"
 
 
 #ifdef USE_SH_POOLS
@@ -196,8 +196,8 @@ public:
 #ifndef _DRAWSGMT_H_
 #define _DRAWSGMT_H_
 
-#include "DrawObj.h"
-#include "Falclib/Include/IsBad.h"
+#include "drawobj.h"
+#include "falclib/include/isbad.h"
 
 #ifdef USE_SH_POOLS
 #include "SmartHeap/Include/smrtheap.h"

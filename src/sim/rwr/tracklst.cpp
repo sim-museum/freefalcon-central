@@ -7,7 +7,7 @@
 #include "simmover.h"
 #include "simdrive.h"
 #include "object.h"
-#include "radarData.h"
+#include "radardata.h"
 
 VehRwrClass::DetectListElement* VehRwrClass::IsTracked(FalconEntity* object)
 {
@@ -114,7 +114,7 @@ VehRwrClass::DetectListElement* VehRwrClass::AddTrack(FalconEntity* object, floa
         }
     }
 
-    numContacts = min(numContacts + 1, MaxRWRTracks);
+    numContacts = min(numContacts + 1, (int)MaxRWRTracks);
     return retval;
 }
 

@@ -8,6 +8,10 @@
 extern MEM_POOL gCockMemPool;
 #endif
 
+// Forward declarations
+class CPPanel;
+class Render2D;
+
 
 //====================================================//
 // Structures used for Initialization
@@ -68,6 +72,8 @@ public:
     float mVScale;
     int mWidth;
     int mHeight;
+    int mx;  // x position
+    int my;  // y position
     RECT mDestRect;
 
     //====================================================//
@@ -92,6 +98,8 @@ public:
     ImageBuffer *mpOTWImage;
     ImageBuffer *mpTemplate;
     CockpitManager *mpCPManager;
+    CPPanel *mpParent;        // parent panel
+    Render2D *mpCPRenderer;   // cockpit 2D renderer
 
     // OW
     PaletteHandle *m_pPalette;

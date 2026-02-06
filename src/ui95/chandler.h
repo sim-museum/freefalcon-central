@@ -21,7 +21,7 @@ class C_Handler;
 #include <dinput.h>
 #include "f4error.h"
 #include "f4thread.h"
-#include "Graphics/Include/imagebuf.h"
+#include "graphics/include/imagebuf.h"
 #include "fsound.h"
 #include "ui95_dd.h"
 #include "ui95defs.h" // BIG Enum for all internal IDs

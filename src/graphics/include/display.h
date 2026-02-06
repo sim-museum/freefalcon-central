@@ -9,9 +9,9 @@
 #define _DISPLAY_H_
 
 #include "Ttypes.h"
-#include "ImageBuf.h" // ASSO:
-#include "Context.h" // ASSO:
-#include "Tex.h" // ASSO:
+#include "imagebuf.h" // ASSO:
+#include "context.h" // ASSO:
+#include "tex.h" // ASSO:
 
 
 //#define USE_ORIGINAL_FONT

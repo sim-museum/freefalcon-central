@@ -1,8 +1,8 @@
 #include "stdhdr.h"
 #include <float.h>
 #include "lantirn.h"
-#include "Graphics/Include/renderir.h"
-#include "Graphics/Include/RViewPnt.h"
+#include "graphics/include/renderir.h"
+#include "graphics/include/rviewpnt.h"
 #include "otwdrive.h"
 #include "simdrive.h"
 #include "aircrft.h"
@@ -12,7 +12,7 @@
 #include "campbase.h"
 #include "camplist.h"
 #include "../../graphics/include/drawbsp.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/dispopts.h"
 
 extern bool g_bTFRFixes;
 

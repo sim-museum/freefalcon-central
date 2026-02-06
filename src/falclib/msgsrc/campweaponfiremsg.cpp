@@ -23,7 +23,7 @@
 #include "Dispcfg.h"
 #include "FalcUser.h"
 #include "simbase.h"
-#include "Graphics/include/rviewpnt.h"
+#include "graphics/include/rviewpnt.h"
 #include "fakerand.h"
 #include "missile.h"
 #include "object.h"
@@ -36,7 +36,7 @@
 #include "falcgame.h"
 #include "falcsess.h"
 #include "InvalidBufferException.h"
-#include "Graphics/Include/drawparticlesys.h"
+#include "graphics/include/drawparticlesys.h"
 
 #define BANDIT_VEH 2800 // 2002-02-21 S.G.
 

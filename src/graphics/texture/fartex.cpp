@@ -148,7 +148,6 @@ BOOL FarTexDB::Setup(DXContext *hrc, const char* path)
 
     if (DisplayOptions.m_texMode == DisplayOptionsClass::TEX_MODE_DDS)
     {
-        DDSURFACEDESC2 ddsd;
         char szRawName[256];
         FILE *fp;
 
@@ -158,7 +157,15 @@ BOOL FarTexDB::Setup(DXContext *hrc, const char* path)
 
         if ( not fp) return TRUE;
 
+#ifdef FF_LINUX
+        // FF_LINUX: Use fixed 124-byte DDS header to avoid 64-bit struct size mismatch
+        DDS_FILE_HEADER ddsd;
+        memset(&ddsd, 0, sizeof(ddsd));
+        fread(&ddsd, 1, sizeof(DDS_FILE_HEADER), fp);
+#else
+        DDSURFACEDESC2 ddsd;
         fread(&ddsd, 1, sizeof(DDSURFACEDESC2), fp);
+#endif
         ShiAssert(ddsd.dwFlags bitand DDSD_LINEARSIZE)
 
         linearSize = ddsd.dwLinearSize;
@@ -589,7 +596,7 @@ void FarTexDB::Activate(DWORD offset)
 
     if (DisplayOptions.m_texMode == DisplayOptionsClass::TEX_MODE_DDS)
     {
-        texArray[offset].handle = (UInt)new TextureHandle;
+        texArray[offset].handle = (uintptr_t)new TextureHandle;
         ShiAssert(texArray[offset].handle);
 
         DWORD info = MPR_TI_DDS;
@@ -601,7 +608,7 @@ void FarTexDB::Activate(DWORD offset)
     }
     else
     {
-        texArray[offset].handle = (UInt)new TextureHandle;
+        texArray[offset].handle = (uintptr_t)new TextureHandle;
         ShiAssert(texArray[offset].handle);
         palHandle->AttachToTexture((TextureHandle *)texArray[offset].handle);
 
@@ -752,7 +759,6 @@ void FarTexDB::FlushHandles()
 
     if (DisplayOptions.m_texMode == DisplayOptionsClass::TEX_MODE_DDS)
     {
-        DDSURFACEDESC2 ddsd;
         char szRawName[256];
         FILE *fp;
 
@@ -762,7 +768,14 @@ void FarTexDB::FlushHandles()
 
         if ( not fp) return;
 
+#ifdef FF_LINUX
+        DDS_FILE_HEADER ddsd;
+        memset(&ddsd, 0, sizeof(ddsd));
+        fread(&ddsd, 1, sizeof(DDS_FILE_HEADER), fp);
+#else
+        DDSURFACEDESC2 ddsd;
         fread(&ddsd, 1, sizeof(DDSURFACEDESC2), fp);
+#endif
         ShiAssert(ddsd.dwFlags bitand DDSD_LINEARSIZE)
 
         linearSize = ddsd.dwLinearSize;
@@ -776,7 +789,11 @@ void FarTexDB::FlushHandles()
 
 bool FarTexDB::SyncDDSTextures(bool bForce)
 {
+#ifdef FF_LINUX
+    DDS_FILE_HEADER ddsd;
+#else
     DDSURFACEDESC2 ddsd;
+#endif
     DWORD dwMagic;
     BYTE *pBuf;
     char szRawName[256], szDDSName[256];
@@ -810,10 +827,15 @@ bool FarTexDB::SyncDDSTextures(bool bForce)
         Load(i, true);
         DumpImageToFile(i);
 
+#ifdef FF_LINUX
+        sprintf(szDDSName, "%s/%d.dds", texturePath, i);
+#else
         sprintf(szDDSName, "%s\\%d.dds", texturePath, i);
+#endif
         fpDDS = fopen(szDDSName, "rb");
         fread(&dwMagic, 1, sizeof(DWORD), fpDDS);
-        fread(&ddsd, 1, sizeof(DDSURFACEDESC2), fpDDS);
+        memset(&ddsd, 0, sizeof(ddsd));
+        fread(&ddsd, 1, sizeof(ddsd), fpDDS);
 
         pBuf = new BYTE[ddsd.dwLinearSize];
         fread(pBuf, 1, ddsd.dwLinearSize, fpDDS);

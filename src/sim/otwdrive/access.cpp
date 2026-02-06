@@ -1,10 +1,10 @@
-#include "Graphics/Include/TOD.h"
-#include "Graphics/Include/RenderOW.h"
-#include "Graphics/Include/RenderNVG.h"
-#include "Graphics/Include/Canvas3D.h"
-#include "Graphics/Include/RViewPnt.h"
-#include "Graphics/Include/Drawbsp.h"
-#include "Graphics/Include/Drawpnt.h"
+#include "graphics/include/tod.h"
+#include "graphics/include/renderow.h"
+#include "graphics/include/rendernvg.h"
+#include "graphics/include/canvas3d.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/drawpnt.h"
 #include "stdhdr.h"
 #include "otwdrive.h"
 #include "hud.h"
@@ -14,7 +14,7 @@
 #include "camplib.h"
 #include "resource.h"
 #include "simbase.h"
-#include "simWeapn.h"
+#include "simweapn.h"
 #include "sfx.h"
 #include "playerop.h"
 #include "FalcSess.h"
@@ -23,12 +23,12 @@
 #include "fakerand.h"
 #include "object.h"
 #include "mesg.h"
-#include "playerOp.h"
+#include "playerop.h"
 #include "sinput.h"
 #include "campbase.h"
 // KCK: These are only for detail level shit.
-#include "SimFeat.h"
-#include "Feature.h"
+#include "simfeat.h"
+#include "feature.h"
 #include "fsound.h"
 #include "vdial.h"
 
@@ -57,7 +57,7 @@ extern int MoveBoom;
 #include "IVibeData.h"
 extern IntellivibeData g_intellivibeData;
 
-#include "Graphics/DXEngine/DXEngine.h"
+#include "graphics/dxengine/dxengine.h"
 extern bool g_bUse_DX_Engine;
 
 void OTWDriverClass::ToggleSidebar(void)

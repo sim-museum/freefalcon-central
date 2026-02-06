@@ -12,6 +12,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "falclib.h"
+#include <cstdint>  // FF_LINUX: For uint32_t
 #include "vu2.h"
 #include "chandler.h"
 #include "ui95_ext.h"
@@ -32,7 +33,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 extern void SetTimeCompression(int newComp);
-extern void SetTime(unsigned long currentTime);
+extern void SetTime(uint32_t currentTime);  // FF_LINUX: Use uint32_t for binary compat
 void UI_Help_Guide_CB(long ID, short hittype, C_Base *ctrl);
 BOOL CampaignClockCB(C_Base *);
 static void hookup_main_buttons(C_Window *win);
@@ -639,7 +640,7 @@ static void TacSelectGameCB(long, short hittype, C_Base *control)
                 if (game)
                 {
                     if (game->GetGameType() == game_TacticalEngagement)
-                        SendMessage(gMainHandler->GetAppWnd(), FM_JOIN_CAMPAIGN, JOIN_PRELOAD_ONLY, game_TacticalEngagement);
+                        SendMessageA(gMainHandler->GetAppWnd(), FM_JOIN_CAMPAIGN, JOIN_PRELOAD_ONLY, game_TacticalEngagement);
                 }
             }
         }

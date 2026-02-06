@@ -1,7 +1,7 @@
 #include "stdhdr.h"
 #include "digi.h"
 #include "otwdrive.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "campwp.h"
 #include "simveh.h"
 #include "fcc.h"

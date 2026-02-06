@@ -12,14 +12,14 @@
 #include <windows.h>
 #include <commctrl.h>
 #include "shi/ShiError.h"
-#include "Matrix.h"
-#include "Loader.h"
-#include "TimeMgr.h"
-#include "DevMgr.h"
+#include "matrix.h"
+#include "loader.h"
+#include "timemgr.h"
+#include "devmgr.h"
 #include "Render3d.h"
-#include "Tex.h"
-#include "ObjectInstance.h"
-#include "StateStack.h"
+#include "tex.h"
+#include "objectinstance.h"
+#include "statestack.h"
 #include "../BspUtil/ParentBuildList.h"
 #include "JoyInput.h"
 #include "resource.h"
@@ -29,7 +29,7 @@
 
 #define DTR  0.01745329F
 #include <Commdlg.h>
-#include "Weather.h"
+#include "weather.h"
 // OW - Todo:
 // - window resizing doesnt work
 // - add mouse control

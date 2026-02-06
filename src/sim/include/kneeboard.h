@@ -8,8 +8,8 @@
 #ifndef _KNEEBOARD_H_
 #define _KNEEBOARD_H_
 
-//#include "Graphics/Include/Render2d.h"
-#include "Graphics/Include/image.h"
+//#include "graphics/include/render2d.h"
+#include "graphics/include/image.h"
 
 class SimVehicleClass;
 class WayPointClass;

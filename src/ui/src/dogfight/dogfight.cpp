@@ -8,7 +8,7 @@
 #include "falclib.h"
 #include "targa.h"
 #include "dxutil/ddutil.h"
-#include "Graphics/Include/imagebuf.h"
+#include "graphics/include/imagebuf.h"
 #include "chandler.h"
 #include "ui95_ext.h"
 #include "entity.h"
@@ -41,7 +41,7 @@
 #include "iconids.h"
 #include "logbook.h"
 #include "ui_dgfgt.h"
-#include "ACSelect.h"
+#include "acselect.h"
 #include "MissEval.h"
 #include "Team.h"
 
@@ -2752,7 +2752,7 @@ void LeaveDogfight()
     FalconLocalSession->SetPlayerFlight(NULL);
     FalconLocalSession->SetCountry(255);
     FalconLocalSession->SetPilotSlot(255);
-    SendMessage(gMainHandler->GetAppWnd(), FM_SHUTDOWN_CAMPAIGN, 0, 0);
+    SendMessageA(gMainHandler->GetAppWnd(), FM_SHUTDOWN_CAMPAIGN, 0, 0);
     CheckFlyButton();
 }
 

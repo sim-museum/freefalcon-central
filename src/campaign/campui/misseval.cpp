@@ -14,7 +14,7 @@
 #include "Package.h"
 #include "feature.h"
 #include "Team.h"
-#include "OwnResult.h"
+#include "ownresult.h"
 #include "EvtParse.h"
 #include "Mesg.h"
 #include "MsgInc/DamageMsg.h"

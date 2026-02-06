@@ -259,20 +259,23 @@ void Render3D::SetFOV(float horizontal_fov, float NearZ)
         D3DXMatrixPerspectiveFov(&matProj, PI / 2, (float)(xRes / yRes), NearZ, context.ZFAR);
 
         // Original FreeFalcon FOV transformation
-        matProj.m10 *= oneOVERtanVFOV;
-        matProj.m11 *= oneOVERtanVFOV;
-        matProj.m12 *= oneOVERtanVFOV;
+        // Note: D3DXMATRIX uses 1-indexed names (_11, _12, etc.)
+        // m10 = _21, m11 = _22, m12 = _23 (row 1 in 0-indexed = row 2 in 1-indexed)
+        matProj._21 *= oneOVERtanVFOV;
+        matProj._22 *= oneOVERtanVFOV;
+        matProj._23 *= oneOVERtanVFOV;
 
-        matProj.m00 *= oneOVERtanHFOV;
-        matProj.m01 *= oneOVERtanHFOV;
-        matProj.m02 *= oneOVERtanHFOV;
+        // m00 = _11, m01 = _12, m02 = _13 (row 0 in 0-indexed = row 1 in 1-indexed)
+        matProj._11 *= oneOVERtanHFOV;
+        matProj._12 *= oneOVERtanHFOV;
+        matProj._13 *= oneOVERtanHFOV;
 
         D3DXMATRIX Flip;
         ZeroMemory(&Flip, sizeof(Flip));
-        Flip.m02 = -1.0f;
-        Flip.m21 = -1.0f;
-        Flip.m10 = 1.0f;
-        Flip.m33 = 1.0f;
+        Flip._13 = -1.0f;   // m02
+        Flip._32 = -1.0f;   // m21
+        Flip._21 = 1.0f;    // m10
+        Flip._44 = 1.0f;    // m33
         D3DXMatrixMultiply(&matProj, &Flip, &matProj);
 
 

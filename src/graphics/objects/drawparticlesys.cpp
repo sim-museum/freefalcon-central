@@ -1,9 +1,9 @@
 #include <cISO646>
 #include <math.h>
 #include "profiler.h"
-#include "Graphics/Include/Drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "falclib/include/fsound.h"
-#include "DrawParticleSys.h"
+#include "drawparticlesys.h"
 #include "tod.h"
 
 #include <iostream>
@@ -28,12 +28,12 @@
     MLR
 \***************************************************************************/
 
-#include "TimeMgr.h"
+#include "timemgr.h"
 #include "falclib/include/token.h"
-#include "RenderOW.h"
-#include "Matrix.h"
-#include "Tex.h"
-#include "Weather.h"
+#include "renderow.h"
+#include "matrix.h"
+#include "tex.h"
+#include "weather.h"
 #include "falclib/include/falclib.h"
 #include "sim/include/simlib.h" // MLR needed for SetVelocity since objects set there Delta values per frame
 #include "sim/include/otwdrive.h" // MLR needed for SetVelocity since objects set there Delta values per frame
@@ -42,9 +42,9 @@
 #include "terrtex.h"
 #include "sfx.h"
 #include "falclib/include/entity.h"
-#include "PSData.h"
+#include "psdata.h"
 #include "drawable.h"
-#include "RedMacros.h"
+#include "redmacros.h"
 
 // for when fakerand just won't do
 #define NRANDPOS ((float)( (float)rand()/(float)RAND_MAX ))
@@ -277,7 +277,11 @@ class ParticleTextureNode : public ANode
 {
 public:
     char TexName[32];
+#ifdef FF_LINUX
+    uintptr_t TexHandle; // FF_LINUX: Use uintptr_t for TextureHandle* on 64-bit
+#else
     DWORD TexHandle;
+#endif
     CTextureItem *TexItem;
 };
 
@@ -522,7 +526,11 @@ public:
     // The Vertices
     ThreeDVertex v0, v1, v2, v3;
     // The textuer Handle
+#ifdef FF_LINUX
+    uintptr_t TexHandle; // FF_LINUX: Use uintptr_t for TextureHandle* on 64-bit
+#else
     DWORD TexHandle;
+#endif
     // The Size random CX
     float SizeRandom;
     CTextureItem *TexItem;
@@ -1763,11 +1771,16 @@ void DrawableParticleSys::SetHeadVelocity(Tpoint *FPS)
 
 inline DWORD ROL(DWORD n)
 {
+#ifdef _MSC_VER
     _asm
     {
         rol n, 1;
     }
     return n;
+#else
+    // Rotate left by 1 bit
+    return (n << 1) | (n >> 31);
+#endif
 }
 
 void DrawableParticleSys::Draw(class RenderOTW *renderer, int LOD)
@@ -2989,6 +3002,14 @@ void  DrawableParticleSys::PS_PolyRun(void)
         bool Visible = true;
         float LightRadius = size * LIGHT_SIZE_CX;
 
+        // Declare variables before goto to avoid C++ cross-initialization error
+        float Flash;
+        DWORD LiteColor;
+        float alpha;
+        DWORD HiColor;
+        DWORD LoColor;
+        mlTrig RotCx;
+
         /////////////////////////////////////////// * CLUSTERING * \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
         // Check for Clustering enabled, if so
         // if whole cluster is OUTSIDE FOV, skip, nothing is visible
@@ -3061,10 +3082,9 @@ void  DrawableParticleSys::PS_PolyRun(void)
         HifColor = PS_EvalTimedRGB(Life, Poly.ColorStage, ppn.colorStages, ppn.color);
 
         // Flash value goes from 0.5 to 1.0
-        float Flash = (max(light, 0.5f) - 0.5f);
+        Flash = (max(light, 0.5f) - 0.5f);
         // Subract from Light the Flash value
         light = (light - Flash) * 2;
-        DWORD LiteColor;
 
         if (PS_NVG or PS_TV)
         {
@@ -3107,10 +3127,10 @@ void  DrawableParticleSys::PS_PolyRun(void)
         if ( not Visible) goto Skip;
 
         // compute Alpha of the Poly
-        float alpha = PS_EvalTimedLinLogFloat(Life, Poly.AlphaStage, ppn.alphaStages, ppn.alpha);
+        alpha = PS_EvalTimedLinLogFloat(Life, Poly.AlphaStage, ppn.alphaStages, ppn.alpha);
 
-        DWORD HiColor = F_TO_UARGB(alpha, HifColor.r, HifColor.g, HifColor.b);
-        DWORD LoColor = F_TO_UARGB(alpha, HifColor.r * .68f, HifColor.g * .68f, HifColor.b * .68f);
+        HiColor = F_TO_UARGB(alpha, HifColor.r, HifColor.g, HifColor.b);
+        LoColor = F_TO_UARGB(alpha, HifColor.r * .68f, HifColor.g * .68f, HifColor.b * .68f);
 
         // Rotation stuff
         Poly.Rotation += Poly.RotationRate * PS_ElapsedTime;
@@ -3126,7 +3146,6 @@ void  DrawableParticleSys::PS_PolyRun(void)
         Quad[3].tu = Poly.tu[3], Quad[3].tv = Poly.tv[3];
 
         // COBRA - RED - Rotation, get the radius and angle
-        mlTrig RotCx;
         mlSinCos(&RotCx, Poly.Rotation);
         RotCx.cos *= size;
         RotCx.sin *= size;
@@ -3580,6 +3599,10 @@ void DrawableParticleSys::PS_ParticleRun(void)
             continue;
         }
 
+        // Declare variables before goto to avoid C++ cross-initialization error
+        float age;
+        PS_PPType *ppn = NULL;
+
         // Security check, no negative life
         if (Part.lifespan <= 0)
         {
@@ -3588,7 +3611,6 @@ void DrawableParticleSys::PS_ParticleRun(void)
         }
 
         // Life calculations
-        float age;
         age = (float)(PS_RunTime - Part.birthTime) * .001f;
         Part.life = age / Part.lifespan;
 
@@ -3596,7 +3618,7 @@ void DrawableParticleSys::PS_ParticleRun(void)
         if (Part.life >= 1.0f) Part.Alive = false;
 
         // Pointer to particle parametes
-        PS_PPType &ppn = PS_PPN[Part.PPN];
+        ppn = &PS_PPN[Part.PPN];
 
 
         // Check if large position change from last Calc,
@@ -3608,9 +3630,9 @@ void DrawableParticleSys::PS_ParticleRun(void)
             Part.GroundLevel = OTWDriver.GetGroundLevel(Part.pos.x, Part.pos.y);
             // Recalc Wind velocity
             Part.Wind = ((WeatherClass*)realWeather)->GetWindVector();
-            Part.Wind.x *= ppn.WindFactor;
-            Part.Wind.y *= ppn.WindFactor;
-            Part.Wind.z *= ppn.WindFactor;
+            Part.Wind.x *= ppn->WindFactor;
+            Part.Wind.y *= ppn->WindFactor;
+            Part.Wind.z *= ppn->WindFactor;
         }
 
 
@@ -3619,13 +3641,13 @@ void DrawableParticleSys::PS_ParticleRun(void)
             // we only need to run this if some time has elapsed
             float gravity, accel;
 
-            gravity = PS_EvalTimedFloat(Part.life, Part.GravityStage, ppn.gravityStages, ppn.gravity);
-            accel = PS_EvalTimedFloat(Part.life, Part.AccelStage, ppn.accelStages, ppn.accel);
+            gravity = PS_EvalTimedFloat(Part.life, Part.GravityStage, ppn->gravityStages, ppn->gravity);
+            accel = PS_EvalTimedFloat(Part.life, Part.AccelStage, ppn->accelStages, ppn->accel);
 
 
-            if (ppn.simpleDrag)
+            if (ppn->simpleDrag)
             {
-                float Drag_x_Time = ppn.simpleDrag * PS_ElapsedTime; // COBRA - RED - Cached same Value
+                float Drag_x_Time = ppn->simpleDrag * PS_ElapsedTime; // COBRA - RED - Cached same Value
 
                 Part.vel.x -= Part.vel.x * Drag_x_Time;
                 Part.vel.y -= Part.vel.y * Drag_x_Time;
@@ -3661,16 +3683,16 @@ void DrawableParticleSys::PS_ParticleRun(void)
             if (Part.pos.z >= Part.GroundLevel)
             {
                 Part.pos.z = Part.GroundLevel;
-                Part.vel.z *= -ppn.bounce * PRANDFloatPos();
+                Part.vel.z *= -ppn->bounce * PRANDFloatPos();
 
-                if (ppn.dieOnGround and Part.lifespan > age) // this will make the particle die
+                if (ppn->dieOnGround and Part.lifespan > age) // this will make the particle die
                 {
                     // will also run the emitters
 
                     Part.lifespan = age;
                 }
 
-                float fps = (ppn.groundFriction * PS_ElapsedTime * (0.5f + 0.5f * PRANDFloatPos()));
+                float fps = (ppn->groundFriction * PS_ElapsedTime * (0.5f + 0.5f * PRANDFloatPos()));
                 float d = sqrt(Part.vel.x * Part.vel.x + Part.vel.y * Part.vel.y + Part.vel.z * Part.vel.z);
                 fps = d + fps;
 
@@ -3697,8 +3719,8 @@ void DrawableParticleSys::PS_ParticleRun(void)
             }
 
             // The Part Size
-            if (ppn.drawType == PSDT_POLY)
-                Part.Radius = PS_EvalTimedLinLogFloat(Part.life, Part.SizeStage, ppn.sizeStages,  ppn.size) * Part.SizeRandom;
+            if (ppn->drawType == PSDT_POLY)
+                Part.Radius = PS_EvalTimedLinLogFloat(Part.life, Part.SizeStage, ppn->sizeStages,  ppn->size) * Part.SizeRandom;
         }
 
 #ifdef DEBUG_PS_ID
@@ -3714,9 +3736,9 @@ void DrawableParticleSys::PS_ParticleRun(void)
             {
                 x = labelPoint.x - 32; // Centers text
                 y = labelPoint.y - 12; // Place text above center of object
-                PS_Renderer->SetColor(ppn.name[0] == '$' ?  0xff0000ff : 0xffff0000);
+                PS_Renderer->SetColor(ppn->name[0] == '$' ?  0xff0000ff : 0xffff0000);
                 PS_Renderer->SetFont(2);
-                PS_Renderer->ScreenText(x, y, ppn.name);
+                PS_Renderer->ScreenText(x, y, ppn->name);
             }
 
 
@@ -3732,7 +3754,7 @@ void DrawableParticleSys::PS_ParticleRun(void)
             // Get the Cluster
             ClusterPosType &Cluster = (((ClusterPosType*)PS_Lists[PS_CLUSTERS_IDX].ObjectList)[Part.CLUSTER]);
 
-            if (ppn.drawType == PSDT_POLY)
+            if (ppn->drawType == PSDT_POLY)
             {
                 // if Already marked as IN Skip all checks
                 if (Cluster.In or Cluster.Out) goto Skip;
@@ -3740,7 +3762,7 @@ void DrawableParticleSys::PS_ParticleRun(void)
                 // 1st, check for Distance, if already out of visibility it's a CLUUSTER OUT OF FOV
                 float Distance = TheDXEngine.DX2D_GetDistance((D3DXVECTOR3 *)&Part.pos);
 
-                if (Distance > ppn.visibleDistance) Cluster.Out = true;
+                if (Distance > ppn->visibleDistance) Cluster.Out = true;
 
                 // Check the whole cluster for light in range
                 if (Distance < Part.Radius * LIGHT_SIZE_CX) Cluster.LightIn = true;
@@ -3969,7 +3991,11 @@ TRAIL_HANDLE DrawableParticleSys::PS_AddTrail(int ID, Tpoint *Pos, PS_PTR OWNER,
     Trail.SizeCx = SizeCx, Trail.AlphaCx = AlphaCx;
 
     ParticleTextureNode *pt = tpn.SideTexture;
+#ifdef FF_LINUX
+    uintptr_t SideTexHandle = pt->TexHandle;
+#else
     DWORD SideTexHandle = pt->TexHandle;
+#endif
     float Spare;
     TheDXEngine.DX2D_GetTextureUV(pt->TexItem, 0, Trail.su[0], Spare);
     TheDXEngine.DX2D_GetTextureUV(pt->TexItem, 1, Trail.su[1], Spare);
@@ -4042,6 +4068,9 @@ void DrawableParticleSys::PS_TrailRun(void)
 #endif
         TrailEmitterType &Trail = (((TrailEmitterType*)PS_Lists[PS_TRAILS_IDX].ObjectList)[ptr]);
         PS_TPType &TPN = PS_TPN[Trail.ID];
+
+        // Declare pointer before goto to avoid C++ cross-initialization error
+        TrailSubPartType *Part = NULL;
 
         // If part is dead, remove it, all last stages have been already killed/exucuted
         if (Trail.OWNER not_eq PS_NOPTR and not (((ParticleNodeType*)PS_Lists[PS_PARTICLES_IDX].ObjectList)[Trail.OWNER]).Alive) Trail.Alive = false;
@@ -4155,7 +4184,7 @@ void DrawableParticleSys::PS_TrailRun(void)
         }
 
         // Get the header segment
-        TrailSubPartType &Part = Trail.TRAIL[Trail.Last];
+        Part = &Trail.TRAIL[Trail.Last];
 
 
         // if here and Trail.Elapsed is more than twice the interval, means trail may have been
@@ -4163,7 +4192,7 @@ void DrawableParticleSys::PS_TrailRun(void)
         if ( not Trail.Split and Trail.Elapsed >= (Trail.Interval * 2))
         {
             // flag the split
-            Part.Exit = Part.Split = true;
+            Part->Exit = Part->Split = true;
             // mark the trail for being in pause
             Trail.Split = true;
             // Ring the List
@@ -4194,13 +4223,13 @@ void DrawableParticleSys::PS_TrailRun(void)
             // Calculate texture extension based on distance
             Trail.NextTexIndex = Trail.LastTexIndex + (Trail.TexStep * Distance / 100.0f);
             // Assign New Texture Coords
-            Part.SideTexIndex = Trail.NextTexIndex;
-            // Part.su[1] = Trail.NextTexIndex;
-            Part.QuadListIndex = Trail.QuadListIndex;
-            Part.QuadListStep = Trail.QuadListStep ;
-            Part.Pos = *(Tpoint*)&SubPos;
+            Part->SideTexIndex = Trail.NextTexIndex;
+            // Part->su[1] = Trail.NextTexIndex;
+            Part->QuadListIndex = Trail.QuadListIndex;
+            Part->QuadListStep = Trail.QuadListStep ;
+            Part->Pos = *(Tpoint*)&SubPos;
 
-            if ( not Trail.Alive) Part.Exit = true;
+            if ( not Trail.Alive) Part->Exit = true;
         }
 
         // Make origin Camera centric
@@ -4365,7 +4394,11 @@ void DrawableParticleSys::PS_SubTrailRun(TrailSubPartType *Trail, D3DXVECTOR3 &O
     // Link here the Texture and get its U/V Coord
     // The BB Surfaces texture
     ParticleTextureNode *pt = TPN.Texture;
+#ifdef FF_LINUX
+    uintptr_t TexHandle = pt->TexHandle;
+#else
     DWORD TexHandle = pt->TexHandle;
+#endif
     float su[4], sv[4];
     TheDXEngine.DX2D_GetTextureUV(pt->TexItem, 0, Quad[0].tu, Quad[0].tv);
     TheDXEngine.DX2D_GetTextureUV(pt->TexItem, 1, Quad[1].tu, Quad[1].tv);
@@ -4374,7 +4407,11 @@ void DrawableParticleSys::PS_SubTrailRun(TrailSubPartType *Trail, D3DXVECTOR3 &O
 
     // The SIDE Texture
     pt = TPN.SideTexture;
+#ifdef FF_LINUX
+    uintptr_t SideTexHandle = pt->TexHandle;
+#else
     DWORD SideTexHandle = pt->TexHandle;
+#endif
     TheDXEngine.DX2D_GetTextureUV(pt->TexItem, 0, su[0], sv[0]);
     TheDXEngine.DX2D_GetTextureUV(pt->TexItem, 1, su[1], sv[1]);
     TheDXEngine.DX2D_GetTextureUV(pt->TexItem, 2, su[2], sv[2]);
@@ -4422,6 +4459,14 @@ void DrawableParticleSys::PS_SubTrailRun(TrailSubPartType *Trail, D3DXVECTOR3 &O
         // Calculate Lifespan from 0.0 to 1.0
         Life =  LifeStep / LifeSpan;
 
+        // Declare variables before goto to avoid C++ cross-initialization error
+        float InvLogLife;
+        float WindStep;
+        float Size;
+        float XAngle;
+        float TexStep, NewTex, SizeStep, NewSize;
+        float SegmentStep, SegmentDone;
+
         // check if life is over, if so, skip
         if (Life >= 1.0f)
         {
@@ -4433,14 +4478,14 @@ void DrawableParticleSys::PS_SubTrailRun(TrailSubPartType *Trail, D3DXVECTOR3 &O
         }
 
         // the logarithmic life stuff...
-        float InvLogLife = SizeArray[F_I32(((float)SIZE_ARRAY_ITEMS * Life))];
+        InvLogLife = SizeArray[F_I32(((float)SIZE_ARRAY_ITEMS * Life))];
         // the Wind step applied to the segment
-        float WindStep = LifeStep * InvLogLife;//LifeStep * min(1.0f, LifeStep/0.003f) ;
+        WindStep = LifeStep * InvLogLife;//LifeStep * min(1.0f, LifeStep/0.003f) ;
 
         //**********************************************************************************
 
         // Update Size
-        float   Size = (BaseSize + SizeRate * InvLogLife) * Part.SizeRnd;
+        Size = (BaseSize + SizeRate * InvLogLife) * Part.SizeRnd;
 
         // Update position...
         S0.x += Part.Offset.x * InvLogLife + Part.Wind.x * WindStep;
@@ -4560,7 +4605,7 @@ void DrawableParticleSys::PS_SubTrailRun(TrailSubPartType *Trail, D3DXVECTOR3 &O
             //******************************** CHECK IF JUST A LINE  ****************************************
 
             // Get the NORMALIZED angle btw View and Vector
-            float XAngle = F_ABS(SVector.x * S0.x + SVector.y * S0.y + SVector.z + S0.z);
+            XAngle = F_ABS(SVector.x * S0.x + SVector.y * S0.y + SVector.z + S0.z);
             XAngle = min(1.0f,  XAngle / (SegmentSize * S0_Distance));
             XAngle = PS_NORM_ASIN(XAngle);
 
@@ -4621,9 +4666,6 @@ void DrawableParticleSys::PS_SubTrailRun(TrailSubPartType *Trail, D3DXVECTOR3 &O
              Quad[2].tu=tu[2], Quad[2].tv=tv[2];
              Quad[3].tu=tu[3], Quad[3].tv=tv[3];
             */
-
-            float TexStep, NewTex, SizeStep, NewSize;
-            float SegmentStep, SegmentDone;
 
             // Check if segment or part of it inside frag radius
             SegmentStep = GetCollisionPoint(S1, S0, FragRadius);
@@ -6132,7 +6174,9 @@ bool DrawableParticleSys::PS_LoadParameters(void)
 
 
     //------------------
-    fclose(fp);
+    if (fp) {
+        fclose(fp);
+    }
     //------------------
 
     if (psContext)

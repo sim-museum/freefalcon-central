@@ -5,6 +5,7 @@ UI Comms Driver stuff (ALL of it which is NOT part of VU)
 */
 
 #include <windows.h>
+#include <cstdint>  // FF_LINUX: For uint32_t
 #include "resource.h"
 #include <tchar.h>
 #include "f4vu.h"
@@ -35,7 +36,7 @@ ulong gStartConnectTime = 0;
 short ViewLogBook = 0;
 
 void StartUITracking();
-void SetTime(unsigned long currentTime);
+void SetTime(uint32_t currentTime);  // FF_LINUX: Use uint32_t for binary compat
 void RemoteLBCleanupCB(void *rec); // cleanup callback
 void ShutdownCampaign(void);
 void StartCommsQueue();

@@ -1,6 +1,7 @@
 #ifndef _VUTYPES_H_
 #define _VUTYPES_H_
 #include <cISO646>
+#include <cstdint>  // For fixed-width integer types
 
 // vutypes.h
 // sfr: vu base types
@@ -23,8 +24,10 @@ typedef unsigned char uchar;
 
 // note: BIG_SCALAR and SM_SCALAR are defined in vumath.h
 
-typedef unsigned long VU_DAMAGE;
-typedef unsigned long VU_TIME;
+// FF_LINUX: Use fixed-width types for binary file compatibility with 32-bit Windows
+// These are used in save files and must be exactly 4 bytes
+typedef uint32_t VU_DAMAGE;
+typedef uint32_t VU_TIME;
 
 #define VU_TICS_PER_SECOND 1000
 
@@ -43,16 +46,18 @@ typedef signed char VU_TRI_STATE; // TRUE, FALSE, or DONT_CARE
 #endif
 
 typedef unsigned char VU_MSG_TYPE;
-typedef unsigned long VU_KEY;
-typedef unsigned long VU_ID_NUMBER;
+// FF_LINUX: Use fixed-width types for binary file compatibility with 32-bit Windows
+typedef uint32_t VU_KEY;
+typedef uint32_t VU_ID_NUMBER;
 
 // sfr: back to inline for efficiency
+// FF_LINUX: Use uint32_t for binary file compatibility with 32-bit Windows
 class VU_SESSION_ID
 {
 public:
     // constructor
     VU_SESSION_ID() : value_(0) {}
-    VU_SESSION_ID(unsigned long value) : value_((unsigned long)value) { }
+    VU_SESSION_ID(uint32_t value) : value_(value) { }
 
     int operator == (const VU_SESSION_ID &rhs) const
     {
@@ -84,23 +89,23 @@ public:
         return (value_ <= rhs.value_ ? TRUE : FALSE);
     }
 
-    operator unsigned long() const
+    operator uint32_t() const
     {
-        return (unsigned long) value_;
+        return value_;
     }
 
     // note: these are private to prevent (mis)use
 private:
-    int operator == (unsigned long &rhs) const ;
-    int operator not_eq (unsigned long &rhs) const ;
-    int operator > (unsigned long &rhs) const ;
-    int operator >= (unsigned long &rhs) const ;
-    int operator < (unsigned long &rhs) const ;
-    int operator <= (unsigned long &rhs) const ;
+    int operator == (uint32_t &rhs) const ;
+    int operator not_eq (uint32_t &rhs) const ;
+    int operator > (uint32_t &rhs) const ;
+    int operator >= (uint32_t &rhs) const ;
+    int operator < (uint32_t &rhs) const ;
+    int operator <= (uint32_t &rhs) const ;
 
     // DATA
 public:
-    unsigned long  value_;
+    uint32_t value_;
 };
 
 class VU_ID
@@ -217,6 +222,7 @@ public:
 
 /** Represents an entity address. All entities are composed of
 * an IP address and 2 receive ports (one for reliable)
+* FF_LINUX: Use uint32_t for binary file compatibility with 32-bit Windows
 */
 class VU_ADDRESS
 {
@@ -225,7 +231,7 @@ public:
     * the receive ports always need to be specified
     */
     VU_ADDRESS(
-        unsigned long ip = 0,                                //< entity IP
+        uint32_t ip = 0,                                     //< entity IP
         unsigned short recvPort = 0,//CAPI_UDP_PORT,         //< port where he receives
         unsigned short reliableRecvPort = 0 //CAPI_TCP_PORT  //< port where he receives reliable data
     )
@@ -238,16 +244,16 @@ public:
     // returns the struct size
     int Size() const
     {
-        // ip + ports
-        return sizeof(long) + sizeof(short) * 2;
+        // ip (4 bytes) + ports (2 * 2 bytes)
+        return sizeof(uint32_t) + sizeof(short) * 2;
     }
 
     // equality: everything equal
     bool operator==(const VU_ADDRESS bitand rhs) const
     {
         return (
-                   (this->ip == rhs.ip) and 
-                   (this->recvPort == rhs.recvPort) and 
+                   (this->ip == rhs.ip) and
+                   (this->recvPort == rhs.recvPort) and
                    (this->reliableRecvPort == rhs.reliableRecvPort)
                );
     }
@@ -262,7 +268,7 @@ public:
 
     // ports and ip data in host order
     unsigned short recvPort, reliableRecvPort;
-    unsigned long ip;
+    uint32_t ip;
 };
 
 

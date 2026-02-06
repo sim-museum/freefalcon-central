@@ -10,7 +10,7 @@
 #include <fcntl.h>
 #include <SYS/STAT.H>
 #include <MgAPIall.h>
-#include "ObjectParent.h"
+#include "objectparent.h"
 #include "FLTreader.h"
 #include "ColorBuildList.h"
 #include "PalBuildList.h"

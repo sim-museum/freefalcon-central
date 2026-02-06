@@ -12,14 +12,14 @@
 #include "msginc/tankermsg.h"
 #include "airframe.h"
 #include "playerop.h"
-#include "PilotInputs.h"
-#include "Graphics/Include/matrix.h"
+#include "pilotinputs.h"
+#include "graphics/include/matrix.h"
 
 // #define FOLLOW_RATE 10.0F //-> externalised for each aircraft (auxaerodata)
 Objective FindNearestFriendlyRunway(Team who, GridIndex X, GridIndex Y);
 float get_air_speed(float, int);
 
-#include "Graphics/include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 
 extern bool g_bNewRefuelHelp;
 extern int g_nShowDebugLabels;

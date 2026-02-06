@@ -31,6 +31,12 @@ extern DWORD p3DpitLolite; // Cobra - 3D pit low night lighting color
 #include "graphics/dxengine/dxvbmanager.h"
 extern bool g_bUse_DX_Engine;
 
+#ifdef FF_LINUX
+#include "ffviper/ff_linux_debug.h"
+// Global render frame counter for debugging (extern for use by other modules)
+unsigned long g_RenderFrameCount = 0;
+#endif
+
 extern bool g_bSlowButSafe;
 extern float g_fMipLodBias;
 
@@ -1917,7 +1923,7 @@ void ContextMPR::CleanupMPRState(GLint flag)
         ClearStateTable(i);
 }
 
-void ContextMPR::SetTexture1(GLint texID)
+void ContextMPR::SetTexture1(intptr_t texID)
 {
     if (texID not_eq lastTexture1)
     {
@@ -1936,7 +1942,7 @@ void ContextMPR::SetTexture1(GLint texID)
     }
 }
 
-void ContextMPR::SetTexture2(GLint texID)
+void ContextMPR::SetTexture2(intptr_t texID)
 {
     if (texID not_eq lastTexture2)
     {
@@ -1953,16 +1959,16 @@ void ContextMPR::SetTexture2(GLint texID)
     }
 }
 
-void ContextMPR::SelectTexture1(GLint texID)
+void ContextMPR::SelectTexture1(intptr_t texID)
 {
 #ifdef _CONTEXT_TRACE_ALL
-    MonoPrint("ContextMPR::ApplyTexture1(0x%X)\n", texID);
+    MonoPrint("ContextMPR::ApplyTexture1(0x%lX)\n", (long)texID);
 #endif
 
-    GLint OriginalID = texID;
+    intptr_t OriginalID = texID;
 
     if (texID)
-        texID = (GLint)((TextureHandle *)texID)->m_pDDS;
+        texID = (intptr_t)((TextureHandle *)texID)->m_pDDS;
 
     if (texID not_eq currentTexture1)
     {
@@ -1995,14 +2001,14 @@ void ContextMPR::SelectTexture1(GLint texID)
     currentTexture2 = -1;
 }
 
-void ContextMPR::SelectTexture2(GLint texID)
+void ContextMPR::SelectTexture2(intptr_t texID)
 {
 #ifdef _CONTEXT_TRACE_ALL
-    MonoPrint("ContextMPR::ApplyTexture2(0x%X)\n", texID);
+    MonoPrint("ContextMPR::ApplyTexture2(0x%lX)\n", (long)texID);
 #endif
 
     if (texID)
-        texID = (GLint)((TextureHandle *)texID)->m_pDDS;
+        texID = (intptr_t)((TextureHandle *)texID)->m_pDDS;
 
     if (texID not_eq currentTexture2)
     {
@@ -2379,6 +2385,12 @@ DWORD VCounter;
 
 void ContextMPR::FlushPolyLists()
 {
+#ifdef FF_LINUX
+    g_RenderFrameCount++;
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "FlushPolyLists ENTER\n");
+    FF_DEBUG_RENDER_FLUSH();
+#endif
+
     VCounter = 0;
 
     // START_PROFILE(BSP_ENGINE_PROF);
@@ -2386,8 +2398,25 @@ void ContextMPR::FlushPolyLists()
     SetState(MPR_STA_ENABLES, MPR_SE_Z_WRITE);
     SetState(MPR_STA_ENABLES, MPR_SE_Z_BUFFERING);
 
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "RenderPolyList(plain) %s\n", plainPolys ? "START" : "SKIP");
+    FF_DEBUG_RENDER_FLUSH();
+#endif
     if (plainPolys not_eq NULL) RenderPolyList(plainPolys);
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "RenderPolyList(plain) DONE\n");
+    FF_DEBUG_RENDER_FLUSH();
+#endif
+
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "RenderPolyList(textured) %s\n", texturedPolys ? "START" : "SKIP");
+    FF_DEBUG_RENDER_FLUSH();
+#endif
     if (texturedPolys not_eq NULL) RenderPolyList(texturedPolys);
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "RenderPolyList(textured) DONE\n");
+    FF_DEBUG_RENDER_FLUSH();
+#endif
 
     // STOP_PROFILE(BSP_ENGINE_PROF);
 
@@ -2397,7 +2426,15 @@ void ContextMPR::FlushPolyLists()
         //START_PROFILE(DX_ENGINE_PROF);
         bool k = bZBuffering ? true : false;
         bZBuffering = false;
+#ifdef FF_LINUX
+        FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "TheDXEngine.FlushBuffers START\n");
+        FF_DEBUG_RENDER_FLUSH();
+#endif
         TheDXEngine.FlushBuffers();
+#ifdef FF_LINUX
+        FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "TheDXEngine.FlushBuffers DONE\n");
+        FF_DEBUG_RENDER_FLUSH();
+#endif
         bZBuffering = k;
         InvalidateState();
         //STOP_PROFILE(DX_ENGINE_PROF);
@@ -2408,7 +2445,15 @@ void ContextMPR::FlushPolyLists()
     SetState(MPR_STA_DISABLES, MPR_SE_Z_WRITE);
     //TheDXEngine.SetStencilMode(STENCIL_CHECK);
 
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "RenderPolyList(translucent) %s\n", translucentPolys ? "START" : "SKIP");
+    FF_DEBUG_RENDER_FLUSH();
+#endif
     if (translucentPolys not_eq NULL) RenderPolyList(translucentPolys);
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "RenderPolyList(translucent) DONE\n");
+    FF_DEBUG_RENDER_FLUSH();
+#endif
 
     TheDXEngine.SetStencilMode(STENCIL_OFF);
 
@@ -2416,12 +2461,24 @@ void ContextMPR::FlushPolyLists()
     plainPolys = texturedPolys = translucentPolys = NULL;
     plainPolyVCnt = texturedPolyVCnt = translucentPolyVCnt = 0;
 
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "AllocResetPool START\n");
+    FF_DEBUG_RENDER_FLUSH();
+#endif
     AllocResetPool();
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "AllocResetPool DONE\n");
+    FF_DEBUG_RENDER_FLUSH();
+#endif
     SetZBuffering(FALSE);
     SetState(MPR_STA_DISABLES, MPR_SE_Z_BUFFERING);
 
     // STOP_PROFILE(BSP_ENGINE_PROF);
 
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "FlushPolyLists EXIT\n");
+    FF_DEBUG_RENDER_FLUSH();
+#endif
     //REPORT_VALUE("Vertices", VCounter);
 }
 
@@ -2577,17 +2634,35 @@ void ContextMPR::RenderPolyList(SPolygon *&pHead)
     SPolygon *pStart, *pEnd, *pCur;
     DWORD offset, vertcnt = 0, verttot = 0;
 
+#ifdef FF_LINUX
+    // Safety check for NULL head pointer
+    if (!pHead) {
+        FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList: pHead is NULL, returning\n");
+        return;
+    }
 
+    static unsigned long polyListCount = 0;
+    polyListCount++;
+    unsigned long batchCount = 0;
+    unsigned long drawCallCount = 0;
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList[%lu] ENTER pHead=%p renderState=%d\n",
+                          polyListCount, (void*)pHead, pHead->renderState);
+    FF_DEBUG_RENDER_FLUSH();
+#endif
 
     if ((pHead->renderState >= STATE_ALPHA_SOLID) and (pHead->renderState <= STATE_ALPHA_TEXTURE_PERSPECTIVE_CLAMP))
     {
 #ifdef FF_LINUX
         // FF_LINUX: Use uintptr_t for pointer arithmetic to avoid truncation on 64-bit
         offset = (DWORD)((uintptr_t)&pHead->zBuffer - (uintptr_t)pHead);
+        FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList: RadixSort offset=%u\n", offset);
 #else
         offset = DWORD(&pHead->zBuffer) - DWORD(pHead);
 #endif
         pHead = (SPolygon *)RadixSortDescending((radix_sort_t *)pHead, offset);
+#ifdef FF_LINUX
+        FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList: RadixSort DONE pHead=%p\n", (void*)pHead);
+#endif
     }
 
     // if Linear Fog is enabled, add it
@@ -2618,22 +2693,52 @@ void ContextMPR::RenderPolyList(SPolygon *&pHead)
         // was 1024
         if ((pEnd == NULL) or (vertcnt + pEnd->numVertices > 32768))
         {
+#ifdef FF_LINUX
+            batchCount++;
+            FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList: Batch[%lu] Lock VB vertcnt=%u\n", batchCount, vertcnt);
+            FF_DEBUG_RENDER_FLUSH();
+#endif
 
             m_pVBB->Lock(DDLOCK_WRITEONLY bitor DDLOCK_SURFACEMEMORYPTR bitor DDLOCK_DISCARDCONTENTS, (LPVOID *)&pIns, NULL);
 
+#ifdef FF_LINUX
+            if (!pIns) {
+                FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList: ERROR VB Lock returned NULL!\n");
+                FF_DEBUG_RENDER_FLUSH();
+                return;
+            }
+#endif
+
             while (pEnd not_eq pCur)
             {
+#ifdef FF_LINUX
+                if (!pCur) {
+                    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList: ERROR pCur is NULL during copy!\n");
+                    break;
+                }
+#endif
                 pIns = pCur->CopyToVertexBuffer(pIns);
                 pCur = pCur->pNext;
             }
 
             m_pVBB->Unlock();
 
+#ifdef FF_LINUX
+            FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList: Batch[%lu] VB Unlocked, drawing\n", batchCount);
+#endif
+
             vertcnt = 0;
             pCur = pStart;
 
             while (pEnd not_eq pCur)
             {
+#ifdef FF_LINUX
+                if (!pCur) {
+                    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList: ERROR pCur is NULL during draw!\n");
+                    break;
+                }
+                drawCallCount++;
+#endif
                 ApplyStateBlock(pCur->renderState);
 
                 if (
@@ -2668,6 +2773,12 @@ void ContextMPR::RenderPolyList(SPolygon *&pHead)
 
     // Disable Fog
     m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGTABLEMODE, D3DFOG_NONE);
+
+#ifdef FF_LINUX
+    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList[%lu] EXIT batches=%lu draws=%lu\n",
+                          polyListCount, batchCount, drawCallCount);
+    FF_DEBUG_RENDER_FLUSH();
+#endif
 }
 
 void ContextMPR::DrawPoly(DWORD opFlag, Poly *poly, int *xyzIdxPtr, int *rgbaIdxPtr, int *IIdxPtr, Ptexcoord *uv, bool bUseFGColor)

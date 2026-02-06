@@ -8,9 +8,9 @@
 #ifndef _DRAWCLD_H_
 #define _DRAWCLD_H_
 
-#include "DrawObj.h"
+#include "drawobj.h"
 #include "context.h"
-#include "Tex.h"
+#include "tex.h"
 
 #ifdef USE_SH_POOLS
 #include "SmartHeap/Include/smrtheap.h"

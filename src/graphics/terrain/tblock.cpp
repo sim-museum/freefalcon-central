@@ -7,7 +7,7 @@
     Each block has pointers to its parent and its four childer.  A block is
  the smallest piece of a map which may be indepently loaded and unloaded.
 \***************************************************************************/
-#include "Tblock.h"
+#include "tblock.h"
 
 
 #ifdef USE_SH_POOLS

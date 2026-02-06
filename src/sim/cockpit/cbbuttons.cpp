@@ -22,8 +22,8 @@
 #include "cphsi.h"
 #include "kneeboard.h"
 #include "dofsnswitches.h"
-#include "PilotInputs.h" //MI
-#include "SimIO.h" // MD
+#include "pilotinputs.h" //MI
+#include "simio.h" // MD
 
 extern bool g_bRealisticAvionics;
 extern bool g_bIFF;

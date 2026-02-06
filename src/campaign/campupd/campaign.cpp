@@ -2669,6 +2669,11 @@ unsigned int __stdcall HandleCampaignThread(void)
     int sleepTic;
     int startup = 0;
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[HandleCampaignThread] STARTED - entering function\n");
+    fflush(stderr);
+#endif
+
 #if defined(_MSC_VER)
     // Set the FPU to Truncate
     _controlfp(_RC_CHOP, MCW_RC);
@@ -2678,6 +2683,12 @@ unsigned int __stdcall HandleCampaignThread(void)
 #endif
 
     TheCampaign.Flags or_eq CAMP_RUNNING;
+
+#ifdef FF_LINUX
+    fprintf(stderr, "[HandleCampaignThread] Set CAMP_RUNNING, campaign_active()=%d\n",
+            ThreadManager::campaign_active());
+    fflush(stderr);
+#endif
 
     while (ThreadManager::campaign_active())
     {
@@ -2698,6 +2709,10 @@ unsigned int __stdcall HandleCampaignThread(void)
         if (TheCampaign.Flags bitand CAMP_SUSPEND_REQUEST)
         {
             // Someone's asked us to suspend
+#ifdef FF_LINUX
+            fprintf(stderr, "[HandleCampaignThread] Got CAMP_SUSPEND_REQUEST, setting CAMP_SUSPENDED\n");
+            fflush(stderr);
+#endif
             TheCampaign.Flags or_eq CAMP_SUSPENDED;
             TheCampaign.Flags xor_eq CAMP_SUSPEND_REQUEST;
         }
@@ -2862,6 +2877,11 @@ unsigned int __stdcall CampaignThread(void)
 {
     int Result = 0;
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[CampaignThread] STARTED - entering function\n");
+    fflush(stderr);
+#endif
+
 #ifdef _WIN32
     __try
     {
@@ -2876,7 +2896,15 @@ unsigned int __stdcall CampaignThread(void)
     }
 #else
     // On Linux, we don't have SEH - just call directly
+#ifdef FF_LINUX
+    fprintf(stderr, "[CampaignThread] About to call HandleCampaignThread()\n");
+    fflush(stderr);
+#endif
     Result = HandleCampaignThread();
+#ifdef FF_LINUX
+    fprintf(stderr, "[CampaignThread] HandleCampaignThread() returned %d\n", Result);
+    fflush(stderr);
+#endif
 #endif
 
     return Result;

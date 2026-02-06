@@ -1823,7 +1823,17 @@ void UI_Cleanup()
 {
     int i;
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[UI_Cleanup] ENTRY\n");
+    fflush(stderr);
+#endif
+
     SetCursor(gCursors[CRSR_WAIT]);
+
+#ifdef FF_LINUX
+    fprintf(stderr, "[UI_Cleanup] SetCursor done, cleaning UI_VuThread...\n");
+    fflush(stderr);
+#endif
 
     if (UI_VuThread)
     {
@@ -1831,12 +1841,27 @@ void UI_Cleanup()
         UI_VuThread = NULL;
     }
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[UI_Cleanup] UI_VuThread done, cleaning gCommsMgr callbacks...\n");
+    fflush(stderr);
+#endif
+
     if (gCommsMgr)
         for (i = 0; i < game_MaxGameTypes; i++)
             gCommsMgr->SetCallback(i, NULL); // Disable callbacks we don't care about when NOT in the UI
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[UI_Cleanup] gCommsMgr callbacks done, sleeping 10ms...\n");
+    fflush(stderr);
+#endif
+
     // End Event Loop
     Sleep(10);
+
+#ifdef FF_LINUX
+    fprintf(stderr, "[UI_Cleanup] Sleep done, cleaning gMapMgr...\n");
+    fflush(stderr);
+#endif
 
     if (gMapMgr)
     {
@@ -1845,12 +1870,22 @@ void UI_Cleanup()
         gMapMgr = NULL;
     }
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[UI_Cleanup] gMapMgr done, cleaning gMainHandler...\n");
+    fflush(stderr);
+#endif
+
     if (gMainHandler)
     {
         gMainHandler->Cleanup();
         delete gMainHandler;
         gMainHandler = NULL;
     }
+
+#ifdef FF_LINUX
+    fprintf(stderr, "[UI_Cleanup] gMainHandler done, cleaning gUIViewer...\n");
+    fflush(stderr);
+#endif
 
     if (gUIViewer)
     {
@@ -1859,17 +1894,46 @@ void UI_Cleanup()
     }
 
 #ifdef FF_LINUX
+    fprintf(stderr, "[UI_Cleanup] gUIViewer done, checking CleanViewpoint (mode=%d)...\n",
+            FalconDisplay.currentMode);
+    fflush(stderr);
     // On Linux, EnterMode(Sim) is called by the sim thread before EndUI() completes.
     // Don't call CleanViewpoint() as it would destroy the viewPoint that the sim thread
     // just created in OTWDriver.Enter(). Only clean viewpoint if we're NOT in Sim mode.
     if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim)
     {
+        fprintf(stderr, "[UI_Cleanup] Calling CleanViewpoint()...\n");
+        fflush(stderr);
         OTWDriver.CleanViewpoint(); // JB 010615
+        fprintf(stderr, "[UI_Cleanup] CleanViewpoint() returned\n");
+        fflush(stderr);
+    }
+    else
+    {
+        fprintf(stderr, "[UI_Cleanup] Skipping CleanViewpoint() - in Sim mode\n");
+        fflush(stderr);
+    }
+    // FF_LINUX: Skip DeviceDependentGraphicsCleanup when in Sim mode.
+    // The sim thread has already called DeviceDependentGraphicsCleanup/Setup
+    // in OTWDriver.Enter(). If we clean up here, we'd destroy the rc (DXContext)
+    // that the sim thread just set up, causing all texture creation to fail.
+    if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim)
+    {
+        fprintf(stderr, "[UI_Cleanup] Calling DeviceDependentGraphicsCleanup()...\n");
+        fflush(stderr);
+        DeviceDependentGraphicsCleanup(&FalconDisplay.theDisplayDevice);
+        fprintf(stderr, "[UI_Cleanup] DeviceDependentGraphicsCleanup() done\n");
+        fflush(stderr);
+    }
+    else
+    {
+        fprintf(stderr, "[UI_Cleanup] Skipping DeviceDependentGraphicsCleanup() - in Sim mode\n");
+        fflush(stderr);
     }
 #else
     OTWDriver.CleanViewpoint(); // JB 010615
-#endif
     DeviceDependentGraphicsCleanup(&FalconDisplay.theDisplayDevice);
+#endif
 
     if (gMusic)
     {
@@ -1884,6 +1948,11 @@ void UI_Cleanup()
         delete gSoundMgr;
         gSoundMgr = NULL;
     }
+
+#ifdef FF_LINUX
+    fprintf(stderr, "[UI_Cleanup] sound/music done, cleaning popup/image/anim managers...\n");
+    fflush(stderr);
+#endif
 
     if (gPopupMgr)
     {

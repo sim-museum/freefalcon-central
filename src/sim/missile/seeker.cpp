@@ -2,7 +2,7 @@
 #include "sensclas.h"
 #include "object.h"
 #include "camp2sim.h"
-#include "radarMissile.h"
+#include "radarmissile.h"
 #include "missile.h"
 #include "simobj.h"
 #include "simdrive.h"

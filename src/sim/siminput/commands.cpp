@@ -1,11 +1,11 @@
 #include "stdhdr.h"
 #include "commands.h"
 #include "simdrive.h"
-#include "OTWDrive.h"
+#include "otwdrive.h"
 #include "aircrft.h"
 #include "fcc.h"
 #include "sms.h"
-#include "SmsDraw.h"
+#include "smsdraw.h"
 #include "airframe.h"
 #include "radar.h"
 #include "radardoppler.h"
@@ -17,7 +17,7 @@
 #include "fsound.h"
 #include "falcsnd/psound.h"
 #include "soundfx.h"
-#include "threadMgr.h"
+#include "threadmgr.h"
 #include "hud.h"
 #include "camp2sim.h"
 #include "fack.h"
@@ -25,21 +25,21 @@
 #include "cpmisc.h"
 #include "navsystem.h"
 #include "cphsi.h"
-#include "KneeBoard.h"
+#include "kneeboard.h"
 #include "ui/include/uicomms.h"
 #include "missile.h"
 #include "mavdisp.h"
 #include "laserpod.h"
-#include "HarmPod.h"
+#include "harmpod.h"
 #include "playerop.h"
 #include "alr56.h"
-#include "MsgInc/TrackMsg.h"
+#include "msginc/trackmsg.h"
 #include "falcsnd/voicemanager.h" //just for debug :DSP
 #include "digi.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "lantirn.h"
 #include "dofsnswitches.h"
-#include "TimerThread.h"
+#include "timerthread.h"
 
 #include "campbase.h"  // Marco for AIM9P
 
@@ -48,10 +48,10 @@
 #include "cmpclass.h"
 #include "caution.h"
 
-#include "ColorBank.h"
+#include "colorbank.h"
 
-#include "SimIO.h" // Retro 3Jan2004
-#include "Drawbsp.h"// Retro 8May2004
+#include "simio.h" // Retro 3Jan2004
+#include "drawbsp.h"// Retro 8May2004
 
 #define RESCALE(in,inmin,inmax,outmin,outmax) ( ((float)(in) - (inmin)) * ((outmax) - (outmin)) / ((inmax) - (inmin)) + (outmin))
 
@@ -11564,7 +11564,7 @@ void SimFuelDump(unsigned long val, int state, void *)
 {
     if (SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP) and (state bitand KEY_DOWN))
     {
-        float fueltodump = max((SimDriver.GetPlayerAircraft()->af->Fuel() + SimDriver.GetPlayerAircraft()->af->ExternalFuel()) / 15.0f, 100);
+        float fueltodump = max((SimDriver.GetPlayerAircraft()->af->Fuel() + SimDriver.GetPlayerAircraft()->af->ExternalFuel()) / 15.0f, 100.0f);
         SimDriver.GetPlayerAircraft()->af->AddFuel(-fueltodump);
     }
 }

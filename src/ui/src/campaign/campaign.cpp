@@ -9,9 +9,9 @@
 #include "falclib.h"
 #include "targa.h"
 #include "dxutil/ddutil.h"
-#include "Graphics/Include/imagebuf.h"
-#include "Graphics/Include/matrix.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/imagebuf.h"
+#include "graphics/include/matrix.h"
+#include "graphics/include/drawbsp.h"
 #include "chandler.h"
 #include "ui95_ext.h"
 #include "cmusic.h"
@@ -42,17 +42,17 @@
 #include "cstores.h"
 #include "cbsplist.h"
 #include "c3dview.h"
-#include "Graphics/Include/loader.h"
+#include "graphics/include/loader.h"
 #include "gps.h"
 #include "userids.h"
 #include "textids.h"
 #include "FalcSess.h"
 #include "Campaign.h"
-#include "Falclib/Include/ui.h"
+#include "falclib/include/ui.h"
 #include "icondefs.h"
 #include "teamdata.h"
 #include "DispCfg.h"
-#include "ACSelect.h"
+#include "acselect.h"
 #include "playerop.h"
 #include "urefresh.h"
 #include "teamdata.h"
@@ -720,7 +720,7 @@ void UI_AddMovieToList(long ID, long timestamp, _TCHAR *Description)
     {
         MovieQTime[MovieCount] = timestamp;
         MovieQ[MovieCount] = ID;
-        _tcsnccpy(MovieQDesc[MovieCount], Description, 79);
+        _tcsncpy(MovieQDesc[MovieCount], Description, 79);
         MovieQDesc[MovieCount][79];
         MovieCount++;
     }

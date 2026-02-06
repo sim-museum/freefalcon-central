@@ -451,7 +451,7 @@ void ICPClass::CruiseHOME(void)
         float fuelConsumed;
         int fuelOnStation;
         fuelConsumed = distanceToSta / 6000.0f * 10.0f * 0.67f;
-        fuelConsumed += min(1, distanceToSta / 6000.0f / 80.0f) * (500.0f - (-playerAC->ZPos()) / 40.0f * 0.5f);
+        fuelConsumed += min(1.0f, distanceToSta / 6000.0f / 80.0f) * (500.0f - (-playerAC->ZPos()) / 40.0f * 0.5f);
         fuelOnStation = (int)(playerAC->GetTotalFuel() - fuelConsumed);
         fos = fuelOnStation;
     }
@@ -684,7 +684,7 @@ void ICPClass::CruiseTOS(void)
         GroundSpeed += GroundSpeed * 0.1F; //<--- This is NOT correct, but it's approximate
     }
 
-    GroundSpeed = max(min(GroundSpeed, 9999), 0);
+    GroundSpeed = max(min(GroundSpeed, 9999.0f), 0.0f);
     sprintf(tempstr, "%3.0f", GroundSpeed);
     strcat(tempstr, "KTS");
 

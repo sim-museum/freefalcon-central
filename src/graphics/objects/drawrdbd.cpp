@@ -6,7 +6,7 @@
  sections of bridges.
 \***************************************************************************/
 #include <cISO646>
-#include "DrawRdbd.h"
+#include "drawrdbd.h"
 
 
 #ifdef USE_SH_POOLS

@@ -3,7 +3,7 @@
 
 #include "f4vu.h"
 #include "geometry.h"
-#include "Graphics/Include/drawBsp.h"
+#include "graphics/include/drawbsp.h"
 #include "CampLib.h"
 
 class ObjectiveClass;

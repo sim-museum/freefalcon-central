@@ -6,7 +6,7 @@
     Provides build time services for sharing colors among all objects.
 \***************************************************************************/
 #include <io.h>
-#include "StateStack.h"
+#include "statestack.h"
 #include "ColorBuildList.h"
 
 

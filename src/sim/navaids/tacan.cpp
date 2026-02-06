@@ -58,6 +58,9 @@ TACAN.CPP
 #include "navsystem.h"
 #include "Navunit.h"
 
+// Forward declaration
+int SearchForChannel(void* element1, void** element2);
+
 //---------------------------------------------------------------
 // External Constant Initialization
 //---------------------------------------------------------------

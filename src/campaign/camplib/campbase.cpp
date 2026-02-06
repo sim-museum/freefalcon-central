@@ -91,6 +91,12 @@ CampBaseClass::CampBaseClass(ushort typeindex, VU_ID_NUMBER id) : FalconEntity(t
 // This call will create a full entity
 CampBaseClass::CampBaseClass(VU_BYTE **stream, long *rem) : FalconEntity(VU_LAST_ENTITY_TYPE, 0)
 {
+    static int ctorCount = 0;
+    ctorCount++;
+    bool doDebug = (ctorCount <= 5);
+
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] CampBaseClass ctor[%d] entry\n", ctorCount); fflush(stderr); }
+
     InitLocalData();
 
     GridIndex x, y;
@@ -107,6 +113,8 @@ CampBaseClass::CampBaseClass(VU_BYTE **stream, long *rem) : FalconEntity(VU_LAST
 
     memcpychk(&share_.entityType_, stream, sizeof(ushort), rem);
 
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] CampBaseClass ctor[%d] entityType=%d\n", ctorCount, (int)share_.entityType_); fflush(stderr); }
+
     if (load_log)
     {
         fprintf(load_log, "(%08x%08x %d) ", share_.id_, share_.entityType_);
@@ -115,7 +123,9 @@ CampBaseClass::CampBaseClass(VU_BYTE **stream, long *rem) : FalconEntity(VU_LAST
 
     memcpychk(&x, stream, sizeof(GridIndex), rem);
     memcpychk(&y, stream, sizeof(GridIndex), rem);
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] CampBaseClass ctor[%d] calling SetLocation(%d,%d)\n", ctorCount, (int)x, (int)y); fflush(stderr); }
     SetLocation(x, y);
+    if (doDebug) { fprintf(stderr, "[FF_LINUX] CampBaseClass ctor[%d] SetLocation done\n", ctorCount); fflush(stderr); }
 
     if (gCampDataVersion < 70)
     {
@@ -171,6 +181,7 @@ CampBaseClass::CampBaseClass(VU_BYTE **stream, long *rem) : FalconEntity(VU_LAST
         share_.ownerId_ = FalconLocalGame->OwnerId();
         SetAssociation(FalconLocalGame->Id());
     }
+    if (ctorCount <= 5) { fprintf(stderr, "[FF_LINUX] CampBaseClass ctor[%d] complete\n", ctorCount); fflush(stderr); }
 }
 
 CampBaseClass::~CampBaseClass(void)

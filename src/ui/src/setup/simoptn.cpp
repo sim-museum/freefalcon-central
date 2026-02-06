@@ -5,7 +5,7 @@
 #include "resource.h"
 #include "f4vu.h"
 #include "sim/include/stdhdr.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 
 void InitSimOptionStuff(HWND hDlg)
 {

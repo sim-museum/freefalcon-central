@@ -1,7 +1,7 @@
 #include "stdhdr.h"
-#include "F4Vu.h"
+#include "f4vu.h"
 #include "missile.h"
-#include "Graphics/Include/display.h"
+#include "graphics/include/display.h"
 #include "simveh.h"
 #include "airunit.h"
 #include "simdrive.h"
@@ -13,7 +13,7 @@
 #include "soundfx.h"
 #include "classtbl.h"
 #include "rwr.h"
-#include "EasyHTS.h"
+#include "easyhts.h"
 
 void HarmTargetingPod::Display(VirtualDisplay* activeDisplay)
 {

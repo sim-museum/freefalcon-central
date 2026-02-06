@@ -9,7 +9,7 @@
 #include "uicomms.h"
 #include "userids.h"
 #include "textids.h"
-#include "F4Error.h"
+#include "f4error.h"
 #include "F4Find.h"
 #include "cmpclass.h"
 #include "tac_class.h"

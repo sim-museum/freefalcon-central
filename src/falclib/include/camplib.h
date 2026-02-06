@@ -4,12 +4,13 @@
 #include "FalcLib.h"
 #include "F4Vu.h"
 #include "FalcList.h"
+#include <cstdint>  // FF_LINUX: For uint32_t
 
 // =====================================
 // Campaign defines and typedefs
 // =====================================
 
-typedef ulong CampaignTime;
+typedef uint32_t CampaignTime;  // FF_LINUX: Use uint32_t for binary compat with 32-bit Windows
 #define CampaignSeconds   1000
 #define CampaignMinutes  60000
 #define CampaignHours  3600000

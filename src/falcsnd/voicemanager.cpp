@@ -69,10 +69,9 @@ HANDLE hThread;
 //int MESGNUM = 0;
 
 extern VoiceManager *VM;
-//extern "C"
-//{
-// DWORD WINAPI VoiceManagementThread( LPVOID lpvThreadParm ) ;
-//}
+
+/* Forward declaration for thread function */
+DWORD WINAPI VoiceManagementThread(LPVOID lpvThreadParm);
 
 VoiceManager::VoiceManager(void)
 {
@@ -144,7 +143,11 @@ int VoiceManager::VoiceOpen(void)
 {
     char filename[MAX_PATH];
 
+#ifdef FF_LINUX
+    sprintf(filename, "%s/falcon.tlk", FalconSoundThrDirectory);
+#else
     sprintf(filename, "%s\\falcon.tlk", FalconSoundThrDirectory);
+#endif
 #if 0
     voiceMapPtr = (char *)map_file(filename);
 #endif
@@ -1719,7 +1722,7 @@ void VoiceManager::AddNoise(VOICE_STREAM_BUFFER *streamBuffer, VU_ID from, int c
 
         minLevel = FloatToInt32(253 - dist / MAX_RADIO_RANGE * 50.0F);
 
-        volume = FloatToInt32(max(-10000, PlayerOptions.GroupVol[COM1_SOUND_GROUP + channel] - dist / MAX_RADIO_RANGE * 2000));
+        volume = FloatToInt32(max(-10000.0f, PlayerOptions.GroupVol[COM1_SOUND_GROUP + channel] - dist / MAX_RADIO_RANGE * 2000));
         SetChannelVolume(channel, volume);
     }
 

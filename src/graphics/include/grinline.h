@@ -44,7 +44,8 @@ inline void glReleaseMemory(void *memptr)
 
     if (memptr)
     {
-        delete[] memptr;
+        // FF_LINUX: Cast to char* to avoid UB with delete[] on void*
+        delete[] static_cast<char*>(memptr);
     }
 
 #endif

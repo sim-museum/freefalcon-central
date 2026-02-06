@@ -24,11 +24,11 @@
 #include "Debuggr.h"
 #include "Team.h"
 #include "Brief.h"
-#include "GTMObj.h"
+#include "gtmobj.h"
 #include "falcsess.h"
 #include "DispCfg.h"
 #include "FalcUser.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "MsgInc/CampEventDataMsg.h"
 
 //sfr: for checks
@@ -86,7 +86,7 @@ EventClass::EventClass(FILE* file)
 
 EventClass::EventClass(uchar **stream, long *rem)
 {
-    if ((rem <= 0) or ( not stream))
+    if ((*rem <= 0) or ( not stream))
     {
         return;
     }
@@ -382,7 +382,7 @@ int LoadCampaignEvents(char* filename, char* scenario)
     for (; i < CE_Events; i++)
         CampEvents[i] = new EventClass(i);
 
-    delete cd.data;
+    delete[] cd.data;  // FF_LINUX: Match new[] with delete[]
     return 1;
 }
 

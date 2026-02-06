@@ -7,11 +7,11 @@
 #include "radar.h"
 #include "campwp.h"
 #include "laserpod.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "camp2sim.h"
 #include "simdrive.h"
 #include "playerop.h"
-#include "flightData.h"
+#include "flightdata.h"
 /* S.G. FOR HAVING GROUND TARGET FROM DIGITALS */ #include "digi.h"
 //MI
 #include "aircrft.h"

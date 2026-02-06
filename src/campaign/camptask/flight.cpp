@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <cstdint>  // FF_LINUX: For int32_t/uint32_t
 #include <conio.h>
 #include <stddef.h>
 #include <fcntl.h>
@@ -7,7 +8,7 @@
 #include <math.h>
 #include "CmpGlobl.h"
 #include "F4Vu.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "CampCell.h"
 #include "CampTerr.h"
 #include "ASearch.h"
@@ -30,14 +31,14 @@
 #include "MsgInc/RadioChatterMsg.h"
 #include "MsgInc/DivertMsg.h"
 #include "MsgInc/WingmanMsg.h"
-#include "MsgInc/AWACsMsg.h"
+#include "MsgInc/AWACSMsg.h"
 #include "MsgInc/FalconFlightPlanMsg.h"
 #include "wingorder.h"
 #include "AIInput.h"
 #include "CmpClass.h"
 #include "MissEval.h"
 #include "classtbl.h"
-#include "PtData.h"
+#include "ptdata.h"
 #include "Tacan.h"
 #include "SimVeh.h"
 #include "Camp2sim.h"
@@ -47,7 +48,7 @@
 #include "dirtybits.h"
 #include "Aircrft.h"
 #include "CampMap.h"
-#include "GndAI.h"
+#include "gndai.h"
 #include "CampStr.h"
 #include "otwdrive.h"
 #include "MsgInc/AWACSMsg.h"
@@ -59,9 +60,9 @@
 extern bool g_bRP5Comp;
 extern bool g_bUseRC135;
 /* 2001-12-10 M.N. */
-#include "SIM/Include/aircrft.h"
+#include "sim/include/aircrft.h"
 
-#include "Graphics/Include/TMap.h"
+#include "graphics/include/tmap.h"
 
 //sfr: added for checks
 #include "InvalidBufferException.h"
@@ -278,7 +279,12 @@ FlightClass::FlightClass(VU_BYTE **stream, long *rem) : AirUnitClass(stream, rem
     }
 
     memcpychk(&pos_.z_, stream, sizeof(BIG_SCALAR), rem);
-    memcpychk(&fuel_burnt, stream, sizeof(long), rem);
+    // FF_LINUX: Read exactly 4 bytes for 32-bit Windows binary compat
+    {
+        int32_t fuel32;
+        memcpychk(&fuel32, stream, sizeof(int32_t), rem);
+        fuel_burnt = fuel32;
+    }
 
     if (gCampDataVersion < 65)
         fuel_burnt = 0;

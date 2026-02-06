@@ -2,13 +2,13 @@
 #include <windows.h>
 #include "resource.h"
 
-#include "Graphics/include/renderwire.h"
-#include "Graphics/include/terrtex.h"
-#include "Graphics/include/rViewPnt.h"
-#include "Graphics/include/loader.h"
-#include "Graphics/include/drawbsp.h"
-#include "Graphics/include/drawpole.h"
-#include "Graphics/include/drawpnt.h"
+#include "graphics/include/renderwire.h"
+#include "graphics/include/terrtex.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/loader.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/drawpole.h"
+#include "graphics/include/drawpnt.h"
 #include "ui95/chandler.h"
 #include "ui95/cthook.h"
 #include "ClassTbl.h"
@@ -25,7 +25,7 @@
 #include "codelib/tools/lists/lists.h"
 #include "acmitape.h"
 #include "AcmiView.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/dispopts.h"
 #include "TimeMgr.h"
 
 extern DeviceManager devmgr;
@@ -33,7 +33,7 @@ extern ACMIView *acmiView;
 extern bool DisplayFullScreen;
 extern int DeviceNumber;
 
-#include "Graphics/DXEngine/DXVBManager.h"
+#include "graphics/dxengine/dxvbmanager.h"
 extern bool g_bUse_DX_Engine;
 
 

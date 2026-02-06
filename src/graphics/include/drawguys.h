@@ -8,7 +8,7 @@
 #ifndef _DRAWGUYS_H_
 #define _DRAWGUYS_H_
 
-#include "DrawGrnd.h"
+#include "drawgrnd.h"
 
 
 class DrawableGuys : public DrawableGroundVehicle

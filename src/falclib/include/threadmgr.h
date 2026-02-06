@@ -20,7 +20,7 @@ struct ThreadInfo
 {
     HANDLE      handle;
     DWORD       status;
-    unsigned long   id;
+    DWORD       id;
 };
 
 class ThreadManager

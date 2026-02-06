@@ -8,8 +8,8 @@
 #ifndef _TEXBANK_H_
 #define _TEXBANK_H_
 
-#include "Tex.h"
-#include "PolyLib.h"
+#include "tex.h"
+#include "polylib.h"
 #include "../../Falclib/Include/FileMemMap.h"
 
 extern class TextureBankClass TheTextureBank;
@@ -80,8 +80,8 @@ public:
     static BOOL IsValidIndex(int id);
     static void SyncDDSTextures(bool bForce = false);
     static void RestoreTexturePool();
-    static void SelectHandle(DWORD);
-    static DWORD GetHandle(DWORD id);
+    static void SelectHandle(intptr_t);
+    static intptr_t GetHandle(DWORD id);
 
 
 protected:

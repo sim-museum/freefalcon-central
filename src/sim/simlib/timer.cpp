@@ -47,7 +47,7 @@ SIM_FLOAT SimLibMinorFrameRate = 50.0F;
 SIM_FLOAT SimLibMajorFrameTime = 0.06F;
 SIM_FLOAT SimLibMajorFrameRate = 16.667F;
 SIM_FLOAT SimLibTimeOfDay;
-SIM_ULONG SimLibElapsedTime;
+VU_TIME SimLibElapsedTime;  // FF_LINUX: Use VU_TIME for binary compat
 SIM_UINT SimLibFrameCount = 0;
 SIM_INT SimLibMinorPerMajor = 3;
 SIMLIB_TIMER_CLASS Timer;

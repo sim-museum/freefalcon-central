@@ -8,7 +8,7 @@
 #include <windows.h>
 #include "f4version.h"
 #include "targa.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "chandler.h"
 #include "ui95_ext.h"
 #include "falcsess.h"
@@ -77,7 +77,7 @@ void INFOSetupRulesControls(void)
         // if(FalconLocalGame not_eq vuPlayerPoolGroup)
         // ebox->SetText(FalconLocalGameEntity->GameName());
         // else
-        if (gCommsMgr->GetTargetGame())
+        if (gCommsMgr && gCommsMgr->GetTargetGame())
             ebox->SetText(gCommsMgr->GetTargetGame()->GameName());
         else
         {
@@ -691,7 +691,7 @@ void ComplyCB(long ID, short hittype, C_Base *control)
     if (hittype not_eq C_TYPE_LMOUSEUP)
         return;
 
-    game = (FalconGameEntity*)gCommsMgr->GetTargetGame();
+    game = gCommsMgr ? (FalconGameEntity*)gCommsMgr->GetTargetGame() : NULL;
 
     ebox = (C_EditBox *)control->Parent_->FindControl(INFO_GAMENAME);
 
@@ -745,7 +745,7 @@ void ComplyCB(long ID, short hittype, C_Base *control)
 
     if (ebox)
     {
-        game = (FalconGameEntity*)gCommsMgr->GetTargetGame();
+        game = gCommsMgr ? (FalconGameEntity*)gCommsMgr->GetTargetGame() : NULL;
 
         if (game and OkCB)
         {
@@ -1598,7 +1598,7 @@ void SetupInfoWindow(void (*tOkCB)(), void (*tCancelCB)())
      CurrRules = &((FalconGameEntity *)gCommsMgr->GetTargetGame())->rules;
     else
      CurrRules = &gRules[RuleMode];*/
-    game = (FalconGameEntity *)gCommsMgr->GetTargetGame();
+    game = gCommsMgr ? (FalconGameEntity *)gCommsMgr->GetTargetGame() : NULL;
 
     if (game)
     {

@@ -696,7 +696,7 @@ void RenderGMComposite::NewImage(Tpoint *at, float platformHdg, BOOL replaceRigh
     radar.context.RestoreState(STATE_ALPHA_TEXTURE); //JAM 18Oct03
     radar.context.SetState(MPR_STA_DST_BLEND_FUNCTION, MPR_BF_ONE);
     //MI TEST
-    radar.context.SelectTexture1((GLint) nTexHandle);
+    radar.context.SelectTexture1((intptr_t) nTexHandle);
     radar.context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 4, pVtx, sizeof(pVtx[0]));
     // radar.context.InvalidateState();
 

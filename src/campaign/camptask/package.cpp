@@ -3,10 +3,11 @@
 // ===================================================
 
 #include <cISO646>
+#include <cstdint>  // FF_LINUX: For int32_t/uint32_t
 #include <stdio.h>
 #include <time.h>
 #include "CmpGlobl.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "vutypes.h"
 #include "Objectiv.h"
 #include "Find.h"
@@ -313,7 +314,12 @@ PackageClass::PackageClass(VU_BYTE **stream, long *rem) : AirUnitClass(stream, r
         memcpychk(&tpy, stream, sizeof(GridIndex), rem);
         memcpychk(&takeoff, stream, sizeof(CampaignTime), rem);
         memcpychk(&tp_time, stream, sizeof(CampaignTime), rem);
-        memcpychk(&package_flags, stream, sizeof(ulong), rem);
+        // FF_LINUX: Read exactly 4 bytes for 32-bit Windows binary compat
+        {
+            uint32_t flags32;
+            memcpychk(&flags32, stream, sizeof(uint32_t), rem);
+            package_flags = flags32;
+        }
         memcpychk(&caps, stream, sizeof(short), rem);
         memcpychk(&requests, stream, sizeof(short), rem);
 
@@ -2299,7 +2305,10 @@ void PackageClass::ReadDirty(VU_BYTE **stream, long *rem)
 
     if (bits bitand DIRTY_PACKAGE_FLAGS)
     {
-        memcpychk(&package_flags, stream, sizeof(ulong), rem);
+        // FF_LINUX: Read exactly 4 bytes for 32-bit Windows binary compat
+        uint32_t flags32;
+        memcpychk(&flags32, stream, sizeof(uint32_t), rem);
+        package_flags = flags32;
     }
 
     if (bits bitand DIRTY_TAKEOFF)

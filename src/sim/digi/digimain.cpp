@@ -15,7 +15,7 @@
 #include "aircrft.h"
 #include "falcsess.h"
 #include "camp2sim.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "simfile.h"
 #include "entity.h"
 #include "atcbrain.h"
@@ -33,7 +33,11 @@ extern MEM_POOL gReadInMemPool;
 extern float g_fAGSlowMoverSpeed; // Cobra
 extern bool g_bwoeir; // FRB
 
+#ifdef FF_LINUX
+#define MANEUVER_DATA_FILE   "sim/acdata/brain/mnvrdata.dat"
+#else
 #define MANEUVER_DATA_FILE   "sim\\acdata\\brain\\mnvrdata.dat"
+#endif
 DigitalBrain::ManeuverChoiceTable DigitalBrain::maneuverData[DigitalBrain::NumMnvrClasses][DigitalBrain::NumMnvrClasses] = {0, 0, 0, -1, -1, -1};
 DigitalBrain::ManeuverClassData DigitalBrain::maneuverClassData[DigitalBrain::NumMnvrClasses] = {0};
 FalconEntity* SpikeCheck(AircraftClass* self, FalconEntity *byHim = NULL, int *data = NULL); // 2002-02-10 S.G.

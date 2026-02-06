@@ -8,6 +8,7 @@
 #ifndef _3DEJ_DEFINE_H_
 #define _3DEJ_DEFINE_H_
 
+#include <stdint.h>
 #include "../../codelib//include/shi/SHIerror.h"
 #include <ddraw.h>
 
@@ -17,6 +18,8 @@
 #endif
 
 
+// Only define GL types if GLEW hasn't already defined them
+#ifndef __glew_h__
 typedef void GLvoid;
 typedef signed char GLchar;
 typedef unsigned char GLuchar;
@@ -24,12 +27,17 @@ typedef signed short GLshort;
 typedef unsigned short GLushort;
 typedef signed int GLint;
 typedef unsigned int GLuint;
-typedef signed long GLlong;
-typedef unsigned long GLulong;
+typedef int32_t GLlong;
+typedef uint32_t GLulong;
 typedef float GLfloat;
 typedef double GLdouble;
 typedef signed char GLbyte;
 typedef unsigned char GLubyte;
+#else
+// GLEW already included - only define types GLEW doesn't define
+typedef unsigned char GLuchar;
+typedef int32_t GLlong;
+#endif
 typedef signed int GLFixed0_14;
 
 // color depth

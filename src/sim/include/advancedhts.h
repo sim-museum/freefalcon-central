@@ -1,7 +1,7 @@
 #ifndef _ADVHARMPOD_H
 #define _ADVHARMPOD_H
 
-#include "HarmPod.h"
+#include "harmpod.h"
 
 
 class AdvancedHarmTargetingPod : public HarmTargetingPod

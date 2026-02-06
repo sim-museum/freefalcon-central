@@ -4,7 +4,7 @@
 #include "shi/ConvFtoI.h"
 #include "grmath.h"
 #include "rotate.h"
-#include "Falclib/Include/IsBad.h"
+#include "falclib/include/isbad.h"
 
 
 // Rotation with fixed point

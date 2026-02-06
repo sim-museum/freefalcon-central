@@ -34,7 +34,7 @@
 #include "MissEval.h"
 #include "Feature.h"
 #include "CampMap.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "classtbl.h"
 #include "falcgame.h"
 

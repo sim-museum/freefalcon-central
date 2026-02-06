@@ -2,7 +2,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include "CmpGlobl.h"
-#include "ListADT.h"
+#include "listadt.h"
 #include "F4Vu.h"
 #include "vutypes.h"
 #include "Objectiv.h"
@@ -539,8 +539,8 @@ int SupplyUnits(Team who, CampaignTime deltaTime)
                         if (repl_a > 0)
                         {
                             TeamInfo[who]->SetReplacementsAvail(TeamInfo[who]->GetReplacementsAvail() - repl_a);
-                            unit->ChangeVehicles(min(repl_a, TeamInfo[who]->GetReplacementsAvail()));
-                            repl_a_s += min(repl_a, TeamInfo[who]->GetReplacementsAvail()); // debug
+                            unit->ChangeVehicles(min(repl_a, (int)TeamInfo[who]->GetReplacementsAvail()));
+                            repl_a_s += min(repl_a, (int)TeamInfo[who]->GetReplacementsAvail()); // debug
                         }
                     }
                     else
@@ -554,8 +554,8 @@ int SupplyUnits(Team who, CampaignTime deltaTime)
                         if (repl_v > 0)
                         {
                             TeamInfo[who]->SetReplacementsAvail(TeamInfo[who]->GetReplacementsAvail() - repl_v);
-                            unit->ChangeVehicles(min(repl_v, TeamInfo[who]->GetReplacementsAvail()));
-                            repl_v_s += min(repl_v, TeamInfo[who]->GetReplacementsAvail()); // debug
+                            unit->ChangeVehicles(min(repl_v, (int)TeamInfo[who]->GetReplacementsAvail()));
+                            repl_v_s += min(repl_v, (int)TeamInfo[who]->GetReplacementsAvail()); // debug
                         }
                     }
 

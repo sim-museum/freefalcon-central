@@ -7,9 +7,14 @@
  display.
 \***************************************************************************/
 #include <cISO646>
+#include <stdarg.h>
+#ifdef FF_LINUX
+#include "conio.h"
+#else
 #include <conio.h>
+#endif
 #include <math.h>
-#include "Mono2D.h"
+#include "mono2d.h"
 
 
 /***************************************************************************\

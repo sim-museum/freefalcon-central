@@ -28,8 +28,8 @@
 #include "stdhdr.h"
 #include "airframe.h"
 #include "aircrft.h"
-#include "Graphics/Include/tmap.h"
-#include "Graphics/Include/rviewpnt.h"  // to get ground type
+#include "graphics/include/tmap.h"
+#include "graphics/include/rviewpnt.h"  // to get ground type
 #include "otwdrive.h"
 
 

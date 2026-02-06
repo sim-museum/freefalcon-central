@@ -8,8 +8,8 @@
 #ifndef _DRAWBSP_H_
 #define _DRAWBSP_H_
 
-#include "ObjectInstance.h"
-#include "DrawObj.h"
+#include "objectinstance.h"
+#include "drawobj.h"
 
 #ifdef USE_SH_POOLS
 #include "SmartHeap/Include/smrtheap.h"

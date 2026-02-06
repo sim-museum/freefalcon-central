@@ -9,10 +9,10 @@
 #define _RENDER2D_H_
 
 #include "Ttypes.h"
-//#include "ImageBuf.h" // ASSO: moved to display.h so the RTT works correctly
-//#include "Context.h" // ASSO: moved to display.h so the RTT works correctly
-#include "Display.h"
-//#include "Tex.h" // ASSO: moved to display.h so the RTT works correctly
+//#include "imagebuf.h" // ASSO: moved to display.h so the RTT works correctly
+//#include "context.h" // ASSO: moved to display.h so the RTT works correctly
+#include "display.h"
+//#include "tex.h" // ASSO: moved to display.h so the RTT works correctly
 
 typedef struct TwoDVertex: public MPRVtxTexClr_t
 {

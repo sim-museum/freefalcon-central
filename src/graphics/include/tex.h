@@ -9,7 +9,7 @@
 #define _TEX_H_
 
 #include "grtypes.h"
-#include "Context.h"
+#include "context.h"
 #include "Palette.h"
 
 struct IDirectDrawSurface7;
@@ -63,9 +63,9 @@ public:
     void FreeTexture();
     void FreePalette();
     void RestoreAll();
-    DWORD TexHandle()
+    intptr_t TexHandle()
     {
-        return (DWORD) texHandle;
+        return (intptr_t) texHandle;
     };
     bool DumpImageToFile(char*, int palID = 0);
 

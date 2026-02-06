@@ -2,7 +2,7 @@
 #define _RADAR_H_
 
 #include "sensclas.h"
-#include "radarData.h"
+#include "radardata.h"
 
 class RadarClass : public SensorClass
 {

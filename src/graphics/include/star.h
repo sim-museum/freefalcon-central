@@ -6,7 +6,7 @@
 #include <math.h>
 #include <string.h>
 #ifndef STAND_ALONE
-#include "grTypes.h"
+#include "grtypes.h"
 #endif
 
 #define NEW(type) ((type *) malloc(sizeof (type)))

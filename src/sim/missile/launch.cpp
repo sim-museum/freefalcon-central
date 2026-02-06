@@ -5,7 +5,7 @@
 #include "acmi/src/include/acmirec.h"
 #include "simveh.h"
 #include "team.h"
-#include "Graphics/Include/drawparticlesys.h"
+#include "graphics/include/drawparticlesys.h"
 
 extern ACMIMissilePositionRecord misPos;
 

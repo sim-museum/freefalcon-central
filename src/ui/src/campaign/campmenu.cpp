@@ -1,9 +1,9 @@
 // Campaign Menus
 
 #include <windows.h>
-#include "Graphics/Include/matrix.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/loader.h"
+#include "graphics/include/matrix.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/loader.h"
 #include "entity.h"
 #include "feature.h"
 #include "vehicle.h"

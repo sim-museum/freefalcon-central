@@ -1,14 +1,14 @@
 #include "stdhdr.h"
 #include "entity.h"
-#include "Object.h"
+#include "object.h"
 #include "simbase.h"
 #include "camp2sim.h"
 #include "team.h"
 #include "simmath.h"
 #include "simmover.h"
-#include "MsgInc/TrackMsg.h"
-#include "Missile.h"
-#include "RadarMissile.h"
+#include "msginc/trackmsg.h"
+#include "missile.h"
+#include "radarmissile.h"
 
 
 RadarMissileClass::RadarMissileClass(int type, SimMoverClass* parentPlatform) : RadarClass(type, parentPlatform)

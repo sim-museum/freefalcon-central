@@ -16,7 +16,8 @@
 #include "../../codelib/include/shi/ShiError.h"
 
 class DisplayDevice;
-enum MPRSurfaceType;
+/* Forward declaration with underlying type for C++11 compatibility */
+enum MPRSurfaceType : int;
 
 #include <ddraw.h>
 #include "context.h"

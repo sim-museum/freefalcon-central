@@ -22,9 +22,9 @@
 // TerrainError is always kills the program even when not in debug mode.
 #define F4Error( string )                                             \
 {    \
- char buffer[80];    \
+ char buffer[512];    \
     \
- sprintf( buffer, "Error:  %0d  %s  %s", __LINE__, __FILE__, __DATE__ ); \
+ snprintf( buffer, sizeof(buffer), "Error:  %0d  %s  %s", __LINE__, __FILE__, __DATE__ ); \
  MessageBox(NULL, buffer, string, MB_OK); \
  exit(-1);    \
 }
@@ -37,21 +37,21 @@ extern int f4AssertsOn, f4HardCrashOn;
 
 #define F4Assert( expr ) \
  if (f4AssertsOn and not (expr)) { \
- char buffer[80];    \
+ char buffer[512];    \
  int choice = IDRETRY; \
  if (f4HardCrashOn) \
  *((unsigned int *) 0x00) = 0; \
  else \
  { \
  while (choice not_eq IDIGNORE) { \
- sprintf( buffer, "Assertion at %0d  %s  %s", __LINE__, __FILE__, __DATE__ );\
+ snprintf( buffer, sizeof(buffer), "Assertion at %0d  %s  %s", __LINE__, __FILE__, __DATE__ );\
  choice = MessageBox(NULL, buffer, "Failed:  " #expr,   \
  MB_ICONERROR bitor MB_ABORTRETRYIGNORE bitor MB_TASKMODAL); \
  if (choice == IDABORT) { \
  exit(-1); \
  } \
  if (choice == IDRETRY) { \
- __asm int 3 \
+ /* __asm int 3 - Windows debug breakpoint not supported on Linux */ \
  } \
  } \
  } \
@@ -59,9 +59,9 @@ extern int f4AssertsOn, f4HardCrashOn;
 
 #define F4Warning( string )               \
 {    \
- char buffer[80];    \
+ char buffer[512];    \
     \
- sprintf( buffer, "Error:  line %0d, %s on %s", __LINE__, __FILE__, __DATE__ ); \
+ snprintf( buffer, sizeof(buffer), "Error:  line %0d, %s on %s", __LINE__, __FILE__, __DATE__ ); \
  MessageBox(NULL, buffer, string, MB_OK); \
 }
 

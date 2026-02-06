@@ -1,17 +1,17 @@
 #include "stdhdr.h"
 #include "f4error.h"
 #include "f4vu.h"
-#include "DrawParticleSys.h"
+#include "drawparticlesys.h"
 #include "missile.h"
-#include "Graphics/Include/drawsgmt.h"
-#include "Graphics/Include/drawbsp.h"
-#include "Graphics/Include/draw2d.h"
+#include "graphics/include/drawsgmt.h"
+#include "graphics/include/drawbsp.h"
+#include "graphics/include/draw2d.h"
 #include "otwdrive.h"
 #include "classtbl.h"
 #include "sfx.h"
 #include "Entity.h"
 #include "weather.h"
-#include "FakeRand.h"
+#include "fakerand.h"
 
 
 extern int g_nmissiletrial;

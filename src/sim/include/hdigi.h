@@ -118,9 +118,12 @@ public:
 
     // Maneuvers
     int  fCount;
+    int groundAvoidNeeded;
+    float groundZ;
     float trackX, trackY, trackZ;
 
     float wpAlt;
+    float holdAlt;
     float lastMoveTime;
     void SetWPalt(float Alt)
     {
@@ -140,7 +143,7 @@ public:
     int  MissileBeamManeuver(void);
     void MachHold(float, float, int);
     // RV - Biker - No need for PullUp
-    // void PullUp (void);
+    void PullUp (void);
     void RollAndPull(void);
     void PullToCollisionPoint(void);
     void PullToControlPoint(void);
@@ -155,8 +158,7 @@ public:
     void Loiter(void);
     void LevelTurn(float loadFactor, float turnDir, int newTurn);
     void GammaHold(float desGamma);
-    // RV - Biker - No more need for AltitudeHold
-    // int AltitudeHold (float desAlt);
+    int AltitudeHold (float desAlt);
     float CollisionTime(void);
     void GoToCurrentWaypoint(void);
     void SelectNextWaypoint(void);
@@ -191,7 +193,7 @@ public:
     void FireControl(void);
     void RunDecisionRoutines(void);
     // RV - Biker - No more need for GroundCheck
-    // void GroundCheck(void);
+    void GroundCheck(void);
     void GunsEngageCheck(void);
     void GunsJinkCheck(void);
     void CollisionCheck(void);

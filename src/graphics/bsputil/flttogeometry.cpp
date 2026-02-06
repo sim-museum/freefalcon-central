@@ -10,8 +10,8 @@
 #include <math.h>
 #include <MgAPIall.h>
 #include "shi/ShiError.h"
-#include "StateStack.h"
-#include "ObjectParent.h"
+#include "statestack.h"
+#include "objectparent.h"
 #include "PosBuildList.h"
 #include "ColorBuildList.h"
 #include "TexBuildList.h"

@@ -5,7 +5,7 @@
 #include <windows.h>
 #endif
 #include "drawable.h"
-#include "Graphics/Include/grtypes.h"
+#include "graphics/include/grtypes.h"
 
 // Forward Class declarations
 

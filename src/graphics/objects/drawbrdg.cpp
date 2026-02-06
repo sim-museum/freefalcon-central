@@ -6,10 +6,10 @@
  bridges (platforms upon which ground vehicles can drive).
 ***************************************************************************/
 
-#include "RViewPnt.h"
-#include "RenderOW.h"
-#include "DrawGrnd.h"
-#include "DrawBrdg.h"
+#include "rviewpnt.h"
+#include "renderow.h"
+#include "drawgrnd.h"
+#include "drawbrdg.h"
 
 #ifdef USE_SH_POOLS
 MEM_POOL DrawableBridge::pool;
@@ -77,17 +77,17 @@ DrawableBridge::~DrawableBridge(void)
 ***************************************************************************/
 void DrawableBridge::AddSegment(DrawableRoadbed *piece)
 {
-    Tpoint max, min;
+    Tpoint maxPt, minPt;
 
     ShiAssert(piece);
 
-    min.x = min.z = -(max.x = max.z = piece->Radius());
+    minPt.x = minPt.z = -(maxPt.x = maxPt.z = piece->Radius());
 
     // Update our center point and inclusion radius
-    maxX = max(maxX, max.z + piece->position.x);
-    minX = min(minX, min.z + piece->position.x);
-    maxY = max(maxY, max.x + piece->position.y);
-    minY = min(minY, min.x + piece->position.y);
+    maxX = max(maxX, maxPt.z + piece->position.x);
+    minX = min(minX, minPt.z + piece->position.x);
+    maxY = max(maxY, maxPt.x + piece->position.y);
+    minY = min(minY, minPt.x + piece->position.y);
 
     position.x = (maxX + minX) * 0.5f;
     position.y = (maxY + minY) * 0.5f;

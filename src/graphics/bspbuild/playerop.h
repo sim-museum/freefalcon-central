@@ -6,7 +6,7 @@
 //#include "falclib.h"
 //#include "ui/include/logbook.h"
 #include <tchar.h>
-#include "PlayerOpDef.h"
+#include "playeropdef.h"
 //#include "rules.h"
 
 

@@ -10,7 +10,7 @@
 #include "ErrorLog.h"
 #include "Entity.h"
 #include "Campdisp.h"
-#include "WinGraph.h"
+#include "wingraph.h"
 #include "CampMap.h"
 #include "CmpClass.h"
 #include "classtbl.h"

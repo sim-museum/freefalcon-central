@@ -3,13 +3,13 @@
 #include "chandler.h"
 #include "ui95_ext.h"
 
-/* 2001-05-10 S.G. */#include "../CAMPAIGN/INCLUDE/CampTerr.h"
-/* 2001-05-10 S.G. */#include "../CAMPAIGN/INCLUDE/Division.h"
-/* 2001-05-10 S.G. */#include "../CAMPAIGN/INCLUDE/Package.h"
-/* 2001-05-10 S.G. */#include "../CAMPAIGN/INCLUDE/Team.h"
-/* 2001-05-10 S.G. */#include "../UI/Include/cmap.h"
-/* 2001-05-10 S.G. */#include "../UI/Include/gps.h"
-/* 2001-05-10 S.G. */#include "../UI/Include/urefresh.h"
+/* 2001-05-10 S.G. */#include "../campaign/include/campterr.h"
+/* 2001-05-10 S.G. */#include "../campaign/include/division.h"
+/* 2001-05-10 S.G. */#include "../campaign/include/package.h"
+/* 2001-05-10 S.G. */#include "../campaign/include/team.h"
+/* 2001-05-10 S.G. */#include "../ui/include/cmap.h"
+/* 2001-05-10 S.G. */#include "../ui/include/gps.h"
+/* 2001-05-10 S.G. */#include "../ui/include/urefresh.h"
 /* 2001-05-10 S.G. */extern GlobalPositioningSystem *gGps;
 
 Circle C_Threat::myCircle;

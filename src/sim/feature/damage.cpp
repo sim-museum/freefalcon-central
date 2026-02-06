@@ -1,4 +1,4 @@
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "stdhdr.h"
 #include "falcmesg.h"
 #include "simfeat.h"
@@ -17,7 +17,7 @@
 #include "acmi/src/include/acmirec.h"
 #include "camplist.h"
 #include "objectiv.h"
-#include "Graphics/Include/drawparticlesys.h"
+#include "graphics/include/drawparticlesys.h"
 #include "Classtbl.h"
 
 extern void UpdateDrawableObject(SimFeatureClass *theFeature);

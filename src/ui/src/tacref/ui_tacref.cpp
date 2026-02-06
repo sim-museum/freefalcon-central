@@ -1,17 +1,17 @@
 #include <windows.h>
-#include "Graphics/Include/TimeMgr.h"
-#include "Graphics/Include/imagebuf.h"
+#include "graphics/include/timemgr.h"
+#include "graphics/include/imagebuf.h"
 #include "dxutil/ddutil.h"
 #include "dispcfg.h"
-#include "Graphics/Include/renderow.h"
-#include "Graphics/Include/RViewPnt.h"
-#include "Graphics/Include/drawbsp.h"
+#include "graphics/include/renderow.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/drawbsp.h"
 #include "unit.h"
 #include "classtbl.h"
 #include "cmpclass.h"
 #include "chandler.h"
 #include "cbsplist.h"
-#include "Graphics/Include/loader.h"
+#include "graphics/include/loader.h"
 #include "c3dview.h"
 #include "soundfx.h"
 #include "fsound.h"
@@ -546,7 +546,7 @@ static void CustomPosStuff(long GroupID, long SubGroupID, long ModelID, BSPLIST 
             switch (SubGroupID)
             {
                 case SUB_CAT_VEHICLES_SHIPS:
-                    TACREF_Object.Distance = static_cast<float>(max(150, (long)((float)((DrawableBSP*)Vehicle->object)->Radius() * 2.7)));
+                    TACREF_Object.Distance = static_cast<float>(max(150L, (long)((float)((DrawableBSP*)Vehicle->object)->Radius() * 2.7)));
                     TACREF_Object.Direction = 0.0f;
 
                     TACREF_Object.MinDistance = ((DrawableBSP*)Vehicle->object)->Radius() + 40;

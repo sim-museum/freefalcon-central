@@ -89,7 +89,7 @@ int LoadTheaterTerrain(char* name)
 
     memcpychk(TheaterCells, &data_ptr, sizeof(CellDataType) * Map_Max_X * Map_Max_Y, &rem);
 
-    delete cd.data;
+    delete[] cd.data;  // FF_LINUX: Match new[] with delete[]
 
     return 1;
 }

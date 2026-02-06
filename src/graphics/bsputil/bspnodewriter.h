@@ -7,7 +7,7 @@
 \***************************************************************************/
 #ifndef _BSPNODEWRITER_H_
 #define _BSPNODEWRITER_H_
-#include "BSPnodes.h"
+#include "bspnodes.h"
 
 
 // Publicly called

@@ -1,12 +1,12 @@
 #include "stdhdr.h"
 #include "aircrft.h"
-#include "PilotInputs.h"
+#include "pilotinputs.h"
 #include "digi.h"
 #include "airframe.h"
 #include "fcc.h"
 #include "sms.h"
 #include "simio.h"
-#include "playerOp.h"
+#include "playerop.h"
 #include "Object.h"
 #include "fakerand.h"
 #include "camp2sim.h"
@@ -21,7 +21,7 @@
 #include "dofsnswitches.h"
 #include "lantirn.h"
 
-#include "flightData.h"  // MD -- 20031110: fixes for ATT HLD autopilot
+#include "flightdata.h"  // MD -- 20031110: fixes for ATT HLD autopilot
 
 extern int narrowFOV;
 extern BOOL playerFlightModelHack;
@@ -39,7 +39,7 @@ extern bool g_bINS; //MI
 
 #define DEBUGLABEL
 #ifdef DEBUGLABEL
-#include "Graphics/include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 extern int g_nShowDebugLabels;
 #endif
 

@@ -7,7 +7,7 @@
 #include "conv.h"
 #include "VoiceManager.h"
 #include "F4Find.h"
-#include "sim/include/Phyconst.h"
+#include "sim/include/phyconst.h"
 #include "playerop.h"
 #include "campaign/include/cmpclass.h"
 #include "campaign/include/find.h"
@@ -201,7 +201,11 @@ void VoiceFilter::LoadCommFile(void)
 {
     char filename[MAX_PATH];
 
+#ifdef FF_LINUX
+    sprintf(filename, "%s/commFile.bin", FalconSoundThrDirectory);
+#else
     sprintf(filename, "%s\\commFile.bin", FalconSoundThrDirectory);
+#endif
 
     // commData = (char *)map_file(filename);
 
@@ -244,7 +248,11 @@ void VoiceFilter::LoadEvalFile(void)
 {
     char filename[MAX_PATH];
 
+#ifdef FF_LINUX
+    sprintf(filename, "%s/evalFile.bin", FalconSoundThrDirectory);
+#else
     sprintf(filename, "%s\\evalFile.bin", FalconSoundThrDirectory);
+#endif
 
     // evalData = (char *)map_file(filename);
 
@@ -287,8 +295,11 @@ void VoiceFilter::LoadFragFile(void)
 {
     char filename[MAX_PATH];
 
-
+#ifdef FF_LINUX
+    sprintf(filename, "%s/fragFile.bin", FalconSoundThrDirectory);
+#else
     sprintf(filename, "%s\\fragFile.bin", FalconSoundThrDirectory);
+#endif
 
     //fragData = (char *)map_file(filename);
 
@@ -645,7 +656,7 @@ void VoiceFilter::PlayRadioMessage(
         // Retro 20Dec2003 start
         if ((radioLabel) and (SimDriver.InSim()))
         {
-            // however there´s a prob as there are a few 'continues' up so maybe I´m missing some chunks here..
+            // however thereï¿½s a prob as there are a few 'continues' up so maybe Iï¿½m missing some chunks here..
             char theChannel = CanUserHearThisMessage(radiofilter, from, to);
 
             if (theChannel)

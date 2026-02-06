@@ -36,7 +36,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include "sim/include/datadir.h"
 #include "f4version.h"
-#include "FalcLib/include/playerop.h"
+#include "falclib/include/playerop.h"
 
 /*
  * Length of test block, number of test blocks.

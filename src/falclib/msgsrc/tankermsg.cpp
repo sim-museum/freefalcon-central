@@ -8,7 +8,7 @@
 #include "cpmanager.h"
 #include "cpmisc.h"
 #include "otwdrive.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "falclib.h"
 #include "falcmesg.h"
 #include "falcgame.h"

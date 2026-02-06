@@ -10,7 +10,7 @@
 #include "bomb.h"
 #include "missile.h"
 #include "misslist.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "weather.h"
 #include "hud.h" //MI
 

@@ -4,7 +4,7 @@
 #include "cpmanager.h"
 #include "dispopts.h"
 #include "playerop.h"
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/renderow.h"
 #include "otwdrive.h"
 
 #if CPLIFT_USE_STRING

@@ -8,7 +8,7 @@
 #include "psound.h"
 #include "f4thread.h"
 #include "soundfx.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "sim/include/simdrive.h"
 #include "sim/include/simlib.h"
 #include "sim/include/otwdrive.h"
@@ -18,7 +18,7 @@
 #include "voicemapper.h"
 #include "sim/include/fcc.h"
 #include "drawbsp.h"
-#include "mlrVoice.h"
+#include "mlrvoice.h"
 #include "profiler.h"
 
 //MI for disabling VMS
@@ -372,7 +372,11 @@ int InitSoundManager(HWND hWnd, int, char *falconDataDir)
     }
 
     char sfxtable[_MAX_PATH];
+#ifdef FF_LINUX
+    sprintf(sfxtable, "%s/%s", FalconSoundThrDirectory, FALCONSNDTABLETXT);
+#else
     sprintf(sfxtable, "%s\\%s", FalconSoundThrDirectory, FALCONSNDTABLETXT);
+#endif
     ShiAssert(SFX_DEF == NULL);
 
     if ( not ReadSFXTableTXT(sfxtable)) // MLR 2003-10-17 Parse text file if it exists
@@ -1151,7 +1155,11 @@ void F4ReloadSFX(void)
     SFX_DEF = NULL;
 
     char sfxtable[_MAX_PATH];
+#ifdef FF_LINUX
+    sprintf(sfxtable, "%s/%s", FalconSoundThrDirectory, FALCONSNDTABLETXT);
+#else
     sprintf(sfxtable, "%s\\%s", FalconSoundThrDirectory, FALCONSNDTABLETXT);
+#endif
 
     if ( not ReadSFXTableTXT(sfxtable)) // MLR 2003-10-17 Parse text file if it exists
     {
@@ -1187,7 +1195,11 @@ void LoadSFX(char *falconDataDir)
             if ((SFX_DEF[i].flags bitand SFX_FLAGS_HIGH) == 0)
                 continue;
 
+#ifdef FF_LINUX
+            sprintf(fname, "%s/%s", FalconSoundThrDirectory, SFX_DEF[i].fileName);
+#else
             sprintf(fname, "%s\\%s", FalconSoundThrDirectory, SFX_DEF[i].fileName);
+#endif
             //SFX_DEF[i].handle = F4LoadFXSound(fname, SND_EXCLUSIVE, &SFX_DEF[i]);
             SFX_DEF[i].handle = F4LoadFXSound(fname, SFX_DEF[i].flags, &SFX_DEF[i]);
             //if(SFX_DEF[i].handle == SND_NO_HANDLE)
@@ -1203,7 +1215,11 @@ void LoadSFX(char *falconDataDir)
             if (SFX_DEF[i].flags bitand SFX_FLAGS_HIGH)
                 continue;
 
+#ifdef FF_LINUX
+            sprintf(fname, "%s/%s", FalconSoundThrDirectory, SFX_DEF[i].fileName);
+#else
             sprintf(fname, "%s\\%s", FalconSoundThrDirectory, SFX_DEF[i].fileName);
+#endif
             //SFX_DEF[i].handle = F4LoadFXSound(fname, SND_EXCLUSIVE, &SFX_DEF[i]);
             SFX_DEF[i].handle = F4LoadFXSound(fname, SFX_DEF[i].flags, &SFX_DEF[i]);
             //if(SFX_DEF[i].handle == SND_NO_HANDLE)

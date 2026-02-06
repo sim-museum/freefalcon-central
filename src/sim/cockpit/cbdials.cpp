@@ -6,9 +6,9 @@
 #include "aircrft.h"
 #include "cmpclass.h"
 #include "vu.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "vdial.h"
-#include "PilotInputs.h" //MI
+#include "pilotinputs.h" //MI
 #include "phyconst.h" //TJL 01/05/04
 
 extern bool g_bRealisticAvionics;

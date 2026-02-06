@@ -103,7 +103,77 @@ if(WIN32)
 endif()
 
 if(FF_PLATFORM_LINUX)
-    target_link_libraries(FFViper dl m)
+    # Circular dependencies between static libraries require the whole-archive approach
+    # Use -Wl,--whole-archive and -Wl,--no-whole-archive to force inclusion of all symbols
+    target_link_libraries(FFViper
+        # Linker group start
+        "-Wl,--start-group"
+        # Compat must come first to provide stubs
+        compat
+        # UI
+        ui
+        ui95
+        ui95_ext
+        # Graphics
+        objects
+        renderer
+        3dlib
+        bsplib
+        dxengine
+        ddstuff
+        texture
+        terrain
+        weather
+        gfx_utils
+        nvdxt
+        # Core
+        falclib
+        vu2
+        falcsnd
+        # Campaign
+        camplib
+        camptask
+        campui
+        campupd
+        comms
+        # Simulation
+        simlib
+        otwdrive
+        simdrive
+        siminput
+        simloop
+        cockpit
+        displays
+        aircraft
+        airframe
+        ground
+        helo
+        feature
+        bomb
+        digi
+        hdigi
+        fcc
+        guns
+        missile
+        radar
+        rwr
+        irst
+        visual
+        icp
+        navaids
+        eject
+        faults
+        # Other
+        acmi
+        crashhandler
+        lists
+        resmgr
+        # Linker group end
+        "-Wl,--end-group"
+        # System libraries come after the group
+        dl
+        m
+    )
 
     if(SDL2_FOUND)
         target_link_libraries(FFViper ${SDL2_LIBRARIES})

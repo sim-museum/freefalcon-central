@@ -1,11 +1,11 @@
 #include <cISO646>
-#include "SIM/INCLUDE/stdhdr.h"
+#include "sim/include/stdhdr.h"
 #include <tchar.h>
 #include <time.h>
 #include "logbook.h"
 #include "F4find.h"
 #include "classtbl.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 #include "chandler.h"
 #include "uicomms.h"
 #include "campmiss.h"
@@ -89,14 +89,8 @@ void LogBookData::Initialize(void)
 {
     char path[MAX_PATH];
 
-    if (gStringMgr)
-    {
-        _tcscpy(Pilot.Name, gStringMgr->GetString(TXT_JOE_PILOT));
-    }
-    else
-    {
-        _tcscpy(Pilot.Name, _T("Joe Pilot"));
-    }
+    const _TCHAR* pilotName = gStringMgr ? gStringMgr->GetString(TXT_JOE_PILOT) : NULL;
+    _tcscpy(Pilot.Name, pilotName ? pilotName : _T("Joe Pilot"));
 
     _tcscpy(Pilot.Callsign, _T("Viper"));
     _tcscpy(Pilot.OptionsFile, _T("Default"));

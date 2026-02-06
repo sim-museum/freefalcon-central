@@ -118,9 +118,14 @@ so insure MAX_DIRECTORIES is large enough in released versions.
 
 #define RES_PREDETERMINE_SIZE           NO          /* count all entries before performing alloc    */
 
+#ifdef FF_LINUX
+/* Linux: Disable custom streaming I/O as it depends on Windows FILE internals */
+#define RES_STREAMING_IO                NO
+#define RES_REPLACE_STREAMING           NO
+#else
 #define RES_STREAMING_IO                YES         /* allow the standard i/o streaming functions   */
-
 #define RES_REPLACE_STREAMING           YES         /* use ftell or ResFTell? (comment in RESMGR.C) */
+#endif
 
 #define RES_WILDCARD_PATHS              YES         /* allow wildcard explansion of directory paths?*/
 

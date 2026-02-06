@@ -1,12 +1,12 @@
 #include <math.h>
 #include "../include/ObjectInstance.h"
 #include "dxdefines.h"
-#include "DXVBManager.h"
+#include "dxvbmanager.h"
 #include "mmsystem.h"
 #include "dxengine.h"
 #include "../include/ObjectLOD.h"
-#include "DXTools.h"
-#include "DXLightEngine.h"
+#include "dxtools.h"
+#include "dxlightengine.h"
 
 #ifndef DEBUG_ENGINE
 

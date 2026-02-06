@@ -2,6 +2,7 @@
 
 #pragma once
 
+#ifdef _WIN32
 // #define USE_ATL_SMART_POINTERS
 
 #ifndef USE_ATL_SMART_POINTERS
@@ -32,3 +33,37 @@ inline void CheckHR(HRESULT hr)
         throw _com_error(hr, pEI);
     }
 }
+
+#else  /* Linux/non-Windows */
+
+// On Linux, we use the interface types from our compat headers
+// Forward declarations (full definitions in compat/ddraw.h and compat/d3d.h)
+struct IDirectDraw;
+struct IDirectDrawPalette;
+struct IDirectDraw7;
+struct IDirect3D;
+struct IDirect3D7;
+struct IDirectDrawSurface7;
+struct IDirectDrawClipper;
+struct IDirect3DDevice7;
+struct IDirect3DVertexBuffer7;
+struct IDirectDrawGammaControl;
+
+typedef IDirectDraw* IDirectDrawPtr;
+typedef IDirectDrawPalette* IDirectDrawPalettePtr;
+typedef IDirectDraw7* IDirectDraw7Ptr;
+typedef IDirect3D* IDirect3DPtr;
+typedef IDirect3D7* IDirect3D7Ptr;
+typedef IDirectDrawSurface7* IDirectDrawSurface7Ptr;
+typedef IDirectDrawClipper* IDirectDrawClipperPtr;
+typedef IDirect3DDevice7* IDirect3DDevice7Ptr;
+typedef IDirect3DVertexBuffer7* IDirect3DVertexBuffer7Ptr;
+typedef IDirectDrawGammaControl* IDirectDrawGammaControlPtr;
+
+inline void CheckHR(HRESULT hr)
+{
+    (void)hr;
+    // No-op on Linux - will be replaced with proper error handling
+}
+
+#endif /* _WIN32 */

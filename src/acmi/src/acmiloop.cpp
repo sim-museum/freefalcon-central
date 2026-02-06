@@ -10,13 +10,13 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "Graphics/Include/grtypes.h"
-#include "Graphics/Include/RenderWire.h"
-#include "Graphics/Include/terrtex.h"
-#include "Graphics/Include/Drawpole.h"
-#include "Graphics/Include/TimeMgr.h"
-#include "Graphics/Include/RViewPnt.h"
-#include "Graphics/include/renderow.h"
+#include "graphics/include/grtypes.h"
+#include "graphics/include/renderwire.h"
+#include "graphics/include/terrtex.h"
+#include "graphics/include/drawpole.h"
+#include "graphics/include/timemgr.h"
+#include "graphics/include/rviewpnt.h"
+#include "graphics/include/renderow.h"
 #include "codelib/tools/lists/lists.h"
 #include "ui95/chandler.h"
 #include "ui95/cthook.h"
@@ -29,7 +29,7 @@
 #include "ui/include/textids.h"
 #include "acmitape.h"
 #include "AcmiView.h"
-#include "FalcLib/include/dispopts.h"
+#include "falclib/include/dispopts.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

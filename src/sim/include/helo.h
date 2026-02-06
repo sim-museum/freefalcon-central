@@ -2,7 +2,7 @@
 #define _HELICOPTER_CLASS_H
 
 #include "simVeh.h"
-#include "hardPnt.h"
+#include "hardpnt.h"
 #include "fsound.h"
 
 #define FLARE_STATION 0

@@ -6,12 +6,12 @@
 #include "campbase.h"
 #include "radar.h"
 #include "Find.h" // 2002-03-11 MN
-#include "Falclib/include/MsgInc/RadioChatterMsg.h" // MN
+#include "falclib/include/msginc/radiochattermsg.h" // MN
 #include "Flight.h" // MN
 
 #define SHOW_MANEUVERLABELS
 #ifdef SHOW_MANEUVERLABELS
-#include "Graphics/include/drawbsp.h"
+#include "graphics/include/drawbsp.h"
 #include "SimDrive.h"
 extern int g_nShowDebugLabels;
 extern int g_nAirbaseCheck;

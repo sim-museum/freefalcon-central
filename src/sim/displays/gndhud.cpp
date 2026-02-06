@@ -1,15 +1,15 @@
 #include "stdhdr.h"
 #include "hud.h"
 #include "fcc.h"
-#include "Graphics/Include/display.h"
+#include "graphics/include/display.h"
 #include "aircrft.h"
 #include "simmover.h"
-#include "flightData.h"
+#include "flightdata.h"
 #include "sms.h"// status ok.
 #include "laserpod.h" //MI
 #include "simdrive.h" //MI
 
-#include "simWeapn.h" //Wombat778 3-09-04
+#include "simweapn.h" //Wombat778 3-09-04
 #include "classtbl.h" //Wombat778 3-09-04
 
 #include "harmpod.h" // RV - I-Hawk
@@ -627,7 +627,7 @@ void HudClass::DrawSteeringToRelease(void)
     char tmpStr[32];
     float steeringLineX, solutionCueY;
     float puacY, fpmY;
-    int min, sec;
+    int minutes, sec;
     float slantRange;
     //TJL 12/04/03 Added latRange
     float latRange = 0.0f;
@@ -816,11 +816,11 @@ void HudClass::DrawSteeringToRelease(void)
         }
 
         // Text Data
-        min = (int)(FCC->airGroundDelayTime / 60.0F);
-        sec = (int)(FCC->airGroundDelayTime - min * 60.0F);
+        minutes = (int)(FCC->airGroundDelayTime / 60.0F);
+        sec = (int)(FCC->airGroundDelayTime - minutes * 60.0F);
 
         // Time to release
-        sprintf(tmpStr, "%02d:%02d", min, sec);
+        sprintf(tmpStr, "%02d:%02d", minutes, sec);
         ShiAssert(strlen(tmpStr) < sizeof(tmpStr));
 
         //MI
@@ -919,7 +919,7 @@ void HudClass::DrawRPod(void)
     }
 }
 
-#include "SimIO.h" // Retro 3Jan2004
+#include "simio.h" // Retro 3Jan2004
 
 void HudClass::DrawMANReticle(void)
 {
@@ -1019,7 +1019,7 @@ void HudClass::DrawSteeringToReleaseLADD(void)
     char tmpStr[32];
     float steeringLineX, solutionCueY;
     float puacY, fpmY;
-    int min, sec;
+    int minutes, sec;
     float slantRange;
     //me123 tofextra is the extra tof for the last bomb(this is the bomb the puac symbolice) becourse it has to wait for the preciding bombs to drop
     //float  TofExtra = ( (FCC->Sms->RippleInterval())* ((FCC->Sms->RippleCount()+1))/
@@ -1108,11 +1108,11 @@ void HudClass::DrawSteeringToReleaseLADD(void)
         DrawWindowString(10, tmpStr);
 
         // Text Data
-        min = (int)(FCC->airGroundDelayTime / 60.0F);
-        sec = (int)(FCC->airGroundDelayTime - min * 60.0F);
+        minutes = (int)(FCC->airGroundDelayTime / 60.0F);
+        sec = (int)(FCC->airGroundDelayTime - minutes * 60.0F);
 
         // Time to pull up
-        sprintf(tmpStr, "%02d:%02d", min, sec);
+        sprintf(tmpStr, "%02d:%02d", minutes, sec);
         ShiAssert(strlen(tmpStr) < sizeof(tmpStr));
         DrawWindowString(13, tmpStr);
 

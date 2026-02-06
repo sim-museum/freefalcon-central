@@ -5,7 +5,7 @@
 
  Stratus cloud class
 \***************************************************************************/
-#include "Real2DCloud.h"
+#include "real2dcloud.h"
 
 ObjectDisplayList *Real2DCloud::objMgr = NULL;
 

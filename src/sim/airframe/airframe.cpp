@@ -29,7 +29,7 @@
 #include "airframe.h"
 #include "helimm.h"
 #include "otwdrive.h"
-#include "Graphics/Include/tmap.h"
+#include "graphics/include/tmap.h"
 #include "ui/include/logbook.h"
 #include "simbase.h"
 #include "soundfx.h"
@@ -39,8 +39,8 @@
 #include "find.h"
 #include "objectiv.h"
 #include "atcbrain.h"
-#include "Graphics/Include/terrtex.h"
-#include "Graphics/Include/rviewpnt.h"  // to get ground type
+#include "graphics/include/terrtex.h"
+#include "graphics/include/rviewpnt.h"  // to get ground type
 #include "digi.h"
 #include "sms.h"
 #include "sim/include/dofsnswitches.h"
@@ -1812,7 +1812,7 @@ void AirframeClass::Init(int idx)
                 {
                     if (alpha > 0.0f and alpha <= 15.0f)
                     {
-                        tefPos = min(alpha, 9);
+                        tefPos = min(alpha, 9.0f);
                     }
                     else
                     {
@@ -1823,7 +1823,7 @@ void AirframeClass::Init(int idx)
                 {
                     if (alpha > 0.0f and alpha <= 17.0f)
                     {
-                        tefPos = min(alpha, 17);
+                        tefPos = min(alpha, 17.0f);
                     }
                     else
                     {
@@ -1835,7 +1835,7 @@ void AirframeClass::Init(int idx)
                 {
                     if (alpha > 0.0f and alpha <= 17.0f)
                     {
-                        tefPos = min(alpha, 17);
+                        tefPos = min(alpha, 17.0f);
                     }
                     else
                     {
@@ -1850,7 +1850,7 @@ void AirframeClass::Init(int idx)
                     {
                         if (alpha > 0.0f and alpha <= 17.0f)
                         {
-                            tefPos = min(alpha, 17);
+                            tefPos = min(alpha, 17.0f);
                         }
                         else
                         {
@@ -1863,12 +1863,12 @@ void AirframeClass::Init(int idx)
                     {
                         if (flapPos == 20 and vcas < 250.0f)
                         {
-                            tefPos = min(4500 / vcas, 30);
+                            tefPos = min(4500.0f / vcas, 30.0f);
                         }
                         //Flap FULL Setting
                         else if (flapPos == 30 and vcas < 250.0f)
                         {
-                            tefPos = min(6500 / vcas, 45);
+                            tefPos = min(6500.0f / vcas, 45.0f);
                         }
                     }
                     else
@@ -1892,7 +1892,7 @@ void AirframeClass::Init(int idx)
                     {
                         if (alpha > 0.0f and alpha <= 17.0f)
                         {
-                            tefPos = min(alpha, 17);
+                            tefPos = min(alpha, 17.0f);
                         }
                         else
                         {
@@ -1906,12 +1906,12 @@ void AirframeClass::Init(int idx)
                     {
                         if (flapPos == 20 and vcas < 240.0f)
                         {
-                            tefPos = min(4500 / vcas, 30);
+                            tefPos = min(4500.0f / vcas, 30.0f);
                         }
                         //Flap FULL Setting
                         else if (flapPos == 30 and vcas < 240.0f)
                         {
-                            tefPos = min(6500 / vcas, 40);
+                            tefPos = min(6500.0f / vcas, 40.0f);
                         }
                     }
                     else

@@ -7,7 +7,7 @@
 #include "F4Vu.h"
 #include "missile.h"
 #include "MsgInc/TrackMsg.h"
-#include "Graphics/Include/display.h"
+#include "graphics/include/display.h"
 #include "simveh.h"
 #include "airunit.h"
 #include "simdrive.h"
@@ -21,7 +21,7 @@
 #include "classtbl.h"
 #include "radar.h"
 #include "handoff.h"
-#include "HarmPod.h"
+#include "harmpod.h"
 #include "otwdrive.h"
 
 #include "simio.h"  // MD -- 20040111: added for analog cursor support

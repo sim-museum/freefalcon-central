@@ -621,8 +621,13 @@ extern  "C" {
 
         DWORD numVertices;
         int renderState;
+#ifdef FF_LINUX
+        intptr_t textureID0; // FF_LINUX: Use intptr_t to hold TextureHandle* on 64-bit
+        intptr_t textureID1;
+#else
         GLint textureID0;
         GLint textureID1;
+#endif
         DWORD zBuffer;
 
     public:
@@ -670,8 +675,13 @@ extern  "C" {
 
         DWORD numVertices;
         int renderState;
+#ifdef FF_LINUX
+        intptr_t textureID0; // FF_LINUX: Use intptr_t to hold TextureHandle* on 64-bit
+        intptr_t textureID1;
+#else
         GLint textureID0;
         GLint textureID1;
+#endif
         DWORD zBuffer;
 
         LPD3DMATRIX mW;
@@ -707,10 +717,10 @@ extern  "C" {
         void SetupMPRState(GLint flag = 0);
         void SelectForegroundColor(GLint color);
         void SelectBackgroundColor(GLint color);
-        void SelectTexture1(GLint texID);
-        void SelectTexture2(GLint texID);
-        void SetTexture1(GLint texID);
-        void SetTexture2(GLint texID);
+        void SelectTexture1(intptr_t texID);
+        void SelectTexture2(intptr_t texID);
+        void SetTexture1(intptr_t texID);
+        void SetTexture2(intptr_t texID);
         void RestoreState(GLint state);
         void ApplyStateBlock(GLint state);
         void UpdateSpecularFog(DWORD specular);
@@ -776,16 +786,20 @@ extern  "C" {
         GLint m_colBG_Raw;
         GLint currentState;
         GLint lastState;
-        GLint currentTexture1;
-        GLint currentTexture2;
-        GLint lastTexture1;
-        GLint lastTexture2;
+        intptr_t currentTexture1;
+        intptr_t currentTexture2;
+        intptr_t lastTexture1;
+        intptr_t lastTexture2;
         BOOL bZBuffering;
         BOOL NVGmode;
         BOOL TVmode;
         BOOL IRmode;
         int palID;
+#ifdef FF_LINUX
+        intptr_t texID; // FF_LINUX: Use intptr_t to hold TextureHandle* on 64-bit
+#else
         int texID;
+#endif
 
         D3DMATRIX mV;
         D3DMATRIX mP;

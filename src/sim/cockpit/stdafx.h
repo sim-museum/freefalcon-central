@@ -1,6 +1,8 @@
+#ifdef _MSC_VER
 #if _MSC_VER < 1200
 #error You need VC6 or higher
 #endif // _MSC_VER < 1200
+#endif // _MSC_VER
 
 #pragma once
 
@@ -36,5 +38,5 @@
 #include "falclib/include/falclib.h"
 #include "dispopts.h"
 #include "playerop.h"
-#include "Graphics/Include/renderow.h"
+#include "graphics/include/renderow.h"
 #include "otwdrive.h"

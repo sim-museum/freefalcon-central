@@ -15,7 +15,7 @@
 #include "MsgInc/WeaponFireMsg.h"
 #include "campbase.h"
 #include "Simdrive.h"
-#include "Graphics/Include/drawsgmt.h"
+#include "graphics/include/drawsgmt.h"
 #include "otwdrive.h"
 #include "sfx.h"
 #include "falcsess.h"
@@ -36,7 +36,7 @@ void HelicopterClass::DoWeapons(void)
 
     if (Guns)
     {
-        Guns->Exec(&fireFlag, gunDmx, platformAngles, targetPtr, FALSE);
+        Guns->Exec(&fireFlag, gunDmx, &platformAngles, targetPtr, FALSE);
 
         if (fireFlag)
         {
@@ -52,7 +52,7 @@ void HelicopterClass::DoWeapons(void)
             vec.z = -PRANDFloatPos() * 30.0f;
 
             OTWDriver.AddSfxRequest(
-                new SfxClass(SFX_LIGHT_CLOUD, // type
+                new SfxClass(SFX_DUSTCLOUD, // type
                              SFX_MOVES,
                              &pos, // world pos
                              &vec, // vel vector

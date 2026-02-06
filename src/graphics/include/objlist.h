@@ -11,7 +11,7 @@
 
 #define _NUM_OBJECT_LISTS_ (5)
 
-#include "DrawObj.h"
+#include "drawobj.h"
 
 
 // This structure is used in the viewpoint sorting to move objects directly to the list

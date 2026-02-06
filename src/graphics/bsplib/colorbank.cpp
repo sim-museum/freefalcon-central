@@ -8,8 +8,8 @@
 #include <cISO646>
 #include "stdafx.h"
 #include <io.h>
-#include "StateStack.h"
-#include "ColorBank.h"
+#include "statestack.h"
+#include "colorbank.h"
 
 extern bool g_bGreyMFD;
 extern bool bNVGmode;

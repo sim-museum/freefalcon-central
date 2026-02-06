@@ -31,7 +31,7 @@
 #include "simbase.h"
 #include "f4thread.h"
 #include "otwdrive.h"
-#include "Graphics/Include/render2d.h"
+#include "graphics/include/render2d.h"
 #include "CampStr.h"
 #include "MissEval.h"
 #include "dispcfg.h"

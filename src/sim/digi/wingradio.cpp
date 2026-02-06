@@ -26,7 +26,7 @@
 #include "falcsnd/voicemanager.h"
 #include "radar.h"
 #include "airframe.h"
-#include "PlayerOp.h"
+#include "playerop.h"
 
 extern int g_nChatterInterval; // FRB message interval time
 // ---------------------------------------------
