@@ -2270,7 +2270,8 @@ void OTWDriverClass::Enter(void)
         fclose(pcockpitResFile);
     }
 
-    fprintf(stderr, "[OTWDriver.Enter] Creating CockpitManager (resX=%d, resY=%d)...\n", resX, resY); fflush(stderr);
+    fprintf(stderr, "[OTWDriver.Enter] Creating CockpitManager (resX=%d, resY=%d, DispWidth=%d, DispHeight=%d, FindBest=%d)...\n",
+            resX, resY, (int)DisplayOptions.DispWidth, (int)DisplayOptions.DispHeight, FindBestResolution()); fflush(stderr);
     if (resX > 0 and resY > 0)
     {
         pCockpitManager = new CockpitManager(OTWImage, "ws_ckpit.dat", TRUE, (float)DisplayOptions.DispWidth / float(resX), DisplayOptions.DispHeight / float(resY), FALSE, eCPVisType, eCPName, eCPNameNCTR);
@@ -2439,7 +2440,8 @@ void OTWDriverClass::Enter(void)
         }
     }
 
-    fprintf(stderr, "[OTWDriver.Enter] CockpitManager created, creating MenuManager...\n"); fflush(stderr);
+    fprintf(stderr, "[OTWDriver.Enter] CockpitManager created=%p PadlockCPManager=%p, creating MenuManager...\n",
+            (void*)pCockpitManager, (void*)pPadlockCPManager); fflush(stderr);
     pMenuManager = new MenuManager(DisplayOptions.DispWidth, DisplayOptions.DispHeight);
 
     TheHud = new HudClass;

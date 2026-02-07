@@ -480,22 +480,12 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_EnumTextureFormats(IDirect3DDevice7* Th
     return D3D_OK;
 }
 
-static int g_BeginSceneCount = 0;
-
 static HRESULT STDMETHODCALLTYPE D3D7Dev_BeginScene(IDirect3DDevice7* This) {
     D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("BeginScene");
 
     if (dev->inScene) return D3DERR_SCENE_IN_SCENE;
     dev->inScene = true;
-
-    // FF_LINUX: Debug output for first few BeginScene calls
-    g_BeginSceneCount++;
-    if (g_BeginSceneCount <= 5) {
-        fprintf(stderr, "[BeginScene] #%d: viewport=%dx%d\n",
-                g_BeginSceneCount, dev->viewport.dwWidth, dev->viewport.dwHeight);
-        fflush(stderr);
-    }
 
     return D3D_OK;
 }
@@ -971,8 +961,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     // FF_LINUX: Track DrawIndexedPrimitiveVB calls
     g_DrawIdxPrimVBCount++;
 
-
-
     // FF_LINUX: Disable GL_TEXTURE_2D when no texture coordinates in FVF.
     // Otherwise stale textures from previous draws modulate vertex colors.
     int texCountVB = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
@@ -1007,6 +995,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_LIGHTING);
         glDisable(GL_FOG);
+
     }
 
     // Calculate position size for offset computation
@@ -1329,12 +1318,12 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_ApplyStateBlock(IDirect3DDevice7* This,
         dev->worldMatrix = sb.worldMatrix;
         dev->ApplyMatrices();
 
-        // Restore viewport
-        dev->viewport = sb.viewport;
-        if (dev->viewport.dwWidth > 0 && dev->viewport.dwHeight > 0) {
-            glViewport(dev->viewport.dwX, dev->viewport.dwY,
-                       dev->viewport.dwWidth, dev->viewport.dwHeight);
-        }
+        // FF_LINUX: Do NOT restore viewport from state blocks.
+        // In real D3D7, state blocks only capture render states and texture stage states,
+        // NOT the viewport. Our state blocks were typically created during init when
+        // the viewport was 0x0, so restoring it would zero out the viewport set by
+        // UpdateViewport(), causing all XYZRHW cockpit draws to be silently dropped.
+        // The viewport is managed independently via SetViewport/UpdateViewport.
     }
 
     return D3D_OK;
@@ -1360,7 +1349,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_CaptureStateBlock(IDirect3DDevice7* Thi
         sb.projMatrix = dev->projMatrix;
         sb.viewMatrix = dev->viewMatrix;
         sb.worldMatrix = dev->worldMatrix;
-        sb.viewport = dev->viewport;
+        // FF_LINUX: Do NOT capture viewport - it's managed independently
     }
 
     return D3D_OK;
@@ -1403,7 +1392,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_CreateStateBlock(IDirect3DDevice7* This
                 sb.projMatrix = dev->projMatrix;
                 sb.viewMatrix = dev->viewMatrix;
                 sb.worldMatrix = dev->worldMatrix;
-                sb.viewport = dev->viewport;
+                // FF_LINUX: Do NOT capture viewport - it's managed independently
+                // (see comment in ApplyStateBlock)
             }
 
             *lpdwBlockHandle = i;
@@ -1972,30 +1962,6 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     g_DrawVerticesCount++;
     bool isRHW = (fvf & D3DFVF_XYZRHW) != 0;
     if (isRHW) g_RHWDrawCount_local++; else g_WorldDrawCount_local++;
-
-    // FF_LINUX: One-shot diagnostic for XYZRHW draws via DrawPrimitiveVB
-    {
-        extern int g_SimFrameCount;
-        static int dvRhwDiag = 0;
-        if (dvRhwDiag < 5 && isRHW && g_SimFrameCount > 5) {
-            dvRhwDiag++;
-            GLboolean tex = glIsEnabled(GL_TEXTURE_2D);
-            GLboolean blend = glIsEnabled(GL_BLEND);
-            GLboolean alphaTest = glIsEnabled(GL_ALPHA_TEST);
-            GLint texEnv = 0, boundTex = 0;
-            glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &texEnv);
-            glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTex);
-            DWORD diffuse = 0;
-            if (fvf & D3DFVF_DIFFUSE) {
-                diffuse = *(const DWORD*)((const char*)vertices + 16); // after sx,sy,sz,rhw
-            }
-            fprintf(stderr, "[DV_RHW] #%d frame=%d tex=%d texEnv=0x%x boundTex=%d "
-                    "blend=%d aTest=%d diffuse=0x%08X fvf=0x%x count=%d\n",
-                    dvRhwDiag, g_SimFrameCount, tex, texEnv, boundTex,
-                    blend, alphaTest, (unsigned)diffuse, fvf, count);
-            fflush(stderr);
-        }
-    }
 
     // FF_LINUX: XYZRHW vertices are pre-transformed screen coordinates in DirectX.
     // They bypass the transformation pipeline entirely. In OpenGL, we need to:
@@ -3195,7 +3161,7 @@ static HRESULT STDMETHODCALLTYPE DDClipper_SetClipList(IDirectDrawClipper* This,
 }
 
 static HRESULT STDMETHODCALLTYPE DDClipper_SetHWnd(IDirectDrawClipper* This, DWORD dwFlags, HWND hWnd) {
-    fprintf(stderr, "    [DDClipper_SetHWnd] hWnd=%p\n", (void*)hWnd); fflush(stderr);
+    (void)dwFlags;
     DDClipperImpl* clip = (DDClipperImpl*)This;
     clip->hWnd = hWnd;
     return DD_OK;

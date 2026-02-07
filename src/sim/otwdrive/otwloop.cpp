@@ -2459,6 +2459,20 @@ void OTWDriverClass::RenderFrame()
     // Get the Display mode here for following checks
     OTWDisplayMode DisplayMode = GetOTWDisplayMode();
 
+#ifdef FF_LINUX
+    {
+        static int cockpitDiag = 0;
+        if (cockpitDiag < 5) {
+            cockpitDiag++;
+            fprintf(stderr, "[RenderFrame] #%d DisplayMode=%d DisplayInCockpit=%d otwPlatform=%p TheHud=%p HudOwnship=%p eyeFly=%d\n",
+                    cockpitDiag, (int)DisplayMode, DisplayInCockpit(),
+                    (void*)otwPlatform.get(), (void*)TheHud,
+                    TheHud ? (void*)TheHud->Ownship() : nullptr, eyeFly);
+            fflush(stderr);
+        }
+    }
+#endif
+
     // Now check if in the Pit and the platform is still valid to eventually draw the Pit...
     if (
  not DisplayInCockpit() or

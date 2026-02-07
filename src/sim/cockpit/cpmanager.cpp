@@ -501,6 +501,12 @@ CockpitManager::CockpitManager(
 
     pcockpitDataFile = CP_OPEN(pCPFile, "r");
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[CockpitMgr] CP_OPEN('%s') = %p, gDoCockpitHack=%d, doHack=%d\n",
+            pCPFile, (void*)pcockpitDataFile, (int)gDoCockpitHack, (int)doHack);
+    fflush(stderr);
+#endif
+
     if ( not pcockpitDataFile)
     {
         if (mainCockpit)
@@ -514,6 +520,11 @@ CockpitManager::CockpitManager(
         }
 
         gDoCockpitHack = TRUE;
+#ifdef FF_LINUX
+        fprintf(stderr, "[CockpitMgr] FALLBACK: CP_OPEN('%s') = %p, gDoCockpitHack=TRUE\n",
+                mainCockpit ? COCKPIT_FILE_8x6 : PADLOCK_FILE_8x6, (void*)pcockpitDataFile);
+        fflush(stderr);
+#endif
     }
 
     F4Assert(pcockpitDataFile); //Error: Couldn't open file
@@ -644,6 +655,14 @@ CockpitManager::CockpitManager(
     TheTimeManager.RegisterTimeUpdateCB(TimeUpdateCallback, this);
 
     mpCockpitCritSec = F4CreateCriticalSection("mpCockpitCritSec");
+
+#ifdef FF_LINUX
+    fprintf(stderr, "[CockpitMgr] Parsed: panels=%d surfaces=%d objects=%d buttons=%d btnViews=%d gDoCockpitHack=%d\n",
+            mPanelTally, mSurfaceTally, mObjectTally, mButtonTally, mButtonViewTally, (int)gDoCockpitHack);
+    fprintf(stderr, "[CockpitMgr] mpActivePanel=%p mpNextActivePanel=%p mIsInitialized=%d\n",
+            (void*)mpActivePanel, (void*)mpNextActivePanel, (int)mIsInitialized);
+    fflush(stderr);
+#endif
 
     if (cockpit_verifier)
     {
@@ -4355,16 +4374,28 @@ void CockpitManager::Exec()
 
     if ( not mpActivePanel)
     {
+#ifdef FF_LINUX
+        static int noPanel = 0;
+        if (noPanel++ < 3) { fprintf(stderr, "[CockpitMgr::Exec] NO mpActivePanel!\n"); fflush(stderr); }
+#endif
         return;
     }
 
     if ( not mpOwnship)
     {
+#ifdef FF_LINUX
+        static int noOwn = 0;
+        if (noOwn++ < 3) { fprintf(stderr, "[CockpitMgr::Exec] NO mpOwnship!\n"); fflush(stderr); }
+#endif
         return;
     }
 
     if (mIsInitialized == FALSE)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[CockpitMgr::Exec] First init: running CYCLE_ALL on panel %p\n", (void*)mpActivePanel);
+        fflush(stderr);
+#endif
         mpActivePanel->Exec(mpOwnship, CYCLE_ALL); //RUN ALL
         mIsInitialized = TRUE;
         mIsNextInitialized = TRUE;
@@ -4576,13 +4607,28 @@ void CockpitManager::DisplayBlit3D()
 
     if (gDoCockpitHack)
     {
+#ifdef FF_LINUX
+        static int hackSkip = 0;
+        if (hackSkip++ < 3) { fprintf(stderr, "[CockpitMgr::DisplayBlit3D] SKIPPED: gDoCockpitHack=TRUE\n"); fflush(stderr); }
+#endif
         return;
     }
 
     if (mIsInitialized and mpActivePanel)
     {
+#ifdef FF_LINUX
+        static int blitOk = 0;
+        if (blitOk++ < 3) { fprintf(stderr, "[CockpitMgr::DisplayBlit3D] Rendering panel %p\n", (void*)mpActivePanel); fflush(stderr); }
+#endif
         mpActivePanel->DisplayBlit3D();
     }
+#ifdef FF_LINUX
+    else
+    {
+        static int blitSkip = 0;
+        if (blitSkip++ < 3) { fprintf(stderr, "[CockpitMgr::DisplayBlit3D] SKIPPED: mIsInitialized=%d mpActivePanel=%p\n", (int)mIsInitialized, (void*)mpActivePanel); fflush(stderr); }
+    }
+#endif
 
 #else
 
@@ -6258,6 +6304,11 @@ int FindCockpitResolution(
 
     if (FileExists(strCPFile)) return 5;
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[FindCockpitResolution] No cockpit found! cockpitFolder='%s' files: '%s','%s','%s','%s','%s'\n",
+            cockpitFolder, pCPFile1, pCPFile2, pCPFile3, pCPFile4, pCPFile5);
+    fflush(stderr);
+#endif
     return 0;
 
 

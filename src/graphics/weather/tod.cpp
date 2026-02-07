@@ -412,6 +412,26 @@ void CTimeOfDay::UpdateSkyProperties()
     // Update the positions and effects of the celstial objects
     m_StarIntensity += t * (ntod -> StarIntensity - m_StarIntensity);
     TheStar.UpdateStar();
+
+    // FF_LINUX: Copy private m_ members to public members as defaults.
+    // UpdateWeatherColors() will override these with weather-adjusted values,
+    // but this ensures the public members have valid values even before
+    // UpdateWeatherColors() is first called (which happens from RealWeather's
+    // TimeUpdateCallback). Without this, TextureLighting etc. are zero-initialized
+    // until UpdateWeatherColors runs, causing terrain textures to be black.
+    TextureLighting = m_TextureLighting;
+    BadWeatherLighting = m_BadWeatherLighting;
+    SkyColor = m_SkyColor;
+    HazeSkyColor = m_HazeSkyColor;
+    GroundColor = m_GroundColor;
+    HazeGroundColor = m_HazeGroundColor;
+    Ambient = m_Ambient;
+    Diffuse = m_Diffuse;
+    Specular = m_Specular;
+    StarIntensity = m_StarIntensity;
+    MinVis = m_MinVis;
+    VisColor = m_VisColor;
+
     /*
      if(realWeather->weatherCondition > FAIR)
      {

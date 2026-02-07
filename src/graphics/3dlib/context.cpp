@@ -2231,7 +2231,9 @@ void ContextMPR::UpdateViewport()
 #endif
 
     if (m_bViewportLocked or not m_pD3DD)
+    {
         return;
+    }
 
     // get current viewport
     D3DVIEWPORT7 vp;
@@ -2266,6 +2268,14 @@ void ContextMPR::UpdateViewport()
         vp.dwY = 0;
         vp.dwWidth = ddsd.dwWidth;
         vp.dwHeight = ddsd.dwHeight;
+
+#ifdef FF_LINUX
+        // FF_LINUX: If render target reports 0x0, fall back to main window resolution
+        if (vp.dwWidth == 0 || vp.dwHeight == 0) {
+            vp.dwWidth = 1024;
+            vp.dwHeight = 768;
+        }
+#endif
     }
 
     hr = m_pD3DD->SetViewport(&vp);

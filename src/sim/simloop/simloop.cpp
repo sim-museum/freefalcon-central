@@ -279,15 +279,13 @@ void SimulationLoopControl::StartGraphics(void)
         OTWDriver.SetActive(FALSE);
     }
 
-    fprintf(stderr, "[StartGraphics] Waiting for currentMode==RunningSim, current=%d\n", currentMode); fflush(stderr);
     while (currentMode not_eq RunningSim)
     {
         Sleep(50);
     }
-    fprintf(stderr, "[StartGraphics] currentMode is RunningSim, setting to StartingGraphics\n"); fflush(stderr);
 
     currentMode = StartingGraphics;
-    fprintf(stderr, "[StartGraphics] currentMode set to StartingGraphics (%d)\n", currentMode); fflush(stderr);
+    __sync_synchronize();  // Full memory barrier
 }
 
 
@@ -343,30 +341,10 @@ void SimulationLoopControl::Loop(void)
 
     // Record the fact that we're up and running
     currentMode = RunningSim;
-    static int loopDebugCounter = 0;
 
     //while (currentMode not_eq StoppingSim)
     do
     {
-#ifdef FF_LINUX
-        loopDebugCounter++;
-        static volatile SimLoopControlMode lastReportedMode = Stopped;
-        // Always print when mode changes, or periodically
-        bool shouldPrint = (loopDebugCounter <= 5 || loopDebugCounter % 300 == 0);
-        // Also print when mode changes or when in transitional modes
-        if (currentMode != lastReportedMode || currentMode == StartRunningGraphics)
-        {
-            shouldPrint = true;
-        }
-        if (shouldPrint)
-        {
-            fprintf(stderr, "[Loop] Entry #%d, currentMode=%d (Step2=%d, StartRunningGraphics=%d, RunningGraphics=%d)\n",
-                    loopDebugCounter, currentMode, Step2, StartRunningGraphics, RunningGraphics);
-            fflush(stderr);
-            lastReportedMode = currentMode;
-        }
-#endif
-
 #ifdef FF_LINUX
         // On Linux, block during Step5 (StoppingGraphics) to avoid race conditions.
         // Step2 cannot be completely blocked because RebuildBubble() is needed for deaggregation.
@@ -436,13 +414,6 @@ void SimulationLoopControl::Loop(void)
                 forced = 0;
             }
 
-#ifdef FF_LINUX
-            static int rebuildCounter = 0;
-            if (currentMode == Step2 && (rebuildCounter++ % 50 == 0))
-            {
-                fprintf(stderr, "[Loop] Step2: RebuildBubble(%d) #%d\n", forced, rebuildCounter); fflush(stderr);
-            }
-#endif
             RebuildBubble(forced);
 
             if ( not forced)
@@ -460,13 +431,6 @@ void SimulationLoopControl::Loop(void)
         // to check for mode transitions (Step2 -> StartRunningGraphics -> RunningGraphics).
         if (currentMode == Step2)
         {
-            static int step2DbgCount = 0;
-            if (step2DbgCount++ % 200 == 0)
-            {
-                fprintf(stderr, "[Loop] Still in Step2, currentMode=%d (Step2=%d, StartRunningGraphics=%d)\n",
-                        currentMode, Step2, StartRunningGraphics);
-                fflush(stderr);
-            }
             // CRITICAL: Update vuxRealTime before RealTimeFunction or it will skip
             // the gMainThread->Update() call due to rate limiting (vuxRealTime > update_time)
             vuxRealTime = GetTickCount();
@@ -477,19 +441,8 @@ void SimulationLoopControl::Loop(void)
             RealTimeFunction(vuxRealTime, NULL);
 
             // Signal campaign thread and give it time to run
-            static int step2LoopDbg = 0;
-            if (step2LoopDbg++ % 100 == 0)
-            {
-                fprintf(stderr, "[Loop] Step2: About to signal/wait campaign (%d)\n", step2LoopDbg);
-                fflush(stderr);
-            }
             ThreadManager::sim_signal_campaign();
             ThreadManager::sim_wait_for_campaign(10);
-            if (step2LoopDbg % 100 == 1)
-            {
-                fprintf(stderr, "[Loop] Step2: Campaign signal/wait done, continuing to switch (%d)\n", step2LoopDbg);
-                fflush(stderr);
-            }
             // NOTE: Don't continue here - fall through to switch statement for mode transition check
         }
 #endif
@@ -697,23 +650,8 @@ void SimulationLoopControl::Loop(void)
 #ifdef FF_LINUX
         // On Linux, skip SimDriver work during Step2 to avoid race conditions with
         // StartLoop() which is initializing graphics. RebuildBubble() still runs above.
-        {
-            static int modeDbgCount = 0;
-            if (modeDbgCount++ % 100 == 0)
-            {
-                fprintf(stderr, "[Loop] Mode check: currentMode=%d (Step2=%d), about to enter SimDriver section\n",
-                        currentMode, Step2);
-                fflush(stderr);
-            }
-        }
         if (currentMode != Step2)
         {
-            static int simDriverDbgCount = 0;
-            if (simDriverDbgCount++ % 100 == 0)
-            {
-                fprintf(stderr, "[Loop] Entering SimDriver section, mode=%d\n", currentMode);
-                fflush(stderr);
-            }
 #endif
         FalconEntity::DoSimDirtyData(vuxRealTime);
         //STOP_PROFILE("SIMDIRTY");
@@ -732,21 +670,9 @@ void SimulationLoopControl::Loop(void)
         //STOP_PROFILE("SIMCYCLE");
 
         // Do any graphics related processing required
-#ifdef FF_LINUX
-        {
-            volatile SimLoopControlMode switchMode = currentMode;
-            if (switchMode == StartRunningGraphics || switchMode == RunningGraphics)
-            {
-                fprintf(stderr, "[Loop] PRE-SWITCH: currentMode=%d\n", switchMode);
-                fflush(stderr);
-            }
-        }
-#endif
         switch (currentMode)
         {
             case StartRunningGraphics:
-                fprintf(stderr, "[Loop] ENTERED case StartRunningGraphics! g_simOwnsGLContext will be checked\n");
-                fflush(stderr);
                 if ( not SimDriver.lastRealTime)
                 {
                     SimDriver.lastRealTime = vuxGameTime;
@@ -757,13 +683,9 @@ void SimulationLoopControl::Loop(void)
                 {
                     extern void FF_SimThreadAcquireGL();
                     extern bool g_simOwnsGLContext;
-                    fprintf(stderr, "[Loop] GL check: g_simOwnsGLContext=%d\n", g_simOwnsGLContext ? 1 : 0);
-                    fflush(stderr);
                     if (!g_simOwnsGLContext)
                     {
                         FF_SimThreadAcquireGL();
-                        fprintf(stderr, "[Loop] Acquired GL context in StartRunningGraphics case\n");
-                        fflush(stderr);
                     }
                 }
 #endif
@@ -777,20 +699,6 @@ void SimulationLoopControl::Loop(void)
 
                 gGraphicsTime = GetTickCount();
                 // we cant profile here, since its zeroed inside function
-#ifdef FF_LINUX
-                {
-                    static int otwCycleDbg = 0;
-                    otwCycleDbg++;
-                    // Print first 10 cycles, then every 300
-                    if (otwCycleDbg <= 10 || otwCycleDbg % 300 == 0)
-                    {
-                        extern bool g_simOwnsGLContext;
-                        fprintf(stderr, "[Loop] OTWDriver.Cycle() #%d, mode=%d, glOwned=%d, tid=%ld\n",
-                                otwCycleDbg, currentMode, g_simOwnsGLContext ? 1 : 0, (long)pthread_self());
-                        fflush(stderr);
-                    }
-                }
-#endif
                 OTWDriver.Cycle();
                 gGraphicsTimeLast = GetTickCount() - gGraphicsTime;
 
@@ -838,7 +746,6 @@ void SimulationLoopControl::Loop(void)
                     extern bool g_simOwnsGLContext;
                     if (g_simOwnsGLContext)
                     {
-                        fprintf(stderr, "[Loop] Releasing GL context at StoppingGraphics\n"); fflush(stderr);
                         FF_SimThreadReleaseGL();
                     }
                 }
@@ -862,11 +769,7 @@ void SimulationLoopControl::Loop(void)
             if (!g_simOwnsGLContext)
             {
                 FF_SimThreadAcquireGL();
-                fprintf(stderr, "[Loop] Acquired GL context (post-switch StartRunningGraphics)\n");
-                fflush(stderr);
             }
-            fprintf(stderr, "[Loop] Transitioning from StartRunningGraphics to RunningGraphics (post-switch)\n");
-            fflush(stderr);
             currentMode = RunningGraphics;
         }
 #endif
@@ -881,7 +784,6 @@ void SimulationLoopControl::Loop(void)
         extern bool g_simOwnsGLContext;
         if (g_simOwnsGLContext)
         {
-            fprintf(stderr, "[Loop] Releasing GL context on Loop thread exit\n"); fflush(stderr);
             FF_SimThreadReleaseGL();
         }
     }
@@ -982,12 +884,9 @@ void SimulationLoopControl::StartLoop(void)
 
             // Get the graphics control up and running
             OTWDriver.Enter();
-            fprintf(stderr, "[StartLoop] OTWDriver.Enter() returned\n"); fflush(stderr);
 
             // Ask the game to send all deag entities to me
-            fprintf(stderr, "[StartLoop] Finding target entity...\n"); fflush(stderr);
             VuTargetEntity* target = (VuTargetEntity*) vuDatabase->Find(FalconLocalGame->OwnerId());
-            fprintf(stderr, "[StartLoop] Found target=%p\n", (void*)target); fflush(stderr);
 
             if (target && not target->IsLocal())
             {
@@ -1002,19 +901,14 @@ void SimulationLoopControl::StartLoop(void)
             }
 
             // Attach camera to our flight momentarily while we rebuild our initial bubble
-            fprintf(stderr, "[StartLoop] Attaching camera to flight=%p...\n", (void*)flight); fflush(stderr);
             if (FalconLocalSession->CameraCount() == 0)
             {
                 // JB New MP code
                 FalconLocalSession->AttachCamera(flight);
-                fprintf(stderr, "[StartLoop] AttachCamera done, CameraCount=%d GetCameraEntity(0)=%p\n",
-                        FalconLocalSession->CameraCount(), (void*)FalconLocalSession->GetCameraEntity(0)); fflush(stderr);
             }
-            fprintf(stderr, "[StartLoop] Camera attached, calling SimDriver.Enter()...\n"); fflush(stderr);
 
             // Perpare the simulation for real time graphics...
             SimDriver.Enter();
-            fprintf(stderr, "[StartLoop] SimDriver.Enter() done\n"); fflush(stderr);
 
 #ifdef FF_LINUX
             // Brief delay to allow sim loop to synchronize
@@ -1029,9 +923,7 @@ void SimulationLoopControl::StartLoop(void)
 
         //MonoPrint("Done initializing graphics, waiting for deaggregation..  %d\n", GetTickCount());
 
-        fprintf(stderr, "[StartLoop] Calling SplashScreenUpdate(1)...\n"); fflush(stderr);
         OTWDriver.SplashScreenUpdate(1);
-        fprintf(stderr, "[StartLoop] SplashScreenUpdate(1) done\n"); fflush(stderr);
 
         ///////////////////////////////////////////////////////////////////////////////
 
@@ -1039,11 +931,8 @@ void SimulationLoopControl::StartLoop(void)
         delayCounter = 120;
 
         // Wait until our flight is deaggregated
-        fprintf(stderr, "[StartLoop] Setting g_bSleepAll=FALSE, starting deag wait...\n"); fflush(stderr);
         g_bSleepAll = FALSE;//me123 host it's ok to wake again now you are attached
 
-
-        fprintf(stderr, "[StartLoop] Entering deaggregation wait loop (flight=%p, IsAggregate=%d)\n", (void*)flight, flight ? flight->IsAggregate() : -1); fflush(stderr);
         while (flight and flight->IsAggregate() and (delayCounter))
         {
 #ifdef FF_LINUX
@@ -1074,32 +963,16 @@ void SimulationLoopControl::StartLoop(void)
             {
                 delayCounter--;  // Decrement timeout every ~1 second
             }
-
-            // Safety check: verify flight pointer is still valid
-            if (flight && deagLoopCounter % 10 == 0)
-            {
-                fprintf(stderr, "[StartLoop] Deag wait: counter=%d, flight=%p, IsAggregate=%d\n",
-                        delayCounter, (void*)flight, flight->IsAggregate());
-                fflush(stderr);
-            }
 #else
             Sleep(1000);
             delayCounter --;
 #endif
         }
-        fprintf(stderr, "[StartLoop] Deaggregation wait loop exited (counter=%d)\n", delayCounter); fflush(stderr);
-#ifdef FF_LINUX
-        fprintf(stderr, "[StartLoop] Post-deag: flight=%p, IsAggregate=%d\n",
-                (void*)flight, flight ? flight->IsAggregate() : -999); fflush(stderr);
-#endif
 
         // If we didn't deaggregate ourselves - RH
         if (flight and flight->IsAggregate())
         {
             MonoPrint("Flight didn't deaggregate before timeout.\n");
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] Flight didn't deaggregate before timeout!\n"); fflush(stderr);
-#endif
             player = NULL;
         }
         else
@@ -1107,22 +980,10 @@ void SimulationLoopControl::StartLoop(void)
             if (flight)
             {
                 MonoPrint("Flight deaggregation done... %d, %d\n", flight->IsAggregate(), GetTickCount());
-#ifdef FF_LINUX
-                fprintf(stderr, "[StartLoop] Flight deaggregation done, IsAggregate=%d\n", flight->IsAggregate()); fflush(stderr);
-#endif
             }
-#ifdef FF_LINUX
-            else
-            {
-                fprintf(stderr, "[StartLoop] WARNING: flight is NULL after deag wait!\n"); fflush(stderr);
-            }
-#endif
 
             // Attach the player to the aircraft
             MonoPrint("Attaching player to aircraft... %d\n", GetTickCount());
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] Finding player vehicle...\n"); fflush(stderr);
-#endif
             //player = GameManager.AttachPlayerToVehicle (
             //FalconLocalSession, flight, FalconLocalSession->GetAircraftNum(),
             //FalconLocalSession->GetPilotSlot()
@@ -1130,25 +991,12 @@ void SimulationLoopControl::StartLoop(void)
             player = GameManager.FindPlayerVehicle(flight, FalconLocalSession->GetAircraftNum());
             FalconLocalSession->SetPlayerEntity(player);
             MonoPrint("Player %08x\n", player);
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] Player=%p\n", (void*)player); fflush(stderr);
-#endif
         }
 
         // Check if the player was successfully attached (They could have been killed in the meantime)
-#ifdef FF_LINUX
-        fprintf(stderr, "[StartLoop] Checking player validity: player=%p, IsDead=%d\n",
-                (void*)player, player ? player->IsDead() : -1); fflush(stderr);
-#endif
         if (player and not player->IsDead())
         {
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] Player valid! Calling AnnounceEntry()...\n"); fflush(stderr);
-#endif
             GameManager.AnnounceEntry();
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] AnnounceEntry() done, waiting for SimDriver player entity...\n"); fflush(stderr);
-#endif
 #define START_GRAPHICS_WAIT_FOR_SIMDRIVE 1
 #if START_GRAPHICS_WAIT_FOR_SIMDRIVE
 
@@ -1165,14 +1013,10 @@ void SimulationLoopControl::StartLoop(void)
                 ThreadManager::sim_wait_for_campaign(10);
 
                 static int simDriverWaitCount = 0;
-                if (simDriverWaitCount++ % 10 == 0)
-                {
-                    fprintf(stderr, "[StartLoop] Waiting for SimDriver.GetPlayerEntity()... (%d)\n", simDriverWaitCount); fflush(stderr);
-                }
+                simDriverWaitCount++;
                 // Timeout after ~30 seconds to prevent infinite loop
                 if (simDriverWaitCount > 300)
                 {
-                    fprintf(stderr, "[StartLoop] ERROR: Timeout waiting for SimDriver.GetPlayerEntity()\n"); fflush(stderr);
                     break;
                 }
 #endif
@@ -1180,13 +1024,7 @@ void SimulationLoopControl::StartLoop(void)
             }
 
 #endif
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] SimDriver player entity ready! Calling SplashScreenUpdate(2)...\n"); fflush(stderr);
-#endif
             OTWDriver.SplashScreenUpdate(2);
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] SplashScreenUpdate(2) done\n"); fflush(stderr);
-#endif
 
             ///////////////////////////////////////////////////////////////////////////////
 
@@ -1195,14 +1033,6 @@ void SimulationLoopControl::StartLoop(void)
             gLeftToDeaggregate = -1;
 
             delayCounter = 100;
-#ifdef FF_LINUX
-            {
-                SimMoverClass* pe = SimDriver.GetPlayerEntity();
-                fprintf(stderr, "[StartLoop] Deag wait loop: gLeftToDeaggregate=%d delayCounter=%d PlayerEntity=%p IsLocal=%d\n",
-                        gLeftToDeaggregate, delayCounter, (void*)pe, pe ? pe->IsLocal() : -1);
-                fflush(stderr);
-            }
-#endif
 
             // Wait until all necessary deaggregation events have been handled
             while (
@@ -1212,30 +1042,13 @@ void SimulationLoopControl::StartLoop(void)
                 ( not (SimDriver.GetPlayerEntity()->IsLocal()))
             )
             {
-#ifdef FF_LINUX
-                static int deagWaitCount = 0;
-                if (deagWaitCount++ % 10 == 0)
-                {
-                    SimMoverClass* pe = SimDriver.GetPlayerEntity();
-                    fprintf(stderr, "[StartLoop] Waiting in deag loop: gLeftToDeaggregate=%d delayCounter=%d IsLocal=%d (%d)\n",
-                            gLeftToDeaggregate, delayCounter, pe ? pe->IsLocal() : -1, deagWaitCount);
-                    fflush(stderr);
-                }
-#endif
                 Sleep(100);
                 delayCounter--;
             }
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] Deag wait loop exited, gLeftToDeaggregate=%d\n", gLeftToDeaggregate);
-            fflush(stderr);
-#endif
 
             // Render the first frame to get all requisit data into the IO queue
             //MonoPrint("Done deaggregating. Remaining entities: %d.\n",gLeftToDeaggregate);
 
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] Entering CampCriticalSection...\n"); fflush(stderr);
-#endif
             // We need to ensure the display list and drawable stuff isn't touched while we're rendering...
             CampEnterCriticalSection();
             /*
@@ -1256,9 +1069,6 @@ void SimulationLoopControl::StartLoop(void)
             */
             CampLeaveCriticalSection();
 
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] CampCriticalSection released, calling SplashScreenUpdate(3)...\n"); fflush(stderr);
-#endif
             OTWDriver.SplashScreenUpdate(3);
 
             ///////////////////////////////////////////////////////////////////////////////
@@ -1295,13 +1105,7 @@ void SimulationLoopControl::StartLoop(void)
              }
             */
             // Ok, so this is hacky.. KCK
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] Calling FixupGroundHeights()...\n"); fflush(stderr);
-#endif
             FixupGroundHeights();
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] FixupGroundHeights() done, calling SplashScreenUpdate(4)...\n"); fflush(stderr);
-#endif
             OTWDriver.SplashScreenUpdate(4);
 
             ///////////////////////////////////////////////////////////////////////////////
@@ -1324,14 +1128,8 @@ void SimulationLoopControl::StartLoop(void)
             // Go ahead and start rendering frames
             InitializeStatistics();
 #endif
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] Calling CleanupSplashScreen()...\n"); fflush(stderr);
-#endif
             // stop and cleanup splash screen
             OTWDriver.CleanupSplashScreen();
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] CleanupSplashScreen() done\n"); fflush(stderr);
-#endif
 
             //TheLoader.WaitLoader();
 
@@ -1345,14 +1143,8 @@ void SimulationLoopControl::StartLoop(void)
                 GameManager.ReleasePlayer(FalconLocalSession);
             }
 
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] Calling RenderFirstFrame()...\n"); fflush(stderr);
-#endif
             //sfr: im leaving only this one
             OTWDriver.RenderFirstFrame();
-#ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] RenderFirstFrame() done\n"); fflush(stderr);
-#endif
 
             /*delayCounter = 20;
             // Delay to make the Loader working
@@ -1365,7 +1157,6 @@ void SimulationLoopControl::StartLoop(void)
             g_intellivibeData.IsEndFlight = false;
 
 #ifdef FF_LINUX
-            fprintf(stderr, "[StartLoop] Releasing GL context before handing off to Loop thread (tid=%ld)\n", (long)pthread_self()); fflush(stderr);
             // Release the GL context so the Loop thread (which runs OTWDriver.Cycle()) can acquire it.
             // On Windows, D3D devices are not thread-bound, but OpenGL contexts ARE thread-bound.
             // The Loop thread is a different thread from StartLoop and needs the GL context for rendering.
@@ -1373,7 +1164,6 @@ void SimulationLoopControl::StartLoop(void)
                 extern void FF_SimThreadReleaseGL();
                 FF_SimThreadReleaseGL();
             }
-            fprintf(stderr, "[StartLoop] Setting currentMode = StartRunningGraphics\n"); fflush(stderr);
 #endif
             currentMode = StartRunningGraphics;
 
@@ -1397,7 +1187,6 @@ void SimulationLoopControl::StartLoop(void)
             {
                 extern void FF_SimThreadAcquireGL();
                 FF_SimThreadAcquireGL();
-                fprintf(stderr, "[StartLoop] Re-acquired GL context for cleanup\n"); fflush(stderr);
             }
 #endif
 
