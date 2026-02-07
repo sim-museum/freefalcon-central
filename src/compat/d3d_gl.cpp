@@ -162,9 +162,12 @@ struct D3D7Surface : public IDirectDrawSurface7 {
     GLenum dxtFormat;       // GL_COMPRESSED_RGB_S3TC_DXT1_EXT, etc. 0 = not DXT
     int    dxtDataSize;     // Size of compressed data in bytes
 
+    // FF_LINUX: FBO support for render-to-texture
+    GLuint fboId;           // OpenGL Framebuffer Object ID (0 = none)
+
     D3D7Surface() : glTexture(0), width(0), height(0), caps(0), refCount(1),
                     pixelData(nullptr), pitch(0), isLocked(false), isDirty(false), isPrimary(false),
-                    dxtFormat(0), dxtDataSize(0) {
+                    dxtFormat(0), dxtDataSize(0), fboId(0) {
         // Initialize inherited lpVtbl to the correct vtable
         lpVtbl = const_cast<IDirectDrawSurface7Vtbl*>(&g_DDS7Vtbl);
         memset(&pixelFormat, 0, sizeof(pixelFormat));
@@ -172,6 +175,9 @@ struct D3D7Surface : public IDirectDrawSurface7 {
     }
 
     ~D3D7Surface() {
+        if (fboId) {
+            glDeleteFramebuffers(1, &fboId);
+        }
         if (glTexture) {
             glDeleteTextures(1, &glTexture);
         }
@@ -224,7 +230,7 @@ struct RenderStateBlock {
     D3DMATRIX worldMatrix;
     D3DVIEWPORT7 viewport;
 
-    RenderStateBlock() : active(false), blockType(D3DSBT_ALL) {
+    RenderStateBlock() : active(false), blockType(0) {
         memset(&material, 0, sizeof(material));
         memset(lights, 0, sizeof(lights));
         memset(lightEnabled, 0, sizeof(lightEnabled));
@@ -513,8 +519,59 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_GetDirect3D(IDirect3DDevice7* This, LPD
 
 static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This, LPDIRECTDRAWSURFACE7 lpNewRT, DWORD dwFlags) {
     D3D7Device* dev = (D3D7Device*)This;
-    D3DGL_LOG("SetRenderTarget");
-    dev->renderTarget = (D3D7Surface*)lpNewRT;
+    D3D7Surface* newTarget = (D3D7Surface*)lpNewRT;
+    D3DGL_LOG("SetRenderTarget surf=%p isPrimary=%d", (void*)newTarget, newTarget ? newTarget->isPrimary : -1);
+    dev->renderTarget = newTarget;
+
+    // FF_LINUX: Diagnostic for RTT
+    {
+        static int srtCount = 0;
+        srtCount++;
+        if (srtCount <= 20) {
+            fprintf(stderr, "[D3D7_SetRT] #%d surf=%p isPrimary=%d glTex=%u fbo=%u %dx%d\n",
+                    srtCount, (void*)newTarget,
+                    newTarget ? newTarget->isPrimary : -1,
+                    newTarget ? newTarget->glTexture : 0,
+                    newTarget ? newTarget->fboId : 0,
+                    newTarget ? newTarget->width : 0,
+                    newTarget ? newTarget->height : 0);
+            fflush(stderr);
+        }
+    }
+
+    // FF_LINUX: FBO-based render target switching for RTT (render-to-texture)
+    if (newTarget && !newTarget->isPrimary) {
+        // Rendering to an off-screen surface - need FBO
+        if (!newTarget->fboId) {
+            // Create FBO
+            glGenFramebuffers(1, &newTarget->fboId);
+            glBindFramebuffer(GL_FRAMEBUFFER, newTarget->fboId);
+
+            // Ensure the surface has a GL texture
+            if (!newTarget->glTexture) {
+                glGenTextures(1, &newTarget->glTexture);
+                glBindTexture(GL_TEXTURE_2D, newTarget->glTexture);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, newTarget->width, newTarget->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            }
+
+            // Attach texture as color attachment
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, newTarget->glTexture, 0);
+
+            GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (status != GL_FRAMEBUFFER_COMPLETE) {
+                fprintf(stderr, "[SetRenderTarget] FBO incomplete: 0x%x for surface %p (%dx%d)\n",
+                        status, (void*)newTarget, newTarget->width, newTarget->height);
+            }
+        } else {
+            glBindFramebuffer(GL_FRAMEBUFFER, newTarget->fboId);
+        }
+    } else {
+        // Rendering to the default framebuffer (screen)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
     return D3D_OK;
 }
 
@@ -526,8 +583,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_GetRenderTarget(IDirect3DDevice7* This,
     return D3D_OK;
 }
 
-static int g_ClearCallCount = 0;
-static int g_DrawPrimitiveCount = 0;
+int g_ClearCallCount = 0;
+int g_DrawPrimitiveCount = 0;
 static HRESULT STDMETHODCALLTYPE D3D7Dev_Clear(IDirect3DDevice7* This, DWORD dwCount, LPD3DRECT lpRects, DWORD dwFlags, D3DCOLOR dwColor, D3DVALUE dvZ, DWORD dwStencil) {
     D3DGL_LOG("Clear flags=0x%x color=0x%x", dwFlags, dwColor);
     g_ClearCallCount++;
@@ -539,6 +596,16 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_Clear(IDirect3DDevice7* This, DWORD dwC
         D3DColorToGL(dwColor, &r, &g, &b, &a);
         glClearColor(r, g, b, a);
         clearMask |= GL_COLOR_BUFFER_BIT;
+        // FF_LINUX DIAGNOSTIC: Log clear color
+        {
+            static int clearColorLog = 0;
+            if (clearColorLog < 10) {
+                clearColorLog++;
+                fprintf(stderr, "[D3D_CLEAR] #%d color=0x%08x → GL(%f,%f,%f,%f)\n",
+                        clearColorLog, dwColor, r, g, b, a);
+                fflush(stderr);
+            }
+        }
     }
 
     if (dwFlags & D3DCLEAR_ZBUFFER) {
@@ -635,7 +702,23 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetViewport(IDirect3DDevice7* This, LPD
     }
 
     memcpy(&dev->viewport, lpViewport, sizeof(D3DVIEWPORT7));
-    glViewport(lpViewport->dwX, lpViewport->dwY, lpViewport->dwWidth, lpViewport->dwHeight);
+
+    // FF_LINUX: D3D viewport Y is from top of window, but OpenGL viewport Y is from bottom.
+    // We must flip the Y coordinate: glY = targetHeight - d3dY - d3dHeight
+    // When rendering to an FBO, use the FBO texture dimensions instead of the window size.
+    int targetH;
+    D3D7Surface* rt = dev->renderTarget;
+    if (rt && !rt->isPrimary && rt->fboId) {
+        // Rendering to FBO - use texture dimensions
+        targetH = rt->height;
+    } else {
+        // Rendering to screen - use window dimensions
+        int winW;
+        SDL_GetWindowSize(g_SDLWindow, &winW, &targetH);
+    }
+    int glY = targetH - (int)lpViewport->dwY - (int)lpViewport->dwHeight;
+    if (glY < 0) glY = 0;
+    glViewport(lpViewport->dwX, glY, lpViewport->dwWidth, lpViewport->dwHeight);
     glDepthRange(lpViewport->dvMinZ, lpViewport->dvMaxZ);
 
     return D3D_OK;
@@ -926,8 +1009,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveStrided(IDirect3DDe
     return D3D_OK;
 }
 
-static int g_DrawPrimitiveVBCount = 0;
-static int g_DrawIdxPrimVBCount = 0;
+int g_DrawPrimitiveVBCount = 0;
+int g_DrawIdxPrimVBCount = 0;
 
 static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitiveVB(IDirect3DDevice7* This, D3DPRIMITIVETYPE dptPrimitiveType, LPDIRECT3DVERTEXBUFFER7 lpd3dVertexBuffer, DWORD dwStartVertex, DWORD dwNumVertices, DWORD dwFlags) {
     D3D7Device* dev = (D3D7Device*)This;
@@ -973,7 +1056,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     }
 
     // FF_LINUX: Save and set up orthographic projection for XYZRHW vertices
-    GLboolean prevDepthTest2 = GL_FALSE, prevLighting2 = GL_FALSE, prevFog2 = GL_FALSE;
+    GLboolean prevLighting2 = GL_FALSE, prevFog2 = GL_FALSE;
     if (isXYZRHW) {
         // FF_LINUX: Guard against zero-size viewport
         if (dev->viewport.dwWidth == 0 || dev->viewport.dwHeight == 0) {
@@ -981,18 +1064,18 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             return D3D_OK; // Skip draw - no valid viewport
         }
 
-        prevDepthTest2 = glIsEnabled(GL_DEPTH_TEST);
         prevLighting2 = glIsEnabled(GL_LIGHTING);
         prevFog2 = glIsEnabled(GL_FOG);
 
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
         glLoadIdentity();
-        glOrtho(0, dev->viewport.dwWidth, dev->viewport.dwHeight, 0, -1, 1);
+        // Z range: near=0, far=1 to match D3D XYZRHW z values (0=near, 1=far)
+        glOrtho(0, dev->viewport.dwWidth, dev->viewport.dwHeight, 0, 0, 1);
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
         glLoadIdentity();
-        glDisable(GL_DEPTH_TEST);
+        // XYZRHW bypasses lighting only - NOT depth testing
         glDisable(GL_LIGHTING);
         glDisable(GL_FOG);
 
@@ -1009,6 +1092,18 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     if (fvf & D3DFVF_DIFFUSE) texOffset += sizeof(DWORD);
     if (fvf & D3DFVF_SPECULAR) texOffset += sizeof(DWORD);
     int texCount = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+
+    // FF_LINUX: If the device has no texture bound on stage 0 but GL_TEXTURE_2D is still
+    // enabled (can happen because ApplyStateBlock doesn't capture SetTexture calls),
+    // we must disable GL_TEXTURE_2D. Otherwise the draw gets modulated by a stale/empty
+    // texture, causing non-textured primitives (like the sky) to render as black.
+    GLboolean prevTex2D_forNullCheck = GL_FALSE;
+    bool disabledTexForNullBinding = false;
+    if (!dev->textures[0] && glIsEnabled(GL_TEXTURE_2D)) {
+        prevTex2D_forNullCheck = GL_TRUE;
+        disabledTexForNullBinding = true;
+        glDisable(GL_TEXTURE_2D);
+    }
 
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
@@ -1053,13 +1148,18 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     }
     glEnd();
 
+    // FF_LINUX: Restore GL_TEXTURE_2D if we disabled it for a null-texture draw
+    if (disabledTexForNullBinding) {
+        glEnable(GL_TEXTURE_2D);
+    }
+
     if (isXYZRHW) {
         glMatrixMode(GL_MODELVIEW);
         glPopMatrix();
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();
         // Restore previous state
-        if (prevDepthTest2) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+        // Note: depth test is NOT modified by XYZRHW - it's controlled by render states
         if (prevLighting2) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
         if (prevFog2) glEnable(GL_FOG); else glDisable(GL_FOG);
     }
@@ -1144,6 +1244,45 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
 
         // FF_LINUX: Upload dirty texture data from CPU to GPU
         if (surf->isDirty && surf->pixelData && surf->width > 0 && surf->height > 0) {
+
+            // FF_LINUX DIAGNOSTIC: Track dirty upload statistics
+            {
+                static int totalDirtyUploads = 0;
+                static int uploadsWithData = 0;
+                static int uploadsAllZero = 0;
+                totalDirtyUploads++;
+
+                // Check first 256 bytes for non-zero data
+                int checkSize = surf->pitch * surf->height;
+                if (checkSize > 256) checkSize = 256;
+                int nonZero = 0;
+                for (int bi = 0; bi < checkSize; bi++) {
+                    if (surf->pixelData[bi] != 0) nonZero++;
+                }
+                if (nonZero > 0) uploadsWithData++;
+                else uploadsAllZero++;
+
+                // Log first 20 uploads in detail, then summary every 500
+                if (totalDirtyUploads <= 20) {
+                    int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
+                    fprintf(stderr, "[TEX_UPLOAD] #%d surf=%p %dx%d bpp_fmt=%d bpp_actual=%d dxt=%d "
+                            "glTex=%u nonZero256=%d pitch=%d rgbBits=%d caps=0x%x\n",
+                            totalDirtyUploads, (void*)surf, surf->width, surf->height,
+                            (int)surf->pixelFormat.dwRGBBitCount, bpp, (int)surf->dxtFormat,
+                            surf->glTexture, nonZero, surf->pitch,
+                            (int)surf->pixelFormat.dwRGBBitCount, (unsigned)surf->caps);
+                    if (nonZero > 0 && bpp == 4 && surf->dxtFormat == 0) {
+                        DWORD* px = (DWORD*)surf->pixelData;
+                        fprintf(stderr, "[TEX_UPLOAD]   px[0..3]=0x%08x,0x%08x,0x%08x,0x%08x\n",
+                                (unsigned)px[0], (unsigned)px[1], (unsigned)px[2], (unsigned)px[3]);
+                    }
+                    fflush(stderr);
+                } else if (totalDirtyUploads % 500 == 0) {
+                    fprintf(stderr, "[TEX_UPLOAD] Summary: total=%d withData=%d allZero=%d\n",
+                            totalDirtyUploads, uploadsWithData, uploadsAllZero);
+                    fflush(stderr);
+                }
+            }
 
             // Clear any stale GL errors before upload
             while (glGetError() != GL_NO_ERROR) {}
@@ -1953,7 +2092,7 @@ GLenum D3D7Device::GetGLPrimitiveType(D3DPRIMITIVETYPE d3dType) {
     }
 }
 
-static int g_DrawVerticesCount = 0;
+int g_DrawVerticesCount = 0;
 static int g_RHWDrawCount_local = 0;
 static int g_WorldDrawCount_local = 0;
 void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* vertices, DWORD count) {
@@ -1971,7 +2110,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     bool isXYZRHW = (fvf & D3DFVF_XYZRHW) != 0;
 
     // FF_LINUX: Save GL state that XYZRHW handling will modify
-    GLboolean prevDepthTest = GL_FALSE, prevLighting = GL_FALSE, prevFog = GL_FALSE;
+    GLboolean prevLighting = GL_FALSE, prevFog = GL_FALSE;
 
     // FF_LINUX: Disable GL_TEXTURE_2D when no texture coordinates in FVF.
     // Otherwise stale textures from previous draws would modulate the vertex colors.
@@ -2005,7 +2144,9 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         }
 
         // Save states that we're about to change
-        prevDepthTest = glIsEnabled(GL_DEPTH_TEST);
+        // FF_LINUX: XYZRHW bypasses D3D transformation and lighting, but NOT depth testing.
+        // Depth test is controlled by render states (D3DRENDERSTATE_ZENABLE).
+        // We only save/restore lighting state since XYZRHW bypasses vertex lighting.
         prevLighting = glIsEnabled(GL_LIGHTING);
         prevFog = glIsEnabled(GL_FOG);
 
@@ -2013,18 +2154,28 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
         glLoadIdentity();
-        // Set up orthographic projection: x = 0 to viewport.width, y = 0 to viewport.height
-        // Note: DirectX has Y=0 at top, OpenGL has Y=0 at bottom, so flip Y
-        glOrtho(0, vpW, vpH, 0, -1, 1);
+        // Set up orthographic projection: x = 0..vpW, y = 0..vpH (Y flipped for D3D convention)
+        // Z range: near=0, far=1 to match D3D XYZRHW z values (0=near, 1=far)
+        // Using glOrtho near=0, far=1 maps z=0→depth=0.0 and z=1→depth=1.0
+        glOrtho(0, vpW, vpH, 0, 0, 1);
 
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
         glLoadIdentity();
 
-        // XYZRHW bypasses D3D transformation and lighting pipeline
-        glDisable(GL_DEPTH_TEST);
+        // XYZRHW bypasses D3D lighting pipeline only - NOT depth testing
         glDisable(GL_LIGHTING);
         glDisable(GL_FOG);
+
+    }
+
+    // FF_LINUX: If the device has no texture bound on stage 0 but GL_TEXTURE_2D is still
+    // enabled (can happen because ApplyStateBlock doesn't capture SetTexture calls),
+    // we must disable GL_TEXTURE_2D. Otherwise non-textured primitives render as black.
+    bool disabledTexForNull_DV = false;
+    if (!textures[0] && glIsEnabled(GL_TEXTURE_2D)) {
+        disabledTexForNull_DV = true;
+        glDisable(GL_TEXTURE_2D);
     }
 
     glBegin(glPrimType);
@@ -2082,6 +2233,11 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
 
     glEnd();
 
+    // Restore GL_TEXTURE_2D if we disabled it for null-texture draw
+    if (disabledTexForNull_DV) {
+        glEnable(GL_TEXTURE_2D);
+    }
+
     if (isXYZRHW) {
         // Restore matrices
         glMatrixMode(GL_MODELVIEW);
@@ -2090,7 +2246,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glPopMatrix();
 
         // Restore previous GL state (don't blindly enable - that corrupts state for subsequent draws)
-        if (prevDepthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
+        // Note: depth test is NOT modified by XYZRHW - it's controlled by render states
         if (prevLighting) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
         if (prevFog) glEnable(GL_FOG); else glDisable(GL_FOG);
     }
@@ -2490,6 +2646,7 @@ static HRESULT STDMETHODCALLTYPE DDS7_EnumOverlayZOrders(IDirectDrawSurface7* Th
     return DD_OK;
 }
 
+// FF_LINUX DIAGNOSTIC: Draw test quads using raw GL to verify XYZRHW path
 // Save primary surface as BMP for debugging
 static void SavePrimarySurfaceAsBMP(const char* filename) {
     if (!g_pPrimarySurface || !g_pPrimarySurface->pixelData) return;
@@ -2587,6 +2744,13 @@ void FF_PresentPrimarySurface() {
     // Clear any pending GL errors
     while (glGetError() != GL_NO_ERROR) {}
 
+    // FF_LINUX: Ensure we're rendering to the default framebuffer, not an FBO.
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // FF_LINUX: Ensure viewport covers the full window for UI rendering.
+    // The sim may have set a partial viewport (e.g., [0,183,1024,585] for 3D scene).
+    glViewport(0, 0, surf->width, surf->height);
+
     // Create texture if needed
     if (!surf->glTexture) {
         glGenTextures(1, &surf->glTexture);
@@ -2660,7 +2824,7 @@ int g_SimFrameCount = 0;
 extern "C" void FF_GetHandleStats(int* ok, int* lazy, int* noImage, int* createFail, int* release, int* invalid);
 extern "C" void FF_GetHandleStatsReset();
 
-static void SaveGLFramebufferAsBMP(const char* filename) {
+void SaveGLFramebufferAsBMP(const char* filename) {
     GLint vp[4];
     glGetIntegerv(GL_VIEWPORT, vp);
     int w = vp[2], h = vp[3];
@@ -2727,6 +2891,8 @@ static HRESULT STDMETHODCALLTYPE DDS7_Flip(IDirectDrawSurface7* This, IDirectDra
         if (!doUI) {
             FF_SimFrameEnd();
             FF_SwapBuffers();
+
+            // (framebuffer save removed - DDS7_Flip is not used in sim mode)
         }
         // In UI mode, FF_PresentPrimarySurface is called from render_frame() in main loop
     }

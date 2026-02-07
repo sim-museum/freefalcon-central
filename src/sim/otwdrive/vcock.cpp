@@ -937,6 +937,11 @@ OTWDriverClass::VCock_Init(int eCPVisType, TCHAR* eCPName, TCHAR* eCPNameNCTR)
 
     pcockpitDataFile = CP_OPEN(strCPFile, "r");
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[VCock_Init] Cockpit file: %s -> %s\n", strCPFile, pcockpitDataFile ? "OPENED" : "FAILED");
+    fflush(stderr);
+#endif
+
     F4Assert(pcockpitDataFile); //Error: Couldn't open file
 #ifdef FF_LINUX
     if (!pcockpitDataFile) {
@@ -983,16 +988,28 @@ OTWDriverClass::VCock_Init(int eCPVisType, TCHAR* eCPName, TCHAR* eCPNameNCTR)
 
                 VirtualDisplay::SetupRttTarget(txRes, tyRes, tBpp);
                 bRTTTarget = true;
+#ifdef FF_LINUX
+                fprintf(stderr, "[VCock_Init] RTT target set: %dx%d bpp=%d\n", txRes, tyRes, tBpp);
+                fflush(stderr);
+#endif
             }
         }
         else if ( not strcmpi(ptoken, PROP_HUD_STR))   // the hud
         {
+#ifdef FF_LINUX
+            fprintf(stderr, "[VCock_Init] Parsing HUD canvas...\n");
+            fflush(stderr);
+#endif
             if ( not VCock_SetRttCanvas(&plinePtr, &vHUDrenderer, 1))    // ASSO:
             {
 
                 plinePtr = plinePtr; // Release mode compile warning
                 F4Assert("Bad HUD description");
             }
+#ifdef FF_LINUX
+            fprintf(stderr, "[VCock_Init] HUD canvas: renderer=%p\n", (void*)vHUDrenderer);
+            fflush(stderr);
+#endif
         }
         else if ( not strcmpi(ptoken, PROP_RWR_STR))   //  the rwr
         {
@@ -1251,6 +1268,14 @@ OTWDriverClass::VCock_Init(int eCPVisType, TCHAR* eCPName, TCHAR* eCPNameNCTR)
             F4Assert("Bad PFL description");
         }
     }
+
+#ifdef FF_LINUX
+    fprintf(stderr, "[VCock_Init] DONE: bRTTTarget=%d g_bUseNew3dpit=%d\n",
+            bRTTTarget ? 1 : 0, g_bUseNew3dpit ? 1 : 0);
+    fprintf(stderr, "[VCock_Init] Renderers: HUD=%p RWR=%p DED=%p PFL=%p\n",
+            (void*)vHUDrenderer, (void*)vRWRrenderer, (void*)vDEDrenderer, (void*)vPFLrenderer);
+    fflush(stderr);
+#endif
 
     return true;
 }
@@ -2939,6 +2964,17 @@ void OTWDriverClass::VCock_Exec(void)
 
 
     // ASSO: BEGIN
+#ifdef FF_LINUX
+    {
+        static int rttCheckCount = 0;
+        rttCheckCount++;
+        if (rttCheckCount <= 5) {
+            fprintf(stderr, "[VCock_Exec] #%d HasRttTarget=%d renderer=%p\n",
+                    rttCheckCount, renderer->HasRttTarget(), (void*)renderer);
+            fflush(stderr);
+        }
+    }
+#endif
     if (renderer->HasRttTarget())
     {
 

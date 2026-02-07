@@ -181,7 +181,7 @@ float VirtualDisplay::viewportYtoPixel(float y)
 
 int VirtualDisplay::HasRttTarget()
 {
-    return (int)renderTexture;
+    return renderTexture ? 1 : 0;
 }
 
 
@@ -1364,6 +1364,12 @@ bool VirtualDisplay::SetupRttTarget(int tXres_, int tYres_, int tBpp_)
         renderTexture->Create("RttTarget", tBpp, 0, tXres_, tYres_,
                               TextureHandle::FLAG_RENDERTARGET bitor TextureHandle::FLAG_HINT_DYNAMIC);
 
+#ifdef FF_LINUX
+        fprintf(stderr, "[SetupRttTarget] Created: %dx%d bpp=%d renderTexture=%p m_pDDS=%p\n",
+                tXres_, tYres_, tBpp_, (void*)renderTexture, (void*)renderTexture->m_pDDS);
+        fflush(stderr);
+#endif
+
         return true;
     }
 
@@ -1453,6 +1459,17 @@ void VirtualDisplay::StartRtt(Render3D* r3d_)
     GetViewport(&oldLeft, &oldTop, &oldRight, &oldBottom);   // save the current viewport
     oldTarget = context.m_pRenderTarget;
     context.m_pRenderTarget = renderTexture->m_pDDS;
+#ifdef FF_LINUX
+    {
+        static int startRttCount = 0;
+        startRttCount++;
+        if (startRttCount <= 5) {
+            fprintf(stderr, "[StartRtt] #%d renderTexture=%p m_pDDS=%p m_pCtxDX=%p\n",
+                    startRttCount, (void*)renderTexture, (void*)renderTexture->m_pDDS, (void*)context.m_pCtxDX);
+            fflush(stderr);
+        }
+    }
+#endif
     context.m_pCtxDX->SetRenderTarget(context.m_pRenderTarget);
     SetRttRect(0, 0, renderTexture->m_nActualWidth, renderTexture->m_nActualHeight);
     SetViewport(-1.0f, 1.0f, 1.0f, -1.0f);
@@ -1500,7 +1517,7 @@ void VirtualDisplay::ResetRttViewport()
 void VirtualDisplay::DrawRttQuad()
 {
     r3d->context.RestoreState(rttBlendMode);
-    r3d->context.SelectTexture1((DWORD)renderTexture);
+    r3d->context.SelectTexture1((intptr_t)renderTexture);
 
     Tpoint os;
     ThreeDVertex v0, v1, v2, v3;

@@ -1111,6 +1111,19 @@ void ImageBuffer::SwapBuffers(bool bDontFlip)
         extern void FF_SimFrameEnd();
         FF_SimFrameEnd();
         FF_SwapBuffers();
+
+        // FF_LINUX DIAGNOSTIC: Save framebuffer once at frame 30
+        {
+            static int simSwapTotal = 0;
+            simSwapTotal++;
+            if (simSwapTotal == 30) {
+                extern void SaveGLFramebufferAsBMP(const char* filename);
+                SaveGLFramebufferAsBMP("/tmp/ff_sim_framebuffer.bmp");
+                fprintf(stderr, "[DIAG] Saved sim framebuffer at swap #%d\n", simSwapTotal);
+                fflush(stderr);
+            }
+        }
+
         return;
     }
 #endif

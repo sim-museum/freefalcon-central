@@ -2446,6 +2446,18 @@ void ContextMPR::FlushPolyLists()
 #ifdef FF_LINUX
     FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "RenderPolyList(plain) %s\n", plainPolys ? "START" : "SKIP");
     FF_DEBUG_RENDER_FLUSH();
+    {
+        static int flushDiagCount = 0;
+        if (flushDiagCount < 5) {
+            flushDiagCount++;
+            fprintf(stderr, "[FlushPolyLists] #%d plain=%p(%d) textured=%p(%d) translucent=%p(%d)\n",
+                    flushDiagCount,
+                    (void*)plainPolys, plainPolyVCnt,
+                    (void*)texturedPolys, texturedPolyVCnt,
+                    (void*)translucentPolys, translucentPolyVCnt);
+            fflush(stderr);
+        }
+    }
 #endif
     if (plainPolys not_eq NULL) RenderPolyList(plainPolys);
 #ifdef FF_LINUX
@@ -3836,6 +3848,31 @@ void ContextMPR::DrawPrimitive(int nPrimType, WORD VtxInfo, WORD nVerts, MPRVtxT
     m_stats.Primitive(m_nCurPrimType, nVerts);
 #endif
 
+#ifdef FF_LINUX
+    {
+        static int dpTerrCount = 0;
+        static int dpTerrByState[32] = {0};
+        dpTerrCount++;
+        if (terrain && currentState < 32) dpTerrByState[currentState]++;
+        // Print summary after 500 terrain polys (all LODs should be covered by then)
+        if (terrain && dpTerrCount == 500) {
+            fprintf(stderr, "[DrawPrim.Terrain] SUMMARY after %d calls: bZBuf=%d\n", dpTerrCount, bZBuffering);
+            fprintf(stderr, "[DrawPrim.Terrain] By state: GOURAUD(2)=%d TEXTURE(3)=%d LIT_TEXTURE(4+)=%d\n",
+                    dpTerrByState[2], dpTerrByState[3],
+                    dpTerrByState[4]+dpTerrByState[5]+dpTerrByState[6]+dpTerrByState[7]+
+                    dpTerrByState[8]+dpTerrByState[9]+dpTerrByState[10]+dpTerrByState[11]+
+                    dpTerrByState[12]+dpTerrByState[13]+dpTerrByState[14]+dpTerrByState[15]+
+                    dpTerrByState[16]+dpTerrByState[17]+dpTerrByState[18]+dpTerrByState[19]);
+            for (int i = 0; i < 20; i++) {
+                if (dpTerrByState[i] > 0) {
+                    fprintf(stderr, "[DrawPrim.Terrain]   state[%d]=%d\n", i, dpTerrByState[i]);
+                }
+            }
+            fflush(stderr);
+        }
+    }
+#endif
+
     if ( not bZBuffering)
     {
         // Lock VB
@@ -4049,32 +4086,59 @@ void ContextMPR::DrawPrimitive(int nPrimType, WORD VtxInfo, WORD nVerts, MPRVtxT
         // COBRA - RED - Here calculates the Average Z
         sPolygon->CalcPolyZ(PolyZAvg);
 
+#ifdef FF_LINUX
+        {
+            static int polyInsertCount = 0;
+            static int polyByBucket[4] = {0}; // 0=plain, 1=textured, 2=translucent, 3=multitex
+            polyInsertCount++;
+#endif
         // Double-textured
         if (sPolygon->renderState >= STATE_MULTITEXTURE)
         {
             texturedPolyVCnt += nVerts;
             AddPolygon(texturedPolys, sPolygon);
+#ifdef FF_LINUX
+            polyByBucket[3]++;
+#endif
         }
         // Translucent
         else if (sPolygon->renderState >= STATE_ALPHA_SOLID)
         {
             translucentPolyVCnt += nVerts;
             AddPolygon(translucentPolys, sPolygon);
+#ifdef FF_LINUX
+            polyByBucket[2]++;
+#endif
         }
         // Textured
         else if (sPolygon->renderState >= STATE_TEXTURE)
         {
             texturedPolyVCnt += nVerts;
             AddPolygon(texturedPolys, sPolygon);
+#ifdef FF_LINUX
+            polyByBucket[1]++;
+#endif
         }
         // Plain
         else if (sPolygon->renderState >= STATE_SOLID)
         {
             plainPolyVCnt += nVerts;
             AddPolygon(plainPolys, sPolygon);
+#ifdef FF_LINUX
+            polyByBucket[0]++;
+#endif
         }
         else
             INT3;
+
+#ifdef FF_LINUX
+            if (polyInsertCount == 500) {
+                fprintf(stderr, "[PolyInsert] SUMMARY after %d polys: plain=%d textured=%d translucent=%d multitex=%d\n",
+                        polyInsertCount, polyByBucket[0], polyByBucket[1], polyByBucket[2], polyByBucket[3]);
+                fflush(stderr);
+            }
+        }
+#endif
     }
 
     m_colFOG = 0xFFFFFFFF;

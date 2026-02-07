@@ -222,6 +222,9 @@ void FF_SwapBuffers() {
             SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
         }
 
+        // FF_LINUX: Ensure we're presenting from the default framebuffer, not an FBO
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
         // Capture screenshot of the GL framebuffer
         // Wait until frame 200 to ensure lighting/sky is fully initialized
         if (swapCount == 200 || swapCount == 600) {

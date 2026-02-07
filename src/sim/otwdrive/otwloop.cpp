@@ -1,4 +1,10 @@
 #include "stdhdr.h"
+#ifdef FF_LINUX
+// GL declarations for framebuffer diagnostic (can't include GL/gl.h due to typedef conflicts)
+extern "C" void glReadPixels(int x, int y, int width, int height, unsigned int format, unsigned int type, void *pixels);
+#define FF_GL_RGBA 0x1908
+#define FF_GL_UNSIGNED_BYTE 0x1401
+#endif
 #include "graphics/include/tod.h"
 #include "graphics/include/renderow.h"
 #include "graphics/include/rviewpnt.h"
@@ -2407,9 +2413,17 @@ void OTWDriverClass::RenderFrame()
     }
     if (g_intellivibeData.In3D && OTWImage && OTWImage->IsReady())
     {
-        if (renderFrameDebugCount <= 5 || renderFrameDebugCount % 300 == 1) {
-            fprintf(stderr, "[RenderFrame] #%d: Calling OTWImage->SwapBuffers(false)\n", renderFrameDebugCount);
-            fflush(stderr);
+        // FF_LINUX DIAGNOSTIC: Check framebuffer right before SwapBuffers
+        {
+            static int fbSwapCount = 0;
+            if (fbSwapCount < 3) {
+                fbSwapCount++;
+                unsigned char px[4];
+                glReadPixels(300, 384, 1, 1, FF_GL_RGBA, FF_GL_UNSIGNED_BYTE, px);
+                fprintf(stderr, "[FB_STAGE] #%d before SwapBuffers: px=(%d,%d,%d,%d)\n",
+                        fbSwapCount, px[0], px[1], px[2], px[3]);
+                fflush(stderr);
+            }
         }
         OTWImage->SwapBuffers(false);
     }
@@ -2556,7 +2570,19 @@ void OTWDriverClass::RenderFrame()
     //STOP_PROFILE("RENDER 3DPIT");
 
     //START_PROFILE("RENDER DRAWSCENE");
+#ifdef FF_LINUX
+    {
+        extern int g_DrawPrimitiveCount, g_DrawIdxPrimVBCount, g_DrawVerticesCount, g_ClearCallCount, g_DrawPrimitiveVBCount;
+        int dpBefore = g_DrawPrimitiveCount, vbBefore = g_DrawIdxPrimVBCount;
+        int dvBefore = g_DrawVerticesCount, clrBefore = g_ClearCallCount;
+        int pvbBefore = g_DrawPrimitiveVBCount;
+        renderer->DrawScene((struct Tpoint *) &headOrigin, (struct Trotation *) &cameraRot);
+        int dpAfterScene = g_DrawPrimitiveCount, vbAfterScene = g_DrawIdxPrimVBCount;
+        int dvAfterScene = g_DrawVerticesCount, pvbAfterScene = g_DrawPrimitiveVBCount;
+#endif
+#ifndef FF_LINUX
     renderer->DrawScene((struct Tpoint *) &headOrigin, (struct Trotation *) &cameraRot);
+#endif
     //STOP_PROFILE("RENDER DRAWSCENE");
 
     VirtualDisplay::SetFont(oldFont);
@@ -2578,6 +2604,7 @@ void OTWDriverClass::RenderFrame()
             }
 
             renderer->context.FlushPolyLists();
+
             renderer->ClearZBuffer();
         }
 
@@ -2639,6 +2666,22 @@ void OTWDriverClass::RenderFrame()
     {
         renderer->context.FlushPolyLists();
     }
+#ifdef FF_LINUX
+    {
+        static int flushDiag = 0;
+        if (flushDiag < 5) {
+            flushDiag++;
+            fprintf(stderr, "[RenderStats] #%d scene: drawPrim=+%d idxPrimVB=+%d primVB=+%d drawVerts=+%d | total: drawPrim=+%d idxPrimVB=+%d primVB=+%d drawVerts=+%d | okCockpit=%d bZBuf=%d\n",
+                    flushDiag,
+                    dpAfterScene - dpBefore, vbAfterScene - vbBefore, pvbAfterScene - pvbBefore, dvAfterScene - dvBefore,
+                    g_DrawPrimitiveCount - dpBefore, g_DrawIdxPrimVBCount - vbBefore,
+                    g_DrawPrimitiveVBCount - pvbBefore, g_DrawVerticesCount - dvBefore,
+                    okToDoCockpitStuff, DisplayOptions.bZBuffering);
+            fflush(stderr);
+        }
+    }
+    }  // close the FF_LINUX block opened around DrawScene
+#endif
 
     // If in 3D Pit, the pit has to be drawn as 1st item helping z-Buffering
     if (okToDoCockpitStuff)
@@ -2824,7 +2867,6 @@ void OTWDriverClass::RenderFrame()
     }
 
     //STOP_PROFILE("RENDER 2DPIT");
-
 
     // COBRA - RED - FOR NO-DEPTH MENUS, CLEAR THE ZBUFFER
     renderer->context.ClearBuffers(MPR_CI_ZBUFFER);

@@ -2016,7 +2016,11 @@ void OTWDriverClass::Enter(void)
 #endif
 #endif
 
+#ifdef FF_LINUX
+    OTWDisplayMode startMode = Mode3DCockpit;  // FF_LINUX: Use 3D cockpit for RTT HUD rendering
+#else
     OTWDisplayMode startMode = Mode2DCockpit;
+#endif
 
     SetShutdown(0);
     // FRB - ALERT

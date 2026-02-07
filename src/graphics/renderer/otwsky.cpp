@@ -94,7 +94,6 @@ BOOL RenderOTW::DrawSky(void)
     // Update the sky color based on our current attitude and position
     AdjustSkyColor();
 
-
     if ( not skyRoof)
     {
         DrawSkyNoRoof();
@@ -130,7 +129,6 @@ void RenderOTW::DrawSkyNoRoof(void)
 
     float top = Pitch() + diagonal_half_angle;
     float bottom = Pitch() - diagonal_half_angle;
-
 
 
 #ifdef TWO_D_MAP_AVAILABLE
@@ -404,10 +402,7 @@ void RenderOTW::DrawSkyBelow(void)
 
         // Clip and draw the smooth shaded horizon polygon
         context.RestoreState(STATE_GOURAUD);
-        /* if (dithered) {
-         context.SetState( MPR_STA_ENABLES, MPR_SE_DITHERING );
-         context.InvalidateState();
-         }*/
+
         ClipAndDraw2DFan(&vertPointers[0], 4);
     }
 
@@ -726,10 +721,10 @@ void RenderOTW::DrawClearSky(HorizonRecord *pHorizon)
         context.RestoreState(STATE_SOLID);
 
         // Draw the sky filling polygon
-        context.SelectForegroundColor(
-            ((FloatToInt32(sky_color.r * 255.9f)) +
+        DWORD skyColorPacked = ((FloatToInt32(sky_color.r * 255.9f)) +
              (FloatToInt32(sky_color.g * 255.9f) <<  8) +
-             (FloatToInt32(sky_color.b * 255.9f) << 16)) + 0xff000000);
+             (FloatToInt32(sky_color.b * 255.9f) << 16)) + 0xff000000;
+        context.SelectForegroundColor(skyColorPacked);
 
         context.DrawPrimitive(MPR_PRM_TRIFAN, 0, num, &vert[0], sizeof(vert[0]));
     }
@@ -1686,17 +1681,6 @@ void RenderOTW::SetTimeOfDayColor(void)
         lightDiffuse = TheTimeOfDay.GetDiffuseValue();
         lightSpecular = TheTimeOfDay.GetSpecularValue();
         TheTimeOfDay.GetLightDirection(&lightVector);
-
-#ifdef FF_LINUX
-        // FF_LINUX: Diagnostic - log TOD lighting values
-        static int todLogCount = 0;
-        if (todLogCount < 20 || (todLogCount % 500 == 0)) {
-            fprintf(stderr, "[SetTimeOfDayColor] #%d: TOD ambient=%.4f diffuse=%.4f specular=%.4f\n",
-                    todLogCount, lightAmbient, lightDiffuse, lightSpecular);
-            fflush(stderr);
-        }
-        todLogCount++;
-#endif
 
         // Store terrain lighting environment (not used at present)
         lightTheta = (float)atan2(lightVector.y, lightVector.x);
