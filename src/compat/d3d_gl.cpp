@@ -208,28 +208,6 @@ struct D3D7Surface : public IDirectDrawSurface7 {
 // Global primary surface for screen presentation
 static D3D7Surface* g_pPrimarySurface = nullptr;
 
-// FF_LINUX: Diagnostic function callable from other compilation units
-// to inspect a D3D7Surface's state (used by CDXEngine::SelectTexture)
-void FF_DiagSurfaceState(void* surfPtr, int texID) {
-    if (!surfPtr) return;
-    D3D7Surface* surf = (D3D7Surface*)surfPtr;
-    int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 0;
-    int nonZero = 0;
-    if (surf->pixelData && surf->width > 0 && bpp > 0) {
-        int bytesToCheck = surf->width * bpp;
-        if (bytesToCheck > 128) bytesToCheck = 128;
-        for (int bi = 0; bi < bytesToCheck; bi++) {
-            if (surf->pixelData[bi] != 0) nonZero++;
-        }
-    }
-    fprintf(stderr, "[D3D_DIAG] SelectTexture: texID=%d glTex=%u %dx%d bpp=%d dirty=%d "
-            "hasPixels=%d nonZero128=%d pitch=%d rgbMask=0x%x caps=0x%x\n",
-            texID, surf->glTexture, surf->width, surf->height, bpp * 8,
-            surf->isDirty, surf->pixelData ? 1 : 0, nonZero, surf->pitch,
-            (unsigned)surf->pixelFormat.dwRBitMask, (unsigned)surf->caps);
-    fflush(stderr);
-}
-
 // ============================================================
 // Render state storage for state blocks
 // ============================================================
@@ -563,12 +541,6 @@ static int g_DrawPrimitiveCount = 0;
 static HRESULT STDMETHODCALLTYPE D3D7Dev_Clear(IDirect3DDevice7* This, DWORD dwCount, LPD3DRECT lpRects, DWORD dwFlags, D3DCOLOR dwColor, D3DVALUE dvZ, DWORD dwStencil) {
     D3DGL_LOG("Clear flags=0x%x color=0x%x", dwFlags, dwColor);
     g_ClearCallCount++;
-    if (g_ClearCallCount <= 20) {
-        fprintf(stderr, "[D3D_DIAG] Clear #%d: flags=0x%x color=0x%08X (A=%d R=%d G=%d B=%d)\n",
-                g_ClearCallCount, dwFlags, dwColor,
-                (dwColor >> 24) & 0xFF, (dwColor >> 16) & 0xFF,
-                (dwColor >> 8) & 0xFF, dwColor & 0xFF);
-    }
 
     GLbitfield clearMask = 0;
 
@@ -829,6 +801,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitive(IDirect3DDevice7* This, D
     D3DGL_LOG("DrawPrimitive type=%d fvf=0x%x count=%d", dptPrimitiveType, dwVertexTypeDesc, dwVertexCount);
 
     g_DrawPrimitiveCount++;
+
     dev->DrawVertices(dptPrimitiveType, dwVertexTypeDesc, lpvVertices, dwVertexCount);
     return D3D_OK;
 }
@@ -977,7 +950,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitiveVB(IDirect3DDevice7* This,
     const char* startVertex = (const char*)vb->data + dwStartVertex * vertexSize;
 
     g_DrawPrimitiveVBCount++;
+
     dev->DrawVertices(dptPrimitiveType, vb->desc.dwFVF, startVertex, dwNumVertices);
+
     return D3D_OK;
 }
 
@@ -995,115 +970,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
 
     // FF_LINUX: Track DrawIndexedPrimitiveVB calls
     g_DrawIdxPrimVBCount++;
-    // FF_LINUX: Comprehensive terrain state dump for first few non-RHW draws
-    if (g_DrawIdxPrimVBCount <= 5) {
-        int enabledLights = 0;
-        for (int li = 0; li < 8; li++) {
-            if (glIsEnabled(GL_LIGHT0 + li)) enabledLights++;
-        }
-        GLboolean litOn = glIsEnabled(GL_LIGHTING);
-        GLboolean texOn = glIsEnabled(GL_TEXTURE_2D);
-        GLboolean depthOn = glIsEnabled(GL_DEPTH_TEST);
-        GLboolean fogOn = glIsEnabled(GL_FOG);
-        GLboolean cullOn = glIsEnabled(GL_CULL_FACE);
-        GLint boundTex = 0;
-        glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTex);
-        GLint frontFace = 0;
-        glGetIntegerv(GL_FRONT_FACE, &frontFace);
-        const float* firstVert = (const float*)((const char*)vb->data + dwStartVertex * vertexSize);
-        fprintf(stderr, "[D3D_DIAG] DrawIdxPrimVB #%d: fvf=0x%x isRHW=%d verts=%u idxCount=%u primType=%d | "
-                "lit=%d lights=%d tex2D=%d boundTex=%d depth=%d fog=%d cull=%d frontFace=0x%x | "
-                "firstVert=(%.1f,%.1f,%.1f) viewport=%ux%u+%u+%u\n",
-                g_DrawIdxPrimVBCount, fvf, isXYZRHW, dwNumVertices, dwIndexCount, dptPrimitiveType,
-                litOn, enabledLights, texOn, boundTex, depthOn, fogOn, cullOn, frontFace,
-                firstVert[0], firstVert[1], firstVert[2],
-                dev->viewport.dwWidth, dev->viewport.dwHeight,
-                dev->viewport.dwX, dev->viewport.dwY);
-        fflush(stderr);
 
-        // Dump first terrain draw's full state
-        if (g_DrawIdxPrimVBCount == 3 && !isXYZRHW) {
-            // Dump matrices
-            float mvMat[16], projMat[16];
-            glGetFloatv(GL_MODELVIEW_MATRIX, mvMat);
-            glGetFloatv(GL_PROJECTION_MATRIX, projMat);
-            fprintf(stderr, "[D3D_DIAG] PROJ matrix (GL column-major):\n");
-            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", projMat[0], projMat[4], projMat[8], projMat[12]);
-            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", projMat[1], projMat[5], projMat[9], projMat[13]);
-            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", projMat[2], projMat[6], projMat[10], projMat[14]);
-            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", projMat[3], projMat[7], projMat[11], projMat[15]);
-            fprintf(stderr, "[D3D_DIAG] MV matrix (GL column-major):\n");
-            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", mvMat[0], mvMat[4], mvMat[8], mvMat[12]);
-            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", mvMat[1], mvMat[5], mvMat[9], mvMat[13]);
-            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", mvMat[2], mvMat[6], mvMat[10], mvMat[14]);
-            fprintf(stderr, "  [%8.3f %8.3f %8.3f %8.3f]\n", mvMat[3], mvMat[7], mvMat[11], mvMat[15]);
 
-            // Dump light 0 and light 1 params
-            for (int lightIdx = 0; lightIdx < 2; lightIdx++) {
-                GLenum light = GL_LIGHT0 + lightIdx;
-                float amb[4], diff[4], spec[4], pos[4];
-                glGetLightfv(light, GL_AMBIENT, amb);
-                glGetLightfv(light, GL_DIFFUSE, diff);
-                glGetLightfv(light, GL_SPECULAR, spec);
-                glGetLightfv(light, GL_POSITION, pos);
-                fprintf(stderr, "[D3D_DIAG] LIGHT%d: enabled=%d amb=(%.2f,%.2f,%.2f) diff=(%.2f,%.2f,%.2f) "
-                        "spec=(%.2f,%.2f,%.2f) pos=(%.2f,%.2f,%.2f,%.2f)\n",
-                        lightIdx, glIsEnabled(light),
-                        amb[0], amb[1], amb[2], diff[0], diff[1], diff[2],
-                        spec[0], spec[1], spec[2], pos[0], pos[1], pos[2], pos[3]);
-            }
-
-            // Dump material
-            float matAmb[4], matDiff[4], matSpec[4], matEmit[4];
-            glGetMaterialfv(GL_FRONT, GL_AMBIENT, matAmb);
-            glGetMaterialfv(GL_FRONT, GL_DIFFUSE, matDiff);
-            glGetMaterialfv(GL_FRONT, GL_SPECULAR, matSpec);
-            glGetMaterialfv(GL_FRONT, GL_EMISSION, matEmit);
-            fprintf(stderr, "[D3D_DIAG] MATERIAL: amb=(%.2f,%.2f,%.2f) diff=(%.2f,%.2f,%.2f) "
-                    "spec=(%.2f,%.2f,%.2f) emit=(%.2f,%.2f,%.2f)\n",
-                    matAmb[0], matAmb[1], matAmb[2], matDiff[0], matDiff[1], matDiff[2],
-                    matSpec[0], matSpec[1], matSpec[2], matEmit[0], matEmit[1], matEmit[2]);
-
-            // Dump first 3 vertex diffuse colors
-            int posSize2 = (fvf & D3DFVF_XYZ) ? 12 : 16;
-            int diffOffset = posSize2;
-            if (fvf & D3DFVF_NORMAL) diffOffset += 12;
-            if (fvf & D3DFVF_DIFFUSE) {
-                for (int vi = 0; vi < 3 && vi < (int)dwNumVertices; vi++) {
-                    WORD idx = lpwIndices[vi] + dwStartVertex;
-                    const char* v = (const char*)vb->data + idx * vertexSize;
-                    DWORD dc = *(const DWORD*)(v + diffOffset);
-                    fprintf(stderr, "[D3D_DIAG] vertex[%d] diffuse=0x%08X (A=%d R=%d G=%d B=%d)\n",
-                            vi, dc, (dc>>24)&0xFF, (dc>>16)&0xFF, (dc>>8)&0xFF, dc&0xFF);
-                }
-            }
-
-            // Transform first vertex through matrices to find screen position
-            float vx = firstVert[0], vy = firstVert[1], vz = firstVert[2];
-            // eye = MV * vert
-            float ex = mvMat[0]*vx + mvMat[4]*vy + mvMat[8]*vz + mvMat[12];
-            float ey = mvMat[1]*vx + mvMat[5]*vy + mvMat[9]*vz + mvMat[13];
-            float ez = mvMat[2]*vx + mvMat[6]*vy + mvMat[10]*vz + mvMat[14];
-            float ew = mvMat[3]*vx + mvMat[7]*vy + mvMat[11]*vz + mvMat[15];
-            // clip = PROJ * eye
-            float cx = projMat[0]*ex + projMat[4]*ey + projMat[8]*ez + projMat[12]*ew;
-            float cy = projMat[1]*ex + projMat[5]*ey + projMat[9]*ez + projMat[13]*ew;
-            float cz = projMat[2]*ex + projMat[6]*ey + projMat[10]*ez + projMat[14]*ew;
-            float cw = projMat[3]*ex + projMat[7]*ey + projMat[11]*ez + projMat[15]*ew;
-            // NDC
-            float nx = (cw != 0) ? cx/cw : 0;
-            float ny = (cw != 0) ? cy/cw : 0;
-            float nz = (cw != 0) ? cz/cw : 0;
-            // Screen
-            float sx = (nx * 0.5f + 0.5f) * dev->viewport.dwWidth + dev->viewport.dwX;
-            float sy = (1.0f - (ny * 0.5f + 0.5f)) * dev->viewport.dwHeight + dev->viewport.dwY;
-            fprintf(stderr, "[D3D_DIAG] vertex[0] transform: model=(%.1f,%.1f,%.1f) "
-                    "eye=(%.1f,%.1f,%.1f,%.1f) clip=(%.1f,%.1f,%.1f,%.1f) ndc=(%.3f,%.3f,%.3f) "
-                    "screen=(%.0f,%.0f)\n",
-                    vx, vy, vz, ex, ey, ez, ew, cx, cy, cz, cw, nx, ny, nz, sx, sy);
-            fflush(stderr);
-        }
-    }
 
     // FF_LINUX: Disable GL_TEXTURE_2D when no texture coordinates in FVF.
     // Otherwise stale textures from previous draws modulate vertex colors.
@@ -1286,35 +1154,10 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
         glEnable(GL_TEXTURE_2D);
 
         // FF_LINUX: Upload dirty texture data from CPU to GPU
-        // This is critical - without this, textures remain empty (black)
         if (surf->isDirty && surf->pixelData && surf->width > 0 && surf->height > 0) {
 
-            // FF_LINUX: Clear any stale GL errors before upload so we only
-            // detect errors from our own upload calls
+            // Clear any stale GL errors before upload
             while (glGetError() != GL_NO_ERROR) {}
-
-            // FF_LINUX: Log first few texture uploads
-            static int texUploadLogCount = 0;
-            if (texUploadLogCount < 10) {
-                texUploadLogCount++;
-                int pxNonZero = 0;
-                int totalNonZero = 0;
-                int totalSize = surf->dxtFormat ? surf->dxtDataSize : (surf->pitch * surf->height);
-                int checkSize = totalSize;
-                if (checkSize > 256) checkSize = 256;
-                for (int bi = 0; bi < checkSize; bi++) {
-                    if (surf->pixelData[bi] != 0) pxNonZero++;
-                }
-                // Also check total buffer
-                for (int bi = 0; bi < totalSize; bi++) {
-                    if (surf->pixelData[bi] != 0) totalNonZero++;
-                }
-                fprintf(stderr, "[D3D_DIAG] TexUpload #%d: surf=%p glTex=%u %dx%d dxt=0x%x dxtSize=%d nonZero256=%d totalNonZero=%d/%d bpp=%d\n",
-                        texUploadLogCount, (void*)surf, surf->glTexture, surf->width, surf->height,
-                        surf->dxtFormat, surf->dxtDataSize, pxNonZero, totalNonZero, totalSize,
-                        (int)surf->pixelFormat.dwRGBBitCount);
-                fflush(stderr);
-            }
 
             bool uploadOK = true;
 
@@ -1361,16 +1204,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                 glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
             }
 
-            // FF_LINUX: Check for GL errors after texture upload
             GLenum texErr = glGetError();
             if (texErr != GL_NO_ERROR) {
                 uploadOK = false;
-                static int texErrCount = 0;
-                if (texErrCount++ < 10) {
-                    fprintf(stderr, "[D3D_DIAG] TexUpload ERROR: 0x%x for glTex=%u %dx%d dxt=0x%x dxtSize=%d\n",
-                            texErr, surf->glTexture, surf->width, surf->height, surf->dxtFormat, surf->dxtDataSize);
-                    fflush(stderr);
-                }
             }
 
             // Only clear dirty flag on successful upload
@@ -2137,6 +1973,30 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     bool isRHW = (fvf & D3DFVF_XYZRHW) != 0;
     if (isRHW) g_RHWDrawCount_local++; else g_WorldDrawCount_local++;
 
+    // FF_LINUX: One-shot diagnostic for XYZRHW draws via DrawPrimitiveVB
+    {
+        extern int g_SimFrameCount;
+        static int dvRhwDiag = 0;
+        if (dvRhwDiag < 5 && isRHW && g_SimFrameCount > 5) {
+            dvRhwDiag++;
+            GLboolean tex = glIsEnabled(GL_TEXTURE_2D);
+            GLboolean blend = glIsEnabled(GL_BLEND);
+            GLboolean alphaTest = glIsEnabled(GL_ALPHA_TEST);
+            GLint texEnv = 0, boundTex = 0;
+            glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &texEnv);
+            glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTex);
+            DWORD diffuse = 0;
+            if (fvf & D3DFVF_DIFFUSE) {
+                diffuse = *(const DWORD*)((const char*)vertices + 16); // after sx,sy,sz,rhw
+            }
+            fprintf(stderr, "[DV_RHW] #%d frame=%d tex=%d texEnv=0x%x boundTex=%d "
+                    "blend=%d aTest=%d diffuse=0x%08X fvf=0x%x count=%d\n",
+                    dvRhwDiag, g_SimFrameCount, tex, texEnv, boundTex,
+                    blend, alphaTest, (unsigned)diffuse, fvf, count);
+            fflush(stderr);
+        }
+    }
+
     // FF_LINUX: XYZRHW vertices are pre-transformed screen coordinates in DirectX.
     // They bypass the transformation pipeline entirely. In OpenGL, we need to:
     // 1. Set up orthographic projection matching the viewport
@@ -2828,7 +2688,7 @@ extern void FF_SwapBuffers();
 
 // FF_LINUX: Per-frame diagnostic summary and counter reset
 // Called from ImageBuffer::SwapBuffers() on the sim swap path (which bypasses DDS7_Flip)
-static int g_SimFrameCount = 0;
+int g_SimFrameCount = 0;
 
 // Forward declarations for GetHandle stats
 extern "C" void FF_GetHandleStats(int* ok, int* lazy, int* noImage, int* createFail, int* release, int* invalid);
@@ -2874,37 +2734,6 @@ static void SaveGLFramebufferAsBMP(const char* filename) {
 void FF_SimFrameEnd() {
     g_SimFrameCount++;
 
-    // Save screenshots at frames 30 and 300 for visual comparison
-    if (g_SimFrameCount == 30) {
-        SaveGLFramebufferAsBMP("/tmp/ff_sim_frame30.bmp");
-    }
-    if (g_SimFrameCount == 300) {
-        SaveGLFramebufferAsBMP("/tmp/ff_sim_frame300.bmp");
-    }
-
-    // Log per-frame summary for first 20 sim frames, then every 120 frames
-    if (g_SimFrameCount <= 20 || g_SimFrameCount % 120 == 1) {
-        GLboolean litEnabled = glIsEnabled(GL_LIGHTING);
-        GLboolean fogEnabled = glIsEnabled(GL_FOG);
-        GLfloat fogEnd = 0;
-        glGetFloatv(GL_FOG_END, &fogEnd);
-        int enabledLights = 0;
-        for (int i = 0; i < 8; i++) {
-            if (glIsEnabled(GL_LIGHT0 + i)) enabledLights++;
-        }
-
-        fprintf(stderr, "[D3D_DIAG] SimFrame #%d: SetTex=%d(data=%d dirty=%d clean=%d) "
-                "DrawVerts=%d(rhw=%d world=%d) DrawPrimVB=%d DrawIdxPrimVB=%d | "
-                "fog=%d fogE=%.0f lit=%d lights=%d\n",
-                g_SimFrameCount, g_SetTextureCount, g_SetTextureWithData,
-                g_SetTextureDirtyCount, g_SetTextureCleanCount,
-                g_DrawVerticesCount, g_RHWDrawCount_local, g_WorldDrawCount_local,
-                g_DrawPrimitiveVBCount, g_DrawIdxPrimVBCount,
-                fogEnabled, fogEnd,
-                litEnabled, enabledLights);
-        fflush(stderr);
-    }
-
     // Reset per-frame counters
     g_ClearCallCount = 0;
     g_SetTextureCount = 0;
@@ -2930,25 +2759,10 @@ static HRESULT STDMETHODCALLTYPE DDS7_Flip(IDirectDrawSurface7* This, IDirectDra
         flipCount++;
 
         if (!doUI) {
-            // In sim mode: diagnostics and counter reset handled by FF_SimFrameEnd()
-            // which is called from ImageBuffer::SwapBuffers before FF_SwapBuffers.
-            // If we get here via DDS7_Flip directly, also do the swap.
             FF_SimFrameEnd();
             FF_SwapBuffers();
-        } else {
-            if (flipCount <= 5 || flipCount % 300 == 1) {
-                fprintf(stderr, "[DDS7_Flip] Flip #%d - UI mode (doUI=%d), NOT presenting\n", flipCount, doUI);
-                fflush(stderr);
-            }
         }
         // In UI mode, FF_PresentPrimarySurface is called from render_frame() in main loop
-    } else {
-        static int nonPrimaryCount = 0;
-        nonPrimaryCount++;
-        if (nonPrimaryCount <= 3) {
-            fprintf(stderr, "[DDS7_Flip] Non-primary surface flip #%d\n", nonPrimaryCount);
-            fflush(stderr);
-        }
     }
 
     return DD_OK;
@@ -3509,9 +3323,6 @@ static HRESULT STDMETHODCALLTYPE DD7_CreateSurface(IDirectDraw7* This, LPDDSURFA
     D3D7Surface* surf = new D3D7Surface();
     // Constructor already sets lpVtbl, but set it again for safety
     surf->lpVtbl = const_cast<IDirectDrawSurface7Vtbl*>(&g_DDS7Vtbl);
-    fprintf(stderr, "[DD7_CreateSurface] Created surface %p, lpVtbl=%p (expected %p), caps=0x%x\n",
-            (void*)surf, (void*)surf->lpVtbl, (void*)&g_DDS7Vtbl, lpDDSurfaceDesc->ddsCaps.dwCaps);
-    fflush(stderr);
     surf->caps = lpDDSurfaceDesc->ddsCaps.dwCaps;
 
     // For primary surfaces, use the display mode dimensions (not the desc which may be 0x0)
@@ -3567,9 +3378,19 @@ static HRESULT STDMETHODCALLTYPE DD7_CreateSurface(IDirectDraw7* This, LPDDSURFA
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-        // Allocate texture storage - don't pre-allocate for DXT (will be done on upload)
+        // Allocate initial texture storage
         if (surf->dxtFormat == 0) {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surf->width, surf->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        } else {
+            // FF_LINUX: Pre-allocate compressed texture storage with zeros.
+            // This ensures the GL texture has valid dimensions even before the first
+            // data upload, preventing undefined behavior if it's used before upload.
+            surf->AllocatePixelBuffer();
+            if (surf->pixelData && surf->dxtDataSize > 0) {
+                glCompressedTexImage2D(GL_TEXTURE_2D, 0, surf->dxtFormat,
+                                       surf->width, surf->height, 0,
+                                       surf->dxtDataSize, surf->pixelData);
+            }
         }
     }
 

@@ -223,31 +223,8 @@ void FF_SwapBuffers() {
         }
 
         // Capture screenshot of the GL framebuffer
-        if (swapCount == 60 || swapCount == 300 || swapCount == 600) {
-            // Flush GL pipeline to ensure all rendering is complete
-            glFinish();
-
-            // Check GL errors first
-            GLenum err;
-            int errCount = 0;
-            while ((err = glGetError()) != GL_NO_ERROR && errCount < 10) {
-                fprintf(stderr, "[SCREENSHOT] GL error before capture: 0x%x\n", err);
-                errCount++;
-            }
-
-            // Check viewport and framebuffer state
-            GLint vp[4];
-            glGetIntegerv(GL_VIEWPORT, vp);
-            GLint drawFBO = 0, readFBO = 0, readBuf = 0, drawBuf = 0;
-            glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFBO);
-            glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readFBO);
-            glGetIntegerv(GL_READ_BUFFER, &readBuf);
-            glGetIntegerv(GL_DRAW_BUFFER, &drawBuf);
-            fprintf(stderr, "[SCREENSHOT] Frame %d: viewport=(%d,%d,%d,%d) drawFBO=%d readFBO=%d readBuf=0x%x drawBuf=0x%x\n",
-                    swapCount, vp[0], vp[1], vp[2], vp[3], drawFBO, readFBO, readBuf, drawBuf);
-            fflush(stderr);
-        }
-        if (swapCount == 60 || swapCount == 300 || swapCount == 600) {
+        // Wait until frame 200 to ensure lighting/sky is fully initialized
+        if (swapCount == 200 || swapCount == 600) {
             int w = 0, h = 0;
             SDL_GL_GetDrawableSize(g_SDLWindow, &w, &h);
             if (w > 0 && h > 0) {

@@ -480,6 +480,19 @@ void CTimeOfDay::UpdateSkyProperties()
 // RED - Tihs function calculates Sky colors based on weather Conditions
 void CTimeOfDay::UpdateWeatherColors(DWORD weatherCondition)
 {
+#ifdef FF_LINUX
+    {
+        static int uwcCount = 0;
+        if (uwcCount < 5) {
+            uwcCount++;
+            fprintf(stderr, "[UpdateWeatherColors] #%d: weatherCondition=%u (FAIR=%d) m_TextureLighting=(%.3f,%.3f,%.3f) m_Ambient=%.3f m_Diffuse=%.3f\n",
+                    uwcCount, (unsigned)weatherCondition, FAIR,
+                    m_TextureLighting.r, m_TextureLighting.g, m_TextureLighting.b,
+                    m_Ambient, m_Diffuse);
+            fflush(stderr);
+        }
+    }
+#endif
     // default values
     StarIntensity = m_StarIntensity;
     MinVis = m_MinVis;
@@ -622,6 +635,18 @@ void CTimeOfDay::GetLightDirection(Tpoint *LightDirection)
 
 void CTimeOfDay::SetVar(TimeOfDayStruct *tod)
 {
+#ifdef FF_LINUX
+    {
+        static int svCount = 0;
+        if (svCount < 5) {
+            svCount++;
+            fprintf(stderr, "[SetVar] #%d: tod->TextureLighting=(%.3f,%.3f,%.3f) tod->Ambient=%.3f tod->Diffuse=%.3f\n",
+                    svCount, tod->TextureLighting.r, tod->TextureLighting.g, tod->TextureLighting.b,
+                    tod->Ambient, tod->Diffuse);
+            fflush(stderr);
+        }
+    }
+#endif
     m_SkyColor = tod ->SkyColor;
     m_HazeSkyColor = tod ->HazeSkyColor;
     m_GroundColor = tod ->GroundColor;

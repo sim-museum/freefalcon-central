@@ -6459,8 +6459,20 @@ void CockpitManager::SetTurbulence(void)
     PitTurbulence.x = PitTurbulence.x * DisplayOptions.DispWidth;
     // Being 2D Pit with no depth, differently from 3D Pith, shaking may be too much violent
     // so, we r going to apply a Square mantaining to shake values sign to it and then multiply by 2
+#ifdef FF_LINUX
+    // FF_LINUX: Guard against NaN from sqrtf(0) or sqrtf(negative) division
+    if (fabsf(PitTurbulence.y) > 0.0001f)
+        PitTurbulence.y = (float)((int)(PitTurbulence.y * 2.0f / sqrtf(fabsf(PitTurbulence.y))));
+    else
+        PitTurbulence.y = 0.0f;
+    if (fabsf(PitTurbulence.x) > 0.0001f)
+        PitTurbulence.x = (float)((int)(PitTurbulence.x * 2.0f / sqrtf(fabsf(PitTurbulence.x))));
+    else
+        PitTurbulence.x = 0.0f;
+#else
     PitTurbulence.y = (float)((int)(PitTurbulence.y * 2.0f / sqrtf(PitTurbulence.y)));
     PitTurbulence.x = (float)((int)(PitTurbulence.x * 2.0f / sqrtf(PitTurbulence.x)));
+#endif
 }
 
 

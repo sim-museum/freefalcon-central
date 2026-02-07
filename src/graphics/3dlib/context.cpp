@@ -1602,8 +1602,23 @@ void ContextMPR::SetCurrentState(GLint state, GLint flag)
             if (PlayerOptions.FilteringOn())
                 SetState(MPR_STA_TEX_FILTER, MPR_TX_BILINEAR);
 
+            // FF_LINUX: Always use MODULATE on Linux - OpenGL always wants texture*vertex_color
+            // The non-DDS path was for legacy 8-bit palette textures with pre-baked lighting
+#ifndef FF_LINUX
             if (DisplayOptions.m_texMode not_eq DisplayOptionsClass::TEX_MODE_DDS)
                 SetState(MPR_STA_DISABLES, MPR_SE_MODULATION);
+#endif
+
+#ifdef FF_LINUX
+            // FF_LINUX: Explicitly disable GL_LIGHTING for terrain rendering.
+            // Terrain uses pre-computed vertex colors via MODULATE (texture * vertex_color).
+            // Without this, GL_LIGHTING remains enabled from DXEngine (which sets
+            // ambient=0xff000000=black), causing vertex colors to go through the GL
+            // material/light pipeline and making terrain appear dark.
+            FlushVB();
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
+#endif
 
             break;
 
@@ -1623,8 +1638,18 @@ void ContextMPR::SetCurrentState(GLint state, GLint flag)
             if (PlayerOptions.FilteringOn())
                 SetState(MPR_STA_TEX_FILTER, MPR_TX_BILINEAR);
 
+            // FF_LINUX: Always use MODULATE on Linux (see STATE_LANDSCAPE_LIT comment)
+#ifndef FF_LINUX
             if (DisplayOptions.m_texMode not_eq DisplayOptionsClass::TEX_MODE_DDS)
                 SetState(MPR_STA_DISABLES, MPR_SE_MODULATION);
+#endif
+
+#ifdef FF_LINUX
+            // FF_LINUX: Explicitly disable GL_LIGHTING for terrain (see STATE_LANDSCAPE_LIT)
+            FlushVB();
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
+#endif
 
             break;
 
@@ -1992,6 +2017,16 @@ void ContextMPR::SelectTexture1(intptr_t texID)
             m_pD3DD->SetTexture(1, NULL);
         }
     }
+#ifdef FF_LINUX
+    else if ( not bZBuffering)
+    {
+        // FF_LINUX: Always call SetTexture even when texID matches the cached value.
+        // On Linux, external GL state changes (CDXEngine state block restore, DD7_CreateSurface
+        // binding new textures) can change the actual GL binding without ContextMPR knowing.
+        // SetTexture ensures the correct texture is bound and uploads dirty DXT data.
+        m_pD3DD->SetTexture(0, (IDirectDrawSurface7 *)texID);
+    }
+#endif
 
 #ifdef _CONTEXT_ENABLE_STATS
     else m_stats.PutTexture(true);

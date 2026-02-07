@@ -530,7 +530,8 @@ void TextureDB::StoreMPRPalette(SetEntry *pSet)
         to++;
         *to = static_cast<BYTE>(FloatToInt32(tmpB * lightColor.b));
         to++;
-        to++; // Alpha
+        *to = 0xFF; // FF_LINUX: Ensure alpha is fully opaque (was skipped, leaving garbage)
+        to++;
     }
 
     // Turn on the lights if it is dark enough
@@ -983,8 +984,8 @@ namespace
         }
         else
         {
-            // BUG
-            return 4096;
+            // Fallback - default to 256 instead of 4096
+            return 256;
         }
     }
 }
@@ -1037,10 +1038,43 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
     else
     {
 #ifdef FF_LINUX
-        // FF_LINUX: Safety check - if DDS data was not loaded for this resolution,
-        // skip activation. This happens when DDS files only exist for one resolution
-        // level (e.g., only H*.dds exists, not L*.dds or M*.dds).
-        if (!pTile->bits[res] || !(pTile->height[res] & MPR_TI_DDS)) {
+        // FF_LINUX: When DDS terrain tile files don't exist on disk, ReadImageDDS()
+        // returns early and Load() falls back to palette-based .pcx loading. However,
+        // Activate() still takes this DDS branch because m_texMode == TEX_MODE_DDS.
+        // Palette-loaded tiles have height[res] = actual pixel height (e.g., 256),
+        // NOT MPR_TI flags. Real DDS tiles always have a DXT compression flag set
+        // (DXT1/DXT3/DXT5). Detect palette-loaded tiles and route to palette path.
+        bool isDDSTile = (pTile->height[res] & (MPR_TI_DXT1 | MPR_TI_DXT3 | MPR_TI_DXT5)) != 0;
+        if (!isDDSTile && pTile->bits[res]) {
+            // This tile was loaded via palette - use the non-DDS activation path
+            if (pSet->palHandle == 0)
+            {
+                pSet->palHandle = (uintptr_t)new PaletteHandle(private_rc->m_pDD, 32, 256);
+                ShiAssert(pSet->palHandle);
+                if (pSet->palette) {
+                    StoreMPRPalette(pSet);
+                }
+            }
+
+            pTile->handle[res] = (uintptr_t)new TextureHandle;
+            ShiAssert(pTile->handle[res]);
+            ((PaletteHandle *)pSet->palHandle)->AttachToTexture((TextureHandle *)pTile->handle[res]);
+
+            DWORD dwFlags = NULL;
+            WORD info = MPR_TI_PALETTE;
+            if (g_bEnableStaticTerrainTextures)
+                dwFlags or_eq TextureHandle::FLAG_HINT_STATIC;
+
+            ((TextureHandle *)pTile->handle[res])->Create("TextureDB", info, 8,
+                static_cast<UInt16>(pTile->width[res]), static_cast<UInt16>(pTile->height[res]), dwFlags);
+            ((TextureHandle *)pTile->handle[res])->Load(0, 0, (BYTE*)pTile->bits[res]);
+
+            glReleaseMemory((char*)pTile->bits[res]);
+            pTile->bits[res] = NULL;
+            return;
+        }
+        if (!isDDSTile) {
+            // No DDS data and no palette data - skip
             return;
         }
 #endif
@@ -1074,18 +1108,6 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
         // Day texture
         pTile->handle[res] = (uintptr_t)new TextureHandle;
         ShiAssert(pTile->handle[res]);
-
-#ifdef FF_LINUX
-        {
-            static int activateDDSCount = 0;
-            if (activateDDSCount < 10) {
-                activateDDSCount++;
-                fprintf(stderr, "[Activate.DDS] #%d height[%d]=0x%x width=%d dataSize=%d\n",
-                        activateDDSCount, res, pTile->height[res], width, pTile->width[res]);
-                fflush(stderr);
-            }
-        }
-#endif
 
         ((TextureHandle *)pTile->handle[res])->Create(
             "TextureDB", (DWORD)pTile->height[res], 32, static_cast<UInt16>(width), static_cast<UInt16>(width)
@@ -1590,16 +1612,6 @@ void TextureDB::ReadImageDDS(TileEntry* pTile, int res)
         pTile->height[res] or_eq MPR_TI_DXT5;
     else
         pTile->height[res] or_eq MPR_TI_DXT1; // Fallback to DXT1
-    {
-        static int terrDDSCount = 0;
-        if (terrDDSCount < 10) {
-            terrDDSCount++;
-            fprintf(stderr, "[ReadImageDDS.terr] #%d sizeof(ddsd)=%zu FOURCC=0x%08x linearSize=%u width=%u flags=0x%x res=%d\n",
-                    terrDDSCount, sizeof(ddsd), ddsd.ddpfPixelFormat.dwFourCC,
-                    ddsd.dwLinearSize, ddsd.dwWidth, pTile->height[res], res);
-            fflush(stderr);
-        }
-    }
 #else
     // Note: MUST BE DXT1
     pTile->height[res] or_eq MPR_TI_DXT1;

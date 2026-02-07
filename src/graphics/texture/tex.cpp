@@ -1260,21 +1260,25 @@ bool TextureHandle::Reload()
 #ifdef FF_LINUX
                     {
                         static int postWriteCount = 0;
-                        if (postWriteCount < 5) {
+                        if (postWriteCount < 3) {
                             postWriteCount++;
-                            // Verify data was actually written to the surface
                             DWORD* verifyBuf = (DWORD *)ddsd.lpSurface;
-                            int vNonZero = 0;
-                            int vTotal = m_nWidth * m_nHeight;
-                            if (vTotal > 256) vTotal = 256;
-                            for (int vi = 0; vi < vTotal; vi++) {
-                                if (verifyBuf[vi] != 0) vNonZero++;
-                            }
-                            fprintf(stderr, "[Reload.Pal.Verify] #%d m_pDDS=%p lpSurface=%p first4pixels=0x%08x,0x%08x,0x%08x,0x%08x nonZero=%d/%d\n",
-                                    postWriteCount, (void*)m_pDDS, ddsd.lpSurface,
-                                    (unsigned)verifyBuf[0], (unsigned)verifyBuf[1],
-                                    (unsigned)verifyBuf[2], (unsigned)verifyBuf[3],
-                                    vNonZero, vTotal);
+                            // Check: palette[0] should match verifyBuf[0] if pSrc[0]==0
+                            fprintf(stderr, "[Reload.Pal.Write] #%d pSrc[0]=%d palette[0]=0x%08x palette[pSrc[0]]=0x%08x "
+                                    "verifyBuf[0]=0x%08x chromaKey=0x%08x m_eSurfFmt=%d\n",
+                                    postWriteCount, (int)pSrc[0], (unsigned)palette[0],
+                                    (unsigned)palette[m_pImageData[0]],
+                                    (unsigned)verifyBuf[0],
+                                    (unsigned)m_dwChromaKey, (int)m_eSurfFmt);
+                            // Check alpha channel in surface pixelFormat
+                            fprintf(stderr, "[Reload.Pal.Write] #%d pixFmt: bpp=%d flags=0x%x rMask=0x%x gMask=0x%x bMask=0x%x aMask=0x%x\n",
+                                    postWriteCount,
+                                    (int)ddsd.ddpfPixelFormat.dwRGBBitCount,
+                                    (unsigned)ddsd.ddpfPixelFormat.dwFlags,
+                                    (unsigned)ddsd.ddpfPixelFormat.dwRBitMask,
+                                    (unsigned)ddsd.ddpfPixelFormat.dwGBitMask,
+                                    (unsigned)ddsd.ddpfPixelFormat.dwBBitMask,
+                                    (unsigned)ddsd.ddpfPixelFormat.dwRGBAlphaBitMask);
                             fflush(stderr);
                         }
                     }
