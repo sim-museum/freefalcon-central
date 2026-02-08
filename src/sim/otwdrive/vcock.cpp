@@ -1641,6 +1641,13 @@ void OTWDriverClass::VCock_DrawThePit(void)
 {
     int oldState;
 
+#ifdef FF_LINUX
+    // FF_LINUX: Safety checks - vrCockpit or renderer may not be initialized
+    if (!vrCockpit || !renderer) {
+        return;
+    }
+#endif
+
     // COBRA - DX - if using DX Engine, PIT has to be Oriented as in 3D WORLD SPACE
     vrCockpit->orientation = OTWDriver.ownshipRot;
     renderer->SetCamera(&headOrigin, &headMatrix);

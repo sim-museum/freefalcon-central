@@ -766,6 +766,7 @@ void DrawableBSP::Draw(Render3D *renderer)
     if ( not renderer)
         return;
 
+
     // RED - NOPE - must be similar to any object
     // Make sure no left over fog affects this object...
     //TheStateStack.SetFog(1.f,NULL); //JAM 26Dec03

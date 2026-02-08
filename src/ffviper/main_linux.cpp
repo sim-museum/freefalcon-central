@@ -1197,6 +1197,7 @@ static bool init_sdl(bool fullscreen) {
 
     // Set OpenGL attributes - minimal requirements, let driver pick best match
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);  // FF_LINUX: Required for 3D cockpit stencil masking
     // Don't specify version - let driver use default compatibility context
     // Don't specify color/depth sizes - let driver pick available format
 
@@ -1265,6 +1266,11 @@ static bool init_opengl(void) {
     printf("  OpenGL Vendor: %s\n", glGetString(GL_VENDOR));
     printf("  OpenGL Renderer: %s\n", glGetString(GL_RENDERER));
     printf("  OpenGL Version: %s\n", glGetString(GL_VERSION));
+    {
+        GLint stencilBits = 0;
+        glGetIntegerv(GL_STENCIL_BITS, &stencilBits);
+        printf("  OpenGL Stencil Bits: %d\n", stencilBits);
+    }
 
     // Set up basic OpenGL state - minimal for test pattern
     glClearColor(0.2f, 0.2f, 0.3f, 1.0f);  // Neutral gray-blue

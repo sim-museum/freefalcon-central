@@ -1692,6 +1692,29 @@ void RenderOTW::SetTimeOfDayColor(void)
         TheTimeOfDay.GetHazeSkyColor(&haze_sky_color);
         TheTimeOfDay.GetHazeGroundColor(&earth_end_color);
         TheTimeOfDay.GetGroundColor(&haze_ground_color);
+
+#ifdef FF_LINUX
+        {
+            static int todDiag = 0;
+            if (todDiag < 3) {
+                todDiag++;
+                Tcolor texLight;
+                TheTimeOfDay.GetTextureLightingColor(&texLight);
+                fprintf(stderr, "[TOD] ambient=%.3f diffuse=%.3f specular=%.3f\n"
+                        "  sky=(%.3f,%.3f,%.3f) haze_sky=(%.3f,%.3f,%.3f)\n"
+                        "  earth_end=(%.3f,%.3f,%.3f) haze_gnd=(%.3f,%.3f,%.3f)\n"
+                        "  texLight=(%.3f,%.3f,%.3f) NVG=%d\n",
+                        lightAmbient, lightDiffuse, lightSpecular,
+                        sky_color.r, sky_color.g, sky_color.b,
+                        haze_sky_color.r, haze_sky_color.g, haze_sky_color.b,
+                        earth_end_color.r, earth_end_color.g, earth_end_color.b,
+                        haze_ground_color.r, haze_ground_color.g, haze_ground_color.b,
+                        texLight.r, texLight.g, texLight.b,
+                        TheTimeOfDay.GetNVGmode());
+                fflush(stderr);
+            }
+        }
+#endif
         ProcessColor(&sky_color);
         ProcessColor(&haze_sky_color);
         ProcessColor(&earth_end_color);

@@ -12,6 +12,11 @@
 //JAM 297Sep03 - Begin Major Rewrite
 #include <math.h>
 #include <cstdint>  // FF_LINUX: For uint32_t
+#ifdef FF_LINUX
+extern "C" void glDisable(unsigned int cap);
+extern "C" void glEnable(unsigned int cap);
+#define FF_GL_FOG 0x0B60
+#endif
 #include "falclib/include/debuggr.h"
 #include "timemgr.h"
 #include "tod.h"
@@ -1108,7 +1113,16 @@ void RenderOTW::DrawScene(const Tpoint *offset, const Trotation *orientation)
     }
 
     // Draw the sky
+#ifdef FF_LINUX
+    // FF_LINUX: Disable fog during sky draw. Sky uses pre-computed vertex colors
+    // that already include atmospheric haze. Fog would darken everything to black
+    // since fog params (color/start/end) may not be initialized yet at this point.
+    glDisable(FF_GL_FOG);
+#endif
     DrawSky();
+#ifdef FF_LINUX
+    glEnable(FF_GL_FOG);
+#endif
 
     //realWeather->Draw();
     //JAM 15Dec03
@@ -1889,10 +1903,14 @@ void RenderOTW::ComputeVertexColor(TerrainVertex *vert, Tpost *post, float dista
 #ifdef FF_LINUX
     {
         static int cvDiag = 0;
-        if (cvDiag < 5) {
+        if (cvDiag < 3) {
             cvDiag++;
-            fprintf(stderr, "[ComputeVtxColor] #%d dist=%.1f haze_start=%.1f haze_depth=%.1f far_clip=%.1f weather=%d\n",
-                    cvDiag, distance, haze_start, haze_depth, far_clip, realWeather->weatherCondition);
+            fprintf(stderr, "[ComputeVtxColor] #%d dist=%.1f haze_start=%.1f haze_depth=%.1f far_clip=%.1f weather=%d\n"
+                    "  ground_color=(%.3f,%.3f,%.3f) colorIdx=%d colorTable=(%.3f,%.3f,%.3f)\n",
+                    cvDiag, distance, haze_start, haze_depth, far_clip, realWeather->weatherCondition,
+                    ground_color.r, ground_color.g, ground_color.b,
+                    post->colorIndex,
+                    TheMap.ColorTable[post->colorIndex].r, TheMap.ColorTable[post->colorIndex].g, TheMap.ColorTable[post->colorIndex].b);
             fflush(stderr);
         }
     }

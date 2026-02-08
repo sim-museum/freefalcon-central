@@ -208,6 +208,20 @@ BOOL ContextMPR::Setup(ImageBuffer *pIB, DXContext *c)
         m_pD3DD->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
         m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_NONE);
         m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGENABLE, TRUE);
+#ifdef FF_LINUX
+        // FF_LINUX: Initialize fog parameters to sane defaults.
+        // OpenGL defaults to black fog with start=0, end=1, mode=GL_EXP which
+        // makes everything beyond 1 unit fully black. Set LINEAR mode with a
+        // far end so fog doesn't darken the scene before proper values are set.
+        {
+            float fogStart = 0.0f;
+            float fogEnd = 80000.0f;  // Very far - effectively no fog until properly configured
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGVERTEXMODE, D3DFOG_LINEAR);
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGTABLEMODE, D3DFOG_LINEAR);
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGSTART, *(DWORD*)&fogStart);
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGEND, *(DWORD*)&fogEnd);
+        }
+#endif
         m_pD3DD->SetRenderState(D3DRENDERSTATE_TEXTUREPERSPECTIVE, TRUE);
         m_pD3DD->SetRenderState(D3DRENDERSTATE_STIPPLEDALPHA, FALSE);
         m_pD3DD->SetRenderState(D3DRENDERSTATE_COLORKEYENABLE, FALSE);
@@ -2103,6 +2117,15 @@ void ContextMPR::ApplyStateBlock(GLint state)
         HRESULT hr = m_pD3DD->ApplyStateBlock(StateTable[state]);
 
         if ( not SUCCEEDED(hr)) INT3;
+
+#ifdef FF_LINUX
+        // FF_LINUX: ApplyStateBlock doesn't capture SetTexture calls.
+        // Explicitly unbind texture for non-textured states.
+        if (!StateTableInternal[state].SE_TEXTURING)
+        {
+            m_pD3DD->SetTexture(0, NULL);
+        }
+#endif
     }
 }
 
@@ -2155,6 +2178,18 @@ void ContextMPR::RestoreState(GLint state)
 #endif
             HRESULT hr = m_pD3DD->ApplyStateBlock(StateTable[currentState]);
             ShiAssert(SUCCEEDED(hr));
+
+#ifdef FF_LINUX
+            // FF_LINUX: ApplyStateBlock doesn't capture SetTexture calls.
+            // When switching to a non-textured state (e.g. STATE_SOLID),
+            // we must explicitly unbind the texture so DrawIndexedPrimitiveVB
+            // knows to disable GL_TEXTURE_2D. Otherwise stale textures
+            // modulate vertex colors (e.g. sky polygon rendered black).
+            if (!StateTableInternal[currentState].SE_TEXTURING)
+            {
+                m_pD3DD->SetTexture(0, NULL);
+            }
+#endif
         }
     }
 }

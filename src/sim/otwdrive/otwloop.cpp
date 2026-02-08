@@ -2570,19 +2570,7 @@ void OTWDriverClass::RenderFrame()
     //STOP_PROFILE("RENDER 3DPIT");
 
     //START_PROFILE("RENDER DRAWSCENE");
-#ifdef FF_LINUX
-    {
-        extern int g_DrawPrimitiveCount, g_DrawIdxPrimVBCount, g_DrawVerticesCount, g_ClearCallCount, g_DrawPrimitiveVBCount;
-        int dpBefore = g_DrawPrimitiveCount, vbBefore = g_DrawIdxPrimVBCount;
-        int dvBefore = g_DrawVerticesCount, clrBefore = g_ClearCallCount;
-        int pvbBefore = g_DrawPrimitiveVBCount;
-        renderer->DrawScene((struct Tpoint *) &headOrigin, (struct Trotation *) &cameraRot);
-        int dpAfterScene = g_DrawPrimitiveCount, vbAfterScene = g_DrawIdxPrimVBCount;
-        int dvAfterScene = g_DrawVerticesCount, pvbAfterScene = g_DrawPrimitiveVBCount;
-#endif
-#ifndef FF_LINUX
     renderer->DrawScene((struct Tpoint *) &headOrigin, (struct Trotation *) &cameraRot);
-#endif
     //STOP_PROFILE("RENDER DRAWSCENE");
 
     VirtualDisplay::SetFont(oldFont);
@@ -2666,22 +2654,6 @@ void OTWDriverClass::RenderFrame()
     {
         renderer->context.FlushPolyLists();
     }
-#ifdef FF_LINUX
-    {
-        static int flushDiag = 0;
-        if (flushDiag < 5) {
-            flushDiag++;
-            fprintf(stderr, "[RenderStats] #%d scene: drawPrim=+%d idxPrimVB=+%d primVB=+%d drawVerts=+%d | total: drawPrim=+%d idxPrimVB=+%d primVB=+%d drawVerts=+%d | okCockpit=%d bZBuf=%d\n",
-                    flushDiag,
-                    dpAfterScene - dpBefore, vbAfterScene - vbBefore, pvbAfterScene - pvbBefore, dvAfterScene - dvBefore,
-                    g_DrawPrimitiveCount - dpBefore, g_DrawIdxPrimVBCount - vbBefore,
-                    g_DrawPrimitiveVBCount - pvbBefore, g_DrawVerticesCount - dvBefore,
-                    okToDoCockpitStuff, DisplayOptions.bZBuffering);
-            fflush(stderr);
-        }
-    }
-    }  // close the FF_LINUX block opened around DrawScene
-#endif
 
     // If in 3D Pit, the pit has to be drawn as 1st item helping z-Buffering
     if (okToDoCockpitStuff)

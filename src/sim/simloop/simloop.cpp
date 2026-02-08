@@ -1157,6 +1157,13 @@ void SimulationLoopControl::StartLoop(void)
             g_intellivibeData.IsEndFlight = false;
 
 #ifdef FF_LINUX
+            // FF_LINUX: Now that the player aircraft exists, set the display mode.
+            // The earlier SetOTWDisplayMode(Mode3DCockpit) call in Enter() fails because
+            // SimDriver.GetPlayerAircraft() is NULL at that point (deaggregation hasn't
+            // completed yet). The guard at access.cpp:1139 rejects cockpit modes when
+            // player is NULL. Now the player is valid, so the mode will be accepted.
+            OTWDriver.SetOTWDisplayMode(OTWDriverClass::Mode3DCockpit);
+
             // Release the GL context so the Loop thread (which runs OTWDriver.Cycle()) can acquire it.
             // On Windows, D3D devices are not thread-bound, but OpenGL contexts ARE thread-bound.
             // The Loop thread is a different thread from StartLoop and needs the GL context for rendering.

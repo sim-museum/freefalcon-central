@@ -126,6 +126,42 @@ typedef void* LPDDBLTBATCH;
 // Maximum texture stages
 #define MAX_TEXTURE_STAGES 8
 
+// Stencil state tracking (D3D sets params individually, GL needs them together)
+static GLenum g_stencilFunc = GL_ALWAYS;
+static GLint  g_stencilRef = 0;
+static GLuint g_stencilMask = 0xFFFFFFFF;
+static GLenum g_stencilFail = GL_KEEP;
+static GLenum g_stencilZFail = GL_KEEP;
+static GLenum g_stencilPass = GL_KEEP;
+
+static GLenum D3DCmpToGL(DWORD d3dcmp) {
+    switch (d3dcmp) {
+        case D3DCMP_NEVER:        return GL_NEVER;
+        case D3DCMP_LESS:         return GL_LESS;
+        case D3DCMP_EQUAL:        return GL_EQUAL;
+        case D3DCMP_LESSEQUAL:    return GL_LEQUAL;
+        case D3DCMP_GREATER:      return GL_GREATER;
+        case D3DCMP_NOTEQUAL:     return GL_NOTEQUAL;
+        case D3DCMP_GREATEREQUAL: return GL_GEQUAL;
+        case D3DCMP_ALWAYS:       return GL_ALWAYS;
+        default:                  return GL_ALWAYS;
+    }
+}
+
+static GLenum D3DStencilOpToGL(DWORD d3dop) {
+    switch (d3dop) {
+        case D3DSTENCILOP_KEEP:    return GL_KEEP;
+        case D3DSTENCILOP_ZERO:    return GL_ZERO;
+        case D3DSTENCILOP_REPLACE: return GL_REPLACE;
+        case D3DSTENCILOP_INCRSAT: return GL_INCR;
+        case D3DSTENCILOP_DECRSAT: return GL_DECR;
+        case D3DSTENCILOP_INVERT:  return GL_INVERT;
+        case D3DSTENCILOP_INCR:    return GL_INCR_WRAP;
+        case D3DSTENCILOP_DECR:    return GL_DECR_WRAP;
+        default:                   return GL_KEEP;
+    }
+}
+
 // Maximum state blocks
 #define MAX_STATE_BLOCKS 256
 
@@ -165,9 +201,14 @@ struct D3D7Surface : public IDirectDrawSurface7 {
     // FF_LINUX: FBO support for render-to-texture
     GLuint fboId;           // OpenGL Framebuffer Object ID (0 = none)
 
+    // FF_LINUX: Color key (chroma key) support
+    bool hasColorKey;       // True if SetColorKey was called with a valid key
+    DWORD colorKeyLow;      // Low value of the color key range (BGRA pixel value)
+
     D3D7Surface() : glTexture(0), width(0), height(0), caps(0), refCount(1),
                     pixelData(nullptr), pitch(0), isLocked(false), isDirty(false), isPrimary(false),
-                    dxtFormat(0), dxtDataSize(0), fboId(0) {
+                    dxtFormat(0), dxtDataSize(0), fboId(0),
+                    hasColorKey(false), colorKeyLow(0) {
         // Initialize inherited lpVtbl to the correct vtable
         lpVtbl = const_cast<IDirectDrawSurface7Vtbl*>(&g_DDS7Vtbl);
         memset(&pixelFormat, 0, sizeof(pixelFormat));
@@ -1221,6 +1262,16 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
 
     // Bind texture to OpenGL
     glActiveTexture(GL_TEXTURE0 + dwStage);
+    if (!lpTexture) {
+        // FF_LINUX: Unbind texture and disable texturing when NULL is passed.
+        // This is critical for non-textured draws (sky, flat-shaded polygons)
+        // that would otherwise be modulated by a stale texture.
+        if (dwStage == 0) {
+            glBindTexture(GL_TEXTURE_2D, 0);
+            glDisable(GL_TEXTURE_2D);
+        }
+        return D3D_OK;
+    }
     if (lpTexture) {
         D3D7Surface* surf = (D3D7Surface*)lpTexture;
 
@@ -1291,6 +1342,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
 
             if (surf->dxtFormat != 0 && surf->dxtDataSize > 0) {
                 // DXT compressed texture upload
+                // DXT1/3/5 alpha is already baked into the compressed data
                 glCompressedTexImage2D(GL_TEXTURE_2D, 0, surf->dxtFormat,
                                        surf->width, surf->height, 0,
                                        surf->dxtDataSize, surf->pixelData);
@@ -1313,6 +1365,30 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                     } else if (surf->pixelFormat.dwRBitMask == 0x0F00) {
                         format = GL_BGRA;
                         type = GL_UNSIGNED_SHORT_4_4_4_4_REV;
+                    }
+                }
+
+                // FF_LINUX: Apply color key - set alpha=0 for pixels matching
+                // the color key, alpha=0xFF for non-matching pixels.
+                // This implements DirectDraw's DDCKEY_SRCBLT transparency.
+                if (surf->hasColorKey && bpp == 4) {
+                    DWORD rgbMask = surf->pixelFormat.dwRBitMask |
+                                    surf->pixelFormat.dwGBitMask |
+                                    surf->pixelFormat.dwBBitMask;
+                    DWORD ckRGB = surf->colorKeyLow & rgbMask;
+                    int numPixels = surf->width * surf->height;
+                    DWORD* pixels = (DWORD*)surf->pixelData;
+                    // Handle pitch != width*bpp (rows may have padding)
+                    int pixelsPerRow = surf->pitch / 4;
+                    for (int y = 0; y < surf->height; y++) {
+                        DWORD* row = pixels + y * pixelsPerRow;
+                        for (int x = 0; x < surf->width; x++) {
+                            if ((row[x] & rgbMask) == ckRGB) {
+                                row[x] &= rgbMask;  // Set alpha to 0
+                            } else {
+                                row[x] |= ~rgbMask; // Set alpha to 0xFF
+                            }
+                        }
                     }
                 }
 
@@ -1342,10 +1418,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                 surf->isDirty = false;
             }
         }
-    } else {
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glDisable(GL_TEXTURE_2D);
     }
+    // else: texture is already bound (line 1293) with valid GL data from a
+    // previous upload - keep the binding, don't unbind or disable texturing.
     glActiveTexture(GL_TEXTURE0);
 
     return D3D_OK;
@@ -1807,15 +1882,21 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
             break;
 
         case D3DRENDERSTATE_ALPHAFUNC:
-            switch (value) {
-                case D3DCMP_NEVER: glAlphaFunc(GL_NEVER, 0); break;
-                case D3DCMP_LESS: glAlphaFunc(GL_LESS, 0); break;
-                case D3DCMP_EQUAL: glAlphaFunc(GL_EQUAL, 0); break;
-                case D3DCMP_LESSEQUAL: glAlphaFunc(GL_LEQUAL, 0); break;
-                case D3DCMP_GREATER: glAlphaFunc(GL_GREATER, 0); break;
-                case D3DCMP_NOTEQUAL: glAlphaFunc(GL_NOTEQUAL, 0); break;
-                case D3DCMP_GREATEREQUAL: glAlphaFunc(GL_GEQUAL, 0); break;
-                case D3DCMP_ALWAYS: glAlphaFunc(GL_ALWAYS, 0); break;
+            {
+                // FF_LINUX: Preserve current alpha ref value when changing function.
+                // The old code used hardcoded 0, which made alpha test always pass.
+                GLfloat currentRef;
+                glGetFloatv(GL_ALPHA_TEST_REF, &currentRef);
+                switch (value) {
+                    case D3DCMP_NEVER: glAlphaFunc(GL_NEVER, currentRef); break;
+                    case D3DCMP_LESS: glAlphaFunc(GL_LESS, currentRef); break;
+                    case D3DCMP_EQUAL: glAlphaFunc(GL_EQUAL, currentRef); break;
+                    case D3DCMP_LESSEQUAL: glAlphaFunc(GL_LEQUAL, currentRef); break;
+                    case D3DCMP_GREATER: glAlphaFunc(GL_GREATER, currentRef); break;
+                    case D3DCMP_NOTEQUAL: glAlphaFunc(GL_NOTEQUAL, currentRef); break;
+                    case D3DCMP_GREATEREQUAL: glAlphaFunc(GL_GEQUAL, currentRef); break;
+                    case D3DCMP_ALWAYS: glAlphaFunc(GL_ALWAYS, currentRef); break;
+                }
             }
             break;
 
@@ -1830,6 +1911,57 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
         case D3DRENDERSTATE_STENCILENABLE:
             if (value) glEnable(GL_STENCIL_TEST);
             else glDisable(GL_STENCIL_TEST);
+            {
+                static int stencilEnableLog = 0;
+                if (stencilEnableLog < 20) {
+                    stencilEnableLog++;
+                    fprintf(stderr, "[STENCIL] Enable=%d (#%d)\n", (int)value, stencilEnableLog);
+                    fflush(stderr);
+                }
+            }
+            break;
+
+        case D3DRENDERSTATE_STENCILFUNC:
+            g_stencilFunc = D3DCmpToGL(value);
+            glStencilFunc(g_stencilFunc, g_stencilRef, g_stencilMask);
+            {
+                static int stencilFuncLog = 0;
+                if (stencilFuncLog < 20) {
+                    stencilFuncLog++;
+                    fprintf(stderr, "[STENCIL] Func=%d ref=%d mask=0x%x (#%d)\n",
+                            (int)value, g_stencilRef, g_stencilMask, stencilFuncLog);
+                    fflush(stderr);
+                }
+            }
+            break;
+
+        case D3DRENDERSTATE_STENCILREF:
+            g_stencilRef = (GLint)value;
+            glStencilFunc(g_stencilFunc, g_stencilRef, g_stencilMask);
+            break;
+
+        case D3DRENDERSTATE_STENCILMASK:
+            g_stencilMask = (GLuint)value;
+            glStencilFunc(g_stencilFunc, g_stencilRef, g_stencilMask);
+            break;
+
+        case D3DRENDERSTATE_STENCILWRITEMASK:
+            glStencilMask((GLuint)value);
+            break;
+
+        case D3DRENDERSTATE_STENCILFAIL:
+            g_stencilFail = D3DStencilOpToGL(value);
+            glStencilOp(g_stencilFail, g_stencilZFail, g_stencilPass);
+            break;
+
+        case D3DRENDERSTATE_STENCILZFAIL:
+            g_stencilZFail = D3DStencilOpToGL(value);
+            glStencilOp(g_stencilFail, g_stencilZFail, g_stencilPass);
+            break;
+
+        case D3DRENDERSTATE_STENCILPASS:
+            g_stencilPass = D3DStencilOpToGL(value);
+            glStencilOp(g_stencilFail, g_stencilZFail, g_stencilPass);
             break;
 
         case D3DRENDERSTATE_SPECULARENABLE:
@@ -3059,6 +3191,12 @@ static HRESULT STDMETHODCALLTYPE DDS7_SetClipper(IDirectDrawSurface7* This, LPDI
 }
 
 static HRESULT STDMETHODCALLTYPE DDS7_SetColorKey(IDirectDrawSurface7* This, DWORD dwFlags, LPDDCOLORKEY lpDDColorKey) {
+    D3D7Surface* surf = (D3D7Surface*)This;
+    if (lpDDColorKey && (dwFlags & DDCKEY_SRCBLT)) {
+        surf->hasColorKey = true;
+        surf->colorKeyLow = lpDDColorKey->dwColorSpaceLowValue;
+        surf->isDirty = true;  // Force re-upload with alpha modification
+    }
     return DD_OK;
 }
 

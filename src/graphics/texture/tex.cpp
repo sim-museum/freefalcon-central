@@ -1202,21 +1202,25 @@ bool TextureHandle::Reload()
 #ifdef FF_LINUX
                     {
                         static int palDiagCount = 0;
-                        if (palDiagCount < 3) {
+                        if (palDiagCount < 50) {
                             palDiagCount++;
-                            int palNonZero = 0;
+                            // Count how many palette entries match m_dwChromaKey
+                            int chromaMatches = 0;
                             for (int pi = 0; pi < m_pPalAttach->m_nNumEntries; pi++) {
-                                if (pal[pi] != 0) palNonZero++;
+                                if (pal[pi] == m_dwChromaKey) chromaMatches++;
                             }
-                            fprintf(stderr, "[Reload.Pal] #%d nEntries=%d palNonZero=%d pal[0..3]=0x%08x,0x%08x,0x%08x,0x%08x\n",
-                                    palDiagCount, m_pPalAttach->m_nNumEntries, palNonZero,
-                                    (unsigned)pal[0], (unsigned)pal[1], (unsigned)pal[2], (unsigned)pal[3]);
-                            int srcNonZero = 0;
-                            for (int si = 0; si < m_nWidth * m_nHeight && si < 65536; si++) {
-                                if (m_pImageData[si] != 0) srcNonZero++;
+                            // Count source pixels that use palette index 0
+                            int srcIdx0Count = 0;
+                            int totalPixels = m_nWidth * m_nHeight;
+                            for (int si = 0; si < totalPixels && si < 65536; si++) {
+                                if (m_pImageData[si] == 0) srcIdx0Count++;
                             }
-                            fprintf(stderr, "[Reload.Pal] #%d srcNonZero=%d lpSurface=%p pitch=%d\n",
-                                    palDiagCount, srcNonZero, ddsd.lpSurface, (int)ddsd.lPitch);
+                            fprintf(stderr, "[Reload.A8] #%d %dx%d m_pDDS=%p chromaKey=0x%08x pal[0]=0x%08x match=%s "
+                                    "chromaMatches=%d srcIdx0=%d/%d eSurfFmt=%d\n",
+                                    palDiagCount, m_nWidth, m_nHeight, (void*)m_pDDS,
+                                    (unsigned)m_dwChromaKey, (unsigned)pal[0],
+                                    (pal[0] == m_dwChromaKey) ? "YES" : "NO",
+                                    chromaMatches, srcIdx0Count, totalPixels, (int)m_eSurfFmt);
                             fflush(stderr);
                         }
                     }
@@ -1260,25 +1264,27 @@ bool TextureHandle::Reload()
 #ifdef FF_LINUX
                     {
                         static int postWriteCount = 0;
-                        if (postWriteCount < 3) {
+                        if (postWriteCount < 50) {
                             postWriteCount++;
                             DWORD* verifyBuf = (DWORD *)ddsd.lpSurface;
-                            // Check: palette[0] should match verifyBuf[0] if pSrc[0]==0
-                            fprintf(stderr, "[Reload.Pal.Write] #%d pSrc[0]=%d palette[0]=0x%08x palette[pSrc[0]]=0x%08x "
-                                    "verifyBuf[0]=0x%08x chromaKey=0x%08x m_eSurfFmt=%d\n",
-                                    postWriteCount, (int)pSrc[0], (unsigned)palette[0],
-                                    (unsigned)palette[m_pImageData[0]],
-                                    (unsigned)verifyBuf[0],
-                                    (unsigned)m_dwChromaKey, (int)m_eSurfFmt);
-                            // Check alpha channel in surface pixelFormat
-                            fprintf(stderr, "[Reload.Pal.Write] #%d pixFmt: bpp=%d flags=0x%x rMask=0x%x gMask=0x%x bMask=0x%x aMask=0x%x\n",
-                                    postWriteCount,
-                                    (int)ddsd.ddpfPixelFormat.dwRGBBitCount,
-                                    (unsigned)ddsd.ddpfPixelFormat.dwFlags,
-                                    (unsigned)ddsd.ddpfPixelFormat.dwRBitMask,
-                                    (unsigned)ddsd.ddpfPixelFormat.dwGBitMask,
-                                    (unsigned)ddsd.ddpfPixelFormat.dwBBitMask,
-                                    (unsigned)ddsd.ddpfPixelFormat.dwRGBAlphaBitMask);
+                            // Count alpha=0 and alpha=0xFF pixels in output
+                            int alpha0 = 0, alphaFF = 0, alphaOther = 0;
+                            int totalPx = m_nWidth * m_nHeight;
+                            DWORD dwPitchLocal = ddsd.lPitch >> 2;
+                            for (int y = 0; y < m_nHeight; y++) {
+                                for (int x = 0; x < m_nWidth; x++) {
+                                    DWORD px = verifyBuf[y * dwPitchLocal + x];
+                                    BYTE a = (px >> 24) & 0xFF;
+                                    if (a == 0) alpha0++;
+                                    else if (a == 0xFF) alphaFF++;
+                                    else alphaOther++;
+                                }
+                            }
+                            fprintf(stderr, "[Reload.Write] #%d %dx%d alpha0=%d alphaFF=%d alphaOther=%d total=%d "
+                                    "palette[0]=0x%08x\n",
+                                    postWriteCount, m_nWidth, m_nHeight,
+                                    alpha0, alphaFF, alphaOther, totalPx,
+                                    (unsigned)palette[0]);
                             fflush(stderr);
                         }
                     }
