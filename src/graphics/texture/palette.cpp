@@ -486,18 +486,6 @@ void PaletteHandle::Load(UInt16 info, UInt16 PalBitsPerEntry, UInt16 index, UInt
 {
     ShiAssert(m_pIDDP and entries <= m_nNumEntries);
 
-#ifdef FF_LINUX
-    {
-        static int palLoadDiag = 0;
-        if (palLoadDiag < 10) {
-            palLoadDiag++;
-            fprintf(stderr, "[PalLoad] #%d m_pIDDP=%p m_pPalData=%p nAttached=%d entries=%d\n",
-                    palLoadDiag, (void*)m_pIDDP, (void*)m_pPalData,
-                    (int)m_arrAttachedTextures.size(), (int)entries);
-            fflush(stderr);
-        }
-    }
-#endif
 
     if ( not m_pIDDP or not m_pPalData) return;
 
@@ -519,32 +507,8 @@ void PaletteHandle::Load(UInt16 info, UInt16 PalBitsPerEntry, UInt16 index, UInt
     if (SUCCEEDED(hr))
     {
         // Reload attached textures
-#ifdef FF_LINUX
-        {
-            static int reloadCallDiag = 0;
-            if (reloadCallDiag < 10) {
-                for (int i = 0 ; static_cast<unsigned int>(i) < m_arrAttachedTextures.size() ; i++) {
-                    reloadCallDiag++;
-                    TextureHandle* tex = m_arrAttachedTextures[i];
-                    fprintf(stderr, "[PalLoad.Reload] #%d tex=%p m_pDDS=%p m_pImageData=%p m_eSurfFmt=%d %dx%d\n",
-                            reloadCallDiag, (void*)tex, (void*)tex->m_pDDS, (void*)tex->m_pImageData,
-                            (int)tex->m_eSurfFmt, tex->m_nWidth, tex->m_nHeight);
-                    fflush(stderr);
-                    bool result = tex->Reload();
-                    fprintf(stderr, "[PalLoad.Reload] #%d result=%d\n", reloadCallDiag, (int)result);
-                    fflush(stderr);
-                    if (reloadCallDiag >= 10) break;
-                }
-            }
-            if (reloadCallDiag >= 10) {
-                for (int i = 0 ; static_cast<unsigned int>(i) < m_arrAttachedTextures.size() ; i++)
-                    m_arrAttachedTextures[i]->Reload();
-            }
-        }
-#else
         for (int i = 0 ; static_cast<unsigned int>(i) < m_arrAttachedTextures.size() ; i++)
             m_arrAttachedTextures[i]->Reload();
-#endif
     }
 }
 

@@ -19,7 +19,7 @@
 // #define FF_LINUX_DEBUG
 
 // Uncomment the following line to enable RENDER debug output (very verbose):
-#define FF_LINUX_DEBUG_RENDER
+// #define FF_LINUX_DEBUG_RENDER
 
 #ifdef FF_LINUX_DEBUG
     // Debug output enabled - print to stderr

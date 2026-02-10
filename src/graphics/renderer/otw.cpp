@@ -419,18 +419,6 @@ void RenderOTW::SetTerrainTextureLevel(int level)
     textureLevel = max(level, viewpoint->GetMinLOD() - 1);
     textureLevel = min(textureLevel, viewpoint->GetMaxLOD());
     textureLevel = min(textureLevel, TheMap.LastFarTexLOD());
-#ifdef FF_LINUX
-    {
-        static int stlDiag = 0;
-        if (stlDiag < 3) {
-            stlDiag++;
-            fprintf(stderr, "[SetTexLevel] #%d input=%d minLOD=%d maxLOD=%d lastFar=%d -> textureLevel=%d\n",
-                    stlDiag, level, viewpoint->GetMinLOD(), viewpoint->GetMaxLOD(),
-                    TheMap.LastFarTexLOD(), textureLevel);
-            fflush(stderr);
-        }
-    }
-#endif
 
     // Rearrange the fog settings
     //JAM 13Nov03
@@ -928,18 +916,6 @@ void RenderOTW::DrawScene(const Tpoint *offset, const Trotation *orientation)
     // Call Render3D's cammera update function with the new position
     SetCamera(&position, orientation);
 
-#ifdef FF_LINUX
-    {
-        static int drawSceneDiag = 0;
-        if (drawSceneDiag < 5) {
-            drawSceneDiag++;
-            fprintf(stderr, "[DrawScene] #%d pos=(%.1f, %.1f, %.1f) vpReady=%d\n",
-                    drawSceneDiag, position.x, position.y, position.z,
-                    viewpoint ? viewpoint->IsReady() : -1);
-            fflush(stderr);
-        }
-    }
-#endif
 
     // Update the sky color based on our current attitude and position
     // sfr: this is called inside DrawSky
@@ -1144,18 +1120,6 @@ void RenderOTW::DrawScene(const Tpoint *offset, const Trotation *orientation)
     // Figure out which list would contain our eye point
     containingList = viewpoint->GetContainingList(position.z);
 
-#ifdef FF_LINUX
-    {
-        static int listDiag = 0;
-        if (listDiag < 5) {
-            listDiag++;
-            fprintf(stderr, "[DrawScene] #%d containingList=%d terrainObjs=%p\n",
-                    listDiag, containingList,
-                    (void*)(viewpoint->ObjectsInTerrain()));
-            fflush(stderr);
-        }
-    }
-#endif
 
     // Setup the layers for the 2D DX Engine
     /*switch(containingList){
@@ -1442,56 +1406,12 @@ void RenderOTW::DrawGroundAndObjects(ObjectDisplayList *objectList)
 
     //START_PROFILE("In Ground");
 
-#ifdef FF_LINUX
-    {
-        static int groundDiag = 0;
-        if (groundDiag < 5) {
-            groundDiag++;
-            int numSpans = (int)(firstEmptySpan - spanList);
-            fprintf(stderr, "[DrawGround] #%d numSpans=%d maxSpanExtent=%d maxLOD=%d minLOD=%d\n",
-                    groundDiag, numSpans, maxSpanExtent,
-                    viewpoint->GetMaxLOD(), viewpoint->GetMinLOD());
-            fflush(stderr);
-        }
-    }
-#endif
 
     // Render all the require polygons from farthest to nearest
-#ifdef FF_LINUX
-    {
-        static int spanLODdiag = 0;
-        if (spanLODdiag < 3) {
-            spanLODdiag++;
-            fprintf(stderr, "[SpanLODs] #%d: ", spanLODdiag);
-            for (SpanListEntry *s = spanList + 1; s < firstEmptySpan; s++)
-                fprintf(stderr, "LOD%d(r%d) ", s->LOD, s->ring);
-            fprintf(stderr, "\n");
-            fflush(stderr);
-        }
-    }
-#endif
     for (span = spanList + 1; span < firstEmptySpan; span++)
     {
 
         // Call the appropriate routine to draw the ring
-#ifdef FF_LINUX
-        {
-            static int iterDiag = 0;
-            if (iterDiag < 80) {
-                iterDiag++;
-                if (iterDiag <= 80) {
-                    fprintf(stderr, "[SpanIter] #%d LOD=%d ring=%d nextLOD=%d -> %s\n",
-                            iterDiag, span->LOD, span->ring,
-                            (span + 1)->LOD,
-                            (span->LOD == (span + 1)->LOD) ? "DrawTerrainRing" : "TRANSITION(skip+connector+gap)");
-                }
-                if (iterDiag == 80) {
-                    fprintf(stderr, "[SpanIter] ... (stopping diagnostic)\n");
-                    fflush(stderr);
-                }
-            }
-        }
-#endif
         if (span->LOD == (span + 1)->LOD)
         {
             DrawTerrainRing(span);
@@ -1900,21 +1820,6 @@ void RenderOTW::ComputeVertexColor(TerrainVertex *vert, Tpost *post, float dista
     int row, col;
     float fog, alpha;
 
-#ifdef FF_LINUX
-    {
-        static int cvDiag = 0;
-        if (cvDiag < 3) {
-            cvDiag++;
-            fprintf(stderr, "[ComputeVtxColor] #%d dist=%.1f haze_start=%.1f haze_depth=%.1f far_clip=%.1f weather=%d\n"
-                    "  ground_color=(%.3f,%.3f,%.3f) colorIdx=%d colorTable=(%.3f,%.3f,%.3f)\n",
-                    cvDiag, distance, haze_start, haze_depth, far_clip, realWeather->weatherCondition,
-                    ground_color.r, ground_color.g, ground_color.b,
-                    post->colorIndex,
-                    TheMap.ColorTable[post->colorIndex].r, TheMap.ColorTable[post->colorIndex].g, TheMap.ColorTable[post->colorIndex].b);
-            fflush(stderr);
-        }
-    }
-#endif
 
     float scale = min(distance / far_clip, 1.f);
     float inv = 1.f - scale;
@@ -2120,37 +2025,6 @@ void RenderOTW::DrawTerrainRing(SpanListEntry *span)
     register int r, c;
     int crossOver;
 
-#ifdef FF_LINUX
-    {
-        static int ringDiag = 0;
-        if (ringDiag < 75) {
-            ringDiag++;
-            int tCount = 0, rCount = 0, bCount = 0, lCount = 0;
-            // Count cells per sector
-            int co;
-            co = max(span->Tsector.startDraw, 0);
-            for (int cc = span->Tsector.stopDraw; cc >= co; cc--) tCount++;
-            co = min(span->Tsector.stopDraw, -1);
-            for (int cc = span->Tsector.startDraw; cc <= co; cc++) tCount++;
-            co = max(span->Rsector.startDraw, 0);
-            for (int rr = span->Rsector.stopDraw; rr >= co; rr--) rCount++;
-            co = min(span->Rsector.stopDraw, -1);
-            for (int rr = span->Rsector.startDraw; rr <= co; rr++) rCount++;
-            co = max(span->Bsector.startDraw, 0);
-            for (int cc = span->Bsector.stopDraw; cc >= co; cc--) bCount++;
-            co = min(span->Bsector.stopDraw, -1);
-            for (int cc = span->Bsector.startDraw; cc <= co; cc++) bCount++;
-            co = max(span->Lsector.startDraw, 0);
-            for (int rr = span->Lsector.stopDraw; rr >= co; rr--) lCount++;
-            co = min(span->Lsector.stopDraw, -1);
-            for (int rr = span->Lsector.startDraw; rr <= co; rr++) lCount++;
-            fprintf(stderr, "[DrawTerrRing] #%d LOD=%d ring=%d cells: T=%d R=%d B=%d L=%d (total=%d)\n",
-                    ringDiag, LOD, span->ring, tCount, rCount, bCount, lCount,
-                    tCount+rCount+bCount+lCount);
-            fflush(stderr);
-        }
-    }
-#endif
 
     // TOP_SPAN -- Horizontal (Sector 0 and 7)
     r = span->ring;

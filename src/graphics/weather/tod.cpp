@@ -222,17 +222,6 @@ void CTimeOfDay::UpdateSkyProperties()
     // Convert from time since clock start to time since midnight
     now = TheTimeManager.GetTimeOfDay();
 
-#ifdef FF_LINUX
-    static int updateCount = 0;
-    if (updateCount < 5) {
-        unsigned hours = (now / 3600000) % 24;
-        unsigned mins = (now / 60000) % 60;
-        fprintf(stderr, "[UpdateSkyProperties] #%d: now=%u ms (%02u:%02u), TotalTimeOfDay=%d\n",
-                updateCount, now, hours, mins, TotalTimeOfDay);
-        fflush(stderr);
-    }
-    updateCount++;
-#endif
 
     unsigned curtime = TheTimeManager.GetClockTime();
     TheStar.SetUniversalTime(curtime);
@@ -357,17 +346,6 @@ void CTimeOfDay::UpdateSkyProperties()
     IMoonYaw = FloatToInt32(radtoangle(az));
     IMoonPitch = FloatToInt32(radtoangle(alt));
 
-#ifdef FF_LINUX
-    {
-        static int interpCount = 0;
-        if (interpCount < 5) {
-            fprintf(stderr, "[UpdateSkyProperties] #%d: After interp: Ambient=%.4f Diffuse=%.4f ISunPitch=%d\n",
-                    interpCount, m_Ambient, m_Diffuse, ISunPitch);
-            fflush(stderr);
-        }
-        interpCount++;
-    }
-#endif
 
     if (ISunPitch < 256 or ISunPitch > (8192 - 256))
     {
@@ -381,17 +359,6 @@ void CTimeOfDay::UpdateSkyProperties()
 
         if (t1 < 0.45f) t1 = 0.45f; // limit the darkness level
 
-#ifdef FF_LINUX
-        {
-            static int moonCount = 0;
-            if (moonCount < 5) {
-                fprintf(stderr, "[UpdateSkyProperties] NIGHT: moonDarken=%.3f, Ambient %.4f->%.4f\n",
-                        t1, m_Ambient, m_Ambient * t1);
-                fflush(stderr);
-            }
-            moonCount++;
-        }
-#endif
 
         m_HazeGroundColor.r *= t1;
         m_HazeGroundColor.g *= t1;
@@ -500,19 +467,6 @@ void CTimeOfDay::UpdateSkyProperties()
 // RED - Tihs function calculates Sky colors based on weather Conditions
 void CTimeOfDay::UpdateWeatherColors(DWORD weatherCondition)
 {
-#ifdef FF_LINUX
-    {
-        static int uwcCount = 0;
-        if (uwcCount < 5) {
-            uwcCount++;
-            fprintf(stderr, "[UpdateWeatherColors] #%d: weatherCondition=%u (FAIR=%d) m_TextureLighting=(%.3f,%.3f,%.3f) m_Ambient=%.3f m_Diffuse=%.3f\n",
-                    uwcCount, (unsigned)weatherCondition, FAIR,
-                    m_TextureLighting.r, m_TextureLighting.g, m_TextureLighting.b,
-                    m_Ambient, m_Diffuse);
-            fflush(stderr);
-        }
-    }
-#endif
     // default values
     StarIntensity = m_StarIntensity;
     MinVis = m_MinVis;
@@ -655,18 +609,6 @@ void CTimeOfDay::GetLightDirection(Tpoint *LightDirection)
 
 void CTimeOfDay::SetVar(TimeOfDayStruct *tod)
 {
-#ifdef FF_LINUX
-    {
-        static int svCount = 0;
-        if (svCount < 5) {
-            svCount++;
-            fprintf(stderr, "[SetVar] #%d: tod->TextureLighting=(%.3f,%.3f,%.3f) tod->Ambient=%.3f tod->Diffuse=%.3f\n",
-                    svCount, tod->TextureLighting.r, tod->TextureLighting.g, tod->TextureLighting.b,
-                    tod->Ambient, tod->Diffuse);
-            fflush(stderr);
-        }
-    }
-#endif
     m_SkyColor = tod ->SkyColor;
     m_HazeSkyColor = tod ->HazeSkyColor;
     m_GroundColor = tod ->GroundColor;

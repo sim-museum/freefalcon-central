@@ -666,30 +666,6 @@ void CPPanel::SetPalette()
     float fLight[3], iLight[3];
     OTWDriver.pCockpitManager->ComputeLightFactors(fLight, iLight);
 
-#ifdef FF_LINUX
-    {
-        static int setPalDiagCount = 0;
-        if (setPalDiagCount < 3) {
-            setPalDiagCount++;
-            fprintf(stderr, "[SetPalette] #%d fLight=(%.3f,%.3f,%.3f) iLight=(%.3f,%.3f,%.3f) lightLevel=%.3f\n",
-                    setPalDiagCount, fLight[0], fLight[1], fLight[2], iLight[0], iLight[1], iLight[2],
-                    OTWDriver.pCockpitManager->lightLevel);
-            // Check gpTemplatePalette
-            extern DWORD *gpTemplatePalette;
-            if (gpTemplatePalette) {
-                int nonZero = 0;
-                for (int p = 0; p < 256; p++) { if (gpTemplatePalette[p] != 0) nonZero++; }
-                fprintf(stderr, "[SetPalette] #%d gpTemplatePalette=%p nonZero=%d pal[1..4]=0x%08x,0x%08x,0x%08x,0x%08x\n",
-                        setPalDiagCount, (void*)gpTemplatePalette, nonZero,
-                        (unsigned)gpTemplatePalette[1], (unsigned)gpTemplatePalette[2],
-                        (unsigned)gpTemplatePalette[3], (unsigned)gpTemplatePalette[4]);
-            } else {
-                fprintf(stderr, "[SetPalette] #%d gpTemplatePalette=NULL!\n", setPalDiagCount);
-            }
-            fflush(stderr);
-        }
-    }
-#endif
 
     // apply lighting to the palette, cockpit lights have their own palette, like HSI and ADI
     DWORD *panelPlt;
@@ -733,31 +709,6 @@ void CPPanel::SetPalette()
 
     //we have the new palette at outPlt,
     //apply it to everything, except for lights, which use their own palette
-#ifdef FF_LINUX
-    {
-        static int outPltDiagCount = 0;
-        if (outPltDiagCount < 3) {
-            outPltDiagCount++;
-            int nonZero = 0;
-            DWORD maxR = 0, maxG = 0, maxB = 0;
-            for (int p = 0; p < 256; p++) {
-                if (outPlt[p] != 0) nonZero++;
-                DWORD r = (outPlt[p] >> 16) & 0xFF;
-                DWORD g = (outPlt[p] >> 8) & 0xFF;
-                DWORD b = outPlt[p] & 0xFF;
-                if (r > maxR) maxR = r;
-                if (g > maxG) maxG = g;
-                if (b > maxB) maxB = b;
-            }
-            fprintf(stderr, "[SetPalette] #%d outPlt nonZero=%d maxRGB=(%d,%d,%d) outPlt[1..4]=0x%08x,0x%08x,0x%08x,0x%08x\n",
-                    outPltDiagCount, nonZero, (int)maxR, (int)maxG, (int)maxB,
-                    (unsigned)outPlt[1], (unsigned)outPlt[2], (unsigned)outPlt[3], (unsigned)outPlt[4]);
-            fprintf(stderr, "[SetPalette] #%d mNumSurfaces=%d mNumObjects=%d mNumButtonViews=%d\n",
-                    outPltDiagCount, mNumSurfaces, mNumObjects, mNumButtonViews);
-            fflush(stderr);
-        }
-    }
-#endif
     for (int i = mNumSurfaces - 1; i >= 0; i--)
     {
         mpSurfaceData[i].psurface->Translate3D(outPlt);

@@ -689,18 +689,6 @@ void TextureBankClass::ReadImageDDS(DWORD id)
 
     ShiAssert(ddsd.dwFlags bitand DDSD_LINEARSIZE)
 
-#ifdef FF_LINUX
-    {
-        static int bankDDSCount = 0;
-        if (bankDDSCount < 10) {
-            bankDDSCount++;
-            fprintf(stderr, "[ReadImageDDS.bank] #%d sizeof(ddsd)=%zu FOURCC=0x%08x linearSize=%u width=%u id=%u\n",
-                    bankDDSCount, sizeof(ddsd), ddsd.ddpfPixelFormat.dwFourCC,
-                    ddsd.dwLinearSize, ddsd.dwWidth, id);
-            fflush(stderr);
-        }
-    }
-#endif
 
     switch (ddsd.ddpfPixelFormat.dwFourCC)
     {
@@ -993,9 +981,6 @@ bool TextureBankClass::UpdateBank(void)
 {
     DWORD id;
 
-#ifdef FF_LINUX
-    static int ubDbgCount = 0;
-#endif
 
     // till when data to update into caches
     while (LoadIn not_eq LoadOut or ReleaseIn not_eq ReleaseOut)

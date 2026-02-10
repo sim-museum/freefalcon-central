@@ -226,23 +226,6 @@ VOID CDXEngine::SelectTexture(GLint texID)
     // only Texture on Stage 0 is needed for normal View
     if (m_RenderState == DX_OTW)
     {
-        // FF_LINUX diagnostic: log texture surface info for ChromaKey surfaces
-        static int texDiag = 0;
-        if (texDiag < 3 && m_PitMode && texHandle) {
-            IDirectDrawSurface7* diagSurf = (IDirectDrawSurface7 *)texHandle;
-            DDSURFACEDESC2 desc;
-            memset(&desc, 0, sizeof(desc));
-            desc.dwSize = sizeof(desc);
-            diagSurf->GetSurfaceDesc(&desc);
-            texDiag++;
-            fprintf(stderr, "[TEX_PIT] #%d texID=%d surf=%p %ldx%ld bpp=%ld fourCC=0x%lx alphaMask=0x%lx caps=0x%lx\n",
-                    texDiag, texID, (void*)diagSurf, desc.dwWidth, desc.dwHeight,
-                    (long)desc.ddpfPixelFormat.dwRGBBitCount,
-                    (long)desc.ddpfPixelFormat.dwFourCC,
-                    (long)desc.ddpfPixelFormat.dwRGBAlphaBitMask,
-                    (long)desc.ddsCaps.dwCaps);
-            fflush(stderr);
-        }
         CheckHR(m_pD3DD->SetTexture(0, (IDirectDrawSurface7 *)texHandle));
         return;
     }
@@ -815,22 +798,6 @@ void CDXEngine::SetRenderState(DXFlagsType Flags, DXFlagsType NewFlags, bool Ena
             m_pD3DD->SetTextureStageState(m_AlphaTextureStage, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
             m_pD3DD->SetTextureStageState(m_AlphaTextureStage, D3DTSS_MAGFILTER, D3DTFG_POINT);
             m_pD3DD->SetTextureStageState(m_AlphaTextureStage, D3DTSS_MINFILTER, D3DTFN_POINT);
-#ifdef FF_LINUX
-            {
-                static int chromaDiag = 0;
-                if (chromaDiag < 5) {
-                    chromaDiag++;
-                    // Query D3D alpha test state after setup
-                    DWORD atEnable = 0, atRef = 0, atFunc = 0;
-                    m_pD3DD->GetRenderState(D3DRENDERSTATE_ALPHATESTENABLE, &atEnable);
-                    m_pD3DD->GetRenderState(D3DRENDERSTATE_ALPHAREF, &atRef);
-                    m_pD3DD->GetRenderState(D3DRENDERSTATE_ALPHAFUNC, &atFunc);
-                    fprintf(stderr, "[CHROMAKEY] #%d AlphaTestEnable=%lu func=%lu ref=%lu PitMode=%d\n",
-                            chromaDiag, (unsigned long)atEnable, (unsigned long)atFunc, (unsigned long)atRef, (int)m_PitMode);
-                    fflush(stderr);
-                }
-            }
-#endif
         }
 
         // **************************************
@@ -1664,22 +1631,6 @@ inline void CDXEngine::DrawNode(ObjectInstance *objInst, DWORD LightOwner, DWORD
             if (m_NODE.SURFACE->dwFlags.b.Texture and m_NODE.SURFACE->TexID[0] not_eq -1) m_TexID = m_TexUsed[m_NODE.SURFACE->TexID[0]];
             else m_TexID = -1;
 
-#ifdef FF_LINUX
-            {
-                static int surfDiag = 0;
-                if (surfDiag < 100) {
-                    surfDiag++;
-                    fprintf(stderr, "[DX_SURFACE] #%d PitMode=%d Alpha=%d VColor=%d ChromaKey=%d Texture=%d TexID=%d\n",
-                            surfDiag, (int)m_PitMode,
-                            (int)m_NODE.SURFACE->dwFlags.b.Alpha,
-                            (int)m_NODE.SURFACE->dwFlags.b.VColor,
-                            (int)m_NODE.SURFACE->dwFlags.b.ChromaKey,
-                            (int)m_NODE.SURFACE->dwFlags.b.Texture,
-                            m_TexID);
-                    fflush(stderr);
-                }
-            }
-#endif
 
             // Alpha Surfaces are deferred to another Draw
             if (m_NODE.SURFACE->dwFlags.b.Alpha)

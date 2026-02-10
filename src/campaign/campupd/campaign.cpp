@@ -486,17 +486,6 @@ int DeaggregationCheck(CampEntity e, FalconSessionEntity *session)
     bool didsimlistcrap = FALSE;
     int inbobble = (session->InSessionBubble(e, REAGREGATION_RATIO));
 
-#ifdef FF_LINUX
-    // Debug: Track why deaggregation might not be happening
-    static int deagCheckCount = 0;
-    if (e->IsFlight() && e->IsAggregate() && (deagCheckCount++ % 100 == 0))
-    {
-        int inBubble = session->InSessionBubble(e, 1.0F);
-        fprintf(stderr, "[DeagCheck] flight=%p IsAggregate=%d InBubble=%d SleepAll=%d IsLocal=%d (check #%d)\n",
-                (void*)e, e->IsAggregate(), inBubble, g_bSleepAll, e->IsLocal(), deagCheckCount);
-        fflush(stderr);
-    }
-#endif
 
     if (e->IsAggregate())
     {
@@ -505,10 +494,6 @@ int DeaggregationCheck(CampEntity e, FalconSessionEntity *session)
             // It's in our bubble, post deaggregate message if host
             if (e->IsLocal())
             {
-#ifdef FF_LINUX
-                fprintf(stderr, "[DeagCheck] SENDING simcampDeaggregate for flight=%p\n", (void*)e);
-                fflush(stderr);
-#endif
                 VuTargetEntity* target = (VuTargetEntity*)
                                          vuDatabase->Find(vuLocalSessionEntity->Game()->OwnerId());
                 FalconSimCampMessage *msg = new FalconSimCampMessage(e->Id(), target);
@@ -748,15 +733,6 @@ void RebuildBubble(int forced)
     VuSessionsIterator *sit;
     FalconSessionEntity  *session;
 
-#ifdef FF_LINUX
-    static int rbDebugCount = 0;
-    if (rbDebugCount++ % 50 == 0)
-    {
-        fprintf(stderr, "[RebuildBubble] ENTRY forced=%d FalconLocalGame=%p g_brebuildbobbleFix=%d (#%d)\n",
-                forced, (void*)FalconLocalGame, g_brebuildbobbleFix, rbDebugCount);
-        fflush(stderr);
-    }
-#endif
 
     CampEnterCriticalSection();
 
@@ -920,17 +896,6 @@ void RebuildBubble(int forced)
         // Find the first camera
         player = session->GetCameraEntity(0);
 
-#ifdef FF_LINUX
-        static int sessionLoopDbg = 0;
-        sessionLoopDbg++;
-        // Print more frequently during step2/deaggregation phase (every 10th call)
-        if (sessionLoopDbg % 10 == 0)
-        {
-            fprintf(stderr, "[RebuildBubble] session=%p player=%p sCampaignSleepRequested=%d (#%d)\n",
-                    (void*)session, (void*)player, sCampaignSleepRequested, sessionLoopDbg);
-            fflush(stderr);
-        }
-#endif
 
         /* if ( not player and FalconLocalGame->IsLocal() and gCommsMgr->Online())
          player = FalconLocalSession->GetPlayerFlight();

@@ -400,19 +400,6 @@ void TextureDB::SetLightLevel(void)
         TheTimeOfDay.GetTextureLightingColor(&lightColor);
     }
 
-#ifdef FF_LINUX
-    {
-        static int sllCount = 0;
-        if (sllCount < 10) {
-            sllCount++;
-            fprintf(stderr, "[SetLightLevel] #%d: lightLevel=%.3f lightColor=(%.3f,%.3f,%.3f) NVG=%d texMode=%d numSets=%d\n",
-                    sllCount, lightLevel, lightColor.r, lightColor.g, lightColor.b,
-                    TheTimeOfDay.GetNVGmode(), DisplayOptions.m_texMode, numSets);
-            fflush(stderr);
-        }
-    }
-#endif
-
     // Update all the currently loaded textures
     if (DisplayOptions.m_texMode not_eq DisplayOptionsClass::TEX_MODE_DDS)
     {
@@ -1071,17 +1058,6 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
         // NOT MPR_TI flags. Real DDS tiles always have a DXT compression flag set
         // (DXT1/DXT3/DXT5). Detect palette-loaded tiles and route to palette path.
         bool isDDSTile = (pTile->height[res] & (MPR_TI_DXT1 | MPR_TI_DXT3 | MPR_TI_DXT5)) != 0;
-        {
-            static int actDiag = 0;
-            if (actDiag < 10) {
-                actDiag++;
-                fprintf(stderr, "[Activate] #%d isDDS=%d height=0x%x bits=%p width=%d res=%d palette=%p\n",
-                        actDiag, isDDSTile, (unsigned)pTile->height[res],
-                        (void*)pTile->bits[res], pTile->width[res], res,
-                        (void*)pSet->palette);
-                fflush(stderr);
-            }
-        }
         if (!isDDSTile && pTile->bits[res]) {
             // This tile was loaded via palette - use the non-DDS activation path
             if (pSet->palHandle == 0)
@@ -1106,28 +1082,11 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
                 static_cast<UInt16>(pTile->width[res]), static_cast<UInt16>(pTile->height[res]), dwFlags);
             ((TextureHandle *)pTile->handle[res])->Load(0, 0, (BYTE*)pTile->bits[res]);
 
-            {
-                static int palActDiag = 0;
-                if (palActDiag < 5) {
-                    palActDiag++;
-                    fprintf(stderr, "[Activate.Pal] #%d Created palette terrain tex %dx%d palHandle=%p\n",
-                            palActDiag, pTile->width[res], (int)pTile->height[res],
-                            (void*)pSet->palHandle);
-                    fflush(stderr);
-                }
-            }
-
             glReleaseMemory((char*)pTile->bits[res]);
             pTile->bits[res] = NULL;
             return;
         }
         if (!isDDSTile) {
-            static int skipDiag = 0;
-            if (skipDiag < 5) {
-                skipDiag++;
-                fprintf(stderr, "[Activate.Skip] #%d No DDS and no bits, skipping tile\n", skipDiag);
-                fflush(stderr);
-            }
             // No DDS data and no palette data - skip
             return;
         }
@@ -1163,27 +1122,6 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
         pTile->handle[res] = (uintptr_t)new TextureHandle;
         ShiAssert(pTile->handle[res]);
 
-#ifdef FF_LINUX
-        {
-            static int ddsActCount = 0;
-            if (ddsActCount < 10) {
-                ddsActCount++;
-                // Check DDS data: height[res] has flags, width[res] has byte size
-                DWORD flags = (DWORD)pTile->height[res];
-                int dxtType = (flags & MPR_TI_DXT1) ? 1 : (flags & MPR_TI_DXT3) ? 3 : (flags & MPR_TI_DXT5) ? 5 : 0;
-                int dataSize = pTile->width[res];
-                BYTE* bits = (BYTE*)pTile->bits[res];
-                int nonZero = 0;
-                if (bits) {
-                    for (int k = 0; k < (dataSize < 256 ? dataSize : 256); k++)
-                        if (bits[k] != 0) nonZero++;
-                }
-                fprintf(stderr, "[DDS_Activate] #%d: width=%d flags=0x%x DXT%d dataSize=%d bits=%p nonZero256=%d\n",
-                        ddsActCount, width, flags, dxtType, dataSize, (void*)bits, nonZero);
-                fflush(stderr);
-            }
-        }
-#endif
 
         ((TextureHandle *)pTile->handle[res])->Create(
             "TextureDB", (DWORD)pTile->height[res], 32, static_cast<UInt16>(width), static_cast<UInt16>(width)

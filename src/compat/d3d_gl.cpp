@@ -564,22 +564,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This,
     D3DGL_LOG("SetRenderTarget surf=%p isPrimary=%d", (void*)newTarget, newTarget ? newTarget->isPrimary : -1);
     dev->renderTarget = newTarget;
 
-    // FF_LINUX: Diagnostic for RTT
-    {
-        static int srtCount = 0;
-        srtCount++;
-        if (srtCount <= 20) {
-            fprintf(stderr, "[D3D7_SetRT] #%d surf=%p isPrimary=%d glTex=%u fbo=%u %dx%d\n",
-                    srtCount, (void*)newTarget,
-                    newTarget ? newTarget->isPrimary : -1,
-                    newTarget ? newTarget->glTexture : 0,
-                    newTarget ? newTarget->fboId : 0,
-                    newTarget ? newTarget->width : 0,
-                    newTarget ? newTarget->height : 0);
-            fflush(stderr);
-        }
-    }
-
     // FF_LINUX: FBO-based render target switching for RTT (render-to-texture)
     if (newTarget && !newTarget->isPrimary) {
         // Rendering to an off-screen surface - need FBO
@@ -637,16 +621,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_Clear(IDirect3DDevice7* This, DWORD dwC
         D3DColorToGL(dwColor, &r, &g, &b, &a);
         glClearColor(r, g, b, a);
         clearMask |= GL_COLOR_BUFFER_BIT;
-        // FF_LINUX DIAGNOSTIC: Log clear color
-        {
-            static int clearColorLog = 0;
-            if (clearColorLog < 10) {
-                clearColorLog++;
-                fprintf(stderr, "[D3D_CLEAR] #%d color=0x%08x → GL(%f,%f,%f,%f)\n",
-                        clearColorLog, dwColor, r, g, b, a);
-                fflush(stderr);
-            }
-        }
     }
 
     if (dwFlags & D3DCLEAR_ZBUFFER) {
@@ -1296,45 +1270,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
         // FF_LINUX: Upload dirty texture data from CPU to GPU
         if (surf->isDirty && surf->pixelData && surf->width > 0 && surf->height > 0) {
 
-            // FF_LINUX DIAGNOSTIC: Track dirty upload statistics
-            {
-                static int totalDirtyUploads = 0;
-                static int uploadsWithData = 0;
-                static int uploadsAllZero = 0;
-                totalDirtyUploads++;
-
-                // Check first 256 bytes for non-zero data
-                int checkSize = surf->pitch * surf->height;
-                if (checkSize > 256) checkSize = 256;
-                int nonZero = 0;
-                for (int bi = 0; bi < checkSize; bi++) {
-                    if (surf->pixelData[bi] != 0) nonZero++;
-                }
-                if (nonZero > 0) uploadsWithData++;
-                else uploadsAllZero++;
-
-                // Log first 20 uploads in detail, then summary every 500
-                if (totalDirtyUploads <= 20) {
-                    int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
-                    fprintf(stderr, "[TEX_UPLOAD] #%d surf=%p %dx%d bpp_fmt=%d bpp_actual=%d dxt=%d "
-                            "glTex=%u nonZero256=%d pitch=%d rgbBits=%d caps=0x%x\n",
-                            totalDirtyUploads, (void*)surf, surf->width, surf->height,
-                            (int)surf->pixelFormat.dwRGBBitCount, bpp, (int)surf->dxtFormat,
-                            surf->glTexture, nonZero, surf->pitch,
-                            (int)surf->pixelFormat.dwRGBBitCount, (unsigned)surf->caps);
-                    if (nonZero > 0 && bpp == 4 && surf->dxtFormat == 0) {
-                        DWORD* px = (DWORD*)surf->pixelData;
-                        fprintf(stderr, "[TEX_UPLOAD]   px[0..3]=0x%08x,0x%08x,0x%08x,0x%08x\n",
-                                (unsigned)px[0], (unsigned)px[1], (unsigned)px[2], (unsigned)px[3]);
-                    }
-                    fflush(stderr);
-                } else if (totalDirtyUploads % 500 == 0) {
-                    fprintf(stderr, "[TEX_UPLOAD] Summary: total=%d withData=%d allZero=%d\n",
-                            totalDirtyUploads, uploadsWithData, uploadsAllZero);
-                    fflush(stderr);
-                }
-            }
-
             // Clear any stale GL errors before upload
             while (glGetError() != GL_NO_ERROR) {}
 
@@ -1388,6 +1323,20 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                             } else {
                                 row[x] |= ~rgbMask; // Set alpha to 0xFF
                             }
+                        }
+                    }
+                }
+                // FF_LINUX: For X8R8G8B8 surfaces (DDPF_RGB without DDPF_ALPHAPIXELS),
+                // force alpha to 0xFF. In D3D7 the "X" byte is ignored, but OpenGL
+                // reads it as alpha. Palette-based terrain textures typically have
+                // alpha=0x00 in the unused byte, making them fully transparent in GL.
+                else if (bpp == 4 && !(surf->pixelFormat.dwFlags & DDPF_ALPHAPIXELS)) {
+                    int pixelsPerRow = surf->pitch / 4;
+                    DWORD* pixels = (DWORD*)surf->pixelData;
+                    for (int y = 0; y < surf->height; y++) {
+                        DWORD* row = pixels + y * pixelsPerRow;
+                        for (int x = 0; x < surf->width; x++) {
+                            row[x] |= 0xFF000000;  // Force alpha to fully opaque
                         }
                     }
                 }
@@ -1911,28 +1860,11 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
         case D3DRENDERSTATE_STENCILENABLE:
             if (value) glEnable(GL_STENCIL_TEST);
             else glDisable(GL_STENCIL_TEST);
-            {
-                static int stencilEnableLog = 0;
-                if (stencilEnableLog < 20) {
-                    stencilEnableLog++;
-                    fprintf(stderr, "[STENCIL] Enable=%d (#%d)\n", (int)value, stencilEnableLog);
-                    fflush(stderr);
-                }
-            }
             break;
 
         case D3DRENDERSTATE_STENCILFUNC:
             g_stencilFunc = D3DCmpToGL(value);
             glStencilFunc(g_stencilFunc, g_stencilRef, g_stencilMask);
-            {
-                static int stencilFuncLog = 0;
-                if (stencilFuncLog < 20) {
-                    stencilFuncLog++;
-                    fprintf(stderr, "[STENCIL] Func=%d ref=%d mask=0x%x (#%d)\n",
-                            (int)value, g_stencilRef, g_stencilMask, stencilFuncLog);
-                    fflush(stderr);
-                }
-            }
             break;
 
         case D3DRENDERSTATE_STENCILREF:

@@ -399,36 +399,15 @@ void OTWDriverClass::Cycle(void)
 
     DXContext *pCtx = OTWImage->GetDisplayDevice()->GetDefaultRC();
 #ifdef FF_LINUX
+    if (!pCtx)
     {
-        static int pctxDbg = 0;
-        if (pctxDbg++ % 100 == 0)
-        {
-            fprintf(stderr, "[OTWCycle] pCtx=%p (#%d)\n", (void*)pCtx, pctxDbg);
-            fflush(stderr);
-        }
-        if (!pCtx)
-        {
-            if (pctxDbg % 100 == 1)
-            {
-                fprintf(stderr, "[OTWCycle] ERROR: GetDefaultRC() returned NULL!\n");
-                fflush(stderr);
-            }
-            return;
-        }
+        return;
     }
 #endif
     HRESULT hr = pCtx->TestCooperativeLevel();
 
     if (FAILED(hr))
     {
-#ifdef FF_LINUX
-        static int failCount = 0;
-        if (failCount++ % 100 == 0)
-        {
-            fprintf(stderr, "[OTWCycle] TestCooperativeLevel FAILED hr=0x%lx (#%d)\n", (long)hr, failCount);
-            fflush(stderr);
-        }
-#endif
         return;
     }
 
@@ -2403,28 +2382,8 @@ void OTWDriverClass::RenderFrame()
     // COBRA - DX - Flip here, to make some work parallel to the GPU and increase fps
 #ifdef FF_LINUX
     // FF_LINUX: Safety check - ensure OTWImage is valid before calling SwapBuffers
-    static int renderFrameDebugCount = 0;
-    renderFrameDebugCount++;
-    if (renderFrameDebugCount <= 5 || renderFrameDebugCount % 300 == 1) {
-        fprintf(stderr, "[RenderFrame] #%d: In3D=%d OTWImage=%p IsReady=%d\n",
-                renderFrameDebugCount, g_intellivibeData.In3D,
-                (void*)OTWImage, OTWImage ? OTWImage->IsReady() : -1);
-        fflush(stderr);
-    }
     if (g_intellivibeData.In3D && OTWImage && OTWImage->IsReady())
     {
-        // FF_LINUX DIAGNOSTIC: Check framebuffer right before SwapBuffers
-        {
-            static int fbSwapCount = 0;
-            if (fbSwapCount < 3) {
-                fbSwapCount++;
-                unsigned char px[4];
-                glReadPixels(300, 384, 1, 1, FF_GL_RGBA, FF_GL_UNSIGNED_BYTE, px);
-                fprintf(stderr, "[FB_STAGE] #%d before SwapBuffers: px=(%d,%d,%d,%d)\n",
-                        fbSwapCount, px[0], px[1], px[2], px[3]);
-                fflush(stderr);
-            }
-        }
         OTWImage->SwapBuffers(false);
     }
 #else
@@ -2472,20 +2431,6 @@ void OTWDriverClass::RenderFrame()
     // COBRA - RED - REDO FOR DX ENGINE //
     // Get the Display mode here for following checks
     OTWDisplayMode DisplayMode = GetOTWDisplayMode();
-
-#ifdef FF_LINUX
-    {
-        static int cockpitDiag = 0;
-        if (cockpitDiag < 5) {
-            cockpitDiag++;
-            fprintf(stderr, "[RenderFrame] #%d DisplayMode=%d DisplayInCockpit=%d otwPlatform=%p TheHud=%p HudOwnship=%p eyeFly=%d\n",
-                    cockpitDiag, (int)DisplayMode, DisplayInCockpit(),
-                    (void*)otwPlatform.get(), (void*)TheHud,
-                    TheHud ? (void*)TheHud->Ownship() : nullptr, eyeFly);
-            fflush(stderr);
-        }
-    }
-#endif
 
     // Now check if in the Pit and the platform is still valid to eventually draw the Pit...
     if (

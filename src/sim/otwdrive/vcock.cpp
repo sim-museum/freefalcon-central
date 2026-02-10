@@ -2971,17 +2971,6 @@ void OTWDriverClass::VCock_Exec(void)
 
 
     // ASSO: BEGIN
-#ifdef FF_LINUX
-    {
-        static int rttCheckCount = 0;
-        rttCheckCount++;
-        if (rttCheckCount <= 5) {
-            fprintf(stderr, "[VCock_Exec] #%d HasRttTarget=%d renderer=%p\n",
-                    rttCheckCount, renderer->HasRttTarget(), (void*)renderer);
-            fflush(stderr);
-        }
-    }
-#endif
     if (renderer->HasRttTarget())
     {
 

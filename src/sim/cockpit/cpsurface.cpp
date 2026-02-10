@@ -256,18 +256,6 @@ void CPSurface::DisplayBlit(BYTE blitType, BOOL Persistance, RECT *pDestRect, in
 
 void CPSurface::DisplayBlit3D(BYTE blitType, BOOL Persistance, RECT *pDestRect, int xPanelOffset, int yPanelOffset)
 {
-#ifdef FF_LINUX
-    {
-        static int db3dDiag = 0;
-        if (db3dDiag < 30) {
-            db3dDiag++;
-            fprintf(stderr, "[CPSurf::DB3D] #%d m_arrTex.size=%d blitType=%d Persist=%d rect=(%ld,%ld,%ld,%ld)\n",
-                    db3dDiag, (int)m_arrTex.size(), (int)blitType, (int)Persistance,
-                    pDestRect->left, pDestRect->top, pDestRect->right, pDestRect->bottom);
-            fflush(stderr);
-        }
-    }
-#endif
     if ( not m_arrTex.size())
         return; // handled in DisplayBlit
 
@@ -357,19 +345,6 @@ void CPSurface::DisplayBlit3D(BYTE blitType, BOOL Persistance, RECT *pDestRect, 
 
             // Render it (finally)
             OTWDriver.renderer->context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR bitor MPR_VI_TEXTURE, 4, pVtx, sizeof(pVtx[0]));
-#ifdef FF_LINUX
-            {
-                static int drawDiag = 0;
-                if (drawDiag < 15) {
-                    drawDiag++;
-                    fprintf(stderr, "[CPSurf::DB3D.Draw] #%d 1-pass tex=%p %dx%d dest=(%ld,%ld)-(%ld,%ld) vtx0=(%.1f,%.1f) a=%.2f\n",
-                            drawDiag, (void*)pTex, pTex->m_nWidth, pTex->m_nHeight,
-                            destRect.left, destRect.top, destRect.right, destRect.bottom,
-                            pVtx[0].x, pVtx[0].y, pVtx[0].a);
-                    fflush(stderr);
-                }
-            }
-#endif
         }
 
         else
@@ -492,58 +467,6 @@ void CPSurface::Translate(DWORD* palette32)
 
 void CPSurface::Translate3D(DWORD* palette32)
 {
-#ifdef FF_LINUX
-    {
-        static int t3dDiag = 0;
-        if (t3dDiag < 5) {
-            t3dDiag++;
-            fprintf(stderr, "[Translate3D] #%d m_pPalette=%p m_arrTex.size()=%d\n",
-                    t3dDiag, (void*)m_pPalette, (int)m_arrTex.size());
-            if (m_pPalette) {
-                fprintf(stderr, "[Translate3D] #%d palette nAttached=%d\n",
-                        t3dDiag, (int)m_pPalette->m_arrAttachedTextures.size());
-            }
-            if (!m_arrTex.empty()) {
-                TextureHandle *pTex = m_arrTex[0];
-                fprintf(stderr, "[Translate3D] #%d tex[0]=%p m_pDDS=%p m_pImageData=%p m_eSurfFmt=%d\n",
-                        t3dDiag, (void*)pTex, (void*)pTex->m_pDDS, (void*)pTex->m_pImageData, (int)pTex->m_eSurfFmt);
-            }
-            fflush(stderr);
-        }
-    }
-#endif
     if (m_pPalette)
         m_pPalette->Load(MPR_TI_PALETTE, 32, 0, 256, (BYTE*) palette32);
-#ifdef FF_LINUX
-    {
-        static int t3dPostDiag = 0;
-        if (t3dPostDiag < 3 && !m_arrTex.empty()) {
-            t3dPostDiag++;
-            TextureHandle *pTex = m_arrTex[0];
-            // Check texture data via Lock/Unlock
-            if (pTex->m_pDDS) {
-                DDSURFACEDESC2 ddsd;
-                memset(&ddsd, 0, sizeof(ddsd));
-                ddsd.dwSize = sizeof(ddsd);
-                HRESULT hr = pTex->m_pDDS->Lock(NULL, &ddsd, DDLOCK_READONLY, NULL);
-                if (SUCCEEDED(hr)) {
-                    int nonZero = 0;
-                    int checkLen = ddsd.lPitch * ddsd.dwHeight;
-                    if (checkLen > 4096) checkLen = 4096;
-                    BYTE* data = (BYTE*)ddsd.lpSurface;
-                    for (int b = 0; b < checkLen; b++) {
-                        if (data[b] != 0) nonZero++;
-                    }
-                    fprintf(stderr, "[Translate3D.Post] #%d %dx%d pitch=%d nonZero4K=%d bpp=%d\n",
-                            t3dPostDiag, (int)ddsd.dwWidth, (int)ddsd.dwHeight, (int)ddsd.lPitch,
-                            nonZero, (int)ddsd.ddpfPixelFormat.dwRGBBitCount);
-                    pTex->m_pDDS->Unlock(NULL);
-                } else {
-                    fprintf(stderr, "[Translate3D.Post] #%d Lock FAILED hr=0x%x\n", t3dPostDiag, (unsigned)hr);
-                }
-            }
-            fflush(stderr);
-        }
-    }
-#endif
 }

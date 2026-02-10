@@ -272,7 +272,11 @@ void Render3D::SetFOV(float horizontal_fov, float NearZ)
 
         D3DXMATRIX Flip;
         ZeroMemory(&Flip, sizeof(Flip));
-        Flip._13 = -1.0f;   // m02
+#ifdef FF_LINUX
+        Flip._13 = 1.0f;    // m02 - GL requires positive W for forward-facing vertices
+#else
+        Flip._13 = -1.0f;   // m02 - D3D7 handles negative W correctly
+#endif
         Flip._32 = -1.0f;   // m21
         Flip._21 = 1.0f;    // m10
         Flip._44 = 1.0f;    // m33

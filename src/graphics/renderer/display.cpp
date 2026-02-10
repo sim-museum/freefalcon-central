@@ -1459,17 +1459,6 @@ void VirtualDisplay::StartRtt(Render3D* r3d_)
     GetViewport(&oldLeft, &oldTop, &oldRight, &oldBottom);   // save the current viewport
     oldTarget = context.m_pRenderTarget;
     context.m_pRenderTarget = renderTexture->m_pDDS;
-#ifdef FF_LINUX
-    {
-        static int startRttCount = 0;
-        startRttCount++;
-        if (startRttCount <= 5) {
-            fprintf(stderr, "[StartRtt] #%d renderTexture=%p m_pDDS=%p m_pCtxDX=%p\n",
-                    startRttCount, (void*)renderTexture, (void*)renderTexture->m_pDDS, (void*)context.m_pCtxDX);
-            fflush(stderr);
-        }
-    }
-#endif
     context.m_pCtxDX->SetRenderTarget(context.m_pRenderTarget);
     SetRttRect(0, 0, renderTexture->m_nActualWidth, renderTexture->m_nActualHeight);
     SetViewport(-1.0f, 1.0f, 1.0f, -1.0f);

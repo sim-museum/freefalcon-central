@@ -214,11 +214,6 @@ void FF_SwapBuffers() {
         // Make sure the GL context is current on this thread before swapping
         SDL_GLContext current = SDL_GL_GetCurrentContext();
         if (current != g_GLContext) {
-            // Context not current on this thread - this shouldn't happen normally
-            if (swapCount <= 5) {
-                fprintf(stderr, "[FF_SwapBuffers] #%d: WARNING - GL context not current, making it current\n", swapCount);
-                fflush(stderr);
-            }
             SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
         }
 
@@ -235,23 +230,6 @@ void FF_SwapBuffers() {
                 // Read from back buffer (where rendering goes)
                 glReadBuffer(GL_BACK);
                 glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-                // Check how many non-zero pixels we got
-                int nonZero = 0;
-                for (int i = 0; i < w * h * 3 && i < 1024; i++) {
-                    if (pixels[i] != 0) nonZero++;
-                }
-                fprintf(stderr, "[SCREENSHOT] glReadPixels: %dx%d, nonZero in first 1024 bytes: %d\n", w, h, nonZero);
-                // If all zeros, try front buffer
-                if (nonZero == 0) {
-                    fprintf(stderr, "[SCREENSHOT] Back buffer empty, trying GL_FRONT...\n");
-                    glReadBuffer(GL_FRONT);
-                    glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-                    nonZero = 0;
-                    for (int i = 0; i < w * h * 3 && i < 1024; i++) {
-                        if (pixels[i] != 0) nonZero++;
-                    }
-                    fprintf(stderr, "[SCREENSHOT] Front buffer: nonZero in first 1024 bytes: %d\n", nonZero);
-                }
                 // Save as BMP
                 FILE* f = fopen("/tmp/screenshot_sim.bmp", "wb");
                 if (f) {
@@ -299,7 +277,6 @@ void FF_SwapBuffers() {
                     }
                     delete[] row;
                     fclose(f);
-                    fprintf(stderr, "[FF_SwapBuffers] Screenshot saved: screenshot_sim.bmp (%dx%d)\n", w, h);
                 }
                 delete[] pixels;
             }
@@ -307,12 +284,6 @@ void FF_SwapBuffers() {
 
         // Present the frame
         SDL_GL_SwapWindow(g_SDLWindow);
-    } else {
-        if (swapCount <= 5 || swapCount % 300 == 1) {
-            fprintf(stderr, "[FF_SwapBuffers] #%d: FAILED - window=%p context=%p\n",
-                    swapCount, (void*)g_SDLWindow, (void*)g_GLContext);
-            fflush(stderr);
-        }
     }
 }
 

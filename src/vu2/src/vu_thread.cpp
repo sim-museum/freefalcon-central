@@ -281,14 +281,6 @@ void VuMainThread::Update()
 
     // FF_LINUX: Safety check - vuLocalSessionEntity may not be initialized yet
     if (!vuLocalSessionEntity) {
-#ifdef FF_LINUX
-        static int nullSessionCount = 0;
-        if (nullSessionCount++ % 100 == 0)
-        {
-            fprintf(stderr, "[VuMainThread::Update] vuLocalSessionEntity is NULL (count=%d)\n", nullSessionCount);
-            fflush(stderr);
-        }
-#endif
         return;
     }
     VuGameEntity *game = vuLocalSessionEntity->Game();
@@ -461,24 +453,8 @@ void VuMainThread::Update()
 
 #if CAP_DISPATCH
     // 10 ms at most
-#ifdef FF_LINUX
-    static int dispatchCount = 0;
-    if (dispatchCount++ % 50 == 0)
-    {
-        fprintf(stderr, "[VuMainThread::Update] Calling VuBaseThread::Update (count=%d)\n", dispatchCount);
-        fflush(stderr);
-    }
-#endif
     VuBaseThread::Update(mxTime);
 #else
-#ifdef FF_LINUX
-    static int dispatchCountAlt = 0;
-    if (dispatchCountAlt++ % 50 == 0)
-    {
-        fprintf(stderr, "[VuMainThread::Update] Calling messageQueue_->DispatchMessages (count=%d)\n", dispatchCountAlt);
-        fflush(stderr);
-    }
-#endif
     messageQueue_->DispatchMessages(-1, FALSE);    // flush queue
 #endif
 
