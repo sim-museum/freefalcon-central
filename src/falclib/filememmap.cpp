@@ -17,28 +17,19 @@ FileMemMap::~FileMemMap()
 
 void FileMemMap::Close()
 {
-    fprintf(stderr, "          [FileMemMap::Close] m_Data=%p, m_hMap=%p, m_hFile=%p\n",
-            (void*)m_Data, (void*)m_hMap, (void*)m_hFile); fflush(stderr);
-
-    fprintf(stderr, "          [FileMemMap::Close] UnmapViewOfFile...\n"); fflush(stderr);
     if (m_Data) UnmapViewOfFile(m_Data);
-    fprintf(stderr, "          [FileMemMap::Close] UnmapViewOfFile done\n"); fflush(stderr);
 
 #ifdef FF_LINUX
     // On Linux, CreateFileMapping returns the file handle directly (m_hMap == m_hFile)
     // so we only close m_hFile to avoid double-free
-    fprintf(stderr, "          [FileMemMap::Close] CloseHandle(m_hFile)...\n"); fflush(stderr);
     if (m_hFile not_eq INVALID_HANDLE_VALUE) CloseHandle(m_hFile);
-    fprintf(stderr, "          [FileMemMap::Close] CloseHandle done\n"); fflush(stderr);
 #else
     if (m_hMap not_eq INVALID_HANDLE_VALUE) CloseHandle(m_hMap);
 
     if (m_hFile not_eq INVALID_HANDLE_VALUE) CloseHandle(m_hFile);
 #endif
 
-    fprintf(stderr, "          [FileMemMap::Close] Calling Clear()...\n"); fflush(stderr);
     Clear();
-    fprintf(stderr, "          [FileMemMap::Close] Done\n"); fflush(stderr);
 }
 
 void FileMemMap::Clear()

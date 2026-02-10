@@ -700,6 +700,9 @@ BOOL TViewPoint::TestVertex(int row, int col, float z, int LOD)
 {
     // Get the relevant post
     Tpost *post = blockLists[LOD].GetPost(row, col);
+#ifdef FF_LINUX
+    if (!post) return FALSE;
+#endif
 
     // Return true if the line crosses below the post (ie: is less negative)
     return (post->z < z);
@@ -709,6 +712,9 @@ BOOL TViewPoint::TestEast(int row, int col, float z, int LOD)
     // Get the relevant posts
     Tpost *left  = blockLists[LOD].GetPost(row, col);
     Tpost *right = blockLists[LOD].GetPost(row, col + 1);
+#ifdef FF_LINUX
+    if (!left || !right) return FALSE;
+#endif
 
     // Return true if the line crosses below the highest post (ie: is less negative)
     return (min(left->z, right->z) < z);
@@ -718,6 +724,9 @@ BOOL TViewPoint::TestNorth(int row, int col, float z, int LOD)
     // Get the relevant posts
     Tpost *bottom = blockLists[LOD].GetPost(row,   col);
     Tpost *top    = blockLists[LOD].GetPost(row + 1, col);
+#ifdef FF_LINUX
+    if (!bottom || !top) return FALSE;
+#endif
 
     // Return true if the line crosses below the highest post (ie: is less negative)
     return (min(bottom->z, top->z) < z);

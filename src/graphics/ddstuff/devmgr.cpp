@@ -878,6 +878,21 @@ bool DXContext::SetRenderTarget(IDirectDrawSurface7 *pRenderTarget)
             //JAM 17Dec03
             IDirectDrawSurface7Ptr pDDS;
 
+#ifdef FF_LINUX
+            {
+                static int rtDiagCount = 0;
+                HRESULT hr = m_pD3DD->GetRenderTarget(&pDDS);
+                if (rtDiagCount < 30) {
+                    rtDiagCount++;
+                    fprintf(stderr, "[DXCtx::SetRT #%d] pRenderTarget=%p currentRT=%p same=%d hr=0x%x\n",
+                            rtDiagCount, (void*)pRenderTarget, (void*)pDDS,
+                            (pDDS == pRenderTarget) ? 1 : 0, (unsigned)hr);
+                    fflush(stderr);
+                }
+            }
+            // Re-get for the actual comparison below
+            pDDS = nullptr;
+#endif
             if (FAILED(m_pD3DD->GetRenderTarget(&pDDS)) or pDDS not_eq pRenderTarget)
             {
                 IDirectDrawSurface7Ptr pRenderTargetOld;

@@ -2467,6 +2467,14 @@ void ContextMPR::FlushPolyLists()
 {
 #ifdef FF_LINUX
     g_RenderFrameCount++;
+    {
+        static int fpCount = 0;
+        if (fpCount < 5) {
+            fpCount++;
+            fprintf(stderr, "[FLUSH_TRACE] FlushPolyLists #%d, g_bUse_DX_Engine=%d\n", fpCount, g_bUse_DX_Engine);
+            fflush(stderr);
+        }
+    }
     FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "FlushPolyLists ENTER\n");
     FF_DEBUG_RENDER_FLUSH();
 #endif

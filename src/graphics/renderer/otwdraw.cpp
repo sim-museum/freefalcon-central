@@ -66,55 +66,8 @@ void RenderOTW::DrawTerrainSquare(int r, int c, int LOD)
     // If all verticies are clipped by the same edge, skip this square
     if (v0->clipFlag bitand v1->clipFlag bitand v2->clipFlag bitand v3->clipFlag)
     {
-#ifdef FF_LINUX
-        static int clipByLOD[8] = {0};
-        if (LOD < 8) clipByLOD[LOD]++;
-        // Print summary when LOD0 clips are first seen (meaning we've processed all LODs)
-        static bool clipSummaryDone = false;
-        if (!clipSummaryDone && clipByLOD[0] > 0) {
-            clipSummaryDone = true;
-            fprintf(stderr, "[DrawTerrSq] CLIP SUMMARY: LOD0=%d LOD1=%d LOD2=%d LOD3=%d LOD4=%d\n",
-                    clipByLOD[0], clipByLOD[1], clipByLOD[2], clipByLOD[3], clipByLOD[4]);
-            fflush(stderr);
-        }
-#endif
         return;
     }
-
-#ifdef FF_LINUX
-    {
-        static int passByLOD[8] = {0};
-        static int stateByLOD[8] = {0};  // track RenderingStateHandle per LOD
-        static int texByLOD[8] = {0};    // track if textured per LOD
-        if (LOD < 8) {
-            passByLOD[LOD]++;
-            stateByLOD[LOD] = v0->RenderingStateHandle;  // last seen state per LOD
-            texByLOD[LOD] = (v0->RenderingStateHandle > STATE_GOURAUD) ? 1 : 0;
-        }
-        // Print per-LOD samples when we first see LOD 0-2
-        static int lodSamples[8] = {0};
-        if (LOD < 8 && lodSamples[LOD] < 3) {
-            lodSamples[LOD]++;
-            fprintf(stderr, "[DrawTerrSq] PASS LOD=%d state=%d tex1=%d clip=0x%x,0x%x,0x%x,0x%x\n",
-                    LOD, v0->RenderingStateHandle,
-                    (v0->post ? v0->post->texID : -999),
-                    v0->clipFlag, v1->clipFlag, v2->clipFlag, v3->clipFlag);
-            fflush(stderr);
-        }
-        // Print summary when LOD0 passes are first seen (all LODs processed)
-        static bool passSummaryDone = false;
-        if (!passSummaryDone && passByLOD[0] > 0) {
-            passSummaryDone = true;
-            fprintf(stderr, "[DrawTerrSq] PASS SUMMARY: LOD0=%d LOD1=%d LOD2=%d LOD3=%d LOD4=%d\n",
-                    passByLOD[0], passByLOD[1], passByLOD[2], passByLOD[3], passByLOD[4]);
-            fprintf(stderr, "[DrawTerrSq] STATE per LOD: LOD0=%d LOD1=%d LOD2=%d LOD3=%d LOD4=%d\n",
-                    stateByLOD[0], stateByLOD[1], stateByLOD[2], stateByLOD[3], stateByLOD[4]);
-            fprintf(stderr, "[DrawTerrSq] TEXTURED per LOD: LOD0=%d LOD1=%d LOD2=%d LOD3=%d LOD4=%d\n",
-                    texByLOD[0], texByLOD[1], texByLOD[2], texByLOD[3], texByLOD[4]);
-            fflush(stderr);
-        }
-    }
-#endif
 
     context.RestoreState(v0->RenderingStateHandle);
 

@@ -666,6 +666,16 @@ void SimulationLoopControl::Loop(void)
 #endif
 #ifdef FF_LINUX
         }
+
+        // Diagnostic: check if sim time is advancing
+        {
+            static int diagFrame4 = 0;
+            if (diagFrame4++ % 300 == 0) {
+                fprintf(stderr, "[SIM_DIAG] mode=%d vuxGameTime=%u vuxRealTime=%u gameCompression=%d SimLibElapsed=%u\n",
+                        (int)currentMode, (unsigned)vuxGameTime, (unsigned)vuxRealTime,
+                        gameCompressionRatio, (unsigned)SimLibElapsedTime);
+            }
+        }
 #endif
         //STOP_PROFILE("SIMCYCLE");
 
@@ -803,15 +813,24 @@ void SimulationLoopControl::StartLoop(void)
     int delayCounter;
     int abortMission;
 
+    fprintf(stderr, "[StartLoop] Thread started, entering main loop\n");
+    fflush(stderr);
+
     while (1)
     {
+        fprintf(stderr, "[StartLoop] Waiting for wait_for_start_graphics event...\n");
+        fflush(stderr);
         WaitForSingleObject(wait_for_start_graphics, INFINITE);
+        fprintf(stderr, "[StartLoop] Event received! Proceeding.\n");
+        fflush(stderr);
 
 #ifdef FF_LINUX
         // On Linux, acquire the OpenGL context for this thread.
         // The main thread released it when EndUI() was called.
         extern void FF_SimThreadAcquireGL();
         FF_SimThreadAcquireGL();
+        fprintf(stderr, "[StartLoop] GL context acquired\n");
+        fflush(stderr);
 #endif
 
         //if the voices try to play during this time the sounds get all messed up, so be quiet
@@ -933,6 +952,9 @@ void SimulationLoopControl::StartLoop(void)
         // Wait until our flight is deaggregated
         g_bSleepAll = FALSE;//me123 host it's ok to wake again now you are attached
 
+        fprintf(stderr, "[StartLoop] Starting deagg wait: flight=%p IsAggregate=%d\n",
+                (void*)flight, flight ? flight->IsAggregate() : -1);
+
         while (flight and flight->IsAggregate() and (delayCounter))
         {
 #ifdef FF_LINUX
@@ -969,6 +991,9 @@ void SimulationLoopControl::StartLoop(void)
 #endif
         }
 
+        fprintf(stderr, "[StartLoop] Deagg wait done: flight=%p IsAggregate=%d delayCounter=%d\n",
+                (void*)flight, flight ? flight->IsAggregate() : -1, delayCounter);
+
         // If we didn't deaggregate ourselves - RH
         if (flight and flight->IsAggregate())
         {
@@ -1000,6 +1025,7 @@ void SimulationLoopControl::StartLoop(void)
 #define START_GRAPHICS_WAIT_FOR_SIMDRIVE 1
 #if START_GRAPHICS_WAIT_FOR_SIMDRIVE
 
+            fprintf(stderr, "[StartLoop] Waiting for SimDriver.GetPlayerEntity()...\n");
             // sfr: wait simDriver player entity
             while (SimDriver.GetPlayerEntity() == NULL)
             {
@@ -1024,6 +1050,8 @@ void SimulationLoopControl::StartLoop(void)
             }
 
 #endif
+            fprintf(stderr, "[StartLoop] SimDriver.GetPlayerEntity()=%p, calling SplashScreenUpdate(2)\n",
+                    (void*)SimDriver.GetPlayerEntity());
             OTWDriver.SplashScreenUpdate(2);
 
             ///////////////////////////////////////////////////////////////////////////////
@@ -1035,6 +1063,9 @@ void SimulationLoopControl::StartLoop(void)
             delayCounter = 100;
 
             // Wait until all necessary deaggregation events have been handled
+            fprintf(stderr, "[StartLoop] Waiting for gLeftToDeaggregate=%d, player=%p, IsLocal=%d\n",
+                    gLeftToDeaggregate, (void*)SimDriver.GetPlayerEntity(),
+                    SimDriver.GetPlayerEntity() ? SimDriver.GetPlayerEntity()->IsLocal() : -1);
             while (
                 (gLeftToDeaggregate) and
                 (delayCounter) and
@@ -1045,6 +1076,8 @@ void SimulationLoopControl::StartLoop(void)
                 Sleep(100);
                 delayCounter--;
             }
+            fprintf(stderr, "[StartLoop] gLeftToDeaggregate wait done: gLeft=%d counter=%d\n",
+                    gLeftToDeaggregate, delayCounter);
 
             // Render the first frame to get all requisit data into the IO queue
             //MonoPrint("Done deaggregating. Remaining entities: %d.\n",gLeftToDeaggregate);
@@ -1172,6 +1205,7 @@ void SimulationLoopControl::StartLoop(void)
                 FF_SimThreadReleaseGL();
             }
 #endif
+            fprintf(stderr, "[StartLoop] Setting currentMode = StartRunningGraphics\n");
             currentMode = StartRunningGraphics;
 
 

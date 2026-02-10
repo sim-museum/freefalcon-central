@@ -1720,6 +1720,10 @@ void CDXEngine::FlushObjects(void)
     bool Lited, WasInPitMode;
     DWORD LightOwner;
 
+#ifdef FF_LINUX
+    int pitObjCount = 0, sceneObjCount = 0;
+#endif
+
     //TheTextureBank.SetDeferredLoad(true);
 
     // not a previous object instalce
@@ -1732,6 +1736,33 @@ void CDXEngine::FlushObjects(void)
 
     ///////////////////////////// HERE STARTS THE DRAWING ENGINE LOOP //////////////////////////////
     // The Loop flushes all objects from the VBuffers
+
+#ifdef FF_LINUX
+    // FF_LINUX DIAGNOSTIC: Log DX engine state before drawing objects.
+    {
+        static int diagFrame = 0;
+        if (diagFrame < 3) {
+            diagFrame++;
+            D3DVIEWPORT7 vp;
+            m_pD3DD->GetViewport(&vp);
+            fprintf(stderr, "[DXE_DIAG #%d] Viewport=[%lu,%lu,%lux%lu]\n",
+                    diagFrame, vp.dwX, vp.dwY, vp.dwWidth, vp.dwHeight);
+            fprintf(stderr, "[DXE_DIAG #%d] Projection: _11=%.3f _13=%.3f _14=%.3f _21=%.3f _22=%.3f _32=%.3f _33=%.3f _43=%.3f _44=%.3f\n",
+                    diagFrame, Projection._11, Projection._13, Projection._14,
+                    Projection._21, Projection._22, Projection._32, Projection._33,
+                    Projection._43, Projection._44);
+            fprintf(stderr, "[DXE_DIAG #%d] CameraView: _11=%.3f _12=%.3f _13=%.3f _14=%.3f\n",
+                    diagFrame, CameraView._11, CameraView._12, CameraView._13, CameraView._14);
+            fprintf(stderr, "[DXE_DIAG #%d] CameraView: _21=%.3f _22=%.3f _23=%.3f _24=%.3f\n",
+                    diagFrame, CameraView._21, CameraView._22, CameraView._23, CameraView._24);
+            fprintf(stderr, "[DXE_DIAG #%d] CameraView: _31=%.3f _32=%.3f _33=%.3f _34=%.3f\n",
+                    diagFrame, CameraView._31, CameraView._32, CameraView._33, CameraView._34);
+            fprintf(stderr, "[DXE_DIAG #%d] CameraView: _41=%.3f _42=%.3f _43=%.3f _44=%.3f\n",
+                    diagFrame, CameraView._41, CameraView._42, CameraView._43, CameraView._44);
+            fflush(stderr);
+        }
+    }
+#endif
 
     // Till objects to Draw
     while (TheVbManager.GetDrawItem(&objInst, &LodID, &AppliedState, &Lited, &LightOwner, &m_FogLevel))
@@ -1746,6 +1777,32 @@ void CDXEngine::FlushObjects(void)
             // No Fog into the pit
             float Start = 5.0f;
             m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGSTART, *(DWORD*)&Start);
+#ifdef FF_LINUX
+            // FF_LINUX: For pit rendering, use modified near/far planes for cockpit scale.
+            // The Flip-based Projection maps sim_X→clip_W, which works for pit objects
+            // because all cockpit vertices have positive forward-X in camera space.
+            // We just need tighter near/far for cockpit-scale geometry (0.1m to 100m).
+            {
+                // Build pit projection from scene Projection with adjusted depth range
+                D3DXMATRIX pitProj = Projection;
+                float zNear = 0.1f;
+                float zFar = 100.0f;
+                // In the Flip-based projection (D3D row-major):
+                // _13 = zf/(zf-zn), _43 = -zn*zf/(zf-zn)
+                pitProj._13 = zFar / (zFar - zNear);  // ≈1.001
+                pitProj._43 = -zNear * zFar / (zFar - zNear);  // ≈-0.1
+                m_pD3DD->SetTransform(D3DTRANSFORMSTATE_PROJECTION, (LPD3DMATRIX)&pitProj);
+
+                // Diagnostic: log pit projection setup once
+                static bool pitProjLogged = false;
+                if (!pitProjLogged) {
+                    pitProjLogged = true;
+                    fprintf(stderr, "[PIT] Cockpit projection: zNear=%.1f zFar=%.1f\n", zNear, zFar);
+                }
+            }
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_NONE);
+            { extern int g_FF_PitModeActive; g_FF_PitModeActive = 1; }
+#endif
         }
 
         // ok, just Exited Pit Mode
@@ -1756,21 +1813,29 @@ void CDXEngine::FlushObjects(void)
             // Immediatly draw Solid surfaces ( coming from Pit )
             DrawSolidSurfaces();
             AppliedState = OldState;
-#ifdef FF_LINUX
-            // FF_LINUX: Clear z-buffer after cockpit rendering so terrain behind
-            // cockpit glass isn't occluded by the glass polygon's near-z values.
-            // Only clear ZBUFFER, preserve stencil buffer for masking.
             m_pD3DD->Clear(0, NULL, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
-#endif
             // enable stenciling in Check Mode
             SetStencilMode(STENCIL_CHECK);
             // Restore Fog
             float Start = 0.0f;
             m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGSTART, *(DWORD*)&Start);
 
+#ifdef FF_LINUX
+            { extern int g_FF_PitModeActive; g_FF_PitModeActive = 0; }
+            // FF_LINUX: Restore scene Projection after pit override.
+            // Pit rendering used tighter near/far planes; scene needs original.
+            m_pD3DD->SetTransform(D3DTRANSFORMSTATE_PROJECTION, (LPD3DMATRIX)&Projection);
+            // Restore culling (was disabled for pit)
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, (m_bCullEnable) ? D3DCULL_CW : D3DCULL_NONE);
+#endif
         }
 
         WasInPitMode = m_PitMode;
+
+#ifdef FF_LINUX
+        if (m_PitMode) pitObjCount++;
+        else sceneObjCount++;
+#endif
 
         // The Stack For the State Transformations resetted
         StateStackLevel = 0;
@@ -1785,7 +1850,27 @@ void CDXEngine::FlushObjects(void)
         TheVbManager.GetModelData(m_VB, LodID);
 
         // Consistency Check
-        if ( not m_VB.Valid) continue;
+        if ( not m_VB.Valid) {
+#ifdef FF_LINUX
+            static int vbInvalidCount = 0;
+            if (vbInvalidCount < 20 && m_PitMode) {
+                fprintf(stderr, "[FlushObj] PIT obj LodID=%d m_VB.Valid=0 (skipping)\n", LodID);
+                vbInvalidCount++;
+            }
+#endif
+            continue;
+        }
+
+#ifdef FF_LINUX
+        {
+            static int drawObjCount = 0;
+            if (drawObjCount < 20 && m_PitMode) {
+                fprintf(stderr, "[FlushObj] PIT obj LodID=%d VB.Valid=1 Nodes=%p NTex=%d Root=%p\n",
+                        LodID, (void*)m_VB.Nodes, m_VB.NTex, (void*)m_VB.Root);
+                drawObjCount++;
+            }
+        }
+#endif
 
 #ifdef STAT_DX_ENGINE
         COUNT_PROFILE("*** DX Objects");
@@ -1826,7 +1911,6 @@ void CDXEngine::FlushObjects(void)
         // Stup the Fog level fro this object
         m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGEND,   *(DWORD *)(&m_FogLevel));
 
-
         // Calculates the Texture Base Index in the Texture Bank
         int nTexsPerBank = m_VB.NTex / max(1, (int)objInst->ParentObject->nTextureSets);
         DWORD *texOffset = m_VB.Texs + objInst->TextureSet * nTexsPerBank;
@@ -1858,6 +1942,17 @@ void CDXEngine::FlushObjects(void)
         //                                                                                                           //
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
     }
+
+#ifdef FF_LINUX
+    {
+        static int flushFrame = 0;
+        if (flushFrame < 10) {
+            fprintf(stderr, "[FlushObjects #%d] pitObjs=%d sceneObjs=%d WasInPitMode=%d\n",
+                    flushFrame, pitObjCount, sceneObjCount, WasInPitMode);
+        }
+        flushFrame++;
+    }
+#endif
 
     //TheTextureBank.SetDeferredLoad(false);
 }
@@ -1946,6 +2041,9 @@ void CDXEngine::DrawSolidSurfaces(void)
     D3DXMATRIX State;
     ObjectInstance *LastObj = NULL;
     float LastFog = 0;
+#ifdef FF_LINUX
+    int solidSurfCount = 0;
+#endif
 
 #ifndef DEBUG_ENGINE
     m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_CW);
@@ -1957,6 +2055,9 @@ void CDXEngine::DrawSolidSurfaces(void)
 
     while (PopSurface(&m_SolidStack, &State))
     {
+#ifdef FF_LINUX
+        solidSurfCount++;
+#endif
         if (State not_eq AppliedState) m_pD3DD->SetTransform(D3DTRANSFORMSTATE_WORLD, (LPD3DMATRIX)&State);
 
         AppliedState = State;
@@ -1982,6 +2083,17 @@ void CDXEngine::DrawSolidSurfaces(void)
         LastFog = m_FogLevel;
         DrawSurface();
     }
+#ifdef FF_LINUX
+    {
+        static int drawSolidDiag = 0;
+        if (drawSolidDiag < 10) {
+            drawSolidDiag++;
+            fprintf(stderr, "[DrawSolidSurfaces #%d] drew %d surfaces, pitMode=%d\n",
+                    drawSolidDiag, solidSurfCount, m_PitMode);
+            fflush(stderr);
+        }
+    }
+#endif
 }
 
 
@@ -2086,6 +2198,10 @@ void CDXEngine::FlushBuffers(void)
 #ifdef FF_LINUX
     static int flushCount = 0;
     flushCount++;
+    if (flushCount <= 5) {
+        fprintf(stderr, "[FLUSH_TRACE] FlushBuffers called #%d, m_pD3DD=%p\n", flushCount, (void*)m_pD3DD);
+        fflush(stderr);
+    }
     FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine::FlushBuffers ENTER\n");
     FF_DEBUG_RENDER_FLUSH();
     // FF_LINUX: Safety check for NULL D3D device

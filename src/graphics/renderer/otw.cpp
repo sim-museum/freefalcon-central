@@ -1121,6 +1121,7 @@ void RenderOTW::DrawScene(const Tpoint *offset, const Trotation *orientation)
     containingList = viewpoint->GetContainingList(position.z);
 
 
+
     // Setup the layers for the 2D DX Engine
     /*switch(containingList){
      case 0 :
@@ -1261,6 +1262,7 @@ void RenderOTW::DrawGroundAndObjects(ObjectDisplayList *objectList)
     // Compute the potentially visible region of terrain and divide it into rings
     ComputeBounds();
     BuildRingList();
+
 
     // Clip the inside edges of the rings to the computed bounding volume in world space
     ClipHorizontalSectors();

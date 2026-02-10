@@ -289,6 +289,7 @@ struct D3D7Device : public IDirect3DDevice7 {
     LONG refCount;
     D3D7Interface* d3d;
     D3D7Surface* renderTarget;
+    D3D7Surface* defaultRenderTarget;  // FF_LINUX: The initial RT (screen back buffer)
 
     // Current state
     D3DMATRIX projMatrix;
@@ -564,8 +565,25 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This,
     D3DGL_LOG("SetRenderTarget surf=%p isPrimary=%d", (void*)newTarget, newTarget ? newTarget->isPrimary : -1);
     dev->renderTarget = newTarget;
 
+    // FF_LINUX: Diagnostic for render target switching
+    {
+        static int setRTCount = 0;
+        if (setRTCount < 20) {
+            setRTCount++;
+            fprintf(stderr, "[D3D7_SetRT #%d] surf=%p isPrimary=%d fboId=%u glTex=%u %dx%d\n",
+                    setRTCount, (void*)newTarget,
+                    newTarget ? newTarget->isPrimary : -1,
+                    newTarget ? newTarget->fboId : 0,
+                    newTarget ? newTarget->glTexture : 0,
+                    newTarget ? newTarget->width : 0,
+                    newTarget ? newTarget->height : 0);
+            fflush(stderr);
+        }
+    }
+
     // FF_LINUX: FBO-based render target switching for RTT (render-to-texture)
-    if (newTarget && !newTarget->isPrimary) {
+    // Use defaultRenderTarget to distinguish screen vs off-screen surfaces
+    if (newTarget && newTarget != dev->defaultRenderTarget) {
         // Rendering to an off-screen surface - need FBO
         if (!newTarget->fboId) {
             // Create FBO
@@ -593,7 +611,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This,
             glBindFramebuffer(GL_FRAMEBUFFER, newTarget->fboId);
         }
     } else {
-        // Rendering to the default framebuffer (screen)
+        // Rendering to the default framebuffer (screen back buffer)
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
@@ -723,7 +741,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetViewport(IDirect3DDevice7* This, LPD
     // When rendering to an FBO, use the FBO texture dimensions instead of the window size.
     int targetH;
     D3D7Surface* rt = dev->renderTarget;
-    if (rt && !rt->isPrimary && rt->fboId) {
+    if (rt && rt != dev->defaultRenderTarget && rt->fboId) {
         // Rendering to FBO - use texture dimensions
         targetH = rt->height;
     } else {
@@ -1026,6 +1044,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveStrided(IDirect3DDe
 
 int g_DrawPrimitiveVBCount = 0;
 int g_DrawIdxPrimVBCount = 0;
+int g_FF_PitModeActive = 0;  // Set by DXEngine FlushObjects when drawing pit geometry
 
 static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitiveVB(IDirect3DDevice7* This, D3DPRIMITIVETYPE dptPrimitiveType, LPDIRECT3DVERTEXBUFFER7 lpd3dVertexBuffer, DWORD dwStartVertex, DWORD dwNumVertices, DWORD dwFlags) {
     D3D7Device* dev = (D3D7Device*)This;
@@ -1038,6 +1057,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitiveVB(IDirect3DDevice7* This,
     const char* startVertex = (const char*)vb->data + dwStartVertex * vertexSize;
 
     g_DrawPrimitiveVBCount++;
+
+    // FF_LINUX: NDC diagnostic for pit draws via DrawPrimitiveVB (point lists only; indexed VB handles triangles)
+    // Removed - DX engine uses DrawIndexedPrimitiveVB for pit geometry (INDEXED_MODE_ENGINE)
 
     dev->DrawVertices(dptPrimitiveType, vb->desc.dwFVF, startVertex, dwNumVertices);
 
@@ -1058,6 +1080,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
 
     // FF_LINUX: Track DrawIndexedPrimitiveVB calls
     g_DrawIdxPrimVBCount++;
+
+    // Pit NDC diagnostic removed - cockpit rendering working
 
     // FF_LINUX: Disable GL_TEXTURE_2D when no texture coordinates in FVF.
     // Otherwise stale textures from previous draws modulate vertex colors.
@@ -1085,8 +1109,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
         glLoadIdentity();
-        // Z range: near=0, far=1 to match D3D XYZRHW z values (0=near, 1=far)
-        glOrtho(0, dev->viewport.dwWidth, dev->viewport.dwHeight, 0, 0, 1);
+        // FF_LINUX: D3D XYZRHW z in [0,1] where 0=near, 1=far.
+        // glOrtho(0,w,h,0, near=0, far=-1) gives z_ndc = 2*z - 1: z=0→-1, z=1→+1.
+        glOrtho(0, dev->viewport.dwWidth, dev->viewport.dwHeight, 0, 0, -1);
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
         glLoadIdentity();
@@ -1118,6 +1143,32 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         prevTex2D_forNullCheck = GL_TRUE;
         disabledTexForNullBinding = true;
         glDisable(GL_TEXTURE_2D);
+    }
+
+    // FF_LINUX DIAGNOSTIC: Log first few pit XYZ vertex positions to verify coordinate space
+    {
+        extern int g_FF_PitModeActive;
+        static int pitVtxLogCount = 0;
+        if (g_FF_PitModeActive && !isXYZRHW && (fvf & D3DFVF_XYZ) && pitVtxLogCount < 5) {
+            pitVtxLogCount++;
+            fprintf(stderr, "[PIT_VTX #%d] idxCount=%d fvf=0x%x primType=%d\n",
+                    pitVtxLogCount, dwIndexCount, fvf, dptPrimitiveType);
+            // Log first 3 vertices
+            for (DWORD dbg_i = 0; dbg_i < dwIndexCount && dbg_i < 3; dbg_i++) {
+                WORD dbg_idx = lpwIndices[dbg_i] + dwStartVertex;
+                const float* dbg_pos = (const float*)((const char*)vb->data + dbg_idx * vertexSize);
+                fprintf(stderr, "  v[%d] = (%.3f, %.3f, %.3f)\n", dbg_i, dbg_pos[0], dbg_pos[1], dbg_pos[2]);
+            }
+            // Log current GL matrices
+            GLfloat dbg_proj[16], dbg_mv[16];
+            glGetFloatv(GL_PROJECTION_MATRIX, dbg_proj);
+            glGetFloatv(GL_MODELVIEW_MATRIX, dbg_mv);
+            fprintf(stderr, "  GL_PROJ diag=[%.3f, %.3f, %.3f, %.3f]\n",
+                    dbg_proj[0], dbg_proj[5], dbg_proj[10], dbg_proj[15]);
+            fprintf(stderr, "  GL_MV row3=[%.3f, %.3f, %.3f, %.3f]\n",
+                    dbg_mv[12], dbg_mv[13], dbg_mv[14], dbg_mv[15]);
+            fflush(stderr);
+        }
     }
 
     glBegin(primType);
@@ -1666,6 +1717,7 @@ static const IDirect3DDevice7Vtbl g_D3D7DeviceVtbl = {
 // D3D7Device implementation
 // ============================================================
 D3D7Device::D3D7Device() : refCount(1), d3d(nullptr), renderTarget(nullptr),
+                           defaultRenderTarget(nullptr),
                            nextStateBlockHandle(1), recordingStateBlock(false),
                            recordingStateBlockHandle(0), inScene(false) {
     lpVtbl = &g_D3D7DeviceVtbl;
@@ -1764,12 +1816,20 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
                     break;
                 case D3DCULL_CW:
                     glEnable(GL_CULL_FACE);
+#ifdef FF_LINUX
+                    glFrontFace(GL_CW);   // FF_LINUX: Flip matrix (det=-1) reverses winding
+#else
                     glFrontFace(GL_CCW);
+#endif
                     glCullFace(GL_BACK);
                     break;
                 case D3DCULL_CCW:
                     glEnable(GL_CULL_FACE);
+#ifdef FF_LINUX
+                    glFrontFace(GL_CCW);  // FF_LINUX: Flip matrix (det=-1) reverses winding
+#else
                     glFrontFace(GL_CW);
+#endif
                     glCullFace(GL_BACK);
                     break;
             }
@@ -2219,9 +2279,11 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glPushMatrix();
         glLoadIdentity();
         // Set up orthographic projection: x = 0..vpW, y = 0..vpH (Y flipped for D3D convention)
-        // Z range: near=0, far=1 to match D3D XYZRHW z values (0=near, 1=far)
-        // Using glOrtho near=0, far=1 maps z=0→depth=0.0 and z=1→depth=1.0
-        glOrtho(0, vpW, vpH, 0, 0, 1);
+        // FF_LINUX: D3D XYZRHW z values are in [0,1] where 0=near and 1=far.
+        // glOrtho maps eye-space [near, far] to NDC [-1, +1].
+        // With near=0, far=-1: z_ndc = 2*z - 1, so z=0→-1 (near) and z=1→+1 (far).
+        // Using near=0, far=1 would give z_ndc = -2*z - 1, clipping all z>0 vertices!
+        glOrtho(0, vpW, vpH, 0, 0, -1);
 
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
@@ -2468,6 +2530,7 @@ static HRESULT STDMETHODCALLTYPE D3D7_CreateDevice(IDirect3D7* This, REFCLSID rc
     dev->d3d = (D3D7Interface*)This;
     dev->d3d->lpVtbl->AddRef(dev->d3d);
     dev->renderTarget = (D3D7Surface*)lpDDS;
+    dev->defaultRenderTarget = (D3D7Surface*)lpDDS;  // FF_LINUX: Track initial RT for FBO unbinding
 
     *lplpD3DDevice = dev;
     return D3D_OK;
@@ -3800,6 +3863,7 @@ IDirect3DDevice7* FF_CreateDirect3DDevice7(IDirect3D7* d3d, IDirectDrawSurface7*
     dev->d3d = (D3D7Interface*)d3d;
     if (dev->d3d) dev->d3d->lpVtbl->AddRef(dev->d3d);
     dev->renderTarget = (D3D7Surface*)renderTarget;
+    dev->defaultRenderTarget = (D3D7Surface*)renderTarget;  // FF_LINUX: Track initial RT for FBO unbinding
 
     // Assign the vtable to the render target if it doesn't have one
     if (renderTarget && !renderTarget->lpVtbl) {
@@ -3811,7 +3875,11 @@ IDirect3DDevice7* FF_CreateDirect3DDevice7(IDirect3D7* d3d, IDirectDrawSurface7*
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
+#ifdef FF_LINUX
+    glFrontFace(GL_CW);   // FF_LINUX: Default cull is D3DCULL_CW; Flip matrix reverses winding
+#else
     glFrontFace(GL_CCW);
+#endif
     glShadeModel(GL_SMOOTH);
 
     return dev;

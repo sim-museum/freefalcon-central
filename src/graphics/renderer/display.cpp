@@ -1516,6 +1516,7 @@ void VirtualDisplay::DrawRttQuad()
     os.z = canUL.z;
     r3d->TransformPoint(&os, &v0);
 
+
     os.x = canUR.x;
     os.y = canUR.y;
     os.z = canUR.z;

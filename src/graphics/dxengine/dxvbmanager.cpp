@@ -757,7 +757,6 @@ bool CDXVbManager::GetDrawItem(ObjectInstance **objInst, DWORD *ID, D3DXMATRIX *
 {
     bool Traversed = false;
 
-
     // Check for Pit List
     if (PitList.DrawsCount)
     {

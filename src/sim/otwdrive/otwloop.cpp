@@ -2229,6 +2229,18 @@ void OTWDriverClass::RenderFrame()
     ObserverPosition.y = viewPos.y = focusPoint.y + cameraPos.y;
     ObserverPosition.z = viewPos.z = focusPoint.z + cameraPos.z;
 
+#ifdef FF_LINUX
+    {
+        static int diagFrame = 0;
+        if (diagFrame++ % 300 == 0) {
+            fprintf(stderr, "[DIAG] viewPos=(%.1f, %.1f, %.1f) focus=(%.1f, %.1f, %.1f) cam=(%.1f, %.1f, %.1f)\n",
+                    viewPos.x, viewPos.y, viewPos.z,
+                    focusPoint.x, focusPoint.y, focusPoint.z,
+                    cameraPos.x, cameraPos.y, cameraPos.z);
+        }
+    }
+#endif
+
     ObserverYaw = flyingEye->Yaw();
     ObserverPitch = flyingEye->Pitch();
     ObserverRoll = flyingEye->Roll();
@@ -2471,6 +2483,17 @@ void OTWDriverClass::RenderFrame()
 #endif
 
     // If in 3D Pit, the pit has to be drawn as 1st item helping z-Buffering
+#ifdef FF_LINUX
+    {
+        static int dispModeDiag = 0;
+        if (dispModeDiag < 5) {
+            dispModeDiag++;
+            fprintf(stderr, "[OTWLoop #%d] DisplayMode=%d okToDoCockpitStuff=%d Mode3DCockpit=%d\n",
+                    dispModeDiag, (int)DisplayMode, okToDoCockpitStuff, (int)Mode3DCockpit);
+            fflush(stderr);
+        }
+    }
+#endif
     if (okToDoCockpitStuff)
     {
         // Calc Turubulence for the 2D pit stuff
@@ -2515,6 +2538,23 @@ void OTWDriverClass::RenderFrame()
     //STOP_PROFILE("RENDER 3DPIT");
 
     //START_PROFILE("RENDER DRAWSCENE");
+#ifdef FF_LINUX
+    {
+        static int drawSceneDiag = 0;
+        if (drawSceneDiag < 3) {
+            drawSceneDiag++;
+            fprintf(stderr, "[DrawScene #%d] eyeTilt=%.4f (%.1f deg) eyePan=%.4f (%.1f deg) DisplayMode=%d\n",
+                    drawSceneDiag, eyeTilt, eyeTilt / DTR, eyePan, eyePan / DTR, (int)DisplayMode);
+            fprintf(stderr, "[DrawScene #%d] cameraRot: M11=%.3f M12=%.3f M13=%.3f M21=%.3f M22=%.3f M23=%.3f M31=%.3f M32=%.3f M33=%.3f\n",
+                    drawSceneDiag, cameraRot.M11, cameraRot.M12, cameraRot.M13,
+                    cameraRot.M21, cameraRot.M22, cameraRot.M23,
+                    cameraRot.M31, cameraRot.M32, cameraRot.M33);
+            fprintf(stderr, "[DrawScene #%d] headOrigin: x=%.1f y=%.1f z=%.1f\n",
+                    drawSceneDiag, headOrigin.x, headOrigin.y, headOrigin.z);
+            fflush(stderr);
+        }
+    }
+#endif
     renderer->DrawScene((struct Tpoint *) &headOrigin, (struct Trotation *) &cameraRot);
     //STOP_PROFILE("RENDER DRAWSCENE");
 

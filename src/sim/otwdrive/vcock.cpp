@@ -516,6 +516,17 @@ void OTWDriverClass::VCock_GiveGilmanHead(float dT)
 
     // Combine the head and airplane matrices
     MatrixMult(&ownshipRot, &headMatrix, &cameraRot);
+#ifdef FF_LINUX
+    {
+        static int gilmanDiag = 0;
+        if (gilmanDiag < 3) {
+            gilmanDiag++;
+            fprintf(stderr, "[GilmanHead #%d] eyeTilt=%.4f (%.1f deg) eyePan=%.4f headMotion=%d\n",
+                    gilmanDiag, eyeTilt, eyeTilt / (3.14159265f/180.0f), eyePan, headMotion);
+            fflush(stderr);
+        }
+    }
+#endif
 }
 
 
@@ -3289,6 +3300,7 @@ void OTWDriverClass::VCock_Exec(void)
 
 
         // renderer->FinishFrame();
+
         renderer->FinishRtt();
 
         // renderer->StartDraw();

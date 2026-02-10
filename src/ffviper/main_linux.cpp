@@ -8,6 +8,7 @@
 #include <time.h>
 #include <fenv.h>
 #include <signal.h>
+#include <execinfo.h>
 #include <mutex>
 #include <queue>
 #include <vector>
@@ -162,26 +163,17 @@ bool g_simOwnsGLContext = false;  // Non-static: accessed from simloop.cpp via e
 
 // Release GL context from current thread (call before another thread acquires it)
 void FF_ReleaseGLContext() {
-    fprintf(stderr, "[GL] FF_ReleaseGLContext() called, g_SDLWindow=%p\n", (void*)g_SDLWindow);
-    fflush(stderr);
     std::lock_guard<std::mutex> lock(g_glContextMutex);
     if (g_SDLWindow) {
-        int result = SDL_GL_MakeCurrent(g_SDLWindow, NULL);
-        fprintf(stderr, "[GL] SDL_GL_MakeCurrent(NULL) returned %d\n", result);
-        fflush(stderr);
+        SDL_GL_MakeCurrent(g_SDLWindow, NULL);
     }
 }
 
 // Acquire GL context on current thread
 void FF_AcquireGLContext() {
-    fprintf(stderr, "[GL] FF_AcquireGLContext() called, g_SDLWindow=%p, g_GLContext=%p\n",
-            (void*)g_SDLWindow, (void*)g_GLContext);
-    fflush(stderr);
     std::lock_guard<std::mutex> lock(g_glContextMutex);
     if (g_SDLWindow && g_GLContext) {
-        int result = SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
-        fprintf(stderr, "[GL] SDL_GL_MakeCurrent(context) returned %d\n", result);
-        fflush(stderr);
+        SDL_GL_MakeCurrent(g_SDLWindow, g_GLContext);
     }
 }
 
@@ -1033,6 +1025,23 @@ static void signal_handler(int sig) {
     raise(sig);
 }
 
+// FF_LINUX: SIGSEGV/SIGFPE handler with backtrace for crash diagnosis
+static void crash_signal_handler(int sig) {
+    const char *signame = (sig == SIGSEGV) ? "SIGSEGV" : (sig == SIGFPE) ? "SIGFPE" : (sig == SIGABRT) ? "SIGABRT" : "UNKNOWN";
+    fprintf(stderr, "\n=== CRASH: %s (signal %d) ===\n", signame, sig);
+
+    void *frames[64];
+    int nframes = backtrace(frames, 64);
+    backtrace_symbols_fd(frames, nframes, STDERR_FILENO);
+
+    fprintf(stderr, "=== END BACKTRACE ===\n");
+    fflush(stderr);
+
+    // Re-raise with default handler
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+
 static void setup_signal_handlers() {
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
@@ -1043,6 +1052,17 @@ static void setup_signal_handlers() {
     sigaction(SIGTERM, &sa, nullptr);  // Terminate (default from kill)
     sigaction(SIGINT, &sa, nullptr);   // Interrupt (Ctrl+C)
     sigaction(SIGHUP, &sa, nullptr);   // Hangup
+
+    // Crash signal handlers with backtrace
+    struct sigaction crash_sa;
+    memset(&crash_sa, 0, sizeof(crash_sa));
+    crash_sa.sa_handler = crash_signal_handler;
+    sigemptyset(&crash_sa.sa_mask);
+    crash_sa.sa_flags = SA_RESETHAND;  // One-shot to avoid infinite loops
+
+    sigaction(SIGSEGV, &crash_sa, nullptr);
+    sigaction(SIGFPE, &crash_sa, nullptr);
+    sigaction(SIGABRT, &crash_sa, nullptr);
 }
 
 // Forward declarations
