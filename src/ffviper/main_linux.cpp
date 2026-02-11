@@ -336,6 +336,53 @@ static std::vector<GameMessage> g_pendingMessages;
 // SDL scancodes differ from DirectInput DIK_* codes - build a translation table
 // =============================================================================
 
+// =============================================================================
+// SDL KEYBOARD EVENT BUFFER FOR SIM INPUT
+// The sim reads keyboard input via DirectInput's GetDeviceData() (sikeybd.cpp).
+// On Linux, DirectInput is disabled. Instead, SDL keyboard events are buffered
+// here and read by OnSimKeyboardInput() via FF_PopKeyEvents().
+// =============================================================================
+#include "dinput.h"  // For DIDEVICEOBJECTDATA
+
+static std::mutex g_keyEventMutex;
+static DIDEVICEOBJECTDATA g_keyEventBuf[64];
+static int g_keyEventHead = 0;
+static int g_keyEventTail = 0;
+static unsigned char g_keyState[256] = {0};  // Current key state (0x80 = pressed)
+
+// Push a keyboard event into the buffer (called from SDL event loop)
+void FF_PushKeyEvent(int dikCode, bool isDown) {
+    if (dikCode <= 0 || dikCode >= 256) return;
+    std::lock_guard<std::mutex> lock(g_keyEventMutex);
+    g_keyState[dikCode] = isDown ? 0x80 : 0x00;
+    int next = (g_keyEventHead + 1) % 64;
+    if (next == g_keyEventTail) return;  // Buffer full, drop event
+    g_keyEventBuf[g_keyEventHead].dwOfs = (DWORD)dikCode;
+    g_keyEventBuf[g_keyEventHead].dwData = isDown ? 0x80 : 0x00;
+    g_keyEventBuf[g_keyEventHead].dwTimeStamp = GetTickCount();
+    g_keyEventBuf[g_keyEventHead].dwSequence = 0;
+    g_keyEventHead = next;
+}
+
+// Pop keyboard events from the buffer (called from sim thread's OnSimKeyboardInput)
+int FF_PopKeyEvents(DIDEVICEOBJECTDATA* outBuf, int maxEvents) {
+    std::lock_guard<std::mutex> lock(g_keyEventMutex);
+    int count = 0;
+    while (g_keyEventTail != g_keyEventHead && count < maxEvents) {
+        outBuf[count] = g_keyEventBuf[g_keyEventTail];
+        g_keyEventTail = (g_keyEventTail + 1) % 64;
+        count++;
+    }
+    return count;
+}
+
+// Get current keyboard state (called from sim thread)
+void FF_GetKeyState(unsigned char* outState, int size) {
+    std::lock_guard<std::mutex> lock(g_keyEventMutex);
+    int copySize = (size < 256) ? size : 256;
+    memcpy(outState, g_keyState, copySize);
+}
+
 // SDL joystick globals
 static SDL_Joystick* g_SDLJoystick = nullptr;
 static int g_JoystickIndex = -1;
@@ -1696,6 +1743,7 @@ static void handle_sdl_events(void) {
                     int dikCode = ConvertSDLToDIK(event.key.keysym.scancode);
                     if (dikCode != 0) {
                         PostGameMessage(WM_KEYDOWN, dikCode, 0);
+                        FF_PushKeyEvent(dikCode, true);
                     }
                 }
                 break;
@@ -1705,6 +1753,7 @@ static void handle_sdl_events(void) {
                     int dikCode = ConvertSDLToDIK(event.key.keysym.scancode);
                     if (dikCode != 0) {
                         PostGameMessage(WM_KEYUP, dikCode, 0);
+                        FF_PushKeyEvent(dikCode, false);
                     }
                 }
                 break;

@@ -103,12 +103,17 @@ void InputCycle(void)
         OnSimMouseInput(FalconDisplay.appWin);
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX: Always poll keyboard - SDL events are buffered, no DirectInput event to wait for
+    OnSimKeyboardInput();
+#else
     dw = WaitForSingleObject(gphDeviceEvent[SIM_KEYBOARD], 0);
 
     if (dw == WAIT_OBJECT_0)
     {
         OnSimKeyboardInput();
     }
+#endif
 
     //We need to simply read the joystick every time through
     //using a minimum read interval for faster computers

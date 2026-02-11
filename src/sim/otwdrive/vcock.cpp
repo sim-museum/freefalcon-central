@@ -519,10 +519,10 @@ void OTWDriverClass::VCock_GiveGilmanHead(float dT)
 #ifdef FF_LINUX
     {
         static int gilmanDiag = 0;
-        if (gilmanDiag < 3) {
-            gilmanDiag++;
-            fprintf(stderr, "[GilmanHead #%d] eyeTilt=%.4f (%.1f deg) eyePan=%.4f headMotion=%d\n",
-                    gilmanDiag, eyeTilt, eyeTilt / (3.14159265f/180.0f), eyePan, headMotion);
+        gilmanDiag++;
+        if (gilmanDiag <= 5 || (gilmanDiag % 300 == 0)) {
+            fprintf(stderr, "[GilmanHead #%d] eyeTilt=%.4f (%.1f deg) eyePan=%.4f elDir=%.1f azDir=%.1f slewRate=%.4f headMotion=%d dT=%.4f\n",
+                    gilmanDiag, eyeTilt, eyeTilt / (3.14159265f/180.0f), eyePan, elDir, azDir, slewRate, headMotion, dT);
             fflush(stderr);
         }
     }
@@ -2982,6 +2982,21 @@ void OTWDriverClass::VCock_Exec(void)
 
 
     // ASSO: BEGIN
+#ifdef FF_LINUX
+    {
+        static int rttDiag = 0;
+        if (rttDiag < 5) {
+            rttDiag++;
+            fprintf(stderr, "[VCock_Exec RTT #%d] HasRttTarget=%d\n",
+                    rttDiag, renderer->HasRttTarget());
+            fprintf(stderr, "[VCock_Exec RTT #%d] renderers: HUD=%p RWR=%p DED=%p PFL=%p\n",
+                    rttDiag, (void*)vHUDrenderer, (void*)vRWRrenderer, (void*)vDEDrenderer, (void*)vPFLrenderer);
+            fprintf(stderr, "[VCock_Exec RTT #%d] g_b3dMFDLeft=%d g_b3dMFDRight=%d g_bUseNew3dpit=%d\n",
+                    rttDiag, g_b3dMFDLeft, g_b3dMFDRight, g_bUseNew3dpit);
+            fflush(stderr);
+        }
+    }
+#endif
     if (renderer->HasRttTarget())
     {
 
@@ -3304,6 +3319,19 @@ void OTWDriverClass::VCock_Exec(void)
         renderer->FinishRtt();
 
         // renderer->StartDraw();
+
+#ifdef FF_LINUX
+        {
+            static int rttQuadDiag = 0;
+            if (rttQuadDiag < 3) {
+                rttQuadDiag++;
+                fprintf(stderr, "[VCock_Exec RTTQuad #%d] Drawing quads: HUD=%d RWR=%d DED=%d PFL=%d\n",
+                        rttQuadDiag, vHUDrenderer != nullptr, vRWRrenderer != nullptr,
+                        vDEDrenderer != nullptr, vPFLrenderer != nullptr);
+                fflush(stderr);
+            }
+        }
+#endif
 
         if (vHUDrenderer)
             vHUDrenderer->DrawRttQuad();

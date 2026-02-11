@@ -1553,6 +1553,7 @@ void VirtualDisplay::DrawRttQuad()
     v0.b = v1.b = v2.b = v3.b = 1.0f;
     v0.a = v1.a = v2.a = v3.a = rttAlpha;
 
+
     r3d->DrawSquare(&v0, &v1, &v2, &v3, CULL_ALLOW_ALL, false);
 }
 

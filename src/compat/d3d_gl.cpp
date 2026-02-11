@@ -1145,29 +1145,16 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glDisable(GL_TEXTURE_2D);
     }
 
-    // FF_LINUX DIAGNOSTIC: Log first few pit XYZ vertex positions to verify coordinate space
+    // FF_LINUX DIAGNOSTIC: Log first pit draw call to verify GL state
     {
         extern int g_FF_PitModeActive;
         static int pitVtxLogCount = 0;
-        if (g_FF_PitModeActive && !isXYZRHW && (fvf & D3DFVF_XYZ) && pitVtxLogCount < 5) {
+        if (g_FF_PitModeActive && !isXYZRHW && (fvf & D3DFVF_XYZ) && pitVtxLogCount < 1) {
             pitVtxLogCount++;
-            fprintf(stderr, "[PIT_VTX #%d] idxCount=%d fvf=0x%x primType=%d\n",
-                    pitVtxLogCount, dwIndexCount, fvf, dptPrimitiveType);
-            // Log first 3 vertices
-            for (DWORD dbg_i = 0; dbg_i < dwIndexCount && dbg_i < 3; dbg_i++) {
-                WORD dbg_idx = lpwIndices[dbg_i] + dwStartVertex;
-                const float* dbg_pos = (const float*)((const char*)vb->data + dbg_idx * vertexSize);
-                fprintf(stderr, "  v[%d] = (%.3f, %.3f, %.3f)\n", dbg_i, dbg_pos[0], dbg_pos[1], dbg_pos[2]);
-            }
-            // Log current GL matrices
-            GLfloat dbg_proj[16], dbg_mv[16];
-            glGetFloatv(GL_PROJECTION_MATRIX, dbg_proj);
-            glGetFloatv(GL_MODELVIEW_MATRIX, dbg_mv);
-            fprintf(stderr, "  GL_PROJ diag=[%.3f, %.3f, %.3f, %.3f]\n",
-                    dbg_proj[0], dbg_proj[5], dbg_proj[10], dbg_proj[15]);
-            fprintf(stderr, "  GL_MV row3=[%.3f, %.3f, %.3f, %.3f]\n",
-                    dbg_mv[12], dbg_mv[13], dbg_mv[14], dbg_mv[15]);
-            fflush(stderr);
+            fprintf(stderr, "[PIT_VTX] idxCount=%d fvf=0x%x LIGHT=%d STENCIL=%d DEPTH=%d TEX2D=%d\n",
+                    dwIndexCount, fvf,
+                    glIsEnabled(GL_LIGHTING), glIsEnabled(GL_STENCIL_TEST),
+                    glIsEnabled(GL_DEPTH_TEST), glIsEnabled(GL_TEXTURE_2D));
         }
     }
 

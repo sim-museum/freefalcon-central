@@ -6,6 +6,12 @@
 
 void CallInputFunction(unsigned long val, int state);
 
+#ifdef FF_LINUX
+// FF_LINUX: SDL keyboard buffer functions (defined in main_linux.cpp)
+extern int FF_PopKeyEvents(DIDEVICEOBJECTDATA* outBuf, int maxEvents);
+extern void FF_GetKeyState(unsigned char* outState, int size);
+#endif
+
 //***********************************
 // void OnSimKeyboardInput()
 //***********************************
@@ -14,14 +20,17 @@ void OnSimKeyboardInput()
 {
     DIDEVICEOBJECTDATA ObjData[DKEYBOARD_BUFFERSIZE];
     DWORD dwElements;
-    HRESULT hResult;
     UINT i;
     static int ShiftCount = 0;
     static int CtrlCount = 0;
     static int AltCount = 0;
     int state;
-    char     buffer[256];
 
+#ifdef FF_LINUX
+    // FF_LINUX: Read keyboard events from SDL buffer instead of DirectInput
+    dwElements = FF_PopKeyEvents(ObjData, DKEYBOARD_BUFFERSIZE);
+#else
+    HRESULT hResult;
     dwElements = DKEYBOARD_BUFFERSIZE;
     hResult = gpDIDevice[SIM_KEYBOARD]->GetDeviceData(sizeof(DIDEVICEOBJECTDATA), ObjData, &dwElements, 0);
 
@@ -31,23 +40,13 @@ void OnSimKeyboardInput()
         return;
     }
 
-    if (SUCCEEDED(hResult))
+    if (!SUCCEEDED(hResult))
+        return;
+#endif
+
     {
         for (i = 0; i < dwElements; i++)
         {
-
-            // OK. Here we go. You can get the current state of the key
-            // from the dwData member. If the High order bit of the low order byte
-            // is set then the key was down at the time of the event. Unset then it
-            // wasn't. We can use this little piece of data to get rid of the array
-            // we use to maintain state of each key. If this works it should also
-            // eliminate the lost keyboard problem.
-
-            //MonoPrint (
-            // "i:%d  Key Id %d state %d Array %d\n",
-            // ObjData[i].dwOfs, ObjData[i].dwData bitand 0x7F, ObjData[i].dwData bitand 0x80
-            //);
-
             if (ObjData[i].dwData bitand 0x80)
             {
                 // key is down
@@ -108,10 +107,19 @@ void OnSimKeyboardInput()
             }
         }
 
+#ifdef FF_LINUX
+        // FF_LINUX: Read key state from SDL buffer
+        unsigned char buffer[256];
+        FF_GetKeyState(buffer, sizeof(buffer));
+#else
         //after every pass we reset the counts to try to keep them sane
+        char buffer[256];
         hResult = gpDIDevice[SIM_KEYBOARD]->GetDeviceState(sizeof(buffer), (LPVOID)&buffer);
 
-        if (hResult == DI_OK)
+        if (hResult != DI_OK)
+            return;
+#endif
+
         {
             if (buffer[DIK_LSHIFT] bitand 0x80)
             {

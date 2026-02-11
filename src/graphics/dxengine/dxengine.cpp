@@ -18,7 +18,16 @@
 
 #ifdef FF_LINUX
 #include "ffviper/ff_linux_debug.h"
-extern unsigned long g_RenderFrameCount;
+// FF_LINUX: GL function declarations for direct GL calls in pit mode
+extern "C" {
+    typedef unsigned int GLenum;
+    void glDisable(GLenum cap);
+    void glEnable(GLenum cap);
+}
+#define FF_GL_STENCIL_TEST 0x0B90
+#define FF_GL_DEPTH_TEST   0x0B71
+#define FF_GL_LIGHTING     0x0B50
+// ff_savedPitView removed - pit rendering now uses scene VIEW unchanged
 #endif
 
 // This variable is the Model ID presently under draw
@@ -1720,9 +1729,6 @@ void CDXEngine::FlushObjects(void)
     bool Lited, WasInPitMode;
     DWORD LightOwner;
 
-#ifdef FF_LINUX
-    int pitObjCount = 0, sceneObjCount = 0;
-#endif
 
     //TheTextureBank.SetDeferredLoad(true);
 
@@ -1738,30 +1744,7 @@ void CDXEngine::FlushObjects(void)
     // The Loop flushes all objects from the VBuffers
 
 #ifdef FF_LINUX
-    // FF_LINUX DIAGNOSTIC: Log DX engine state before drawing objects.
-    {
-        static int diagFrame = 0;
-        if (diagFrame < 3) {
-            diagFrame++;
-            D3DVIEWPORT7 vp;
-            m_pD3DD->GetViewport(&vp);
-            fprintf(stderr, "[DXE_DIAG #%d] Viewport=[%lu,%lu,%lux%lu]\n",
-                    diagFrame, vp.dwX, vp.dwY, vp.dwWidth, vp.dwHeight);
-            fprintf(stderr, "[DXE_DIAG #%d] Projection: _11=%.3f _13=%.3f _14=%.3f _21=%.3f _22=%.3f _32=%.3f _33=%.3f _43=%.3f _44=%.3f\n",
-                    diagFrame, Projection._11, Projection._13, Projection._14,
-                    Projection._21, Projection._22, Projection._32, Projection._33,
-                    Projection._43, Projection._44);
-            fprintf(stderr, "[DXE_DIAG #%d] CameraView: _11=%.3f _12=%.3f _13=%.3f _14=%.3f\n",
-                    diagFrame, CameraView._11, CameraView._12, CameraView._13, CameraView._14);
-            fprintf(stderr, "[DXE_DIAG #%d] CameraView: _21=%.3f _22=%.3f _23=%.3f _24=%.3f\n",
-                    diagFrame, CameraView._21, CameraView._22, CameraView._23, CameraView._24);
-            fprintf(stderr, "[DXE_DIAG #%d] CameraView: _31=%.3f _32=%.3f _33=%.3f _34=%.3f\n",
-                    diagFrame, CameraView._31, CameraView._32, CameraView._33, CameraView._34);
-            fprintf(stderr, "[DXE_DIAG #%d] CameraView: _41=%.3f _42=%.3f _43=%.3f _44=%.3f\n",
-                    diagFrame, CameraView._41, CameraView._42, CameraView._43, CameraView._44);
-            fflush(stderr);
-        }
-    }
+    // (DXE_DIAG block removed - pit mode debugging complete)
 #endif
 
     // Till objects to Draw
@@ -1778,29 +1761,45 @@ void CDXEngine::FlushObjects(void)
             float Start = 5.0f;
             m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGSTART, *(DWORD*)&Start);
 #ifdef FF_LINUX
-            // FF_LINUX: For pit rendering, use modified near/far planes for cockpit scale.
-            // The Flip-based Projection maps sim_X→clip_W, which works for pit objects
-            // because all cockpit vertices have positive forward-X in camera space.
-            // We just need tighter near/far for cockpit-scale geometry (0.1m to 100m).
+            // FF_LINUX: For pit rendering, use the same Projection as the scene
+            // but with tighter near/far planes for cockpit-scale geometry.
+            //
+            // The scene Projection = Flip * Perspective, where Flip._13 = 1.0 (Linux).
+            // This gives clip_w = sim_x (forward direction in view space).
+            // Forward cockpit geometry (instruments, HUD) has sim_x > 0 → visible.
+            // Behind-pilot geometry has sim_x < 0 → GL clips W<0 (acceptable loss).
+            //
+            // In the combined Projection matrix, the depth mapping entries are:
+            //   _13 = zFar/(zFar-zNear)           (depth slope)
+            //   _43 = -zNear*zFar/(zFar-zNear)    (depth offset)
+            // We adjust these for pit-scale near/far (0.1m to 100m).
             {
-                // Build pit projection from scene Projection with adjusted depth range
-                D3DXMATRIX pitProj = Projection;
-                float zNear = 0.1f;
-                float zFar = 100.0f;
-                // In the Flip-based projection (D3D row-major):
-                // _13 = zf/(zf-zn), _43 = -zn*zf/(zf-zn)
-                pitProj._13 = zFar / (zFar - zNear);  // ≈1.001
-                pitProj._43 = -zNear * zFar / (zFar - zNear);  // ≈-0.1
+                float pitNear = 0.1f;
+                float pitFar = 100.0f;
+                D3DXMATRIX pitProj = Projection;  // Copy scene projection (preserves Flip+FOV)
+                pitProj._13 = pitFar / (pitFar - pitNear);
+                pitProj._43 = -pitNear * pitFar / (pitFar - pitNear);
+                // FF_LINUX: Add constant to clip_w to prevent GL frustum clipping of
+                // near-field cockpit geometry. With Flip-based projection, clip_w = sim_x
+                // (forward distance). Cockpit vertices extend further vertically/laterally
+                // than forward, so |clip_y| > clip_w causes GL to clip them. D3D7 avoids
+                // this with guard-band clipping. _44 = C makes clip_w = sim_x + C.
+                pitProj._44 = 10.0f;
                 m_pD3DD->SetTransform(D3DTRANSFORMSTATE_PROJECTION, (LPD3DMATRIX)&pitProj);
-
-                // Diagnostic: log pit projection setup once
-                static bool pitProjLogged = false;
-                if (!pitProjLogged) {
-                    pitProjLogged = true;
-                    fprintf(stderr, "[PIT] Cockpit projection: zNear=%.1f zFar=%.1f\n", zNear, zFar);
-                }
             }
             m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_NONE);
+            // FF_LINUX: Disable stencil test for pit rendering.
+            // The scene uses stencil for sky/fog masking, and pit fragments get rejected.
+            glDisable(FF_GL_STENCIL_TEST);
+            // FF_LINUX: Disable lighting for pit rendering. The cockpit model uses
+            // pre-baked vertex colors (D3DFVF_DIFFUSE) + textures, not dynamic lights.
+            // With GL_LIGHTING enabled, glColor4f vertex colors are ignored in favor of
+            // material properties (default gray), making the cockpit appear very dark.
+            glDisable(FF_GL_LIGHTING);
+            // FF_LINUX: Clear the depth buffer before pit rendering. The scene depth
+            // values would otherwise reject cockpit fragments. After clearing to 1.0
+            // (far), pit fragments depth-test only against each other.
+            m_pD3DD->Clear(0, NULL, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
             { extern int g_FF_PitModeActive; g_FF_PitModeActive = 1; }
 #endif
         }
@@ -1822,20 +1821,17 @@ void CDXEngine::FlushObjects(void)
 
 #ifdef FF_LINUX
             { extern int g_FF_PitModeActive; g_FF_PitModeActive = 0; }
-            // FF_LINUX: Restore scene Projection after pit override.
-            // Pit rendering used tighter near/far planes; scene needs original.
+            // FF_LINUX: Restore scene Projection after pit near/far override.
             m_pD3DD->SetTransform(D3DTRANSFORMSTATE_PROJECTION, (LPD3DMATRIX)&Projection);
             // Restore culling (was disabled for pit)
             m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, (m_bCullEnable) ? D3DCULL_CW : D3DCULL_NONE);
+            // Restore lighting (was disabled for pit vertex-colored geometry)
+            glEnable(FF_GL_LIGHTING);
 #endif
         }
 
         WasInPitMode = m_PitMode;
 
-#ifdef FF_LINUX
-        if (m_PitMode) pitObjCount++;
-        else sceneObjCount++;
-#endif
 
         // The Stack For the State Transformations resetted
         StateStackLevel = 0;
@@ -1852,25 +1848,11 @@ void CDXEngine::FlushObjects(void)
         // Consistency Check
         if ( not m_VB.Valid) {
 #ifdef FF_LINUX
-            static int vbInvalidCount = 0;
-            if (vbInvalidCount < 20 && m_PitMode) {
-                fprintf(stderr, "[FlushObj] PIT obj LodID=%d m_VB.Valid=0 (skipping)\n", LodID);
-                vbInvalidCount++;
-            }
+            // (invalid VB for pit object - skip silently)
 #endif
             continue;
         }
 
-#ifdef FF_LINUX
-        {
-            static int drawObjCount = 0;
-            if (drawObjCount < 20 && m_PitMode) {
-                fprintf(stderr, "[FlushObj] PIT obj LodID=%d VB.Valid=1 Nodes=%p NTex=%d Root=%p\n",
-                        LodID, (void*)m_VB.Nodes, m_VB.NTex, (void*)m_VB.Root);
-                drawObjCount++;
-            }
-        }
-#endif
 
 #ifdef STAT_DX_ENGINE
         COUNT_PROFILE("*** DX Objects");
@@ -1943,16 +1925,6 @@ void CDXEngine::FlushObjects(void)
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
     }
 
-#ifdef FF_LINUX
-    {
-        static int flushFrame = 0;
-        if (flushFrame < 10) {
-            fprintf(stderr, "[FlushObjects #%d] pitObjs=%d sceneObjs=%d WasInPitMode=%d\n",
-                    flushFrame, pitObjCount, sceneObjCount, WasInPitMode);
-        }
-        flushFrame++;
-    }
-#endif
 
     //TheTextureBank.SetDeferredLoad(false);
 }
@@ -2083,17 +2055,6 @@ void CDXEngine::DrawSolidSurfaces(void)
         LastFog = m_FogLevel;
         DrawSurface();
     }
-#ifdef FF_LINUX
-    {
-        static int drawSolidDiag = 0;
-        if (drawSolidDiag < 10) {
-            drawSolidDiag++;
-            fprintf(stderr, "[DrawSolidSurfaces #%d] drew %d surfaces, pitMode=%d\n",
-                    drawSolidDiag, solidSurfCount, m_PitMode);
-            fflush(stderr);
-        }
-    }
-#endif
 }
 
 
@@ -2196,22 +2157,8 @@ extern DWORD LODsLoaded;
 void CDXEngine::FlushBuffers(void)
 {
 #ifdef FF_LINUX
-    static int flushCount = 0;
-    flushCount++;
-    if (flushCount <= 5) {
-        fprintf(stderr, "[FLUSH_TRACE] FlushBuffers called #%d, m_pD3DD=%p\n", flushCount, (void*)m_pD3DD);
-        fflush(stderr);
-    }
-    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine::FlushBuffers ENTER\n");
-    FF_DEBUG_RENDER_FLUSH();
-    // FF_LINUX: Safety check for NULL D3D device
-    if (m_pD3DD == NULL) {
-        FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine::FlushBuffers EXIT (m_pD3DD NULL)\n");
-        return;
-    }
-    // FF_LINUX: Check if DxEngineStateHandle is valid
-    if (DxEngineStateHandle == 0) {
-        FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine::FlushBuffers EXIT (DxEngineStateHandle 0)\n");
+    // FF_LINUX: Safety check for NULL D3D device or uninitialized state block
+    if (m_pD3DD == NULL || DxEngineStateHandle == 0) {
         return;
     }
 #endif
@@ -2226,9 +2173,6 @@ void CDXEngine::FlushBuffers(void)
 
     // First of all save present renderer State
     DWORD StateHandle;
-#ifdef FF_LINUX
-    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: CreateStateBlock\n");
-#endif
     CheckHR(m_pD3DD->CreateStateBlock(D3DSBT_ALL, &StateHandle));
 
     // Setup the state for the DX engine
@@ -2246,9 +2190,6 @@ void CDXEngine::FlushBuffers(void)
     m_pD3DD->SetRenderState(D3DRENDERSTATE_CLIPPING, FALSE);
 
     // Initialize data parameters
-#ifdef FF_LINUX
-    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: FlushInit\n");
-#endif
     FlushInit();
 
 #ifndef DEBUG_ENGINE
@@ -2299,34 +2240,19 @@ void CDXEngine::FlushBuffers(void)
     LOCK_VB_MANAGER;
 
     // Start resetting Draw Pointers
-#ifdef FF_LINUX
-    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: ResetDrawList\n");
-#endif
     TheVbManager.ResetDrawList();
 
     // Flush all cached VB objects
-#ifdef FF_LINUX
-    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: FlushObjects/Blips (RenderState=%d)\n", m_RenderState);
-#endif
     if (m_RenderState == DX_DBS) FlushBlips();
     else FlushObjects();
 
     // Draw the Solid Surfaces
-#ifdef FF_LINUX
-    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: DrawSolidSurfaces\n");
-#endif
     DrawSolidSurfaces();
 
     // Flush Dynamic Buffers bitand sorted objects
-#ifdef FF_LINUX
-    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: FlushDynamicObjects\n");
-#endif
     FlushDynamicObjects();
 
     //Reset Features
-#ifdef FF_LINUX
-    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: ResetFeatures\n");
-#endif
     ResetFeatures();
 
     // Setup VB draw list for a new round
@@ -2337,19 +2263,11 @@ void CDXEngine::FlushBuffers(void)
     UNLOCK_VB_MANAGER;
 
     // Restore Previous State Block and delete it from memory
-#ifdef FF_LINUX
-    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine: Restoring StateBlock\n");
-#endif
     CheckHR(m_pD3DD->ApplyStateBlock(StateHandle));
     CheckHR(m_pD3DD->DeleteStateBlock(StateHandle));
 
     gDebugLodID = -1;
     m_AlphaStack.StackLevel = 0;
-
-#ifdef FF_LINUX
-    FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  DXEngine::FlushBuffers EXIT\n");
-    FF_DEBUG_RENDER_FLUSH();
-#endif
 }
 
 
