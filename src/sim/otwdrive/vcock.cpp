@@ -937,16 +937,9 @@ OTWDriverClass::VCock_Init(int eCPVisType, TCHAR* eCPName, TCHAR* eCPNameNCTR)
 
     pcockpitDataFile = CP_OPEN(strCPFile, "r");
 
-#ifdef FF_LINUX
-    fprintf(stderr, "[VCock_Init] Cockpit file: %s -> %s\n", strCPFile, pcockpitDataFile ? "OPENED" : "FAILED");
-    fflush(stderr);
-#endif
-
     F4Assert(pcockpitDataFile); //Error: Couldn't open file
 #ifdef FF_LINUX
     if (!pcockpitDataFile) {
-        fprintf(stderr, "[VCock_Init] ERROR: Failed to open cockpit file: %s\n", strCPFile);
-        fflush(stderr);
         return false;  // Can't continue without cockpit data
     }
 #endif
@@ -988,28 +981,16 @@ OTWDriverClass::VCock_Init(int eCPVisType, TCHAR* eCPName, TCHAR* eCPNameNCTR)
 
                 VirtualDisplay::SetupRttTarget(txRes, tyRes, tBpp);
                 bRTTTarget = true;
-#ifdef FF_LINUX
-                fprintf(stderr, "[VCock_Init] RTT target set: %dx%d bpp=%d\n", txRes, tyRes, tBpp);
-                fflush(stderr);
-#endif
             }
         }
         else if ( not strcmpi(ptoken, PROP_HUD_STR))   // the hud
         {
-#ifdef FF_LINUX
-            fprintf(stderr, "[VCock_Init] Parsing HUD canvas...\n");
-            fflush(stderr);
-#endif
             if ( not VCock_SetRttCanvas(&plinePtr, &vHUDrenderer, 1))    // ASSO:
             {
 
                 plinePtr = plinePtr; // Release mode compile warning
                 F4Assert("Bad HUD description");
             }
-#ifdef FF_LINUX
-            fprintf(stderr, "[VCock_Init] HUD canvas: renderer=%p\n", (void*)vHUDrenderer);
-            fflush(stderr);
-#endif
         }
         else if ( not strcmpi(ptoken, PROP_RWR_STR))   //  the rwr
         {
@@ -1268,14 +1249,6 @@ OTWDriverClass::VCock_Init(int eCPVisType, TCHAR* eCPName, TCHAR* eCPNameNCTR)
             F4Assert("Bad PFL description");
         }
     }
-
-#ifdef FF_LINUX
-    fprintf(stderr, "[VCock_Init] DONE: bRTTTarget=%d g_bUseNew3dpit=%d\n",
-            bRTTTarget ? 1 : 0, g_bUseNew3dpit ? 1 : 0);
-    fprintf(stderr, "[VCock_Init] Renderers: HUD=%p RWR=%p DED=%p PFL=%p\n",
-            (void*)vHUDrenderer, (void*)vRWRrenderer, (void*)vDEDrenderer, (void*)vPFLrenderer);
-    fflush(stderr);
-#endif
 
     return true;
 }
@@ -3273,17 +3246,15 @@ void OTWDriverClass::VCock_Exec(void)
 
         if (g_b3dMFDLeft)
         {
-            //MfdDisplay[0]->SetImageBuffer(OTWImage, viewportBounds.left, viewportBounds.top, viewportBounds.right, viewportBounds.bottom);
-            VirtualDisplay::SetFont(0);//pCockpitManager->MFDFont());
-            MfdDisplay[0]->Exec(FALSE, TRUE); // ASSO:
+            VirtualDisplay::SetFont(0);
+            MfdDisplay[0]->Exec(FALSE, TRUE);
             VirtualDisplay::SetFont(oldFont);
         }
 
         if (g_b3dMFDRight)
         {
-            //MfdDisplay[1]->SetImageBuffer(OTWImage, viewportBounds.left, viewportBounds.top, viewportBounds.right, viewportBounds.bottom);
-            VirtualDisplay::SetFont(0);//pCockpitManager->MFDFont());
-            MfdDisplay[1]->Exec(FALSE, TRUE); // ASSO:
+            VirtualDisplay::SetFont(0);
+            MfdDisplay[1]->Exec(FALSE, TRUE);
             VirtualDisplay::SetFont(oldFont);
         }
 

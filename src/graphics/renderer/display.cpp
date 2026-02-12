@@ -7,6 +7,12 @@
 \***************************************************************************/
 #include <cISO646>
 #include <math.h>
+#include <cmath>
+#ifdef FF_LINUX
+extern "C" void glDisable(unsigned int cap);
+extern "C" void glEnable(unsigned int cap);
+#define GL_DEPTH_TEST 0x0B71
+#endif
 #include "display.h"
 #include "render3d.h" // ASSO:
 
@@ -49,6 +55,12 @@ VirtualDisplay::VirtualDisplay()
 {
     ready = FALSE;
     tLeft = tTop = tRight = tBottom = txRes = tyRes = 0;
+    xRes = yRes = 0;
+    scaleX = scaleY = shiftX = shiftY = 0.0f;
+    topPixel = bottomPixel = leftPixel = rightPixel = 0.0f;
+    dmatrix.rotation00 = dmatrix.rotation11 = 1.0f;
+    dmatrix.rotation01 = dmatrix.rotation10 = 0.0f;
+    dmatrix.translationX = dmatrix.translationY = 0.0f;
 }
 
 
@@ -114,7 +126,7 @@ void VirtualDisplay::CenterOriginInViewport()
 
 void VirtualDisplay::ZeroRotationAboutOrigin()
 {
-    dmatrix.rotation01 = dmatrix.rotation10;
+    dmatrix.rotation01 = dmatrix.rotation10 = 0.0f;
     dmatrix.rotation00 = dmatrix.rotation11 = 1.0;
 }
 
@@ -281,6 +293,14 @@ void VirtualDisplay::SetViewport(float l, float t, float r, float b)
     shiftY = yRes - ((b + 1.0f + (t - b) * 0.5f) * yRes * 0.5f);
     shiftY += tTop; // ASSO: for adjusted RTT viewport
 
+#ifdef FF_LINUX
+    // FF_LINUX: Reset NaN/inf viewport values to prevent cascading NaN in rendering
+    if (std::isnan(scaleX) || std::isinf(scaleX)) scaleX = 0.0f;
+    if (std::isnan(shiftX) || std::isinf(shiftX)) shiftX = 0.0f;
+    if (std::isnan(scaleY) || std::isinf(scaleY)) scaleY = 0.0f;
+    if (std::isnan(shiftY) || std::isinf(shiftY)) shiftY = 0.0f;
+#endif
+
 
     // Now store our pixel space boundries
     // (top/right inclusive, bottom/left exclusive)
@@ -420,6 +440,19 @@ void VirtualDisplay::Line(float x1, float y1, float x2, float y2)
     float x;
     int clipFlag = ON_SCREEN;
 
+#ifdef FF_LINUX
+    // FF_LINUX: Guard against NaN/inf inputs or corrupted dmatrix
+    if (std::isnan(x1) || std::isnan(y1) || std::isnan(x2) || std::isnan(y2) ||
+        std::isinf(x1) || std::isinf(y1) || std::isinf(x2) || std::isinf(y2) ||
+        std::isnan(dmatrix.rotation00) || std::isnan(dmatrix.rotation01) ||
+        std::isnan(dmatrix.rotation10) || std::isnan(dmatrix.rotation11) ||
+        std::isinf(dmatrix.rotation00) || std::isinf(dmatrix.rotation01) ||
+        std::isinf(dmatrix.rotation10) || std::isinf(dmatrix.rotation11))
+    {
+        return;
+    }
+#endif
+
     // Rotation and translate this point based on the current settings
     x  = x1 * dmatrix.rotation00 + y1 * dmatrix.rotation01 + dmatrix.translationX;
     y1 = x1 * dmatrix.rotation10 + y1 * dmatrix.rotation11 + dmatrix.translationY;
@@ -428,6 +461,7 @@ void VirtualDisplay::Line(float x1, float y1, float x2, float y2)
     x  = x2 * dmatrix.rotation00 + y2 * dmatrix.rotation01 + dmatrix.translationX;
     y2 = x2 * dmatrix.rotation10 + y2 * dmatrix.rotation11 + dmatrix.translationY;
     x2 = x;
+
 
 
     // Clip point 1
@@ -490,10 +524,20 @@ void VirtualDisplay::Line(float x1, float y1, float x2, float y2)
         if (clipFlag bitand CLIP_TOP)  return;
     }
 
-    Render2DLine(viewportXtoPixel(x1),
-                 viewportYtoPixel(-y1),
-                 viewportXtoPixel(x2),
-                 viewportYtoPixel(-y2));
+    float px1 = viewportXtoPixel(x1);
+    float py1 = viewportYtoPixel(-y1);
+    float px2 = viewportXtoPixel(x2);
+    float py2 = viewportYtoPixel(-y2);
+
+#ifdef FF_LINUX
+    // FF_LINUX: Guard against NaN pixel coordinates from clipping edge cases
+    if (std::isnan(px1) || std::isnan(py1) || std::isnan(px2) || std::isnan(py2))
+    {
+        return;
+    }
+#endif
+
+    Render2DLine(px1, py1, px2, py2);
 }
 
 void VirtualDisplay::Line(float x1, float y1, float x2, float y2, float width)
@@ -1507,6 +1551,11 @@ void VirtualDisplay::DrawRttQuad()
 {
     r3d->context.RestoreState(rttBlendMode);
     r3d->context.SelectTexture1((intptr_t)renderTexture);
+#ifdef FF_LINUX
+    // FF_LINUX: Disable depth test for RTT quads - they overlay on the cockpit surface
+    // and must not fight with the 3D pit model depth
+    glDisable(GL_DEPTH_TEST);
+#endif
 
     Tpoint os;
     ThreeDVertex v0, v1, v2, v3;
@@ -1515,7 +1564,6 @@ void VirtualDisplay::DrawRttQuad()
     os.y = canUL.y;
     os.z = canUL.z;
     r3d->TransformPoint(&os, &v0);
-
 
     os.x = canUR.x;
     os.y = canUR.y;
@@ -1553,8 +1601,10 @@ void VirtualDisplay::DrawRttQuad()
     v0.b = v1.b = v2.b = v3.b = 1.0f;
     v0.a = v1.a = v2.a = v3.a = rttAlpha;
 
-
     r3d->DrawSquare(&v0, &v1, &v2, &v3, CULL_ALLOW_ALL, false);
+#ifdef FF_LINUX
+    glEnable(GL_DEPTH_TEST);
+#endif
 }
 
 // ASSO: END ---------------------------------------------------------------------------------------------

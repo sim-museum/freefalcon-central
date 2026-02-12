@@ -751,7 +751,7 @@ void MFDClass::Exec(int clearFrame, int virtualCockpit)
         }
     }
 
-    if (ownship and ownship->mFaults and 
+    if (ownship and ownship->mFaults and
         (
             (ownship->mFaults->GetFault(FaultClass::flcs_fault) bitand FaultClass::dmux) or
             ownship->mFaults->GetFault(FaultClass::dmux_fault) or
@@ -764,7 +764,9 @@ void MFDClass::Exec(int clearFrame, int virtualCockpit)
     }
 
     if ( not ownship->HasPower(AircraftClass::MFDPower))
+    {
         return;
+    }
 
     // ASSO: rewritten the virtual cockpit branch
     if (virtualCockpit)
@@ -976,7 +978,10 @@ void MFDClass::DecreaseBrightness()
 // JPO Default color - green tempered by mask
 int MFDClass::Color()
 {
-    return 0xff00 bitand MFDMasks[intensity];
+    // FF_LINUX: Must include alpha byte (0xFF000000) for opaque rendering.
+    // D3D7 vertex pipeline may ignore alpha=0 in diffuse color, but OpenGL
+    // uses glColor4f where alpha=0 makes content invisible.
+    return (0xff00 bitand MFDMasks[intensity]) bitor 0xFF000000;
 }
 
 // default intensity mask

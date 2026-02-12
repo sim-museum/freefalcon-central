@@ -587,6 +587,13 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This,
             // Attach texture as color attachment
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, newTarget->glTexture, 0);
 
+            // Attach depth renderbuffer (needed for D3D7 depth test compatibility)
+            GLuint depthRB = 0;
+            glGenRenderbuffers(1, &depthRB);
+            glBindRenderbuffer(GL_RENDERBUFFER, depthRB);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, newTarget->width, newTarget->height);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRB);
+
             GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
             if (status != GL_FRAMEBUFFER_COMPLETE) {
                 fprintf(stderr, "[SetRenderTarget] FBO incomplete: 0x%x for surface %p (%dx%d)\n",
@@ -1080,12 +1087,33 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     }
 
     // FF_LINUX: Save and set up orthographic projection for XYZRHW vertices
-    GLboolean prevLighting2 = GL_FALSE, prevFog2 = GL_FALSE;
+    GLboolean prevLighting2 = GL_FALSE, prevFog2 = GL_FALSE, prevDepthTest2 = GL_FALSE;
+    GLint savedViewportVB[4] = {0};
+    bool restoredViewportVB = false;
     if (isXYZRHW) {
-        // FF_LINUX: Guard against zero-size viewport
-        if (dev->viewport.dwWidth == 0 || dev->viewport.dwHeight == 0) {
+        // FF_LINUX: In D3D7, XYZRHW vertices are in absolute pixel coordinates and
+        // bypass the viewport transform. Our GL emulation must match this by using
+        // the actual framebuffer dimensions for glOrtho and glViewport.
+        // When rendering to an FBO (RTT), dev->viewport may be stale (still set to
+        // main scene dimensions), so we must detect FBO rendering and use FBO dims.
+        DWORD orthoW, orthoH;
+        D3D7Surface* rt = dev->renderTarget;
+        if (rt && rt != dev->defaultRenderTarget && rt->fboId) {
+            // Rendering to FBO - use FBO texture dimensions for 1:1 pixel mapping
+            orthoW = rt->width;
+            orthoH = rt->height;
+            // Save current glViewport and set to full FBO
+            glGetIntegerv(GL_VIEWPORT, savedViewportVB);
+            restoredViewportVB = true;
+            glViewport(0, 0, orthoW, orthoH);
+        } else {
+            orthoW = dev->viewport.dwWidth;
+            orthoH = dev->viewport.dwHeight;
+        }
+
+        if (orthoW == 0 || orthoH == 0) {
             if (texCountVB == 0 && prevVB_Texture2D) glEnable(GL_TEXTURE_2D);
-            return D3D_OK; // Skip draw - no valid viewport
+            return D3D_OK; // Skip draw - no valid dimensions
         }
 
         prevLighting2 = glIsEnabled(GL_LIGHTING);
@@ -1096,13 +1124,28 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glLoadIdentity();
         // FF_LINUX: D3D XYZRHW z in [0,1] where 0=near, 1=far.
         // glOrtho(0,w,h,0, near=0, far=-1) gives z_ndc = 2*z - 1: z=0→-1, z=1→+1.
-        glOrtho(0, dev->viewport.dwWidth, dev->viewport.dwHeight, 0, 0, -1);
+        if (restoredViewportVB) {
+            // FBO rendering: DON'T flip Y. In GL FBOs, row 0 is at the bottom, and
+            // texture v=0 also reads from the bottom. By NOT flipping Y, D3D pixel y=0
+            // maps to GL row 0 = texture v=0, matching what DrawRttQuad expects when
+            // it computes UV from tRect (tTop/512 for v_min).
+            glOrtho(0, orthoW, 0, orthoH, 0, -1);
+        } else {
+            // Screen rendering: flip Y so D3D y=0 is at top of screen
+            glOrtho(0, orthoW, orthoH, 0, 0, -1);
+        }
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
         glLoadIdentity();
-        // XYZRHW bypasses lighting only - NOT depth testing
+        // XYZRHW bypasses lighting and depth testing when rendering to FBO
+        // (cockpit instruments are 2D overlays that should always render)
         glDisable(GL_LIGHTING);
         glDisable(GL_FOG);
+        if (restoredViewportVB) {
+            // FBO rendering - disable depth test for 2D instrument overlays
+            prevDepthTest2 = glIsEnabled(GL_DEPTH_TEST);
+            glDisable(GL_DEPTH_TEST);
+        }
 
     }
 
@@ -1158,6 +1201,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             DWORD color = *(const DWORD*)(vertex + offset);
             float r, g, b, a;
             D3DColorToGL(color, &r, &g, &b, &a);
+            // FF_LINUX: Force alpha=1 when rendering XYZRHW to FBO.
+            // D3D7 2D rendering often uses colors without alpha (e.g., 0x00FF00),
+            // relying on the alpha channel being ignored. In GL with alpha blending,
+            // alpha=0 makes content invisible. Force opaque for FBO instrument rendering.
+            if (restoredViewportVB && a == 0.0f) a = 1.0f;
             glColor4f(r, g, b, a);
             offset += sizeof(DWORD);
         }
@@ -1184,9 +1232,13 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();
         // Restore previous state
-        // Note: depth test is NOT modified by XYZRHW - it's controlled by render states
         if (prevLighting2) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
         if (prevFog2) glEnable(GL_FOG); else glDisable(GL_FOG);
+        // Restore glViewport and depth test if we changed them for FBO rendering
+        if (restoredViewportVB) {
+            glViewport(savedViewportVB[0], savedViewportVB[1], savedViewportVB[2], savedViewportVB[3]);
+            if (prevDepthTest2) glEnable(GL_DEPTH_TEST);
+        }
     }
 
     // Restore GL_TEXTURE_2D state if we disabled it
@@ -2210,19 +2262,36 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         }
     }
 
+    GLint savedViewportDV[4] = {0};
+    bool restoredViewportDV = false;
+    GLboolean prevDepthTestDV = GL_FALSE;
     if (isXYZRHW) {
-        // FF_LINUX: Determine viewport dimensions for orthographic projection.
-        // The device's stored viewport may be 0x0 because D3DSBT_ALL state block
-        // restore zeros it (dev->viewport). However, the actual GL viewport is
-        // preserved because ApplyStateBlock skips glViewport() when dimensions are 0.
-        // So query the real GL viewport as a fallback.
-        DWORD vpW = viewport.dwWidth;
-        DWORD vpH = viewport.dwHeight;
-        if (vpW == 0 || vpH == 0) {
-            GLint glVP[4];
-            glGetIntegerv(GL_VIEWPORT, glVP);
-            vpW = glVP[2];
-            vpH = glVP[3];
+        // FF_LINUX: In D3D7, XYZRHW vertices are in absolute pixel coordinates and
+        // bypass the viewport transform. Our GL emulation must match this by using
+        // the actual framebuffer dimensions for glOrtho and glViewport.
+        // When rendering to an FBO (RTT), the viewport may be stale.
+        DWORD vpW, vpH;
+        D3D7Surface* rt = renderTarget;
+        if (rt && rt != defaultRenderTarget && rt->fboId) {
+            // Rendering to FBO - use FBO texture dimensions for 1:1 pixel mapping
+            vpW = rt->width;
+            vpH = rt->height;
+            // Save current glViewport and set to full FBO
+            glGetIntegerv(GL_VIEWPORT, savedViewportDV);
+            restoredViewportDV = true;
+            glViewport(0, 0, vpW, vpH);
+            // FF_LINUX: Disable depth test for 2D instrument overlays in FBO
+            prevDepthTestDV = glIsEnabled(GL_DEPTH_TEST);
+            glDisable(GL_DEPTH_TEST);
+        } else {
+            vpW = viewport.dwWidth;
+            vpH = viewport.dwHeight;
+            if (vpW == 0 || vpH == 0) {
+                GLint glVP[4];
+                glGetIntegerv(GL_VIEWPORT, glVP);
+                vpW = glVP[2];
+                vpH = glVP[3];
+            }
         }
         if (vpW == 0 || vpH == 0) {
             // Truly no viewport - skip draw
@@ -2230,29 +2299,27 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
             return;
         }
 
-        // Save states that we're about to change
-        // FF_LINUX: XYZRHW bypasses D3D transformation and lighting, but NOT depth testing.
-        // Depth test is controlled by render states (D3DRENDERSTATE_ZENABLE).
-        // We only save/restore lighting state since XYZRHW bypasses vertex lighting.
         prevLighting = glIsEnabled(GL_LIGHTING);
         prevFog = glIsEnabled(GL_FOG);
 
-        // Save current matrices
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
         glLoadIdentity();
-        // Set up orthographic projection: x = 0..vpW, y = 0..vpH (Y flipped for D3D convention)
         // FF_LINUX: D3D XYZRHW z values are in [0,1] where 0=near and 1=far.
-        // glOrtho maps eye-space [near, far] to NDC [-1, +1].
-        // With near=0, far=-1: z_ndc = 2*z - 1, so z=0→-1 (near) and z=1→+1 (far).
-        // Using near=0, far=1 would give z_ndc = -2*z - 1, clipping all z>0 vertices!
-        glOrtho(0, vpW, vpH, 0, 0, -1);
+        // glOrtho(0,w,h,0, near=0, far=-1) gives z_ndc = 2*z - 1: z=0→-1, z=1→+1.
+        if (restoredViewportDV) {
+            // FBO rendering: DON'T flip Y so texture v=0 reads what was drawn at D3D y=0
+            glOrtho(0, vpW, 0, vpH, 0, -1);
+        } else {
+            // Screen rendering: flip Y so D3D y=0 is at top of screen
+            glOrtho(0, vpW, vpH, 0, 0, -1);
+        }
 
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
         glLoadIdentity();
 
-        // XYZRHW bypasses D3D lighting pipeline only - NOT depth testing
+        // XYZRHW bypasses D3D lighting pipeline only
         glDisable(GL_LIGHTING);
         glDisable(GL_FOG);
 
@@ -2305,6 +2372,8 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
             DWORD color = *(const DWORD*)(vertex + offset);
             float r, g, b, a;
             D3DColorToGL(color, &r, &g, &b, &a);
+            // FF_LINUX: Force alpha=1 for FBO XYZRHW rendering (see DrawIndexedPrimitiveVB)
+            if (restoredViewportDV && a == 0.0f) a = 1.0f;
             glColor4f(r, g, b, a);
         }
 
@@ -2335,9 +2404,13 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glPopMatrix();
 
         // Restore previous GL state (don't blindly enable - that corrupts state for subsequent draws)
-        // Note: depth test is NOT modified by XYZRHW - it's controlled by render states
         if (prevLighting) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
         if (prevFog) glEnable(GL_FOG); else glDisable(GL_FOG);
+        // Restore glViewport and depth test if we changed them for FBO rendering
+        if (restoredViewportDV) {
+            glViewport(savedViewportDV[0], savedViewportDV[1], savedViewportDV[2], savedViewportDV[3]);
+            if (prevDepthTestDV) glEnable(GL_DEPTH_TEST);
+        }
     }
 
     // Restore GL_TEXTURE_2D state if we disabled it
