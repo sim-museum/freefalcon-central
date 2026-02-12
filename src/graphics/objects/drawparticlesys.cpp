@@ -3992,6 +3992,7 @@ TRAIL_HANDLE DrawableParticleSys::PS_AddTrail(int ID, Tpoint *Pos, PS_PTR OWNER,
 
     ParticleTextureNode *pt = tpn.SideTexture;
 #ifdef FF_LINUX
+    if (!pt) return;  // FF_LINUX: Safety check for NULL texture node
     uintptr_t SideTexHandle = pt->TexHandle;
 #else
     DWORD SideTexHandle = pt->TexHandle;
