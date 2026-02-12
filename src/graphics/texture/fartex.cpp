@@ -162,13 +162,23 @@ BOOL FarTexDB::Setup(DXContext *hrc, const char* path)
         fp = fopen(szRawName, "rb");
 #endif
 
-        if ( not fp) return TRUE;
+        if ( not fp) {
+#ifdef FF_LINUX
+            fprintf(stderr, "[FarTexDB] ERROR: Failed to open DDS file: %s\n", szRawName);
+#endif
+            return TRUE;
+        }
 
 #ifdef FF_LINUX
         // FF_LINUX: Use fixed 124-byte DDS header to avoid 64-bit struct size mismatch
         DDS_FILE_HEADER ddsd;
         memset(&ddsd, 0, sizeof(ddsd));
-        fread(&ddsd, 1, sizeof(DDS_FILE_HEADER), fp);
+        size_t bytesRead = fread(&ddsd, 1, sizeof(DDS_FILE_HEADER), fp);
+        fprintf(stderr, "[FarTexDB] DDS file: %s, headerSize=%zu, bytesRead=%zu\n", szRawName, sizeof(DDS_FILE_HEADER), bytesRead);
+        fprintf(stderr, "[FarTexDB] DDS header: flags=0x%x, width=%d, height=%d, linearSize=%d, mipMapCount=%d\n",
+                ddsd.dwFlags, ddsd.dwWidth, ddsd.dwHeight, ddsd.dwLinearSize, ddsd.dwMipMapCount);
+        fprintf(stderr, "[FarTexDB] DDS pixfmt: flags=0x%x, fourCC=0x%x, rgbBitCount=%d\n",
+                ddsd.ddpfPixelFormat.dwFlags, ddsd.ddpfPixelFormat.dwFourCC, ddsd.ddpfPixelFormat.dwRGBBitCount);
 #else
         DDSURFACEDESC2 ddsd;
         fread(&ddsd, 1, sizeof(DDSURFACEDESC2), fp);
@@ -181,6 +191,9 @@ BOOL FarTexDB::Setup(DXContext *hrc, const char* path)
 
         // Open and hang onto the distant texture DDS image file
         fartexDDSFile.Open(szRawName, FALSE, not g_bUseMappedFiles);
+#ifdef FF_LINUX
+        fprintf(stderr, "[FarTexDB] linearSize=%d, texCount=%d, fartexDDSFile.IsReady=%d\n", linearSize, texCount, fartexDDSFile.IsReady());
+#endif
     }
 
     return TRUE;
@@ -552,7 +565,8 @@ void FarTexDB::Load(DWORD offset, bool forceNoDDS)
         // FF_LINUX: sizeof(DDSURFACEDESC2) is 132 on 64-bit Linux (due to LPVOID lpSurface being 8 bytes)
         // but the DDS file header is exactly 124 bytes. Use DDS_FILE_HEADER for the correct offset.
 #ifdef FF_LINUX
-        if ( not fartexDDSFile.ReadDataAt(sizeof(DDS_FILE_HEADER) + (offset * linearSize), texArray[offset].bits, linearSize))
+        DWORD fileOffset = sizeof(DDS_FILE_HEADER) + (offset * linearSize);
+        if ( not fartexDDSFile.ReadDataAt(fileOffset, texArray[offset].bits, linearSize))
 #else
         if ( not fartexDDSFile.ReadDataAt(sizeof(DDSURFACEDESC2) + (offset * linearSize), texArray[offset].bits, linearSize))
 #endif

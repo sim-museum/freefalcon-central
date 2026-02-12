@@ -666,16 +666,6 @@ void SimulationLoopControl::Loop(void)
 #endif
 #ifdef FF_LINUX
         }
-
-        // Diagnostic: check if sim time is advancing
-        {
-            static int diagFrame4 = 0;
-            if (diagFrame4++ % 300 == 0) {
-                fprintf(stderr, "[SIM_DIAG] mode=%d vuxGameTime=%u vuxRealTime=%u gameCompression=%d SimLibElapsed=%u\n",
-                        (int)currentMode, (unsigned)vuxGameTime, (unsigned)vuxRealTime,
-                        gameCompressionRatio, (unsigned)SimLibElapsedTime);
-            }
-        }
 #endif
         //STOP_PROFILE("SIMCYCLE");
 

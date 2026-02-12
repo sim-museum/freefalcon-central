@@ -565,21 +565,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This,
     D3DGL_LOG("SetRenderTarget surf=%p isPrimary=%d", (void*)newTarget, newTarget ? newTarget->isPrimary : -1);
     dev->renderTarget = newTarget;
 
-    // FF_LINUX: Diagnostic for render target switching
-    {
-        static int setRTCount = 0;
-        if (setRTCount < 20) {
-            setRTCount++;
-            fprintf(stderr, "[D3D7_SetRT #%d] surf=%p isPrimary=%d fboId=%u glTex=%u %dx%d\n",
-                    setRTCount, (void*)newTarget,
-                    newTarget ? newTarget->isPrimary : -1,
-                    newTarget ? newTarget->fboId : 0,
-                    newTarget ? newTarget->glTexture : 0,
-                    newTarget ? newTarget->width : 0,
-                    newTarget ? newTarget->height : 0);
-            fflush(stderr);
-        }
-    }
 
     // FF_LINUX: FBO-based render target switching for RTT (render-to-texture)
     // Use defaultRenderTarget to distinguish screen vs off-screen surfaces
@@ -1145,19 +1130,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glDisable(GL_TEXTURE_2D);
     }
 
-    // FF_LINUX DIAGNOSTIC: Log first pit draw call to verify GL state
-    {
-        extern int g_FF_PitModeActive;
-        static int pitVtxLogCount = 0;
-        if (g_FF_PitModeActive && !isXYZRHW && (fvf & D3DFVF_XYZ) && pitVtxLogCount < 1) {
-            pitVtxLogCount++;
-            fprintf(stderr, "[PIT_VTX] idxCount=%d fvf=0x%x LIGHT=%d STENCIL=%d DEPTH=%d TEX2D=%d\n",
-                    dwIndexCount, fvf,
-                    glIsEnabled(GL_LIGHTING), glIsEnabled(GL_STENCIL_TEST),
-                    glIsEnabled(GL_DEPTH_TEST), glIsEnabled(GL_TEXTURE_2D));
-        }
-    }
-
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
         WORD idx = lpwIndices[i] + dwStartVertex;
@@ -1276,12 +1248,12 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
     glActiveTexture(GL_TEXTURE0 + dwStage);
     if (!lpTexture) {
         // FF_LINUX: Unbind texture and disable texturing when NULL is passed.
-        // This is critical for non-textured draws (sky, flat-shaded polygons)
-        // that would otherwise be modulated by a stale texture.
-        if (dwStage == 0) {
-            glBindTexture(GL_TEXTURE_2D, 0);
-            glDisable(GL_TEXTURE_2D);
-        }
+        // This must be done for ALL stages, not just stage 0. If stage 1 has
+        // GL_TEXTURE_2D enabled (set by STATE_MULTITEXTURE's D3DTOP_ADD), it
+        // will ADD a stale/default texture to the stage 0 output, producing
+        // bright white patches on terrain blocks that don't use multitexture.
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glDisable(GL_TEXTURE_2D);
         return D3D_OK;
     }
     if (lpTexture) {
@@ -1304,6 +1276,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
 
         glBindTexture(GL_TEXTURE_2D, surf->glTexture);
         glEnable(GL_TEXTURE_2D);
+
 
         // FF_LINUX: Upload dirty texture data from CPU to GPU
         if (surf->isDirty && surf->pixelData && surf->width > 0 && surf->height > 0) {
@@ -2024,13 +1997,18 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                     glDisable(GL_TEXTURE_2D);
                     break;
                 case D3DTOP_SELECTARG1:
-                    glEnable(GL_TEXTURE_2D);  // In D3D, non-DISABLE implicitly enables texturing
+                    // FF_LINUX: Do NOT call glEnable(GL_TEXTURE_2D) here.
+                    // Only SetTexture() should control GL_TEXTURE_2D enable/disable.
+                    // ApplyStateBlock applies COLOROP for every polygon, but SetTexture1()
+                    // caches and may skip the actual SetTexture(0, NULL) call for consecutive
+                    // gouraud polygons. If we re-enable GL_TEXTURE_2D here, the cached
+                    // SetTexture1(-1) won't disable it, causing stale textures to render
+                    // on untextured (gouraud) terrain → white patches.
                     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
                     glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
                     break;
                 case D3DTOP_MODULATE:
                 case D3DTOP_MODULATE2X:
-                    glEnable(GL_TEXTURE_2D);  // In D3D, non-DISABLE implicitly enables texturing
                     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
                     glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
                     glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_TEXTURE);
@@ -2041,12 +2019,10 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                         glTexEnvi(GL_TEXTURE_ENV, GL_RGB_SCALE, 1);
                     break;
                 case D3DTOP_ADD:
-                    glEnable(GL_TEXTURE_2D);  // In D3D, non-DISABLE implicitly enables texturing
                     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
                     glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_ADD);
                     break;
                 default:
-                    glEnable(GL_TEXTURE_2D);  // In D3D, non-DISABLE implicitly enables texturing
                     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
                     break;
             }

@@ -1979,6 +1979,16 @@ void ContextMPR::SetTexture1(intptr_t texID)
 
         m_pD3DD->SetTexture(1, NULL);
     }
+#ifdef FF_LINUX
+    else if (texID == -1)
+    {
+        // FF_LINUX: Even when cached (lastTexture1 already -1), ensure GL_TEXTURE_2D
+        // is disabled. This covers the cross-frame case where GL_TEXTURE_2D may be
+        // left enabled from the previous frame's last textured polygon, and the cache
+        // reset (lastTexture1 = -1) in Setup() doesn't reset actual GL state.
+        m_pD3DD->SetTexture(0, NULL);
+    }
+#endif
 }
 
 void ContextMPR::SetTexture2(intptr_t texID)
@@ -1996,6 +2006,13 @@ void ContextMPR::SetTexture2(intptr_t texID)
 
         if ( not SUCCEEDED(hr)) INT3;
     }
+#ifdef FF_LINUX
+    else if (texID == -1)
+    {
+        // FF_LINUX: Even when cached, ensure stage 1 GL_TEXTURE_2D is disabled.
+        m_pD3DD->SetTexture(1, NULL);
+    }
+#endif
 }
 
 void ContextMPR::SelectTexture1(intptr_t texID)
@@ -2467,14 +2484,6 @@ void ContextMPR::FlushPolyLists()
 {
 #ifdef FF_LINUX
     g_RenderFrameCount++;
-    {
-        static int fpCount = 0;
-        if (fpCount < 5) {
-            fpCount++;
-            fprintf(stderr, "[FLUSH_TRACE] FlushPolyLists #%d, g_bUse_DX_Engine=%d\n", fpCount, g_bUse_DX_Engine);
-            fflush(stderr);
-        }
-    }
     FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "FlushPolyLists ENTER\n");
     FF_DEBUG_RENDER_FLUSH();
 #endif
