@@ -1576,37 +1576,18 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                         }
                     }
                 }
-                // FF_LINUX: For X8R8G8B8 surfaces without DDPF_ALPHAPIXELS and
-                // without color key, force alpha to 0xFF ONLY if the surface was NOT
-                // processed by Reload() with chroma keying. Palette textures have
-                // their alpha set correctly in tex.cpp Reload() (0xFF for normal pixels,
-                // 0x00 for chroma key pixels). Forcing alpha here would undo chroma
-                // transparency and produce blue rectangles on the cockpit canopy.
-                //
-                // Non-palette X8R8G8B8 surfaces that have all-zero alpha from their
-                // source data still need fixup, but we detect this by checking if ANY
-                // pixel already has non-zero alpha (meaning Reload set it correctly).
-                else if (bpp == 4 && !(surf->pixelFormat.dwFlags & DDPF_ALPHAPIXELS)) {
+                // FF_LINUX: For X8R8G8B8 surfaces without DDPF_ALPHAPIXELS,
+                // force alpha to 0xFF. In D3D7 the "X" byte is ignored, but OpenGL
+                // reads it as alpha. Skip for surfaces with color key (chroma) -
+                // Reload() already set alpha=0 for chroma and alpha=0xFF for opaque.
+                else if (bpp == 4 && !(surf->pixelFormat.dwFlags & DDPF_ALPHAPIXELS)
+                         && !surf->hasColorKey) {
                     int pixelsPerRow = surf->pitch / 4;
                     DWORD* pixels = (DWORD*)surf->pixelData;
-                    // Check if any pixel already has non-zero alpha (set by Reload)
-                    bool hasAlphaData = false;
-                    for (int y = 0; y < surf->height && !hasAlphaData; y++) {
+                    for (int y = 0; y < surf->height; y++) {
                         DWORD* row = pixels + y * pixelsPerRow;
                         for (int x = 0; x < surf->width; x++) {
-                            if (row[x] & 0xFF000000) {
-                                hasAlphaData = true;
-                                break;
-                            }
-                        }
-                    }
-                    // Only force alpha if no pixel has alpha set (raw X8R8G8B8 data)
-                    if (!hasAlphaData) {
-                        for (int y = 0; y < surf->height; y++) {
-                            DWORD* row = pixels + y * pixelsPerRow;
-                            for (int x = 0; x < surf->width; x++) {
-                                row[x] |= 0xFF000000;
-                            }
+                            row[x] |= 0xFF000000;
                         }
                     }
                 }
@@ -3273,9 +3254,15 @@ void FF_PresentPrimarySurface() {
     glDisable(GL_LIGHTING);
     glDisable(GL_BLEND);
     glDisable(GL_CULL_FACE);
+    glDisable(GL_ALPHA_TEST);
+    glDisable(GL_STENCIL_TEST);
+    glDisable(GL_FOG);
 
     // Enable texturing and bind the surface texture
+    glActiveTexture(GL_TEXTURE0);
     glEnable(GL_TEXTURE_2D);
+    // Reset texture environment to simple replace mode
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
     glBindTexture(GL_TEXTURE_2D, surf->glTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
