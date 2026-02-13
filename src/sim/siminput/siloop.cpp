@@ -96,15 +96,9 @@ void InputCycle(void)
     // each time, instead of one or the other
     //dw = MsgWaitForMultipleObjects(SIM_NUMDEVICES - 1, gphDeviceEvent, 0, 0, QS_ALLINPUT); //VWF Kludge until DINPUT supports joysticks
 
-    dw = WaitForSingleObject(gphDeviceEvent[SIM_MOUSE], 0);
-
-    if (dw == WAIT_OBJECT_0)
-    {
-        OnSimMouseInput(FalconDisplay.appWin);
-    }
-
 #ifdef FF_LINUX
-    // FF_LINUX: Always poll keyboard - SDL events are buffered, no DirectInput event to wait for
+    // FF_LINUX: Always poll mouse and keyboard - SDL events are buffered
+    OnSimMouseInput(FalconDisplay.appWin);
     OnSimKeyboardInput();
 #else
     dw = WaitForSingleObject(gphDeviceEvent[SIM_KEYBOARD], 0);

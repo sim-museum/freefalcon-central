@@ -385,6 +385,38 @@ void FF_GetKeyState(unsigned char* outState, int size) {
     memcpy(outState, g_keyState, copySize);
 }
 
+// =============================================================================
+// SDL Mouse Event Buffer for Sim Input
+// Similar to the keyboard buffer - SDL mouse events are pushed from the main
+// thread and popped by the sim thread's OnSimMouseInput().
+// =============================================================================
+static std::mutex g_mouseEventMutex;
+static DIDEVICEOBJECTDATA g_mouseEventBuf[128];
+static int g_mouseEventHead = 0;
+static int g_mouseEventTail = 0;
+
+void FF_PushMouseEvent(DWORD dwOfs, DWORD dwData) {
+    std::lock_guard<std::mutex> lock(g_mouseEventMutex);
+    int next = (g_mouseEventHead + 1) % 128;
+    if (next == g_mouseEventTail) return;  // Buffer full, drop event
+    g_mouseEventBuf[g_mouseEventHead].dwOfs = dwOfs;
+    g_mouseEventBuf[g_mouseEventHead].dwData = dwData;
+    g_mouseEventBuf[g_mouseEventHead].dwTimeStamp = GetTickCount();
+    g_mouseEventBuf[g_mouseEventHead].dwSequence = 0;
+    g_mouseEventHead = next;
+}
+
+int FF_PopMouseEvents(DIDEVICEOBJECTDATA* outBuf, int maxEvents) {
+    std::lock_guard<std::mutex> lock(g_mouseEventMutex);
+    int count = 0;
+    while (g_mouseEventTail != g_mouseEventHead && count < maxEvents) {
+        outBuf[count] = g_mouseEventBuf[g_mouseEventTail];
+        g_mouseEventTail = (g_mouseEventTail + 1) % 128;
+        count++;
+    }
+    return count;
+}
+
 // SDL joystick globals
 static SDL_Joystick* g_SDLJoystick = nullptr;
 static int g_JoystickIndex = -1;
@@ -1782,18 +1814,21 @@ static void handle_sdl_events(void) {
                 {
                     int x = event.button.x;
                     int y = event.button.y;
-                    fprintf(stderr, "[SDL_EVENT] MOUSEBUTTONDOWN btn=%d at (%d,%d)\n", event.button.button, x, y);
                     // Handle fallback menu clicks
                     if (g_useFallbackMenu && doUI && event.button.button == SDL_BUTTON_LEFT) {
                         HandleFallbackMenuClick(x, y);
-                        // Check if we need to exit immediately after click
                         if (!g_running) {
-                            fprintf(stderr, "[SDL_EVENT] g_running=false after button click, returning from event loop\n");
-                            fflush(stderr);
-                            return;  // Exit event handling immediately
+                            return;
                         }
+                    } else if (!doUI) {
+                        // FF_LINUX: In sim mode, push to mouse event buffer for OnSimMouseInput
+                        DWORD ofs = 0;
+                        if (event.button.button == SDL_BUTTON_LEFT)   ofs = DIMOFS_BUTTON0;
+                        else if (event.button.button == SDL_BUTTON_RIGHT)  ofs = DIMOFS_BUTTON1;
+                        else if (event.button.button == SDL_BUTTON_MIDDLE) ofs = DIMOFS_BUTTON2;
+                        else if (event.button.button == SDL_BUTTON_X1)     ofs = DIMOFS_BUTTON3;
+                        if (ofs) FF_PushMouseEvent(ofs, 0x80);  // 0x80 = pressed
                     } else {
-                        // Scale mouse coordinates for UI95 system
                         int scaledX = x * 1024 / WINDOW_WIDTH;
                         int scaledY = y * 768 / WINDOW_HEIGHT;
                         if (event.button.button == SDL_BUTTON_LEFT) {
@@ -1809,8 +1844,15 @@ static void handle_sdl_events(void) {
                 {
                     int x = event.button.x;
                     int y = event.button.y;
-                    fprintf(stderr, "[SDL_EVENT] MOUSEBUTTONUP btn=%d at (%d,%d)\n", event.button.button, x, y);
-                    if (!g_useFallbackMenu || !doUI) {
+                    if (!doUI) {
+                        // FF_LINUX: In sim mode, push to mouse event buffer for OnSimMouseInput
+                        DWORD ofs = 0;
+                        if (event.button.button == SDL_BUTTON_LEFT)   ofs = DIMOFS_BUTTON0;
+                        else if (event.button.button == SDL_BUTTON_RIGHT)  ofs = DIMOFS_BUTTON1;
+                        else if (event.button.button == SDL_BUTTON_MIDDLE) ofs = DIMOFS_BUTTON2;
+                        else if (event.button.button == SDL_BUTTON_X1)     ofs = DIMOFS_BUTTON3;
+                        if (ofs) FF_PushMouseEvent(ofs, 0x00);  // 0x00 = released
+                    } else if (!g_useFallbackMenu) {
                         int scaledX = x * 1024 / WINDOW_WIDTH;
                         int scaledY = y * 768 / WINDOW_HEIGHT;
                         if (event.button.button == SDL_BUTTON_LEFT) {
@@ -1826,13 +1868,30 @@ static void handle_sdl_events(void) {
                 {
                     int x = event.motion.x;
                     int y = event.motion.y;
-                    // Handle fallback menu hover
-                    if (g_useFallbackMenu && doUI) {
+                    if (!doUI) {
+                        // FF_LINUX: In sim mode, push relative motion to mouse event buffer
+                        if (event.motion.xrel != 0)
+                            FF_PushMouseEvent(DIMOFS_X, (DWORD)(int)event.motion.xrel);
+                        if (event.motion.yrel != 0)
+                            FF_PushMouseEvent(DIMOFS_Y, (DWORD)(int)event.motion.yrel);
+                    } else if (g_useFallbackMenu) {
                         HandleFallbackMenuHover(x, y);
                     } else {
                         int scaledX = x * 1024 / WINDOW_WIDTH;
                         int scaledY = y * 768 / WINDOW_HEIGHT;
                         PostGameMessage(WM_MOUSEMOVE, 0, MAKELPARAM(scaledX, scaledY));
+                    }
+                }
+                break;
+
+            case SDL_MOUSEWHEEL:
+                {
+                    if (!doUI) {
+                        // FF_LINUX: In sim mode, push scroll wheel to mouse event buffer
+                        // SDL wheel y>0 = scroll up, y<0 = scroll down
+                        // DirectInput DIMOFS_Z uses positive = forward, negative = backward
+                        if (event.wheel.y != 0)
+                            FF_PushMouseEvent(DIMOFS_Z, (DWORD)(int)(event.wheel.y * 120));
                     }
                 }
                 break;

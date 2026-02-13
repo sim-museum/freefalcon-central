@@ -9,6 +9,11 @@
 
 #include "inpFunc.h" //Wombat778 10-07-2003 added for scroll wheel support
 
+#ifdef FF_LINUX
+// FF_LINUX: SDL mouse buffer functions (defined in main_linux.cpp)
+extern int FF_PopMouseEvents(DIDEVICEOBJECTDATA* outBuf, int maxEvents);
+#endif
+
 int gxFuzz;
 int gyFuzz;
 int gxPos;
@@ -97,6 +102,11 @@ void OnSimMouseInput(HWND)
     static int tempx = 0; //Wombat778 10-10-2003
     static int tempy = 0; //Wombat778 10-10-2003
 
+#ifdef FF_LINUX
+    // FF_LINUX: Read mouse events from SDL buffer instead of DirectInput
+    dwElements = FF_PopMouseEvents(ObjData, DMOUSE_BUFFERSIZE);
+    hResult = DI_OK;
+#else
 #if 0 // Retro 15Feb2004
     dwElements = DMOUSE_BUFFERSIZE;
     hResult = gpDIDevice[SIM_MOUSE]->GetDeviceData(sizeof(DIDEVICEOBJECTDATA), ObjData, &dwElements, 0);
@@ -126,6 +136,7 @@ void OnSimMouseInput(HWND)
     }
 
 #endif
+#endif // FF_LINUX
 
     if (SUCCEEDED(hResult))
     {
@@ -244,7 +255,7 @@ void OnSimMouseInput(HWND)
         /************************************************************************/
         // Retro 17Jan2004
         // "Faking" an absolute axis with the (relative) mouse z axis
-        // Problem is that I can´t set the range as a dinput property, so I have
+        // Problem is that I canï¿½t set the range as a dinput property, so I have
         // to clamp manually. Range is either 0..15000 for unipolar or -10000..10000
         // for bipolar axis. MouseWheelSensitivity is for this axis an INTEGER
         // (as opposed to the mouselook sensitivity)
@@ -254,7 +265,7 @@ void OnSimMouseInput(HWND)
         // (except pitch/bank and throttle/throttle2)
         //
         // Problem: all this data is on the global scope. Also, this data is not
-        // reinit when I exit/enter the 3d. it´s also not init correctly for all
+        // reinit when I exit/enter the 3d. itï¿½s also not init correctly for all
         // axis (it inits to 0 which can be bad for some axis, ie FOV)
         /************************************************************************/
         if ((dz) and (IO.MouseWheelExists() == true))
@@ -290,7 +301,7 @@ void OnSimMouseInput(HWND)
                     tempx = 0; //Wombat778 10-10-2003
                 }
 
-                // now, if we´re in panning mode, do some stuff with eyepan/eyetilt
+                // now, if weï¿½re in panning mode, do some stuff with eyepan/eyetilt
 #if 0 // Retro 15Feb2004
 
                 if (PlayerOptions.GetClickablePitMode() == false) //Wombat778 1-22-04 moved to playeroptions
@@ -307,7 +318,7 @@ void OnSimMouseInput(HWND)
                         UpdateCursorPosition(dx, dy);
 
                 }
-                else // if we´re in clickable mode, move only the mousepointer
+                else // if weï¿½re in clickable mode, move only the mousepointer
                 {
                     if ( not oneDown) // Retro 22Jan2004 - the RMB can temporarily (when held down) force the 'opposite' mode
                         UpdateCursorPosition(dx, dy);
@@ -406,11 +417,11 @@ void OnSimMouseInput(HWND)
                 //
                 // Making mouselook smoother by cirumvention the whole 'button-simulation'
                 // stuff. Problems:
-                // 1) there´s only one mouselook sensitivity variable, but inside<->outside
+                // 1) thereï¿½s only one mouselook sensitivity variable, but inside<->outside
                 // need different sensitivity
                 // 2) this code would not have to be executed every frame (and also not
                 // everytime new mousedata is there) but only everytime we are in a
-                // outside view mode - however I can´t tell this here
+                // outside view mode - however I canï¿½t tell this here
                 //
                 // Solution to 1) the external mouselook values (range 0.2 - 1.5) get scaled up
                 // by a factor or 10 so I get a range of 2 - 15 (nice integers)
@@ -462,7 +473,7 @@ void OnSimMouseInput(HWND)
         // oneDown = FALSE
 
         /************************************************************************/
-        // This is wombat´s 3d cockpit mouselook
+        // This is wombatï¿½s 3d cockpit mouselook
         /************************************************************************/
         if (dx or dy)
         {
@@ -596,11 +607,11 @@ void OnSimMouseInput(HWND)
                 //
                 // Making mouselook smoother by cirumvention the whole 'button-simulation'
                 // stuff. Problems:
-                // 1) there´s only one mouselook sensitivity variable, but inside<->outside
+                // 1) thereï¿½s only one mouselook sensitivity variable, but inside<->outside
                 // need different sensitivity
                 // 2) this code would not have to be executed every frame (and also not
                 // everytime new mousedata is there) but only everytime we are in a
-                // outside view mode - however I can´t tell this here
+                // outside view mode - however I canï¿½t tell this here
                 //
                 // Solution to 1) the external mouselook values (range 0.2 - 1.5) get scaled up
                 // by a factor or 10 so I get a range of 2 - 15 (nice integers)
