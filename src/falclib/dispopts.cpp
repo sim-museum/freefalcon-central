@@ -13,6 +13,9 @@
 #include "graphics/include/devmgr.h"
 #include "dispcfg.h"
 #include "Debuggr.h"
+#ifdef FF_LINUX
+#include "stdio_compat.h"  // fopen_nocase
+#endif
 
 DisplayOptionsClass DisplayOptions;
 
@@ -51,8 +54,13 @@ int DisplayOptionsClass::LoadOptions(char *filename)
     size_t success = 0;
     char path[_MAX_PATH];
 
+#ifdef FF_LINUX
+    snprintf(path, sizeof(path), "%s/config/%s.dsp", FalconDataDirectory, filename);
+    fp = fopen_nocase(path, "rb");
+#else
     sprintf(path, "%s\\config\\%s.dsp", FalconDataDirectory, filename);
     fp = fopen(path, "rb");
+#endif
 
     if ( not fp)
     {

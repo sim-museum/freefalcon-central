@@ -313,15 +313,6 @@ void CPPanel::DisplayBlit3D()
 {
     int i;
 
-#ifdef FF_LINUX
-    static int panelDiag = 0;
-    if (panelDiag++ < 3) {
-        fprintf(stderr, "[CPPanel::DisplayBlit3D] mNumSurfaces=%d mNumObjects=%d mNumButtonViews=%d\n",
-                mNumSurfaces, mNumObjects, mNumButtonViews);
-        fflush(stderr);
-    }
-#endif
-
     // loop thru and display all surfaces for this panel
 
     F4EnterCriticalSection(OTWDriver.pCockpitManager->mpCockpitCritSec);

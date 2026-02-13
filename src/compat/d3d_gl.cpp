@@ -943,7 +943,20 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
         glLoadIdentity();
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_LIGHTING);
-        glDisable(GL_FOG);
+
+        // FF_LINUX: D3D7 uses the specular color alpha byte as per-vertex fog factor
+        // (0xFF = no fog, 0x00 = full fog). The software rasterizer ALWAYS computes
+        // fog values in specular alpha, even in clear weather when FOGENABLE isn't set.
+        // D3D7 hardware applies this automatically for TLVERTEX; GL needs explicit setup.
+        if (dwVertexTypeDesc & D3DFVF_SPECULAR) {
+            glEnable(GL_FOG);
+            glFogi(GL_FOG_COORD_SRC, GL_FOG_COORD);
+            glFogi(GL_FOG_MODE, GL_LINEAR);
+            glFogf(GL_FOG_START, 1.0f);
+            glFogf(GL_FOG_END, 0.0f);
+        } else {
+            glDisable(GL_FOG);
+        }
     }
 
     glBegin(primType);
@@ -986,6 +999,15 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
             offset += sizeof(DWORD);
         }
 
+        // Specular color - extract alpha byte as per-vertex fog factor
+        if (dwVertexTypeDesc & D3DFVF_SPECULAR) {
+            DWORD specular = *(const DWORD*)(vertex + offset);
+            if (isXYZRHW) {
+                glFogCoordf((float)(specular >> 24) / 255.0f);
+            }
+            offset += sizeof(DWORD);
+        }
+
         // Position (MUST be last in GL immediate mode - triggers vertex submission)
         if (dwVertexTypeDesc & D3DFVF_XYZ) {
             const float* pos = (const float*)vertex;
@@ -1005,7 +1027,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
         // Restore previous state
         if (prevDIP_DepthTest) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
         if (prevDIP_Lighting) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
+        // Restore fog to previous state
         if (prevDIP_Fog) glEnable(GL_FOG); else glDisable(GL_FOG);
+        if (dwVertexTypeDesc & D3DFVF_SPECULAR) {
+            glFogi(GL_FOG_COORD_SRC, GL_FRAGMENT_DEPTH);
+        }
     }
 
     // Restore GL_TEXTURE_2D state if we disabled it
@@ -1140,7 +1166,20 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         // XYZRHW bypasses lighting and depth testing when rendering to FBO
         // (cockpit instruments are 2D overlays that should always render)
         glDisable(GL_LIGHTING);
-        glDisable(GL_FOG);
+
+        // FF_LINUX: D3D7 uses the specular color alpha byte as per-vertex fog factor.
+        // The software rasterizer ALWAYS computes fog values in specular alpha, even
+        // in clear weather. Don't apply fog in FBO rendering (cockpit instruments).
+        if ((fvf & D3DFVF_SPECULAR) && !restoredViewportVB) {
+            glEnable(GL_FOG);
+            glFogi(GL_FOG_COORD_SRC, GL_FOG_COORD);
+            glFogi(GL_FOG_MODE, GL_LINEAR);
+            glFogf(GL_FOG_START, 1.0f);
+            glFogf(GL_FOG_END, 0.0f);
+        } else {
+            glDisable(GL_FOG);
+        }
+
         if (restoredViewportVB) {
             // FBO rendering - disable depth test for 2D instrument overlays
             prevDepthTest2 = glIsEnabled(GL_DEPTH_TEST);
@@ -1210,6 +1249,16 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             offset += sizeof(DWORD);
         }
 
+        // Specular color - extract alpha byte as per-vertex fog factor
+        if (fvf & D3DFVF_SPECULAR) {
+            DWORD specular = *(const DWORD*)(vertex + offset);
+            // Always submit fog coord for XYZRHW screen draws (not FBO)
+            if (isXYZRHW && !restoredViewportVB) {
+                glFogCoordf((float)(specular >> 24) / 255.0f);
+            }
+            offset += sizeof(DWORD);
+        }
+
         // Position (MUST be last - triggers vertex submission)
         if (fvf & D3DFVF_XYZ) {
             const float* pos = (const float*)vertex;
@@ -1233,7 +1282,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glPopMatrix();
         // Restore previous state
         if (prevLighting2) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
+        // Restore fog to previous state
         if (prevFog2) glEnable(GL_FOG); else glDisable(GL_FOG);
+        if ((fvf & D3DFVF_SPECULAR) && !restoredViewportVB) {
+            glFogi(GL_FOG_COORD_SRC, GL_FRAGMENT_DEPTH);
+        }
         // Restore glViewport and depth test if we changed them for FBO rendering
         if (restoredViewportVB) {
             glViewport(savedViewportVB[0], savedViewportVB[1], savedViewportVB[2], savedViewportVB[3]);
@@ -2321,7 +2374,22 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
 
         // XYZRHW bypasses D3D lighting pipeline only
         glDisable(GL_LIGHTING);
-        glDisable(GL_FOG);
+
+        // FF_LINUX: D3D7 uses the specular color alpha byte as per-vertex fog factor
+        // (0xFF = no fog, 0x00 = full fog). The software rasterizer ALWAYS computes
+        // fog values in specular alpha (via SetSpecularFog/m_colFOG), even in clear
+        // weather when FOGENABLE isn't set. D3D7 hardware/drivers apply this
+        // automatically for TLVERTEX; GL needs explicit fog coord setup.
+        // When specular alpha is 0xFF (no fog), fog_factor=1.0, no visual change.
+        if (fvf & D3DFVF_SPECULAR) {
+            glEnable(GL_FOG);
+            glFogi(GL_FOG_COORD_SRC, GL_FOG_COORD);
+            glFogi(GL_FOG_MODE, GL_LINEAR);
+            glFogf(GL_FOG_START, 1.0f);  // fog_coord=1.0 → no fog
+            glFogf(GL_FOG_END, 0.0f);    // fog_coord=0.0 → full fog
+        } else {
+            glDisable(GL_FOG);
+        }
 
     }
 
@@ -2375,6 +2443,18 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
             // FF_LINUX: Force alpha=1 for FBO XYZRHW rendering (see DrawIndexedPrimitiveVB)
             if (restoredViewportDV && a == 0.0f) a = 1.0f;
             glColor4f(r, g, b, a);
+            offset += sizeof(DWORD);
+        }
+
+        // Specular color - extract alpha byte as per-vertex fog factor
+        if (fvf & D3DFVF_SPECULAR) {
+            DWORD specular = *(const DWORD*)(vertex + offset);
+            // D3D7: specular alpha = fog factor (0xFF=no fog, 0x00=full fog)
+            // Always submit fog coord for XYZRHW - we unconditionally enable GL_FOG above
+            if (isXYZRHW) {
+                glFogCoordf((float)(specular >> 24) / 255.0f);
+            }
+            offset += sizeof(DWORD);
         }
 
         // Position (must be last for glVertex)
@@ -2405,7 +2485,12 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
 
         // Restore previous GL state (don't blindly enable - that corrupts state for subsequent draws)
         if (prevLighting) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
+        // Restore fog to previous state. We may have enabled it for specular-alpha fog.
         if (prevFog) glEnable(GL_FOG); else glDisable(GL_FOG);
+        if (fvf & D3DFVF_SPECULAR) {
+            // Restore fog coord source to depth-based (default) after per-vertex fog
+            glFogi(GL_FOG_COORD_SRC, GL_FRAGMENT_DEPTH);
+        }
         // Restore glViewport and depth test if we changed them for FBO rendering
         if (restoredViewportDV) {
             glViewport(savedViewportDV[0], savedViewportDV[1], savedViewportDV[2], savedViewportDV[3]);

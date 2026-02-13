@@ -1148,7 +1148,15 @@ bool TextureHandle::Reload()
                         dwTmp = pal[i];
 
                         if (dwTmp not_eq m_dwChromaKey)
+#ifdef FF_LINUX
+                            // FF_LINUX: Force opaque alpha for non-chroma palette entries.
+                            // D3D7 ignores the alpha byte in X8R8G8B8 surfaces, but OpenGL
+                            // uses it. Win32 palette entries typically have alpha=0x00,
+                            // making cockpit textures fully transparent in GL without this.
+                            palette[i] = dwTmp | 0xFF000000;
+#else
                             palette[i] = dwTmp;
+#endif
                         else
                             // Zero alpha but preserve RGB for pre-alpha test filtering (0 == full transparent, 0xff == full opaque)
                             palette[i] = dwTmp bitand 0xffffff;
