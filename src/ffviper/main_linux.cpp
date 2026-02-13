@@ -69,6 +69,7 @@
 // Simulation input (for IO structure and joystick data)
 #include "sim/include/simio.h"
 #include "sim/include/sinput.h"
+#include "sim/include/inpfunc.h"  // FF_LINUX: For LoadFunctionTables()
 
 // Campaign / instant action headers
 #include "campaign/include/iaction.h"
@@ -1579,6 +1580,14 @@ static bool init_game_core(void) {
     gCommsMgr = new UIComms;
     gCommsMgr->Setup(FalconDisplay.appWin);
     fprintf(stderr, "  [main_linux] gCommsMgr->Setup() returned\n");
+
+    // FF_LINUX: Load keyboard command bindings from keystrokes.key
+    // This populates UserFunctionTable so keyboard commands work in the sim.
+    // Must be called after SetupInputFunctions() (called by SimInputInit via OTWDriver.Enter),
+    // but we call it here during init so bindings are ready before first flight.
+    fprintf(stderr, "  Loading keyboard function tables...\n");
+    LoadFunctionTables();
+    fprintf(stderr, "  [main_linux] LoadFunctionTables() returned\n");
 
     fprintf(stderr, "  Game core initialization complete.\n");
     g_gameInitialized = true;

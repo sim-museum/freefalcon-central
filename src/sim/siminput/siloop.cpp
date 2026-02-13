@@ -167,10 +167,14 @@ BOOL SetupDIMouseAndKeyboard(HINSTANCE, HWND hWnd)
     // On Linux, SDL handles mouse/keyboard input instead of DirectInput
     // Return TRUE to indicate success - input is already set up via SDL
     gOccupiedBySim = TRUE;
+    gSimInputEnabled = TRUE;
     gyFuzz = gxFuzz = 0;
     gxPos = DisplayOptions.DispWidth / 2;
     gyPos = DisplayOptions.DispHeight / 2;
     gMouseSensitivity = NORM_SENSITIVITY;
+    SetupInputFunctions();
+    gTimeLastMouseMove = vuxRealTime;
+    gTimeLastCursorUpdate = vuxRealTime;
     return TRUE;
 #endif
 
