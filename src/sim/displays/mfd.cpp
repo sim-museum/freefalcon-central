@@ -34,6 +34,7 @@
 
 #include "flightdata.h" // MD -- 20040727
 
+
 //MI
 void DrawBullseyeCircle(VirtualDisplay* display, float cursorX, float cursorY);
 
@@ -713,6 +714,7 @@ void MFDClass::Exec(int clearFrame, int virtualCockpit)
 {
     float vpLeft, vpTop, vpRight, vpBottom;
 
+
     // MD -- 20040727: any time we change the content of the MFD display page
     // the shared memory copies of the OSB label text neds to be blanked so that
     // stale strings from the last mode aren't left by the drawing code for the
@@ -763,7 +765,7 @@ void MFDClass::Exec(int clearFrame, int virtualCockpit)
         return;
     }
 
-    if ( not ownship->HasPower(AircraftClass::MFDPower))
+    if ( not ownship or not ownship->HasPower(AircraftClass::MFDPower))
     {
         return;
     }

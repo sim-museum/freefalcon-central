@@ -929,15 +929,60 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
 
     // FF_LINUX: Save GL state that XYZRHW handling will modify
     GLboolean prevDIP_DepthTest = GL_FALSE, prevDIP_Lighting = GL_FALSE, prevDIP_Fog = GL_FALSE;
+    GLint savedViewportDIP[4] = {0};
+    bool restoredViewportDIP = false;
+    GLboolean prevScissorDIP = GL_FALSE;
+    GLint savedScissorDIP[4] = {0};
     if (isXYZRHW) {
         prevDIP_DepthTest = glIsEnabled(GL_DEPTH_TEST);
         prevDIP_Lighting = glIsEnabled(GL_LIGHTING);
         prevDIP_Fog = glIsEnabled(GL_FOG);
 
+        // FF_LINUX: In D3D7, XYZRHW vertices are in absolute pixel coordinates.
+        // Use render target dimensions for ortho, not viewport dimensions.
+        DWORD orthoW, orthoH;
+        D3D7Surface* rt = dev->renderTarget;
+        if (rt && rt != dev->defaultRenderTarget && rt->fboId) {
+            orthoW = rt->width;
+            orthoH = rt->height;
+            glGetIntegerv(GL_VIEWPORT, savedViewportDIP);
+            restoredViewportDIP = true;
+            glViewport(0, 0, orthoW, orthoH);
+        } else {
+            DDSURFACEDESC2 rtDesc;
+            memset(&rtDesc, 0, sizeof(rtDesc));
+            rtDesc.dwSize = sizeof(rtDesc);
+            if (rt) rt->GetSurfaceDesc(&rtDesc);
+            orthoW = rtDesc.dwWidth;
+            orthoH = rtDesc.dwHeight;
+            if (orthoW == 0 || orthoH == 0) {
+                orthoW = 1024; orthoH = 768;
+            }
+            glGetIntegerv(GL_VIEWPORT, savedViewportDIP);
+            if ((DWORD)savedViewportDIP[2] != orthoW || (DWORD)savedViewportDIP[3] != orthoH) {
+                restoredViewportDIP = true;
+                prevScissorDIP = glIsEnabled(GL_SCISSOR_TEST);
+                glGetIntegerv(GL_SCISSOR_BOX, savedScissorDIP);
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(savedViewportDIP[0], savedViewportDIP[1],
+                          savedViewportDIP[2], savedViewportDIP[3]);
+                glViewport(0, 0, orthoW, orthoH);
+            }
+        }
+
+        if (orthoW == 0 || orthoH == 0) {
+            if (texCountDIP == 0 && prevDIP_Texture2D) glEnable(GL_TEXTURE_2D);
+            return D3D_OK;
+        }
+
         glMatrixMode(GL_PROJECTION);
         glPushMatrix();
         glLoadIdentity();
-        glOrtho(0, dev->viewport.dwWidth, dev->viewport.dwHeight, 0, 0, 1);
+        if (rt && rt != dev->defaultRenderTarget && rt->fboId) {
+            glOrtho(0, orthoW, 0, orthoH, 0, -1);
+        } else {
+            glOrtho(0, orthoW, orthoH, 0, 0, -1);
+        }
         glMatrixMode(GL_MODELVIEW);
         glPushMatrix();
         glLoadIdentity();
@@ -948,7 +993,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
         // (0xFF = no fog, 0x00 = full fog). The software rasterizer ALWAYS computes
         // fog values in specular alpha, even in clear weather when FOGENABLE isn't set.
         // D3D7 hardware applies this automatically for TLVERTEX; GL needs explicit setup.
-        if (dwVertexTypeDesc & D3DFVF_SPECULAR) {
+        if ((dwVertexTypeDesc & D3DFVF_SPECULAR) && !restoredViewportDIP) {
             glEnable(GL_FOG);
             glFogi(GL_FOG_COORD_SRC, GL_FOG_COORD);
             glFogi(GL_FOG_MODE, GL_LINEAR);
@@ -1029,8 +1074,17 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
         if (prevDIP_Lighting) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
         // Restore fog to previous state
         if (prevDIP_Fog) glEnable(GL_FOG); else glDisable(GL_FOG);
-        if (dwVertexTypeDesc & D3DFVF_SPECULAR) {
+        if ((dwVertexTypeDesc & D3DFVF_SPECULAR) && !restoredViewportDIP) {
             glFogi(GL_FOG_COORD_SRC, GL_FRAGMENT_DEPTH);
+        }
+        // Restore viewport and scissor state
+        if (restoredViewportDIP) {
+            glViewport(savedViewportDIP[0], savedViewportDIP[1], savedViewportDIP[2], savedViewportDIP[3]);
+            if (prevScissorDIP) {
+                glScissor(savedScissorDIP[0], savedScissorDIP[1], savedScissorDIP[2], savedScissorDIP[3]);
+            } else {
+                glDisable(GL_SCISSOR_TEST);
+            }
         }
     }
 
@@ -1116,25 +1170,45 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     GLboolean prevLighting2 = GL_FALSE, prevFog2 = GL_FALSE, prevDepthTest2 = GL_FALSE;
     GLint savedViewportVB[4] = {0};
     bool restoredViewportVB = false;
+    GLboolean prevScissorVB = GL_FALSE;
+    GLint savedScissorVB[4] = {0};
     if (isXYZRHW) {
         // FF_LINUX: In D3D7, XYZRHW vertices are in absolute pixel coordinates and
         // bypass the viewport transform. Our GL emulation must match this by using
-        // the actual framebuffer dimensions for glOrtho and glViewport.
-        // When rendering to an FBO (RTT), dev->viewport may be stale (still set to
-        // main scene dimensions), so we must detect FBO rendering and use FBO dims.
+        // the actual render target dimensions for glOrtho and glViewport.
+        // The GL viewport is temporarily expanded to the full render target, and
+        // GL_SCISSOR_TEST clips to the original viewport area (for MFDs etc.).
         DWORD orthoW, orthoH;
         D3D7Surface* rt = dev->renderTarget;
         if (rt && rt != dev->defaultRenderTarget && rt->fboId) {
             // Rendering to FBO - use FBO texture dimensions for 1:1 pixel mapping
             orthoW = rt->width;
             orthoH = rt->height;
-            // Save current glViewport and set to full FBO
             glGetIntegerv(GL_VIEWPORT, savedViewportVB);
             restoredViewportVB = true;
             glViewport(0, 0, orthoW, orthoH);
         } else {
-            orthoW = dev->viewport.dwWidth;
-            orthoH = dev->viewport.dwHeight;
+            // Screen rendering: use render target surface dimensions for ortho
+            DDSURFACEDESC2 rtDesc;
+            memset(&rtDesc, 0, sizeof(rtDesc));
+            rtDesc.dwSize = sizeof(rtDesc);
+            if (rt) rt->GetSurfaceDesc(&rtDesc);
+            orthoW = rtDesc.dwWidth;
+            orthoH = rtDesc.dwHeight;
+            if (orthoW == 0 || orthoH == 0) {
+                orthoW = 1024; orthoH = 768;
+            }
+            // Save and expand GL viewport to full render target
+            glGetIntegerv(GL_VIEWPORT, savedViewportVB);
+            if ((DWORD)savedViewportVB[2] != orthoW || (DWORD)savedViewportVB[3] != orthoH) {
+                restoredViewportVB = true;
+                prevScissorVB = glIsEnabled(GL_SCISSOR_TEST);
+                glGetIntegerv(GL_SCISSOR_BOX, savedScissorVB);
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(savedViewportVB[0], savedViewportVB[1],
+                          savedViewportVB[2], savedViewportVB[3]);
+                glViewport(0, 0, orthoW, orthoH);
+            }
         }
 
         if (orthoW == 0 || orthoH == 0) {
@@ -1150,11 +1224,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glLoadIdentity();
         // FF_LINUX: D3D XYZRHW z in [0,1] where 0=near, 1=far.
         // glOrtho(0,w,h,0, near=0, far=-1) gives z_ndc = 2*z - 1: z=0→-1, z=1→+1.
-        if (restoredViewportVB) {
-            // FBO rendering: DON'T flip Y. In GL FBOs, row 0 is at the bottom, and
-            // texture v=0 also reads from the bottom. By NOT flipping Y, D3D pixel y=0
-            // maps to GL row 0 = texture v=0, matching what DrawRttQuad expects when
-            // it computes UV from tRect (tTop/512 for v_min).
+        if (rt && rt != dev->defaultRenderTarget && rt->fboId) {
+            // FBO rendering: DON'T flip Y so texture v=0 reads what was drawn at D3D y=0
             glOrtho(0, orthoW, 0, orthoH, 0, -1);
         } else {
             // Screen rendering: flip Y so D3D y=0 is at top of screen
@@ -1287,10 +1358,16 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         if ((fvf & D3DFVF_SPECULAR) && !restoredViewportVB) {
             glFogi(GL_FOG_COORD_SRC, GL_FRAGMENT_DEPTH);
         }
-        // Restore glViewport and depth test if we changed them for FBO rendering
+        // Restore glViewport and depth test if we changed them
         if (restoredViewportVB) {
             glViewport(savedViewportVB[0], savedViewportVB[1], savedViewportVB[2], savedViewportVB[3]);
             if (prevDepthTest2) glEnable(GL_DEPTH_TEST);
+            // Restore scissor state
+            if (prevScissorVB) {
+                glScissor(savedScissorVB[0], savedScissorVB[1], savedScissorVB[2], savedScissorVB[3]);
+            } else {
+                glDisable(GL_SCISSOR_TEST);
+            }
         }
     }
 
@@ -2318,36 +2395,52 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     GLint savedViewportDV[4] = {0};
     bool restoredViewportDV = false;
     GLboolean prevDepthTestDV = GL_FALSE;
+    GLboolean prevScissorDV = GL_FALSE;
+    GLint savedScissorDV[4] = {0};
     if (isXYZRHW) {
         // FF_LINUX: In D3D7, XYZRHW vertices are in absolute pixel coordinates and
         // bypass the viewport transform. Our GL emulation must match this by using
-        // the actual framebuffer dimensions for glOrtho and glViewport.
-        // When rendering to an FBO (RTT), the viewport may be stale.
+        // the actual render target dimensions for glOrtho and glViewport.
+        // The GL viewport is temporarily expanded to the full render target, and
+        // GL_SCISSOR_TEST clips to the original viewport area (for MFDs etc.).
         DWORD vpW, vpH;
         D3D7Surface* rt = renderTarget;
         if (rt && rt != defaultRenderTarget && rt->fboId) {
             // Rendering to FBO - use FBO texture dimensions for 1:1 pixel mapping
             vpW = rt->width;
             vpH = rt->height;
-            // Save current glViewport and set to full FBO
             glGetIntegerv(GL_VIEWPORT, savedViewportDV);
             restoredViewportDV = true;
             glViewport(0, 0, vpW, vpH);
-            // FF_LINUX: Disable depth test for 2D instrument overlays in FBO
             prevDepthTestDV = glIsEnabled(GL_DEPTH_TEST);
             glDisable(GL_DEPTH_TEST);
         } else {
-            vpW = viewport.dwWidth;
-            vpH = viewport.dwHeight;
+            // Screen rendering: use render target surface dimensions for ortho,
+            // and temporarily expand GL viewport to full screen. Use scissor test
+            // to clip to the original viewport area (needed for MFD sub-viewports).
+            DDSURFACEDESC2 rtDesc;
+            memset(&rtDesc, 0, sizeof(rtDesc));
+            rtDesc.dwSize = sizeof(rtDesc);
+            if (rt) rt->GetSurfaceDesc(&rtDesc);
+            vpW = rtDesc.dwWidth;
+            vpH = rtDesc.dwHeight;
             if (vpW == 0 || vpH == 0) {
-                GLint glVP[4];
-                glGetIntegerv(GL_VIEWPORT, glVP);
-                vpW = glVP[2];
-                vpH = glVP[3];
+                vpW = 1024; vpH = 768; // Fallback
+            }
+            // Save and expand GL viewport to full render target
+            glGetIntegerv(GL_VIEWPORT, savedViewportDV);
+            if ((DWORD)savedViewportDV[2] != vpW || (DWORD)savedViewportDV[3] != vpH) {
+                restoredViewportDV = true;
+                // Enable scissor test to clip to original viewport area
+                prevScissorDV = glIsEnabled(GL_SCISSOR_TEST);
+                glGetIntegerv(GL_SCISSOR_BOX, savedScissorDV);
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(savedViewportDV[0], savedViewportDV[1],
+                          savedViewportDV[2], savedViewportDV[3]);
+                glViewport(0, 0, vpW, vpH);
             }
         }
         if (vpW == 0 || vpH == 0) {
-            // Truly no viewport - skip draw
             if (texCountCheck == 0 && prevTexture2D) glEnable(GL_TEXTURE_2D);
             return;
         }
@@ -2360,7 +2453,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glLoadIdentity();
         // FF_LINUX: D3D XYZRHW z values are in [0,1] where 0=near and 1=far.
         // glOrtho(0,w,h,0, near=0, far=-1) gives z_ndc = 2*z - 1: z=0→-1, z=1→+1.
-        if (restoredViewportDV) {
+        if (rt && rt != defaultRenderTarget && rt->fboId) {
             // FBO rendering: DON'T flip Y so texture v=0 reads what was drawn at D3D y=0
             glOrtho(0, vpW, 0, vpH, 0, -1);
         } else {
@@ -2491,10 +2584,16 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
             // Restore fog coord source to depth-based (default) after per-vertex fog
             glFogi(GL_FOG_COORD_SRC, GL_FRAGMENT_DEPTH);
         }
-        // Restore glViewport and depth test if we changed them for FBO rendering
+        // Restore glViewport and depth test if we changed them
         if (restoredViewportDV) {
             glViewport(savedViewportDV[0], savedViewportDV[1], savedViewportDV[2], savedViewportDV[3]);
             if (prevDepthTestDV) glEnable(GL_DEPTH_TEST);
+            // Restore scissor state (may have been enabled for sub-viewport clipping)
+            if (prevScissorDV) {
+                glScissor(savedScissorDV[0], savedScissorDV[1], savedScissorDV[2], savedScissorDV[3]);
+            } else {
+                glDisable(GL_SCISSOR_TEST);
+            }
         }
     }
 
