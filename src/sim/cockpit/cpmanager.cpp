@@ -2403,6 +2403,13 @@ void CockpitManager::CreateSurface(int idNum, FILE* pcockpitDataFile)
     surfaceInitStruct.srcRect.right += 1;
     surfaceInitStruct.srcRect.bottom += 1;
 
+#ifdef FF_LINUX
+    // FF_LINUX: If mpLoadBuffer is NULL (image failed to load), skip surface creation
+    if (!mpLoadBuffer) {
+        delete[] surfaceInitStruct.psrcBuffer;
+        return;
+    }
+#endif
     SafeImageCopy(mpLoadBuffer, surfaceInitStruct.psrcBuffer, mLoadBufferHeight, mLoadBufferWidth, &surfaceInitStruct.srcRect); //wombat778 4-11-04 make safeimagecopy always used
 
     surfaceInitStruct.idNum = idNum;
@@ -3850,6 +3857,12 @@ void CockpitManager::CreateAdi(int idNum, FILE* pcockpitDataFile)
         adiInitStr.backSrc.right += 1;
         adiInitStr.backSrc.bottom += 1;
 
+#ifdef FF_LINUX
+        if (!mpLoadBuffer) {
+            delete[] adiInitStr.pBackground;
+            adiInitStr.pBackground = NULL;
+        } else
+#endif
         SafeImageCopy(mpLoadBuffer, adiInitStr.pBackground, mLoadBufferHeight, mLoadBufferWidth, &adiInitStr.backSrc); //wombat778 4-11-04 make safeimagecopy always used
 
         adiInitStr.backSrc.top = destRect.top;

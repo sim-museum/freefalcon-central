@@ -2668,6 +2668,17 @@ void OTWDriverClass::RenderFrame()
             renderer->EndDraw();
 
             //START_PROFILE("COCKPIT MANAGER EXEC");
+#ifdef FF_LINUX
+            // FF_LINUX: Handle cross-thread panel change requests (e.g., from keyboard input)
+            {
+                extern volatile int g_requestedPanel;
+                if (g_requestedPanel >= 0) {
+                    int panel = g_requestedPanel;
+                    g_requestedPanel = -1;
+                    pCockpitManager->SetActivePanel(panel);
+                }
+            }
+#endif
             pCockpitManager->Exec();
             //STOP_PROFILE("COCKPIT MANAGER EXEC");
 

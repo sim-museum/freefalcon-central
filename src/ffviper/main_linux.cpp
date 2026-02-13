@@ -299,6 +299,7 @@ static bool g_running = true;
 static bool g_gameInitialized = false;
 static bool g_autoTestInstantAction = false;  // TEST: Set by auto-launch code
 bool g_testInstantActionFlag = false;  // Command-line flag for auto-testing
+volatile int g_requestedPanel = -1;  // Set by main thread, read by sim thread for view testing
 
 // These globals are defined in ui/src/winmain.cpp - use extern
 extern HWND mainAppWnd;
@@ -2315,6 +2316,37 @@ static void main_loop(void) {
         static bool screenTestDone = false;
         // Automatic UI tests disabled - use manual testing
         // (The test code was automatically clicking Setup button after 3 seconds)
+
+        // Auto view cycling during -test-ia for cockpit view testing
+        // Sets g_requestedPanel which the sim thread reads in otwloop
+        if (g_testInstantActionFlag && !doUI) {
+            static Uint32 simStartTime = 0;
+            static int viewPhase = 0;
+            if (simStartTime == 0) simStartTime = currentTime;
+            Uint32 simElapsed = currentTime - simStartTime;
+            // Phase 0: front view (default) at t=0
+            // Phase 1: left view at t=10s
+            // Phase 2: right view at t=20s
+            // Phase 3: down view at t=30s
+            // Phase 4: back to front at t=40s
+            if (viewPhase == 0 && simElapsed >= 10000) {
+                viewPhase = 1;
+                g_requestedPanel = 600;
+                fprintf(stderr, "[VIEW_TEST] Requesting LEFT view (panel 600)\n");
+            } else if (viewPhase == 1 && simElapsed >= 20000) {
+                viewPhase = 2;
+                g_requestedPanel = 700;
+                fprintf(stderr, "[VIEW_TEST] Requesting RIGHT view (panel 700)\n");
+            } else if (viewPhase == 2 && simElapsed >= 30000) {
+                viewPhase = 3;
+                g_requestedPanel = 100;
+                fprintf(stderr, "[VIEW_TEST] Requesting DOWN view (panel 100)\n");
+            } else if (viewPhase == 3 && simElapsed >= 40000) {
+                viewPhase = 4;
+                g_requestedPanel = 1100;
+                fprintf(stderr, "[VIEW_TEST] Requesting FRONT view (panel 1100)\n");
+            }
+        }
 
         // Simple frame rate limiting
         Uint32 frameTime = SDL_GetTicks() - frameStart;
