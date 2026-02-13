@@ -1739,6 +1739,16 @@ static void handle_sdl_events(void) {
                         SDL_SetWindowFullscreen(g_SDLWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
                     }
                 }
+                // Shift+Numpad: cockpit panel switching (sim mode only)
+                if (!doUI && (event.key.keysym.mod & KMOD_SHIFT)) {
+                    switch (event.key.keysym.sym) {
+                        case SDLK_KP_8: g_requestedPanel = 1100; break; // Front
+                        case SDLK_KP_4: g_requestedPanel = 600;  break; // Left
+                        case SDLK_KP_6: g_requestedPanel = 700;  break; // Right
+                        case SDLK_KP_2: g_requestedPanel = 100;  break; // Down
+                        default: break;
+                    }
+                }
                 // Post keyboard message with DIK scancode translation
                 {
                     int dikCode = ConvertSDLToDIK(event.key.keysym.scancode);
