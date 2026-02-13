@@ -3055,8 +3055,10 @@ BOOL SfxClass::Exec()
         objpos.x = baseObj->XPos();
         objpos.y = baseObj->YPos();
         objpos.z = baseObj->ZPos();
-        ((DrawableBSP*)(baseObj->drawPointer))->Update(&objpos, &objrot);
-        baseObj->drawPointer->SetScale(OTWDriver.Scale());
+        if (baseObj->drawPointer) {
+            ((DrawableBSP*)(baseObj->drawPointer))->Update(&objpos, &objrot);
+            baseObj->drawPointer->SetScale(OTWDriver.Scale());
+        }
         return TRUE;
     }
 
@@ -3213,7 +3215,7 @@ SfxClass::Draw(void)
             objBSP->SetScale(scaleOTW);
         }
 
-        if (baseObj)
+        if (baseObj && baseObj->drawPointer)
         {
             baseObj->drawPointer->SetScale(scaleOTW);
         }
@@ -3270,7 +3272,7 @@ SfxClass::Draw(void)
     }
 
     // for bsp objects
-    if (baseObj)
+    if (baseObj && baseObj->drawPointer)
     {
         OTWDriver.ObjectSetData(baseObj.get(), &pos, &rot);
         ((DrawableBSP*)(baseObj->drawPointer))->Update(&pos, &rot);

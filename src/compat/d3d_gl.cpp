@@ -444,7 +444,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_GetCaps(IDirect3DDevice7* This, LPD3DDE
     lpDesc->dpcTriCaps.dwTextureAddressCaps = 0x01 | 0x04;  // WRAP | CLAMP
     lpDesc->dpcTriCaps.dwRasterCaps = D3DPRASTERCAPS_FOGTABLE | D3DPRASTERCAPS_FOGVERTEX | D3DPRASTERCAPS_ZBUFFERLESSHSR;
     lpDesc->dpcTriCaps.dwZCmpCaps = D3DPCMPCAPS_LESSEQUAL | D3DPCMPCAPS_LESS | D3DPCMPCAPS_ALWAYS;
-    lpDesc->dpcTriCaps.dwAlphaCmpCaps = D3DPCMPCAPS_GREATEREQUAL | D3DPCMPCAPS_ALWAYS;
+    // FF_LINUX: Report ALL alpha compare caps (0xFF). The original code checks
+    // `dwAlphaCmpCaps & D3DCMP_GREATEREQUAL` (enum value 7) instead of the correct
+    // `D3DPCMPCAPS_GREATEREQUAL` (bit flag 0x40). Real Windows drivers return 0xFF
+    // (all caps), making the buggy check pass. We must match this behavior.
+    lpDesc->dpcTriCaps.dwAlphaCmpCaps = 0xFF;
     lpDesc->dpcTriCaps.dwSrcBlendCaps = D3DPBLENDCAPS_SRCALPHA | D3DPBLENDCAPS_ONE | D3DPBLENDCAPS_ZERO;
     lpDesc->dpcTriCaps.dwDestBlendCaps = D3DPBLENDCAPS_INVSRCALPHA | D3DPBLENDCAPS_ONE | D3DPBLENDCAPS_ZERO;
 
@@ -933,6 +937,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
     bool restoredViewportDIP = false;
     GLboolean prevScissorDIP = GL_FALSE;
     GLint savedScissorDIP[4] = {0};
+    GLint savedFogModeDIP = GL_EXP; GLfloat savedFogStartDIP = 0, savedFogEndDIP = 1;
     if (isXYZRHW) {
         prevDIP_DepthTest = glIsEnabled(GL_DEPTH_TEST);
         prevDIP_Lighting = glIsEnabled(GL_LIGHTING);
@@ -993,7 +998,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
         // (0xFF = no fog, 0x00 = full fog). The software rasterizer ALWAYS computes
         // fog values in specular alpha, even in clear weather when FOGENABLE isn't set.
         // D3D7 hardware applies this automatically for TLVERTEX; GL needs explicit setup.
+        // Save fog params so we can restore them for subsequent depth-based fog draws.
         if ((dwVertexTypeDesc & D3DFVF_SPECULAR) && !restoredViewportDIP) {
+            glGetIntegerv(GL_FOG_MODE, &savedFogModeDIP);
+            glGetFloatv(GL_FOG_START, &savedFogStartDIP);
+            glGetFloatv(GL_FOG_END, &savedFogEndDIP);
             glEnable(GL_FOG);
             glFogi(GL_FOG_COORD_SRC, GL_FOG_COORD);
             glFogi(GL_FOG_MODE, GL_LINEAR);
@@ -1003,6 +1012,17 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
             glDisable(GL_FOG);
         }
     }
+
+#ifdef FF_LINUX
+    // FF_LINUX: Fix chroma key transparency (see DrawIndexedPrimitiveVB for details)
+    if (isXYZRHW && dev->textures[0] && glIsEnabled(GL_ALPHA_TEST)) {
+        glActiveTexture(GL_TEXTURE0);
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+        glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE);
+        glAlphaFunc(GL_GEQUAL, 0.5f);
+    }
+#endif
 
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
@@ -1076,6 +1096,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
         if (prevDIP_Fog) glEnable(GL_FOG); else glDisable(GL_FOG);
         if ((dwVertexTypeDesc & D3DFVF_SPECULAR) && !restoredViewportDIP) {
             glFogi(GL_FOG_COORD_SRC, GL_FRAGMENT_DEPTH);
+            glFogi(GL_FOG_MODE, savedFogModeDIP);
+            glFogf(GL_FOG_START, savedFogStartDIP);
+            glFogf(GL_FOG_END, savedFogEndDIP);
         }
         // Restore viewport and scissor state
         if (restoredViewportDIP) {
@@ -1155,6 +1178,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
 
     // Pit NDC diagnostic removed - cockpit rendering working
 
+    // FF_LINUX: Ensure we're operating on texture unit 0.
+    // SetTexture(1, NULL) in SelectTexture1 leaves GL_TEXTURE1 as active unit,
+    // which causes all subsequent glIsEnabled/glTexEnvi calls to target the wrong unit.
+    glActiveTexture(GL_TEXTURE0);
+
     // FF_LINUX: Disable GL_TEXTURE_2D when no texture coordinates in FVF.
     // Otherwise stale textures from previous draws modulate vertex colors.
     int texCountVB = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
@@ -1172,6 +1200,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     bool restoredViewportVB = false;
     GLboolean prevScissorVB = GL_FALSE;
     GLint savedScissorVB[4] = {0};
+    GLint savedFogModeVB = GL_EXP; GLfloat savedFogStartVB = 0, savedFogEndVB = 1;
     if (isXYZRHW) {
         // FF_LINUX: In D3D7, XYZRHW vertices are in absolute pixel coordinates and
         // bypass the viewport transform. Our GL emulation must match this by using
@@ -1241,7 +1270,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         // FF_LINUX: D3D7 uses the specular color alpha byte as per-vertex fog factor.
         // The software rasterizer ALWAYS computes fog values in specular alpha, even
         // in clear weather. Don't apply fog in FBO rendering (cockpit instruments).
+        // Save fog params so we can restore them for subsequent depth-based fog draws.
         if ((fvf & D3DFVF_SPECULAR) && !restoredViewportVB) {
+            glGetIntegerv(GL_FOG_MODE, &savedFogModeVB);
+            glGetFloatv(GL_FOG_START, &savedFogStartVB);
+            glGetFloatv(GL_FOG_END, &savedFogEndVB);
             glEnable(GL_FOG);
             glFogi(GL_FOG_COORD_SRC, GL_FOG_COORD);
             glFogi(GL_FOG_MODE, GL_LINEAR);
@@ -1282,6 +1315,22 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         disabledTexForNullBinding = true;
         glDisable(GL_TEXTURE_2D);
     }
+
+#ifdef FF_LINUX
+    // FF_LINUX: Fix chroma key transparency for cockpit panels.
+    // When alpha test is enabled (chroma key) and a texture is bound, ensure:
+    // 1. Fragment alpha comes from the texture (not vertex primary color)
+    // 2. Alpha ref is 0.5 to robustly discard alpha=0 chroma pixels
+    //    while keeping alpha=0xFF real pixels. The state-block-set ref of 1/255
+    //    doesn't survive to draw time due to D3D device lifetime issues.
+    if (isXYZRHW && dev->textures[0] && glIsEnabled(GL_ALPHA_TEST)) {
+        glActiveTexture(GL_TEXTURE0);
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+        glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE);
+        glAlphaFunc(GL_GEQUAL, 0.5f);
+    }
+#endif
 
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
@@ -1357,6 +1406,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         if (prevFog2) glEnable(GL_FOG); else glDisable(GL_FOG);
         if ((fvf & D3DFVF_SPECULAR) && !restoredViewportVB) {
             glFogi(GL_FOG_COORD_SRC, GL_FRAGMENT_DEPTH);
+            glFogi(GL_FOG_MODE, savedFogModeVB);
+            glFogf(GL_FOG_START, savedFogStartVB);
+            glFogf(GL_FOG_END, savedFogEndVB);
         }
         // Restore glViewport and depth test if we changed them
         if (restoredViewportVB) {
@@ -1436,6 +1488,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
         // bright white patches on terrain blocks that don't use multitexture.
         glBindTexture(GL_TEXTURE_2D, 0);
         glDisable(GL_TEXTURE_2D);
+        // FF_LINUX: Always restore active unit to GL_TEXTURE0 so subsequent
+        // glTexEnvi/glEnable(GL_TEXTURE_2D)/glIsEnabled calls target unit 0.
+        // Without this, SetTexture(1, NULL) leaves GL_TEXTURE1 active, causing
+        // all texture state queries and modifications to target the wrong unit.
+        glActiveTexture(GL_TEXTURE0);
         return D3D_OK;
     }
     if (lpTexture) {
@@ -1519,17 +1576,37 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                         }
                     }
                 }
-                // FF_LINUX: For X8R8G8B8 surfaces (DDPF_RGB without DDPF_ALPHAPIXELS),
-                // force alpha to 0xFF. In D3D7 the "X" byte is ignored, but OpenGL
-                // reads it as alpha. Palette-based terrain textures typically have
-                // alpha=0x00 in the unused byte, making them fully transparent in GL.
+                // FF_LINUX: For X8R8G8B8 surfaces without DDPF_ALPHAPIXELS and
+                // without color key, force alpha to 0xFF ONLY if the surface was NOT
+                // processed by Reload() with chroma keying. Palette textures have
+                // their alpha set correctly in tex.cpp Reload() (0xFF for normal pixels,
+                // 0x00 for chroma key pixels). Forcing alpha here would undo chroma
+                // transparency and produce blue rectangles on the cockpit canopy.
+                //
+                // Non-palette X8R8G8B8 surfaces that have all-zero alpha from their
+                // source data still need fixup, but we detect this by checking if ANY
+                // pixel already has non-zero alpha (meaning Reload set it correctly).
                 else if (bpp == 4 && !(surf->pixelFormat.dwFlags & DDPF_ALPHAPIXELS)) {
                     int pixelsPerRow = surf->pitch / 4;
                     DWORD* pixels = (DWORD*)surf->pixelData;
-                    for (int y = 0; y < surf->height; y++) {
+                    // Check if any pixel already has non-zero alpha (set by Reload)
+                    bool hasAlphaData = false;
+                    for (int y = 0; y < surf->height && !hasAlphaData; y++) {
                         DWORD* row = pixels + y * pixelsPerRow;
                         for (int x = 0; x < surf->width; x++) {
-                            row[x] |= 0xFF000000;  // Force alpha to fully opaque
+                            if (row[x] & 0xFF000000) {
+                                hasAlphaData = true;
+                                break;
+                            }
+                        }
+                    }
+                    // Only force alpha if no pixel has alpha set (raw X8R8G8B8 data)
+                    if (!hasAlphaData) {
+                        for (int y = 0; y < surf->height; y++) {
+                            DWORD* row = pixels + y * pixelsPerRow;
+                            for (int x = 0; x < surf->width; x++) {
+                                row[x] |= 0xFF000000;
+                            }
                         }
                     }
                 }
@@ -1613,6 +1690,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_ApplyStateBlock(IDirect3DDevice7* This,
     }
 
     RenderStateBlock& sb = dev->stateBlocks[dwBlockHandle];
+
+    // FF_LINUX: Ensure texture unit 0 is active before applying state.
+    // SetTexture(1, NULL) can leave GL_TEXTURE1 active, causing glTexEnvi/glEnable
+    // in ApplyTextureStageState to target the wrong unit.
+    glActiveTexture(GL_TEXTURE0);
 
     // Apply all stored render states
     for (auto& pair : sb.renderStates) {
@@ -2176,7 +2258,18 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
         case D3DTSS_COLOROP:
             switch (value) {
                 case D3DTOP_DISABLE:
-                    glDisable(GL_TEXTURE_2D);
+                    // FF_LINUX: Do NOT call glDisable(GL_TEXTURE_2D) here.
+                    // Only SetTexture() should control GL_TEXTURE_2D enable/disable.
+                    // COLOROP=DISABLE in D3D7 means "skip this stage, use vertex color."
+                    // Instead of disabling the texture unit (which leaks state into
+                    // subsequent draws that expect GL_TEXTURE_2D to still be enabled),
+                    // set GL_COMBINE to pass through vertex color. The null-texture check
+                    // in DrawIndexedPrimitiveVB handles the case where no texture is bound.
+                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_PRIMARY_COLOR);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_PRIMARY_COLOR);
                     break;
                 case D3DTOP_SELECTARG1:
                     // FF_LINUX: Do NOT call glEnable(GL_TEXTURE_2D) here.
@@ -2273,9 +2366,45 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                     break;
                 case D3DTOP_SELECTARG1:
                     glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+                    // FF_LINUX: Must also set SOURCE0_ALPHA based on current ALPHAARG1.
+                    // State blocks don't include ALPHAARG1, so a previous state's
+                    // COLOROP=DISABLE may have left SOURCE0_ALPHA=GL_PRIMARY_COLOR,
+                    // causing fragment alpha to come from vertex color (always 1.0)
+                    // instead of texture alpha. This breaks chroma key transparency.
+                    {
+                        auto arg1Key = std::make_pair(stage, (D3DTEXTURESTAGESTATETYPE)D3DTSS_ALPHAARG1);
+                        auto it = textureStageStates.find(arg1Key);
+                        DWORD arg1 = (it != textureStageStates.end()) ? it->second : D3DTA_TEXTURE;
+                        if (arg1 == D3DTA_TEXTURE)
+                            glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE);
+                        else if (arg1 == D3DTA_DIFFUSE)
+                            glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_PRIMARY_COLOR);
+                        else if (arg1 == D3DTA_CURRENT)
+                            glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_PREVIOUS);
+                    }
                     break;
                 case D3DTOP_MODULATE:
                     glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+                    // FF_LINUX: Set sources for modulate too
+                    {
+                        auto arg1Key = std::make_pair(stage, (D3DTEXTURESTAGESTATETYPE)D3DTSS_ALPHAARG1);
+                        auto it = textureStageStates.find(arg1Key);
+                        DWORD arg1 = (it != textureStageStates.end()) ? it->second : D3DTA_TEXTURE;
+                        if (arg1 == D3DTA_TEXTURE)
+                            glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE);
+                        else if (arg1 == D3DTA_DIFFUSE)
+                            glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_PRIMARY_COLOR);
+                        else if (arg1 == D3DTA_CURRENT)
+                            glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_PREVIOUS);
+
+                        auto arg2Key = std::make_pair(stage, (D3DTEXTURESTAGESTATETYPE)D3DTSS_ALPHAARG2);
+                        auto it2 = textureStageStates.find(arg2Key);
+                        DWORD arg2 = (it2 != textureStageStates.end()) ? it2->second : D3DTA_CURRENT;
+                        if (arg2 == D3DTA_TEXTURE)
+                            glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_TEXTURE);
+                        else if (arg2 == D3DTA_DIFFUSE || arg2 == D3DTA_CURRENT)
+                            glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_PRIMARY_COLOR);
+                    }
                     break;
                 default:
                     glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
@@ -2381,6 +2510,10 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     // FF_LINUX: Save GL state that XYZRHW handling will modify
     GLboolean prevLighting = GL_FALSE, prevFog = GL_FALSE;
 
+    // FF_LINUX: Ensure we're operating on texture unit 0.
+    // SetTexture(1, NULL) in SelectTexture1 leaves GL_TEXTURE1 as active unit.
+    glActiveTexture(GL_TEXTURE0);
+
     // FF_LINUX: Disable GL_TEXTURE_2D when no texture coordinates in FVF.
     // Otherwise stale textures from previous draws would modulate the vertex colors.
     int texCountCheck = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
@@ -2397,6 +2530,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     GLboolean prevDepthTestDV = GL_FALSE;
     GLboolean prevScissorDV = GL_FALSE;
     GLint savedScissorDV[4] = {0};
+    GLint savedFogModeDV = GL_EXP; GLfloat savedFogStartDV = 0, savedFogEndDV = 1;
     if (isXYZRHW) {
         // FF_LINUX: In D3D7, XYZRHW vertices are in absolute pixel coordinates and
         // bypass the viewport transform. Our GL emulation must match this by using
@@ -2474,7 +2608,11 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         // weather when FOGENABLE isn't set. D3D7 hardware/drivers apply this
         // automatically for TLVERTEX; GL needs explicit fog coord setup.
         // When specular alpha is 0xFF (no fog), fog_factor=1.0, no visual change.
+        // Save fog params so we can restore them for subsequent depth-based fog draws.
         if (fvf & D3DFVF_SPECULAR) {
+            glGetIntegerv(GL_FOG_MODE, &savedFogModeDV);
+            glGetFloatv(GL_FOG_START, &savedFogStartDV);
+            glGetFloatv(GL_FOG_END, &savedFogEndDV);
             glEnable(GL_FOG);
             glFogi(GL_FOG_COORD_SRC, GL_FOG_COORD);
             glFogi(GL_FOG_MODE, GL_LINEAR);
@@ -2494,6 +2632,17 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         disabledTexForNull_DV = true;
         glDisable(GL_TEXTURE_2D);
     }
+
+#ifdef FF_LINUX
+    // FF_LINUX: Fix chroma key transparency (see DrawIndexedPrimitiveVB for details)
+    if (isXYZRHW && textures[0] && glIsEnabled(GL_ALPHA_TEST)) {
+        glActiveTexture(GL_TEXTURE0);
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+        glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE);
+        glAlphaFunc(GL_GEQUAL, 0.5f);
+    }
+#endif
 
     glBegin(glPrimType);
 
@@ -2581,8 +2730,11 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         // Restore fog to previous state. We may have enabled it for specular-alpha fog.
         if (prevFog) glEnable(GL_FOG); else glDisable(GL_FOG);
         if (fvf & D3DFVF_SPECULAR) {
-            // Restore fog coord source to depth-based (default) after per-vertex fog
+            // Restore fog coord source and parameters for subsequent depth-based fog draws
             glFogi(GL_FOG_COORD_SRC, GL_FRAGMENT_DEPTH);
+            glFogi(GL_FOG_MODE, savedFogModeDV);
+            glFogf(GL_FOG_START, savedFogStartDV);
+            glFogf(GL_FOG_END, savedFogEndDV);
         }
         // Restore glViewport and depth test if we changed them
         if (restoredViewportDV) {
@@ -2727,7 +2879,7 @@ static HRESULT STDMETHODCALLTYPE D3D7_EnumDevices(IDirect3D7* This, void* cb, LP
     desc.dpcTriCaps.dwTextureCaps = D3DPTEXTURECAPS_PERSPECTIVE | D3DPTEXTURECAPS_ALPHA;
     desc.dpcTriCaps.dwShadeCaps = D3DPSHADECAPS_COLORGOURAUDRGB | D3DPSHADECAPS_ALPHAGOURAUDBLEND;
     desc.dpcTriCaps.dwZCmpCaps = D3DPCMPCAPS_LESSEQUAL | D3DPCMPCAPS_ALWAYS;
-    desc.dpcTriCaps.dwAlphaCmpCaps = D3DPCMPCAPS_ALWAYS;
+    desc.dpcTriCaps.dwAlphaCmpCaps = 0xFF;  // All alpha compare caps (see D3D7Dev_GetCaps comment)
     desc.dpcTriCaps.dwSrcBlendCaps = D3DPBLENDCAPS_SRCALPHA | D3DPBLENDCAPS_ONE | D3DPBLENDCAPS_ZERO;
     desc.dpcTriCaps.dwDestBlendCaps = D3DPBLENDCAPS_INVSRCALPHA | D3DPBLENDCAPS_ONE | D3DPBLENDCAPS_ZERO;
 

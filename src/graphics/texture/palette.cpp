@@ -486,7 +486,6 @@ void PaletteHandle::Load(UInt16 info, UInt16 PalBitsPerEntry, UInt16 index, UInt
 {
     ShiAssert(m_pIDDP and entries <= m_nNumEntries);
 
-
     if ( not m_pIDDP or not m_pPalData) return;
 
     if ((DWORD *) PalBuffer not_eq m_pPalData)

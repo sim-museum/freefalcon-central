@@ -182,6 +182,9 @@ void CPSurface::CreateLit(void)
         catch (_com_error e)
         {
             MonoPrint("CPSurface::CreateLit - Error 0x%X (%s)\n", e.Error(), e.ErrorMessage());
+#ifdef FF_LINUX
+            fprintf(stderr, "[CREATELIT] EXCEPTION: CPSurface::CreateLit failed: 0x%lX\n", (unsigned long)e.Error());
+#endif
             DiscardLit();
         }
     }

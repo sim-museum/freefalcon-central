@@ -1147,7 +1147,14 @@ bool TextureHandle::Reload()
                     {
                         dwTmp = pal[i];
 
+#ifdef FF_LINUX
+                        // FF_LINUX: Mask out alpha/peFlags byte for chroma comparison.
+                        // Palette entries have peFlags=0x00 in MSB, but m_dwChromaKey
+                        // has alpha=0xFF from RGBA_MAKE. Compare RGB only.
+                        if ((dwTmp & 0x00FFFFFF) != (m_dwChromaKey & 0x00FFFFFF))
+#else
                         if (dwTmp not_eq m_dwChromaKey)
+#endif
 #ifdef FF_LINUX
                             // FF_LINUX: Force opaque alpha for non-chroma palette entries.
                             // D3D7 ignores the alpha byte in X8R8G8B8 surfaces, but OpenGL
@@ -1158,8 +1165,10 @@ bool TextureHandle::Reload()
                             palette[i] = dwTmp;
 #endif
                         else
+                        {
                             // Zero alpha but preserve RGB for pre-alpha test filtering (0 == full transparent, 0xff == full opaque)
                             palette[i] = dwTmp bitand 0xffffff;
+                        }
                     }
 
                     BYTE *pSrc = m_pImageData;

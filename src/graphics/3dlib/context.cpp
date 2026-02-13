@@ -201,6 +201,13 @@ BOOL ContextMPR::Setup(ImageBuffer *pIB, DXContext *c)
         if ( not m_pIdx) throw _com_error(E_OUTOFMEMORY);
 
         // Setup our set of cached rendering states
+#ifdef FF_LINUX
+        // FF_LINUX: On Linux, each FF_CreateDirect3DDevice7() creates a brand new D3D7Device
+        // with empty state block storage. The CHECK_PREVIOUS_STATE flag causes SetupMPRState
+        // to skip state block creation if StateSetupCounter > 0, but the old state block
+        // handles are invalid on the new device. Force recreation every time.
+        StateSetupCounter = 0;
+#endif
         SetupMPRState(CHECK_PREVIOUS_STATE);
 
         // Initialise render states
