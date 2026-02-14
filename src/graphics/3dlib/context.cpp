@@ -1698,6 +1698,16 @@ void ContextMPR::SetCurrentState(GLint state, GLint flag)
             if (PlayerOptions.FilteringOn())
                 SetState(MPR_STA_TEX_FILTER, MPR_TX_BILINEAR);
 
+#ifdef FF_LINUX
+            // FF_LINUX: Disable GL_LIGHTING for multitextured terrain.
+            // Terrain uses pre-computed vertex colors via MODULATE (texture * vertex_color).
+            // Without this, GL_LIGHTING remains enabled from DXEngine (which sets
+            // ambient=0xff000000=black), causing vertex colors to go through the GL
+            // material/light pipeline and making terrain appear dark/black.
+            FlushVB();
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
+#endif
+
             //TEXTURESTAGE1
             m_pD3DD->SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_TEXTURE);
             m_pD3DD->SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
@@ -1740,6 +1750,12 @@ void ContextMPR::SetCurrentState(GLint state, GLint flag)
 
             if (PlayerOptions.FilteringOn())
                 SetState(MPR_STA_TEX_FILTER, MPR_TX_BILINEAR);
+
+#ifdef FF_LINUX
+            // FF_LINUX: Disable GL_LIGHTING for multitextured terrain (see STATE_MULTITEXTURE)
+            FlushVB();
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
+#endif
 
             //TEXTURESTAGE1
             m_pD3DD->SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
@@ -2157,6 +2173,15 @@ void ContextMPR::ApplyStateBlock(GLint state)
         {
             m_pD3DD->SetTexture(0, NULL);
         }
+
+        // FF_LINUX: Always disable GL_LIGHTING for polygon rendering.
+        // All FreeFalcon polygon states use pre-computed vertex colors via
+        // glColor4f (diffuse). GL_LIGHTING causes the lighting pipeline to
+        // override these vertex colors with material/light calculations.
+        // The DXEngine enables GL_LIGHTING for 3D objects, and this state
+        // leaks into polygon rendering (terrain, effects, etc.) causing
+        // dark/black terrain because ambient light = (0,0,0).
+        m_pD3DD->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
 #endif
     }
 }
@@ -2221,6 +2246,10 @@ void ContextMPR::RestoreState(GLint state)
             {
                 m_pD3DD->SetTexture(0, NULL);
             }
+
+            // FF_LINUX: Always disable GL_LIGHTING for polygon rendering
+            // (see ApplyStateBlock comment for details).
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
 #endif
         }
     }
