@@ -60,15 +60,24 @@ BOOL CreateSimCursors()
     int i;
 
     sprintf(pFilePath, "%s%s%s", FalconDataDirectory, SIM_CURSOR_DIR, SIM_CURSOR_FILE);
+#ifdef FF_LINUX
+    fprintf(stderr, "[CreateSimCursors] Trying to open: %s\n", pFilePath);
+#endif
     pCursorFile = SI_OPEN(pFilePath, "r");
 
     if (pCursorFile == NULL)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[CreateSimCursors] FAILED to open cursor file: %s\n", pFilePath);
+#endif
         return (FALSE);
     }
 
     if (fscanf(pCursorFile, "%d", &gTotalCursors) not_eq 1)
     {
+#ifdef FF_LINUX
+        fprintf(stderr, "[CreateSimCursors] FAILED to read cursor count\n");
+#endif
         return(FALSE);
     }
 
@@ -224,6 +233,10 @@ BOOL CreateSimCursors()
 
 
     SI_CLOSE(pCursorFile);
+
+#ifdef FF_LINUX
+    fprintf(stderr, "[CreateSimCursors] Loaded %d cursors from %s\n", gTotalCursors, pFilePath);
+#endif
 
     return(Result);
 }

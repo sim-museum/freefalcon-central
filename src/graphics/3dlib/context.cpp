@@ -432,7 +432,15 @@ void ContextMPR::StartFrame(void)
 
     HRESULT hr;
 
+#ifdef FF_LINUX
+    // FF_LINUX: Clear both color and depth buffers at frame start.
+    // D3D7 relies on the sky/terrain to overwrite every pixel, but on GL
+    // stale pixels from the previous frame can persist when switching
+    // between view modes (e.g., 2D cockpit → HUD-only view).
+    hr = m_pD3DD->Clear(NULL, NULL, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, 0, 1.f, NULL);
+#else
     hr = m_pD3DD->Clear(NULL, NULL, D3DCLEAR_ZBUFFER, 0, 1.f, NULL);
+#endif
 
     // if( bInBeginScene ) INT3; // ASSO: break if already in BeginScene
     if (bInBeginScene) m_pD3DD->EndScene();  // MD -- BUGBUG INT3; // ASSO: break if already in BeginScene

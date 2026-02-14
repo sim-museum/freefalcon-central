@@ -1408,7 +1408,6 @@ void RenderOTW::DrawGroundAndObjects(ObjectDisplayList *objectList)
 
     //START_PROFILE("In Ground");
 
-
     // Render all the require polygons from farthest to nearest
     for (span = spanList + 1; span < firstEmptySpan; span++)
     {

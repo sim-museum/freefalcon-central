@@ -159,7 +159,6 @@ BOOL SetupDIMouseAndKeyboard(HINSTANCE, HWND hWnd)
 {
 #ifdef FF_LINUX
     // On Linux, SDL handles mouse/keyboard input instead of DirectInput
-    // Return TRUE to indicate success - input is already set up via SDL
     gOccupiedBySim = TRUE;
     gSimInputEnabled = TRUE;
     gyFuzz = gxFuzz = 0;
@@ -169,6 +168,12 @@ BOOL SetupDIMouseAndKeyboard(HINSTANCE, HWND hWnd)
     SetupInputFunctions();
     gTimeLastMouseMove = vuxRealTime;
     gTimeLastCursorUpdate = vuxRealTime;
+
+    // FF_LINUX: Create sim cursors - must be done before returning!
+    // On Windows this is called further down in the function, but the
+    // Linux path returns early before reaching it.
+    CreateSimCursors();
+
     return TRUE;
 #endif
 

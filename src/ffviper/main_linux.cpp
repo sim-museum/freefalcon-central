@@ -2026,6 +2026,8 @@ bool ProcessGameMessages() {
 
             case FM_START_UI:
                 fprintf(stderr, "[FM] FM_START_UI received\n");
+                // FF_LINUX: Restore OS cursor for UI mode
+                SDL_SetRelativeMouseMode(SDL_FALSE);
                 // Re-acquire GL context on main thread if sim was running
                 if (!doUI) {
                     FF_AcquireGLContext();
@@ -2181,7 +2183,9 @@ bool ProcessGameMessages() {
                 fprintf(stderr, "[FM] GL context released, calling EndUI()...\n");
                 fflush(stderr);
                 EndUI();
-                fprintf(stderr, "[FM] EndUI() returned\n");
+                // FF_LINUX: Hide OS cursor and grab mouse for sim mode
+                SDL_SetRelativeMouseMode(SDL_TRUE);
+                fprintf(stderr, "[FM] EndUI() returned, relative mouse mode ON\n");
                 fflush(stderr);
                 break;
 
@@ -2192,6 +2196,7 @@ bool ProcessGameMessages() {
                 SimulationLoopControl::StartGraphics();
                 FF_ReleaseGLContext();
                 EndUI();
+                SDL_SetRelativeMouseMode(SDL_TRUE);
                 fprintf(stderr, "[FM] Main thread released GL context for sim\n");
                 break;
 
@@ -2202,6 +2207,7 @@ bool ProcessGameMessages() {
                 SimulationLoopControl::StartGraphics();
                 FF_ReleaseGLContext();
                 EndUI();
+                SDL_SetRelativeMouseMode(SDL_TRUE);
                 break;
 
             case FM_START_TACTICAL:
@@ -2211,6 +2217,7 @@ bool ProcessGameMessages() {
                 SimulationLoopControl::StartGraphics();
                 FF_ReleaseGLContext();
                 EndUI();
+                SDL_SetRelativeMouseMode(SDL_TRUE);
                 break;
 
             // =========================================================
@@ -2424,6 +2431,7 @@ static void main_loop(void) {
                 g_requestedPanel = 1100;
                 fprintf(stderr, "[VIEW_TEST] Requesting FRONT view (panel 1100)\n");
             }
+
         }
 
         // Simple frame rate limiting
