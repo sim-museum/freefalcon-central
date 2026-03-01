@@ -443,6 +443,15 @@ void VoiceFilter::PlayRadioMessage(
     CONVERSATION message;
     int eval = 0;
 
+#ifdef FF_LINUX
+    // FF_LINUX: If the voice system is not fully initialized, skip radio messages.
+    // VM, commfile, and fragfile all need to be valid for this function to work.
+    if (!VM || commfile.MaxComms() <= 0 || fragfile.MaxVoices() <= 0)
+    {
+        return;
+    }
+#endif
+
     // sfr: placing back original code and removing JB fucking hack which is wrong BTW, since
     // player entity can be an eject class instead of aircraft class...
     SimMoverClass *pEntity = SimDriver.GetPlayerEntity();
@@ -450,11 +459,11 @@ void VoiceFilter::PlayRadioMessage(
     if (
         // sfr: JB code commented out
         (
-            pEntity /* and not F4IsBadReadPtr(SimDriver.GetPlayerEntity(), sizeof(AircraftClass))*/ and 
+            pEntity /* and not F4IsBadReadPtr(SimDriver.GetPlayerEntity(), sizeof(AircraftClass))*/ and
             pEntity->IsEject()
         ) or
         (
-            VM /* and not F4IsBadReadPtr(VM, sizeof(VoiceManager))*/ and 
+            VM /* and not F4IsBadReadPtr(VM, sizeof(VoiceManager))*/ and
             VM->falconVoices[channel].exitChannel
         ) or
         killThread
@@ -495,10 +504,23 @@ void VoiceFilter::PlayRadioMessage(
 
     //commHdrInfo = (COMM_FILE_INFO *)dcommPtr;
     commHdrInfo = commfile.GetComm(msgid);
+#ifdef FF_LINUX
+    // FF_LINUX: GetData() may return NULL if the memory-mapped file is invalid
+    if (!commHdrInfo)
+    {
+        return;
+    }
+#endif
     ShiAssert(FALSE == F4IsBadReadPtr(commHdrInfo, sizeof * commHdrInfo));
     // use offset in  just aquired data to position pointer
     //dcommPtr = commData + commHdrInfo->commOffset;
     commInfo = commfile.GetCommInd(commHdrInfo);
+#ifdef FF_LINUX
+    if (!commInfo)
+    {
+        return;
+    }
+#endif
     ShiAssert(FALSE == F4IsBadReadPtr(commInfo, sizeof * commInfo * commHdrInfo->totalElements));
     // setup message structure with appropriate values
     message.message = msgid;

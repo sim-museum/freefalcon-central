@@ -221,8 +221,8 @@ char g_strLgbk[20];
 #endif
 	extern CampaignTime gConnectionTime;
 	extern CampaignTime gResendTime;
-	extern int gCampJoinStatus;
 #endif
+	extern int gCampJoinStatus;
 
 extern "C"
 {

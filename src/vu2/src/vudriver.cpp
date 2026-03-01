@@ -25,23 +25,7 @@
 #define TURN_TOLERANCE (2*PI / 10.0f)
 
 
-// useful constants
-#define VU_TICS_PER_SEC_INV         (1.0f/VU_TICS_PER_SECOND)
-
-// useful function
-/** returns time interval in seconds between the 2 timestamps. Returns negative if last_timestamp is bigger */
-inline double GetDT(VU_TIME timestamp, VU_TIME last_timestamp)
-{
-    // look out here, time is unsigned, hence the check
-    if (timestamp > last_timestamp)
-    {
-        return ((SM_SCALAR)(timestamp - last_timestamp)) * VU_TICS_PER_SEC_INV;
-    }
-    else
-    {
-        return -(((SM_SCALAR)(last_timestamp - timestamp)) * VU_TICS_PER_SEC_INV);
-    }
-}
+// GetDT is now defined inline in vudriver.h
 
 //////////////
 // VUDRIVER //

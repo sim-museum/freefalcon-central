@@ -7,7 +7,11 @@
 #include <comcat.h>
 #include <string>
 
+#ifdef FF_LINUX
+inline void CheckHR(HRESULT hr) { (void)hr; }
+#else
 inline void CheckHR(HRESULT hr);
+#endif
 
 //inline void CheckHR(HRESULT hr)
 //{

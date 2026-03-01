@@ -84,7 +84,7 @@ BOOL FileMemMap::Open(const char *filename, BOOL rw, BOOL nomap)
 
 BYTE *FileMemMap::GetData(int offset, int len)
 {
-    if (m_hMap == INVALID_HANDLE_VALUE or offset < 0 or offset + len > m_len)
+    if (m_hMap == INVALID_HANDLE_VALUE or m_Data == NULL or offset < 0 or offset + len > m_len)
         return NULL;
 
     return &m_Data[offset];

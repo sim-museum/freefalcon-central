@@ -158,7 +158,7 @@ void OTWDriverClass::ShowFlaps(void)
         }
         else
         {
-            showFlaps = true; // Retro 1Feb2004 so that we don´t enter here if the ac has no flaps anyway
+            showFlaps = true; // Retro 1Feb2004 so that we donï¿½t enter here if the ac has no flaps anyway
         }
     }
 }
@@ -494,7 +494,8 @@ void OTWDriverClass::ExitMenu(unsigned long i)
     else if ((i == DIK_E and endsAvail[0]) or (i == DIK_D and endsAvail[2]))
     {
         g_intellivibeData.IsEndFlight = true;
-        memcpy(gSharedIntellivibe, &g_intellivibeData, sizeof(g_intellivibeData));
+        if (gSharedIntellivibe)
+            memcpy(gSharedIntellivibe, &g_intellivibeData, sizeof(g_intellivibeData));
 
         if (i == DIK_D or tactical_is_training())
             endAbort = TRUE;

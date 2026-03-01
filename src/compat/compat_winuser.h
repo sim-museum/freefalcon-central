@@ -38,6 +38,7 @@ extern "C" {
 #define WM_ERASEBKGND       0x0014
 #define WM_SHOWWINDOW       0x0018
 #define WM_ACTIVATEAPP      0x001C
+#define WM_NCACTIVATE       0x0086
 #define WM_SETCURSOR        0x0020
 #define WM_MOUSEACTIVATE    0x0021
 #define WM_GETMINMAXINFO    0x0024

@@ -273,7 +273,8 @@ void AircraftClass::ApplyDamage(FalconDamageMessage* damageMessage)
         g_intellivibeData.lastdamage = octant + 1;
         g_intellivibeData.damageforce = (float)damageDone;
         g_intellivibeData.whendamage = SimLibElapsedTime;
-        memcpy(gSharedIntellivibe, &g_intellivibeData, sizeof(g_intellivibeData));
+        if (gSharedIntellivibe)
+            memcpy(gSharedIntellivibe, &g_intellivibeData, sizeof(g_intellivibeData));
     }
 
     // do any type specific stuff here:

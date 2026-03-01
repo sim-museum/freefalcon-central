@@ -529,9 +529,9 @@ void CloseAllRenderers(long openID)
 
 void LeaveCurrentGame()
 {
-    // KCK: This needs to NOT be here.
-    // if ( not FalconLocalGame)
-    // return;
+    // FF_LINUX: FalconLocalGame can be NULL during startup before a game is created
+    if ( not FalconLocalGame)
+        return;
 
     switch (FalconLocalGame->GetGameType())
     {
@@ -671,7 +671,8 @@ static void ExitTheGameCB(long , short hittype, C_Base *)
 #endif
 
     g_intellivibeData.IsExitGame = true;
-    memcpy(gSharedIntellivibe, &g_intellivibeData, sizeof(g_intellivibeData));
+    if (gSharedIntellivibe)
+        memcpy(gSharedIntellivibe, &g_intellivibeData, sizeof(g_intellivibeData));
 
     // PostMessage(gMainHandler->GetAppWnd(),FM_END_UI,0,0);
     PostMessage(gMainHandler->GetAppWnd(), FM_EXIT_GAME, 0, 0);

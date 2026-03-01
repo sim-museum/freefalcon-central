@@ -1225,7 +1225,8 @@ void SimulationLoopControl::StartLoop(void)
             OTWDriver.Reset3DParameters();
 
             g_intellivibeData.In3D = false;
-            memcpy(gSharedIntellivibe, &g_intellivibeData, sizeof(g_intellivibeData));
+            if (gSharedIntellivibe)
+                memcpy(gSharedIntellivibe, &g_intellivibeData, sizeof(g_intellivibeData));
 
             OTWDriver.ShowSimpleWaitScreen("leave");
         }

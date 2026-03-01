@@ -10,7 +10,18 @@ class VuEntity;
 class VuEvent;
 
 /** returns the dt for position computations based on time variation */
-inline double GetDT(VU_TIME timestamp, VU_TIME last_timestamp);
+inline double GetDT(VU_TIME timestamp, VU_TIME last_timestamp)
+{
+    const double tics_per_sec_inv = 1.0 / VU_TICS_PER_SECOND;
+    if (timestamp > last_timestamp)
+    {
+        return ((SM_SCALAR)(timestamp - last_timestamp)) * tics_per_sec_inv;
+    }
+    else
+    {
+        return -(((SM_SCALAR)(last_timestamp - timestamp)) * tics_per_sec_inv);
+    }
+}
 
 //////////////
 // VUDRIVER //

@@ -473,6 +473,12 @@ void SimulationDriver::Cycle()
     long elapsedTime;
     float gndz;
 
+    // FF_LINUX: FalconLocalSession may be NULL during early startup
+    if (!FalconLocalSession)
+    {
+        return;
+    }
+
     // Catch up for time elapsed
     //ShiAssert(lastRealTime <= vuxGameTime);
     if (lastRealTime > vuxGameTime)
@@ -808,7 +814,7 @@ void SimulationDriver::Pause(void)
     SetTimeCompression(0);
     F4SilenceVoices();
 
-    // And no, I don´t know if I need this..
+    // And no, I donï¿½t know if I need this..
     motionOn = 1;
     SimLibElapsedTime = vuxGameTime;
     UPDATE_SIM_ELAPSED_SECONDS; // COBRA - RED - Scale Elapsed Seconds

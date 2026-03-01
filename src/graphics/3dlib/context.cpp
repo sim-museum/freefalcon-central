@@ -4000,6 +4000,15 @@ void ContextMPR::DrawPrimitive(int nPrimType, WORD VtxInfo, WORD nVerts, MPRVtxT
                     pVtx->color = D3DRGBA(pData[i]->r, pData[i]->g, pData[i]->b, 1.f);
 
                 pVtx->specular = (min(255, FloatToInt32(pData[i]->a * 255.f)) << 24) + 0xFFFFFF;
+#ifdef FF_LINUX
+                // DIAG: Log first terrain vertex colors (once per 1000 frames)
+                static int terrDiagCount = 0;
+                if (i == 0 && (terrDiagCount++ % 5000) == 0) {
+                    fprintf(stderr, "[TERR_VTX] r=%.3f g=%.3f b=%.3f a=%.3f color=0x%08X spec=0x%08X state=%d tex1=%d tex2=%d\n",
+                            pData[i]->r, pData[i]->g, pData[i]->b, pData[i]->a,
+                            pVtx->color, pVtx->specular, currentState, currentTexture1, currentTexture2);
+                }
+#endif
             }
             else
             {

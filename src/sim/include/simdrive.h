@@ -55,17 +55,17 @@ public:
     /** are we running IA? */
     bool RunningInstantAction() const
     {
-        return FalconLocalGame->GetGameType() == game_InstantAction;
+        return FalconLocalGame && FalconLocalGame->GetGameType() == game_InstantAction;
     }
     /** are we running DF? */
     bool RunningDogfight() const
     {
-        return FalconLocalGame->GetGameType() == game_Dogfight;
+        return FalconLocalGame && FalconLocalGame->GetGameType() == game_Dogfight;
     }
     /** are we running TE? */
     bool RunningTactical() const
     {
-        return FalconLocalGame->GetGameType() == game_TacticalEngagement;
+        return FalconLocalGame && FalconLocalGame->GetGameType() == game_TacticalEngagement;
     }
     /** are we running CA? */
     bool RunningCampaign() const

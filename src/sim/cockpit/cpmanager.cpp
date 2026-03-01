@@ -390,7 +390,8 @@ CockpitManager::CockpitManager(
 
     if (eCPName)
     {
-        strcpy(m_eCPName, eCPName);
+        strncpy(m_eCPName, eCPName, sizeof(m_eCPName) - 1);
+        m_eCPName[sizeof(m_eCPName) - 1] = '\0';
 
         for (int i = 0; i < (int)strlen(m_eCPName); i++)
         {
@@ -398,7 +399,7 @@ CockpitManager::CockpitManager(
             {
                 if (i < (int)strlen(m_eCPName) - 1)
                 {
-                    strcpy(m_eCPName + i, m_eCPName + i + 1);
+                    memmove(m_eCPName + i, m_eCPName + i + 1, strlen(m_eCPName + i + 1) + 1);
                     i--;
                 }
                 else
@@ -409,7 +410,8 @@ CockpitManager::CockpitManager(
 
     if (eCPNameNCTR)
     {
-        strcpy(m_eCPNameNCTR, eCPNameNCTR);
+        strncpy(m_eCPNameNCTR, eCPNameNCTR, sizeof(m_eCPNameNCTR) - 1);
+        m_eCPNameNCTR[sizeof(m_eCPNameNCTR) - 1] = '\0';
 
         for (int i = 0; i < (int)strlen(m_eCPNameNCTR); i++)
         {
@@ -417,7 +419,7 @@ CockpitManager::CockpitManager(
             {
                 if (i < (int)strlen(m_eCPNameNCTR) - 1)
                 {
-                    strcpy(m_eCPName + i, m_eCPName + i + 1);
+                    memmove(m_eCPNameNCTR + i, m_eCPNameNCTR + i + 1, strlen(m_eCPNameNCTR + i + 1) + 1);
                     i--;
                 }
                 else
@@ -517,6 +519,13 @@ CockpitManager::CockpitManager(
     }
 
     F4Assert(pcockpitDataFile); //Error: Couldn't open file
+#ifdef FF_LINUX
+    if (!pcockpitDataFile)
+    {
+        fprintf(stderr, "[CockpitManager] ERROR: Failed to open cockpit file: %s\n", pCPFile);
+        return;
+    }
+#endif
     gDebugLineNum = 0;
 
     // Load Buffer creation for DEMO release
@@ -5413,10 +5422,16 @@ void CockpitManager::LoadCockpitDefaults(void)
     AircraftClass *playerAC = SimDriver.GetPlayerAircraft();
 
 #ifdef FF_LINUX
-    sprintf(dataFileName, "%s/config/%s.ini", FalconDataDirectory, LogBook.Callsign());
+    snprintf(dataFileName, sizeof(dataFileName), "%s/config/%s.ini", FalconDataDirectory, LogBook.Callsign());
 #else
     sprintf(dataFileName, "%s\\config\\%s.ini", FalconDataDirectory, LogBook.Callsign());
 #endif
+
+    // FF_LINUX: TheHud may not be initialized yet during early sim startup
+    if (!TheHud)
+    {
+        return;
+    }
 
     // Load HUD Data
     TheHud->SetHudColor(GetPrivateProfileInt("Hud", "Color", TheHud->GetHudColor(), dataFileName)); // COBRA - RED - NO MORE USED
@@ -6093,8 +6108,8 @@ int FindCockpit(
     // FO sfr: plane number is no more
     // try plane number
     // FRB - Make cockpits switchable with theater
-    sprintf(cockpitFolder, "%s", FalconCockpitThrDirectory);
-    sprintf(strCPFile, "%s" CP_PATH_SEP "%d" CP_PATH_SEP "%s", cockpitFolder, MapVisId(eCPVisType), pCPFile);
+    snprintf(cockpitFolder, sizeof(cockpitFolder), "%s", FalconCockpitThrDirectory);
+    snprintf(strCPFile, MAX_PATH, "%s" CP_PATH_SEP "%d" CP_PATH_SEP "%s", cockpitFolder, MapVisId(eCPVisType), pCPFile);
 
     if (FileExists(strCPFile))
     {
@@ -6106,8 +6121,8 @@ int FindCockpit(
     {
         std::string name = RemoveInvalidChars(string(eCPName, 15));
         // RV - Biker - Make cockpits switchable with theater
-        sprintf(cockpitFolder, "%s", FalconCockpitThrDirectory);
-        sprintf(strCPFile, "%s" CP_PATH_SEP "%s" CP_PATH_SEP "%s", cockpitFolder, name.c_str(), pCPFile);
+        snprintf(cockpitFolder, sizeof(cockpitFolder), "%s", FalconCockpitThrDirectory);
+        snprintf(strCPFile, MAX_PATH, "%s" CP_PATH_SEP "%s" CP_PATH_SEP "%s", cockpitFolder, name.c_str(), pCPFile);
 
         if (FileExists(strCPFile))
         {
@@ -6120,8 +6135,8 @@ int FindCockpit(
     {
         std::string nameNCTR = RemoveInvalidChars(string(eCPNameNCTR, 5));
         // RV - Biker - Make cockpits switchable with theater
-        sprintf(cockpitFolder, "%s", FalconCockpitThrDirectory);
-        sprintf(strCPFile, "%s" CP_PATH_SEP "%s" CP_PATH_SEP "%s", cockpitFolder, nameNCTR.c_str(), pCPFile);
+        snprintf(cockpitFolder, sizeof(cockpitFolder), "%s", FalconCockpitThrDirectory);
+        snprintf(strCPFile, MAX_PATH, "%s" CP_PATH_SEP "%s" CP_PATH_SEP "%s", cockpitFolder, nameNCTR.c_str(), pCPFile);
 
         if (FileExists(strCPFile))
         {
@@ -6133,8 +6148,8 @@ int FindCockpit(
     if (fallback)
     {
         // FRB - Make cockpits switchable with theater
-        sprintf(cockpitFolder, "%s", FalconCockpitThrDirectory);
-        sprintf(strCPFile, "%s" CP_PATH_SEP "%s", cockpitFolder, pCPFile);
+        snprintf(cockpitFolder, sizeof(cockpitFolder), "%s", FalconCockpitThrDirectory);
+        snprintf(strCPFile, MAX_PATH, "%s" CP_PATH_SEP "%s", cockpitFolder, pCPFile);
 
         if (FileExists(strCPFile))
         {
@@ -6145,8 +6160,8 @@ int FindCockpit(
     // RV - Biker - For fallback use standard cockpit directory
     if (fallback)
     {
-        sprintf(cockpitFolder, "%s", COCKPIT_DIR);
-        sprintf(strCPFile, "%s%s", cockpitFolder, pCPFile);
+        snprintf(cockpitFolder, sizeof(cockpitFolder), "%s", COCKPIT_DIR);
+        snprintf(strCPFile, MAX_PATH, "%s%s", cockpitFolder, pCPFile);
         return MapVisId(VIS_F16C);
     }
     else
