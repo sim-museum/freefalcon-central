@@ -293,12 +293,15 @@ void SimulationLoopControl::StartGraphics(void)
 // We only set a flag.  The graphics will actually stop later.
 void SimulationLoopControl::StopGraphics()
 {
+    fprintf(stderr, "[StopGraphics] Called, currentMode=%d (need RunningGraphics=%d)\n",
+            (int)currentMode, (int)RunningGraphics);
     // Don't stop until we're sure we're running
     while (currentMode not_eq RunningGraphics)
     {
         Sleep(50);
     }
 
+    fprintf(stderr, "[StopGraphics] Setting currentMode = StoppingGraphics\n");
     currentMode = StoppingGraphics;
 }
 
@@ -346,12 +349,28 @@ void SimulationLoopControl::Loop(void)
     do
     {
 #ifdef FF_LINUX
-        // On Linux, block during Step5 (StoppingGraphics) to avoid race conditions.
-        // Step2 cannot be completely blocked because RebuildBubble() is needed for deaggregation.
+        // On Linux, the Loop thread stays alive between missions (unlike Windows
+        // where it terminates). We need to handle the idle state safely.
+        // When currentMode == RunningSim, we're between missions - just sleep.
+        if (currentMode == RunningSim)
+        {
+            Sleep(50);
+            continue;
+        }
+        // On Linux, during Step5 (after StoppingGraphics) we still need to run
+        // SimDriver.Cycle() so it can process doExit/doGraphicsExit and signal
+        // the cleanup events. But skip everything else to avoid race conditions.
         if (currentMode == Step5)
         {
-            Sleep(10);  // Yield while waiting for state transition
-            continue;   // Skip this iteration entirely
+            Sleep(10);
+            vuxRealTime = GetTickCount();
+            RealTimeFunction(vuxRealTime, NULL);
+            if (currentMode == StoppingSim)
+                break;
+            CampEnterCriticalSection();
+            SimDriver.Cycle();
+            CampLeaveCriticalSection();
+            continue;
         }
         // During Step2, add a small yield to reduce contention but allow processing
         if (currentMode == Step2)
@@ -945,6 +964,9 @@ void SimulationLoopControl::StartLoop(void)
         fprintf(stderr, "[StartLoop] Starting deagg wait: flight=%p IsAggregate=%d\n",
                 (void*)flight, flight ? flight->IsAggregate() : -1);
 
+        // FF_LINUX: Reset deagg loop counter for each mission launch
+        int deagLoopCounter = 0;
+
         while (flight and flight->IsAggregate() and (delayCounter))
         {
 #ifdef FF_LINUX
@@ -969,7 +991,6 @@ void SimulationLoopControl::StartLoop(void)
             // Short sleep to avoid busy-waiting
             Sleep(100);
 
-            static int deagLoopCounter = 0;
             deagLoopCounter++;
             if (deagLoopCounter % 10 == 0)
             {
@@ -1017,6 +1038,8 @@ void SimulationLoopControl::StartLoop(void)
 
             fprintf(stderr, "[StartLoop] Waiting for SimDriver.GetPlayerEntity()...\n");
             // sfr: wait simDriver player entity
+            {
+            int simDriverWaitCount = 0;  // Reset each mission
             while (SimDriver.GetPlayerEntity() == NULL)
             {
 #ifdef FF_LINUX
@@ -1028,7 +1051,6 @@ void SimulationLoopControl::StartLoop(void)
                 ThreadManager::sim_signal_campaign();
                 ThreadManager::sim_wait_for_campaign(10);
 
-                static int simDriverWaitCount = 0;
                 simDriverWaitCount++;
                 // Timeout after ~30 seconds to prevent infinite loop
                 if (simDriverWaitCount > 300)
@@ -1038,6 +1060,7 @@ void SimulationLoopControl::StartLoop(void)
 #endif
                 Sleep(100);
             }
+            }  // end simDriverWaitCount scope
 
 #endif
             fprintf(stderr, "[StartLoop] SimDriver.GetPlayerEntity()=%p, calling SplashScreenUpdate(2)\n",
@@ -1222,13 +1245,16 @@ void SimulationLoopControl::StartLoop(void)
 #endif
 
             // Reset any remaining parameter like NVG, TV Mode and so...
+            fprintf(stderr, "[StartLoop] Reset3DParameters...\n");
             OTWDriver.Reset3DParameters();
 
             g_intellivibeData.In3D = false;
             if (gSharedIntellivibe)
                 memcpy(gSharedIntellivibe, &g_intellivibeData, sizeof(g_intellivibeData));
 
+            fprintf(stderr, "[StartLoop] ShowSimpleWaitScreen...\n");
             OTWDriver.ShowSimpleWaitScreen("leave");
+            fprintf(stderr, "[StartLoop] ShowSimpleWaitScreen done\n");
         }
         else
         {
@@ -1256,13 +1282,15 @@ void SimulationLoopControl::StartLoop(void)
 #endif
         // Moved up, to remove the annoying engine sound at standby screen...
         // end the sound effects.
+        fprintf(stderr, "[StartLoop] F4SoundFXEnd...\n");
         F4SoundFXEnd();
 
-        MonoPrint("Detaching the player...\n");
+        fprintf(stderr, "[StartLoop] AnnounceExit...\n");
 
         // Make sure to remove the player if we have one
         GameManager.AnnounceExit();
         // Remove all active cameras
+        fprintf(stderr, "[StartLoop] ClearCameras...\n");
         vuLocalSessionEntity->ClearCameras();
 
         // sfr: this is killing remote players when server exits bubble
@@ -1296,8 +1324,19 @@ void SimulationLoopControl::StartLoop(void)
         // SimDriver.Exit();
         // MonoPrint("Notifying it's time to exit\n");
         SimDriver.NotifyExit();
-        // MonoPrint("Waiting for wait_for_sim_cleanup\n");
         WaitForSingleObject(wait_for_sim_cleanup, 0xFFFFFFFF);
+#ifdef FF_LINUX
+        // FF_LINUX: Do NOT set currentMode = StoppingSim here!
+        // That would break the Loop() thread's do-while loop, killing it permanently.
+        // The Loop thread must stay alive in Step5 mode so it can be reused for
+        // the next mission launch. StartLoop() sets currentMode = RunningSim at the
+        // end of this iteration, which will naturally transition Loop() out of Step5.
+
+        // FF_LINUX: Call OTWDriver.Exit() to properly clean up sim resources.
+        // The Loop thread is safely idle in Step5 (no GL calls), so the GL context
+        // owned by this (StartLoop) thread is stable.
+        endAbort = OTWDriver.Exit();
+#else
         // MonoPrint("Cleaning up Graphics...\n");
         // SCR, calling OTW driver exit is NOT thread safe since
         // this will much with the display lists and drawables.
@@ -1306,6 +1345,7 @@ void SimulationLoopControl::StartLoop(void)
         SimDriver.NotifyGraphicsExit();
         // MonoPrint("Waiting for wait_for_graphics_cleanup\n");
         WaitForSingleObject(wait_for_graphics_cleanup, 0xFFFFFFFF);
+#endif
 
         abortMission = endAbort;
 
@@ -1324,7 +1364,6 @@ void SimulationLoopControl::StartLoop(void)
         // with a function per game type if necessary.
         if (SimDriver.RunningCampaignOrTactical())
         {
-            // MonoPrint("Posting message to main handler\n");
             if (abortMission)
             {
                 // Game aborted - reload current campaign

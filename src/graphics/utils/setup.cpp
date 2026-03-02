@@ -185,7 +185,7 @@ void DeviceDependentGraphicsCleanup(DisplayDevice *device)
     Render2D::Release3DFontSet(); // ASFO:
     DrawableParticleSys::ReleaseTexturesOnDevice(device->GetDefaultRC());
     // DrawableOvercast::ReleaseTexturesOnDevice( device->GetDefaultRC() );
-    realWeather->ReleaseTexturesOnDevice(device->GetDefaultRC()); //JAM 09Nov03
+    if (realWeather) realWeather->ReleaseTexturesOnDevice(device->GetDefaultRC()); //JAM 09Nov03
     RenderOTW::ReleaseTexturesOnDevice(device->GetDefaultRC());
     // Render2D::Release2DFontTextures(); //JAM 22Dec03
 

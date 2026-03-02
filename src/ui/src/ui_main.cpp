@@ -1360,11 +1360,13 @@ void GlobalSetup()
     gMovieMgr = new C_Movie;
     gMovieMgr->Setup();
 
+    fprintf(stderr, "[GlobalSetup] Creating C_Parser...\n"); fflush(stderr);
     gMainParser = new C_Parser;
     gMainParser->Setup(gMainHandler, gImageMgr, gFontList, gSoundMgr, gPopupMgr, gAnimMgr, gStringMgr, gMovieMgr);
 
     gMainParser->SetCheck(0); // Used to find which IDs are NOT used
 
+    fprintf(stderr, "[GlobalSetup] Loading ID lists...\n"); fflush(stderr);
     gMainParser->LoadIDList("userids.lst");
     gMainParser->LoadIDList("fontids.lst");
     gMainParser->LoadIDList("imageids.lst");
@@ -1617,6 +1619,9 @@ int UI_Startup()
     int i;
     DWORD r_mask, g_mask, b_mask;
 
+    fprintf(stderr, "[UI_Startup] ENTRY, FalconDisplay.currentMode=%d\n", (int)FalconDisplay.currentMode);
+    fflush(stderr);
+
     // OW
     //ShowCursor(TRUE);
     while (ShowCursor(TRUE) < 0);
@@ -1630,6 +1635,7 @@ int UI_Startup()
     // FalconDisplay.EnterMode(FalconDisplayConfiguration::UI);
 
     // M.N. Large UI
+    fprintf(stderr, "[UI_Startup] Calling EnterMode(UI)...\n"); fflush(stderr);
     if (g_bHiResUI)
     {
         FalconDisplay.EnterMode(
@@ -1642,6 +1648,7 @@ int UI_Startup()
             FalconDisplayConfiguration::UI, DisplayOptions.DispVideoCard, DisplayOptions.DispVideoDriver
         );
     }
+    fprintf(stderr, "[UI_Startup] EnterMode done, getting ImageBuffer...\n"); fflush(stderr);
 
     Primary = FalconDisplay.GetImageBuffer();
     Primary->GetColorMasks(&r_mask, &g_mask, &b_mask);

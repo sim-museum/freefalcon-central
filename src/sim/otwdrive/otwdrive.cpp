@@ -2648,7 +2648,7 @@ void OTWDriverClass::Enter(void)
 int OTWDriverClass::Exit(void)
 {
 #ifdef FF_LINUX
-    fprintf(stderr, "[OTWDriver.Exit] CALLED! this=%p, viewPoint=%p\n", (void*)this, (void*)viewPoint);
+    fprintf(stderr, "[OTWDriver.Exit] Cleaning up sim resources...\n");
     fflush(stderr);
 #endif
     otwPlatform.reset(NULL);
@@ -2658,21 +2658,16 @@ int OTWDriverClass::Exit(void)
     F4SoundLeaving3d(); // MLR 12/2/2003 - Stop all sounds when going back to the UI // MLR 1/25/2004 - changed function
 
     // Set ourselves "out of the sim"
-    // So we know we can't deaggregate anything else, create any new drawable objects or
-    // otherwise do anything stupid.
     SetActive(FALSE);
     SetGraphicsOwnship(NULL);
     ClearSfxLists();
     // Cobra - Clear the PS Alist
     DrawableParticleSys::ClearParticleList();
 
-
     SetShutdown(1);
-
 
     // Stop receiving time updates
     TheTimeManager.ReleaseTimeUpdateCB(TimeUpdateCallback, this);
-
 
     for (int i = 0; i < NUM_MFDS; i++)
     {
@@ -2762,8 +2757,19 @@ int OTWDriverClass::Exit(void)
     // sfr: we are changing gfx mode, flush loader
     TheLoader.WaitLoader();
 
+#ifdef FF_LINUX
+    // FF_LINUX: Skip DeviceDependentGraphicsCleanup() and FalconDisplay.LeaveMode() here.
+    // The GL texture cleanup (glDeleteTextures) crashes when called from the StartLoop thread,
+    // even though it owns the GL context. The textures will be cleaned up when:
+    // 1. DeviceDependentGraphicsCleanup() is called again at the start of OTWDriver.Enter()
+    //    (otwdrive.cpp:2075) before the next mission launch.
+    // 2. The application shuts down completely.
+    // FalconDisplay.LeaveMode() is also skipped because it calls DisplayDevice::Cleanup()
+    // which tears down the display device needed by the UI.
+#else
     DeviceDependentGraphicsCleanup(&FalconDisplay.theDisplayDevice);
     FalconDisplay.LeaveMode();
+#endif
     F4LeaveCriticalSection(cs_update); // JB 010616
 
     ejectCam = 0;
@@ -2809,6 +2815,10 @@ int OTWDriverClass::Exit(void)
     // FRB - Causes Recon to hang after leaving 3D
     //TheLoader.SetPause(true);
 
+#ifdef FF_LINUX
+    fprintf(stderr, "[OTWDriver.Exit] Cleanup complete\n");
+    fflush(stderr);
+#endif
     return endAbort;
 }
 

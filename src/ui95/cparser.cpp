@@ -592,6 +592,9 @@ void C_Parser::LoadIDList(char *filename)
     char *listfile, *lfp;
     long i;
 
+    fprintf(stderr, "[LoadIDList] Loading: %s\n", filename ? filename : "(null)");
+    fflush(stderr);
+
     memset(&WindowList_[0], 0, sizeof(long)*MAX_WINDOWS_IN_LIST);
     WinIndex_ = 0;
     WinLoaded_ = 0;
@@ -624,8 +627,18 @@ void C_Parser::LoadIDList(char *filename)
 
     size = UI_FILESIZE(ifp);
 
+    fprintf(stderr, "[LoadIDList] file size=%ld for %s\n", size, filename);
+    fflush(stderr);
+
     if ( not size)
     {
+        UI_CLOSE(ifp);
+        return;
+    }
+
+    if (size < 0 || size > 10*1024*1024) {
+        fprintf(stderr, "[LoadIDList] ERROR: Unreasonable size %ld for %s, skipping\n", size, filename);
+        fflush(stderr);
         UI_CLOSE(ifp);
         return;
     }

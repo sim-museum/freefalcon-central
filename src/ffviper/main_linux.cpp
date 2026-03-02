@@ -2452,6 +2452,19 @@ static void main_loop(void) {
                 }
                 viewPhase++;
             }
+
+            // Auto-exit after 15 seconds to test the exit flow
+            static bool autoExitTriggered = false;
+            if (simElapsed >= 15000 && !autoExitTriggered) {
+                autoExitTriggered = true;
+                fprintf(stderr, "[AUTO_TEST] Triggering auto-exit after 15 seconds...\n");
+                fflush(stderr);
+                extern int endAbort;
+                endAbort = 0;  // Normal exit (not abort) - go back to UI
+                SimulationLoopControl::StopGraphics();
+                fprintf(stderr, "[AUTO_TEST] StopGraphics() called\n");
+                fflush(stderr);
+            }
         }
 
         // Simple frame rate limiting

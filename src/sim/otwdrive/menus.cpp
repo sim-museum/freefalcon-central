@@ -493,6 +493,9 @@ void OTWDriverClass::ExitMenu(unsigned long i)
     }
     else if ((i == DIK_E and endsAvail[0]) or (i == DIK_D and endsAvail[2]))
     {
+        fprintf(stderr, "[ExitMenu] E/D pressed: i=%lu endsAvail=[%d,%d,%d] endFlightTimer=%lu vuxRealTime=%lu\n",
+                i, endsAvail[0], endsAvail[1], endsAvail[2],
+                (unsigned long)endFlightTimer, (unsigned long)vuxRealTime);
         g_intellivibeData.IsEndFlight = true;
         if (gSharedIntellivibe)
             memcpy(gSharedIntellivibe, &g_intellivibeData, sizeof(g_intellivibeData));

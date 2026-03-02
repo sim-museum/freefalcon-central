@@ -332,6 +332,13 @@ void OTWDriverClass::Cycle(void)
     // gets larger than it
     if (endFlightTimer not_eq 0)
     {
+#ifdef FF_LINUX
+        static int endFlightDbg = 0;
+        if (endFlightDbg++ % 60 == 0)
+            fprintf(stderr, "[EndFlight] timer=%lu vuxRealTime=%lu delta=%ld\n",
+                    (unsigned long)endFlightTimer, (unsigned long)vuxRealTime,
+                    (long)(vuxRealTime - endFlightTimer));
+#endif
         // make sure stuff is set correctly here (ie no hud, etc...)
         SetOTWDisplayMode(ModeChase);
 
