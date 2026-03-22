@@ -2178,10 +2178,13 @@ void ContextMPR::ApplyStateBlock(GLint state)
         // All FreeFalcon polygon states use pre-computed vertex colors via
         // glColor4f (diffuse). GL_LIGHTING causes the lighting pipeline to
         // override these vertex colors with material/light calculations.
-        // The DXEngine enables GL_LIGHTING for 3D objects, and this state
-        // leaks into polygon rendering (terrain, effects, etc.) causing
-        // dark/black terrain because ambient light = (0,0,0).
         m_pD3DD->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
+
+        // FF_LINUX: Always disable hardware face culling for software-pipeline polygons.
+        // State blocks may contain CULLMODE=D3DCULL_CW which re-enables GL_CULL_FACE,
+        // but the GL cull winding doesn't match the software renderer's screen-space
+        // winding. The z-buffer handles visibility; software culling is also disabled.
+        m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_NONE);
 #endif
     }
 }
@@ -2250,6 +2253,10 @@ void ContextMPR::RestoreState(GLint state)
             // FF_LINUX: Always disable GL_LIGHTING for polygon rendering
             // (see ApplyStateBlock comment for details).
             m_pD3DD->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
+
+            // FF_LINUX: Always disable hardware face culling for software-pipeline polygons
+            // (see ApplyStateBlock comment for details).
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_NONE);
 #endif
         }
     }
