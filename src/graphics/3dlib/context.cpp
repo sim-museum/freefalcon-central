@@ -2772,6 +2772,13 @@ void ContextMPR::RenderPolyList(SPolygon *&pHead)
     DWORD offset, vertcnt = 0, verttot = 0;
 
 #ifdef FF_LINUX
+    // FF_LINUX: Disable hardware face culling for the entire poly list render.
+    // Software-pipeline polygons (terrain, sky, effects) use XYZRHW vertices with
+    // screen-space winding that doesn't match the GL cull mode set for DXEngine objects.
+    // ApplyStateBlock may re-enable GL_CULL_FACE via CULLMODE state, so we must
+    // disable it here and restore after all draws complete.
+    m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_NONE);
+
     // Safety check for NULL head pointer
     if (!pHead) {
         FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList: pHead is NULL, returning\n");
@@ -2911,6 +2918,9 @@ void ContextMPR::RenderPolyList(SPolygon *&pHead)
     m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGTABLEMODE, D3DFOG_NONE);
 
 #ifdef FF_LINUX
+    // Restore hardware face culling for DXEngine objects
+    m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_CW);
+
     FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "  RenderPolyList[%lu] EXIT batches=%lu draws=%lu\n",
                           polyListCount, batchCount, drawCallCount);
     FF_DEBUG_RENDER_FLUSH();
