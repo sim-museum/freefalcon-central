@@ -2850,6 +2850,12 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         // FF_LINUX: Disable fog for all XYZRHW draws.
         glDisable(GL_FOG);
 
+        // FF_LINUX: Disable hardware face culling for XYZRHW draws.
+        // XYZRHW vertices are pre-transformed by the software pipeline which has
+        // its own face culling (now disabled on Linux). The GL cull mode is set
+        // for the DXEngine 3D pipeline and doesn't match XYZRHW screen-space winding.
+        glDisable(GL_CULL_FACE);
+
     }
 
     // FF_LINUX: Synchronize GL_TEXTURE_2D state with whether a texture is actually bound.
@@ -2961,8 +2967,9 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
 
         // Restore previous GL state (don't blindly enable - that corrupts state for subsequent draws)
         if (prevLighting) glEnable(GL_LIGHTING); else glDisable(GL_LIGHTING);
-        // Restore fog to previous state. We may have enabled it for specular-alpha fog.
         if (prevFog) glEnable(GL_FOG); else glDisable(GL_FOG);
+        // Restore face culling (was disabled for XYZRHW draws)
+        glEnable(GL_CULL_FACE);
         // Restore glViewport and depth test if we changed them
         if (restoredViewportDV) {
             glViewport(savedViewportDV[0], savedViewportDV[1], savedViewportDV[2], savedViewportDV[3]);
