@@ -1131,9 +1131,37 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitiveVB(IDirect3DDevice7* This,
     const char* startVertex = (const char*)vb->data + dwStartVertex * vertexSize;
 
     g_DrawPrimitiveVBCount++;
-
-    // FF_LINUX: NDC diagnostic for pit draws via DrawPrimitiveVB (point lists only; indexed VB handles triangles)
-    // Removed - DX engine uses DrawIndexedPrimitiveVB for pit geometry (INDEXED_MODE_ENGINE)
+    // FF_LINUX_DIAG: Same draw diagnostics as DrawIndexedPrimitiveVB
+    {
+        static int dpvbDiag = 0;
+        dpvbDiag++;
+        if (dpvbDiag <= 20 || (dpvbDiag % 500 == 0)) {
+            D3D7Surface* tex0 = (D3D7Surface*)dev->textures[0];
+            FILE* f = fopen("/tmp/ff_draw.log", "a");
+            if (f) {
+                fprintf(f, "[DRAWVB #%d] fvf=0x%X isRHW=%d verts=%d\n",
+                    dpvbDiag, vb->desc.dwFVF, (vb->desc.dwFVF & D3DFVF_XYZRHW)?1:0, dwNumVertices);
+                if (tex0) {
+                    fprintf(f, "  tex: %dx%d glId=%u bpp=%d dxt=0x%x\n",
+                        tex0->width, tex0->height, tex0->glTexture,
+                        tex0->pixelFormat.dwRGBBitCount, tex0->dxtFormat);
+                }
+                GLint envMode=0;
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &envMode);
+                // Also log depth, stencil, blend, alpha test state and first vertex pos
+                GLint depthFunc = 0;
+                glGetIntegerv(GL_DEPTH_FUNC, &depthFunc);
+                const char* startV = (const char*)vb->data + dwStartVertex * GetVertexSize(vb->desc.dwFVF);
+                const float* firstPos = (const float*)startV;
+                fprintf(f, "  envMode=0x%X tex2d=%d lighting=%d depth=%d depthWrite=%d depthFunc=0x%X stencil=%d blend=%d alphaTest=%d\n",
+                    envMode, glIsEnabled(GL_TEXTURE_2D), glIsEnabled(GL_LIGHTING),
+                    glIsEnabled(GL_DEPTH_TEST), 0, depthFunc,
+                    glIsEnabled(GL_STENCIL_TEST), glIsEnabled(GL_BLEND), glIsEnabled(GL_ALPHA_TEST));
+                fprintf(f, "  v0: x=%.1f y=%.1f z=%.4f rhw=%.4f\n", firstPos[0], firstPos[1], firstPos[2], firstPos[3]);
+                fclose(f);
+            }
+        }
+    }
 
     dev->DrawVertices(dptPrimitiveType, vb->desc.dwFVF, startVertex, dwNumVertices);
 
@@ -1151,8 +1179,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     int vertexSize = GetVertexSize(fvf);
     GLenum primType = dev->GetGLPrimitiveType(dptPrimitiveType);
     bool isXYZRHW = (fvf & D3DFVF_XYZRHW) != 0;
-
-    // FF_LINUX: Track DrawIndexedPrimitiveVB calls
     g_DrawIdxPrimVBCount++;
 
     // Pit NDC diagnostic removed - cockpit rendering working
@@ -1170,6 +1196,60 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         prevVB_Texture2D = glIsEnabled(GL_TEXTURE_2D);
         if (prevVB_Texture2D) {
             glDisable(GL_TEXTURE_2D);
+        }
+    }
+
+    // FF_LINUX: Disable GL_LIGHTING for non-XYZRHW draws that have vertex colors.
+    // Terrain vertex diffuse colors are PRE-LIT (StoreMPRPalette bakes in lighting).
+    // DXEngine enables GL_LIGHTING globally, causing double-lighting that makes
+    // terrain nearly black. Disable it here and restore after drawing.
+    GLboolean prevLightingVB = GL_FALSE;
+    if (!isXYZRHW && (fvf & D3DFVF_DIFFUSE)) {
+        prevLightingVB = glIsEnabled(GL_LIGHTING);
+        if (prevLightingVB) {
+            glDisable(GL_LIGHTING);
+        }
+    }
+    // FF_LINUX_DIAG: Log draw details including GL texture env state and viewport
+    {
+        static int vbDiag = 0;
+        vbDiag++;
+        if (vbDiag <= 30 || (vbDiag % 500 == 0)) {
+            D3D7Surface* tex0 = (D3D7Surface*)dev->textures[0];
+            FILE* f = fopen("/tmp/ff_draw.log", "a");
+            if (f) {
+                fprintf(f, "[DRAW #%d] fvf=0x%X isRHW=%d verts=%d idx=%d\n",
+                    vbDiag, fvf, isXYZRHW, dwNumVertices, dwIndexCount);
+                if (tex0) {
+                    fprintf(f, "  tex: %dx%d glId=%u bpp=%d dxt=0x%x flags=0x%x\n",
+                        tex0->width, tex0->height, tex0->glTexture,
+                        tex0->pixelFormat.dwRGBBitCount,
+                        tex0->dxtFormat, tex0->pixelFormat.dwFlags);
+                }
+                // Q3: Texture environment state
+                GLint envMode=0, combineRGB=0, src0=0, src1=0, op0=0, op1=0;
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &envMode);
+                if (envMode == GL_COMBINE) {
+                    glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_RGB, &combineRGB);
+                    glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE0_RGB, &src0);
+                    glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE1_RGB, &src1);
+                    glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND0_RGB, &op0);
+                    glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND1_RGB, &op1);
+                }
+                fprintf(f, "  envMode=0x%X combineRGB=0x%X src0=0x%X src1=0x%X op0=0x%X op1=0x%X\n",
+                    envMode, combineRGB, src0, src1, op0, op1);
+                // Q4: Viewport and scissor
+                GLint vp[4], sc[4];
+                glGetIntegerv(GL_VIEWPORT, vp);
+                glGetIntegerv(GL_SCISSOR_BOX, sc);
+                fprintf(f, "  viewport=(%d,%d,%d,%d) scissor=(%d,%d,%d,%d) scissorOn=%d\n",
+                    vp[0], vp[1], vp[2], vp[3], sc[0], sc[1], sc[2], sc[3],
+                    glIsEnabled(GL_SCISSOR_TEST));
+                fprintf(f, "  tex2d=%d lighting=%d depthTest=%d fog=%d\n",
+                    glIsEnabled(GL_TEXTURE_2D), glIsEnabled(GL_LIGHTING),
+                    glIsEnabled(GL_DEPTH_TEST), glIsEnabled(GL_FOG));
+                fclose(f);
+            }
         }
     }
 
@@ -1279,16 +1359,26 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     if (fvf & D3DFVF_SPECULAR) texOffset += sizeof(DWORD);
     int texCount = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
 
-    // FF_LINUX: If the device has no texture bound on stage 0 but GL_TEXTURE_2D is still
-    // enabled (can happen because ApplyStateBlock doesn't capture SetTexture calls),
-    // we must disable GL_TEXTURE_2D. Otherwise the draw gets modulated by a stale/empty
-    // texture, causing non-textured primitives (like the sky) to render as black.
+    // FF_LINUX: Synchronize GL_TEXTURE_2D state with whether a texture is actually bound.
+    // ApplyStateBlock doesn't capture SetTexture calls, so GL_TEXTURE_2D can become
+    // desynchronized from the device's texture binding state.
     GLboolean prevTex2D_forNullCheck = GL_FALSE;
     bool disabledTexForNullBinding = false;
     if (!dev->textures[0] && glIsEnabled(GL_TEXTURE_2D)) {
         prevTex2D_forNullCheck = GL_TRUE;
         disabledTexForNullBinding = true;
         glDisable(GL_TEXTURE_2D);
+    } else if (dev->textures[0] && !glIsEnabled(GL_TEXTURE_2D) && texCount > 0) {
+        // FF_LINUX: A texture is bound on the device but GL_TEXTURE_2D is not enabled.
+        // This happens because ApplyStateBlock sets texture env modes but doesn't
+        // call glEnable(GL_TEXTURE_2D) - only SetTexture does that. When terrain
+        // RestoreState is called with a textured state, the state block configures
+        // GL_COMBINE but leaves GL_TEXTURE_2D disabled from a previous non-textured draw.
+        D3D7Surface* tex0 = (D3D7Surface*)dev->textures[0];
+        if (tex0->glTexture) {
+            glBindTexture(GL_TEXTURE_2D, tex0->glTexture);
+            glEnable(GL_TEXTURE_2D);
+        }
     }
 
 #ifdef FF_LINUX
@@ -1530,6 +1620,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         }
     }
 
+    // Restore GL_LIGHTING if we disabled it for non-XYZRHW diffuse draws
+    if (prevLightingVB) {
+        glEnable(GL_LIGHTING);
+    }
+
     // Restore GL_TEXTURE_2D state if we disabled it
     if (texCountVB == 0 && prevVB_Texture2D) {
         glEnable(GL_TEXTURE_2D);
@@ -1638,6 +1733,26 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                 glCompressedTexImage2D(GL_TEXTURE_2D, 0, surf->dxtFormat,
                                        surf->width, surf->height, 0,
                                        surf->dxtDataSize, surf->pixelData);
+#ifdef FF_LINUX
+                // FF_LINUX_DIAG: Checksum DXT data at upload
+                {
+                    static int dxtUploadDiag = 0;
+                    dxtUploadDiag++;
+                    if (dxtUploadDiag <= 30 || (dxtUploadDiag % 200 == 0)) {
+                        unsigned int cksum = 0;
+                        for (int i = 0; i < surf->dxtDataSize; i += 4) {
+                            cksum += *(unsigned int*)(surf->pixelData + i);
+                        }
+                        FILE* f = fopen("/tmp/ff_draw.log", "a");
+                        if (f) {
+                            fprintf(f, "UPLOAD #dxt%d %dx%d isDDS=1 dxtFmt=0x%x dxtSize=%d cksum=0x%08X\n",
+                                dxtUploadDiag, surf->width, surf->height,
+                                surf->dxtFormat, surf->dxtDataSize, cksum);
+                            fclose(f);
+                        }
+                    }
+                }
+#endif
             } else {
                 // Uncompressed texture upload
                 int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
@@ -1712,29 +1827,25 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                              format, type, surf->pixelData);
 
 #ifdef FF_LINUX
-                // FF_LINUX_DIAG: Log texture pixel data for terrain texture debugging
+                // FF_LINUX_DIAG: Checksum texture pixel data at upload time
                 {
                     static int texUploadDiag = 0;
-                    if (bpp == 4 && texUploadDiag < 20 && surf->width >= 64) {
-                        texUploadDiag++;
-                        DWORD* pix = (DWORD*)surf->pixelData;
-                        int mid = surf->width * (surf->height / 2) + surf->width / 2;
-                        // Sample 4 pixels: first, center, and two others
-                        DWORD p0 = pix[0], p1 = pix[mid], p2 = pix[surf->width + 10];
-                        fprintf(stderr, "[TEX_UPLOAD #%d] %dx%d bpp=%d fmt=0x%x type=0x%x hasColorKey=%d alphaPix=%d\n",
-                            texUploadDiag, surf->width, surf->height, bpp*8,
-                            format, type, surf->hasColorKey,
-                            (surf->pixelFormat.dwFlags & DDPF_ALPHAPIXELS) ? 1 : 0);
-                        fprintf(stderr, "  pix[0]=0x%08X pix[center]=0x%08X pix[w+10]=0x%08X\n",
-                            p0, p1, p2);
-                        // Show as BGRA components (what GL sees with GL_BGRA + _8_8_8_8_REV)
-                        fprintf(stderr, "  p0: R=%d G=%d B=%d A=%d (BGRA_REV: B=%d G=%d R=%d A=%d)\n",
-                            (p0>>16)&0xFF, (p0>>8)&0xFF, p0&0xFF, (p0>>24)&0xFF,
-                            p0&0xFF, (p0>>8)&0xFF, (p0>>16)&0xFF, (p0>>24)&0xFF);
-                        fprintf(stderr, "  p1: R=%d G=%d B=%d A=%d (BGRA_REV: B=%d G=%d R=%d A=%d)\n",
-                            (p1>>16)&0xFF, (p1>>8)&0xFF, p1&0xFF, (p1>>24)&0xFF,
-                            p1&0xFF, (p1>>8)&0xFF, (p1>>16)&0xFF, (p1>>24)&0xFF);
-                        fflush(stderr);
+                    texUploadDiag++;
+                    if (texUploadDiag <= 50 || (texUploadDiag % 200 == 0)) {
+                        // Compute simple checksum over pixel data
+                        unsigned int cksum = 0;
+                        int totalBytes = surf->pitch * surf->height;
+                        for (int i = 0; i < totalBytes; i += 4) {
+                            cksum += *(unsigned int*)(surf->pixelData + i);
+                        }
+                        FILE* f = fopen("/tmp/ff_draw.log", "a");
+                        if (f) {
+                            fprintf(f, "UPLOAD #%d %dx%d bpp=%d isDDS=0 cksum=0x%08X flags=0x%x colorKey=%d pix0=0x%08X\n",
+                                texUploadDiag, surf->width, surf->height, bpp*8,
+                                cksum, surf->pixelFormat.dwFlags, surf->hasColorKey,
+                                *(unsigned int*)surf->pixelData);
+                            fclose(f);
+                        }
                     }
                 }
 #endif
@@ -2641,6 +2752,24 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         }
     }
 
+    // FF_LINUX: Disable GL_LIGHTING for non-XYZRHW draws with vertex colors.
+    // Same fix as DrawIndexedPrimitiveVB - terrain vertex colors are pre-lit.
+    GLboolean prevLightingDV = GL_FALSE;
+    if (!isXYZRHW && (fvf & D3DFVF_DIFFUSE)) {
+        prevLightingDV = glIsEnabled(GL_LIGHTING);
+        if (prevLightingDV) {
+            glDisable(GL_LIGHTING);
+        }
+    }
+    {
+        static int dvDiag = 0;
+        if (dvDiag < 10) {
+            dvDiag++;
+            FILE* f = fopen("/tmp/ff_draw.log", "a");
+            if (f) { fprintf(f, "[DV] fvf=0x%X isRHW=%d hasDiffuse=%d wasLit=%d nowLit=%d count=%d\n", fvf, isXYZRHW, (fvf & D3DFVF_DIFFUSE)?1:0, (int)prevLightingDV, glIsEnabled(GL_LIGHTING), count); fclose(f); }
+        }
+    }
+
     GLint savedViewportDV[4] = {0};
     bool restoredViewportDV = false;
     GLboolean prevDepthTestDV = GL_FALSE;
@@ -2723,13 +2852,18 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
 
     }
 
-    // FF_LINUX: If the device has no texture bound on stage 0 but GL_TEXTURE_2D is still
-    // enabled (can happen because ApplyStateBlock doesn't capture SetTexture calls),
-    // we must disable GL_TEXTURE_2D. Otherwise non-textured primitives render as black.
+    // FF_LINUX: Synchronize GL_TEXTURE_2D state with whether a texture is actually bound.
     bool disabledTexForNull_DV = false;
     if (!textures[0] && glIsEnabled(GL_TEXTURE_2D)) {
         disabledTexForNull_DV = true;
         glDisable(GL_TEXTURE_2D);
+    } else if (textures[0] && !glIsEnabled(GL_TEXTURE_2D) && texCountCheck > 0) {
+        // A texture is bound but GL_TEXTURE_2D is not enabled - fix the desync.
+        D3D7Surface* tex0 = (D3D7Surface*)textures[0];
+        if (tex0->glTexture) {
+            glBindTexture(GL_TEXTURE_2D, tex0->glTexture);
+            glEnable(GL_TEXTURE_2D);
+        }
     }
 
 #ifdef FF_LINUX
@@ -2783,6 +2917,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
             D3DColorToGL(color, &r, &g, &b, &a);
             // FF_LINUX: Force alpha=1 for FBO XYZRHW rendering (see DrawIndexedPrimitiveVB)
             if (restoredViewportDV && a == 0.0f) a = 1.0f;
+            // FF_LINUX_DIAG: vertex position diagnostics removed
             glColor4f(r, g, b, a);
             offset += sizeof(DWORD);
         }
@@ -2839,6 +2974,11 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
                 glDisable(GL_SCISSOR_TEST);
             }
         }
+    }
+
+    // Restore GL_LIGHTING if we disabled it for non-XYZRHW diffuse draws
+    if (prevLightingDV) {
+        glEnable(GL_LIGHTING);
     }
 
     // Restore GL_TEXTURE_2D state if we disabled it

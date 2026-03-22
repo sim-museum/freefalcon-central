@@ -146,125 +146,46 @@ void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int
     // If a new set of un-culled triangles was encountered, we'd have to make a new polygon
     // and resubmit it.
 #ifdef FF_LINUX
-    if (doDebug)
-    {
-        fprintf(stderr, "[ClipAndDraw3DFan] Backface culling? CullFlag=%d\n", CullFlag);
-        fflush(stderr);
-    }
-#endif
+    // FF_LINUX: Skip software face culling entirely on Linux.
+    // The software vertex transform (T matrix) is independent of Flip._13,
+    // but the screen-space winding test in this function incorrectly culls
+    // terrain triangles that need clipping (near terrain extending below camera).
+    // The z-buffer handles visibility correctly without software culling.
+    (void)CullFlag;
+#else
     if (CullFlag)
     {
-#ifdef FF_LINUX
-        if (doDebug)
-        {
-            fprintf(stderr, "[ClipAndDraw3DFan] Backface entry: inList=%p outList=%p nextOut=%p\n",
-                    (void*)inList, (void*)outList, (void*)nextOut);
-            fflush(stderr);
-        }
-#endif
         temp = inList;
         inList = outList;
         outList = temp;
         lastIn = nextOut - 1;
         nextOut = outList;
 
-#ifdef FF_LINUX
-        if (doDebug)
-        {
-            fprintf(stderr, "[ClipAndDraw3DFan] Backface after swap: inList=%p outList=%p lastIn=%p nextOut=%p\n",
-                    (void*)inList, (void*)outList, (void*)lastIn, (void*)nextOut);
-            fflush(stderr);
-        }
-#endif
         // We only support one flavor of clipping right now. The other version would just
         // be this same code repeated with inverted compare signs.
         ShiAssert(CullFlag == CULL_ALLOW_CW);
 
         // Always copy the vertex at the root of the fan
-#ifdef FF_LINUX
-        if (doDebug)
-        {
-            fprintf(stderr, "[ClipAndDraw3DFan] Copying root vertex: *inList=%p\n", (void*)*inList);
-            fflush(stderr);
-        }
-#endif
         *nextOut++ = *inList;
 
-#ifdef FF_LINUX
-        if (doDebug)
-        {
-            int vertCount = (int)(lastIn - inList) + 1;
-            fprintf(stderr, "[ClipAndDraw3DFan] Starting backface loop, &inList[1]=%p, vertCount=%d\n",
-                    (void*)&inList[1], vertCount);
-            fflush(stderr);
-        }
-#endif
         for (p = &inList[0], v = &inList[1]; v < lastIn; v++)
         {
-#ifdef FF_LINUX
-            if (doDebug)
-            {
-                fprintf(stderr, "[ClipAndDraw3DFan] Loop1 iteration: v=%p lastIn=%p\n", (void*)v, (void*)lastIn);
-                fflush(stderr);
-            }
-            // Check for NULL pointers before dereferencing
-            if (!*v || !*(v+1) || !*p) {
-                fprintf(stderr, "[ClipAndDraw3DFan] ERROR: NULL vertex in backface loop1: *v=%p *(v+1)=%p *p=%p\n",
-                        (void*)*v, (void*)*(v+1), (void*)*p);
-                fflush(stderr);
-                return;  // Avoid crash
-            }
-#endif
             // Only clockwise triangles are accepted
-            // FF_LINUX: Flip._13 = 1.0f reverses screen-space winding; swap < to >
-#ifdef FF_LINUX
-            if ((((*(v + 1))->y - (*v)->y)) * (((*p)->x - (*v)->x)) >
-                (((*(v + 1))->x - (*v)->x)) * (((*p)->y - (*v)->y)))
-#else
             if ((((*(v + 1))->y - (*v)->y)) * (((*p)->x - (*v)->x)) <
                 (((*(v + 1))->x - (*v)->x)) * (((*p)->y - (*v)->y)))
-#endif
             {
                 // Accept
                 break;
             }
         }
 
-#ifdef FF_LINUX
-        // Check bounds before accessing *v
-        if (v > lastIn) {
-            fprintf(stderr, "[ClipAndDraw3DFan] ERROR: v=%p > lastIn=%p after loop1\n", (void*)v, (void*)lastIn);
-            fflush(stderr);
-            return;
-        }
-        if (!*v) {
-            fprintf(stderr, "[ClipAndDraw3DFan] ERROR: *v is NULL after backface loop1\n");
-            fflush(stderr);
-            return;
-        }
-#endif
         *nextOut++ = *v;
 
         for (p, v; v < lastIn; v++)
         {
-#ifdef FF_LINUX
-            // Check for NULL pointers before dereferencing
-            if (!*v || !*(v+1) || !*p) {
-                fprintf(stderr, "[ClipAndDraw3DFan] ERROR: NULL vertex in backface loop2: *v=%p *(v+1)=%p *p=%p\n",
-                        (void*)*v, (void*)*(v+1), (void*)*p);
-                fflush(stderr);
-                return;  // Avoid crash
-            }
-#endif
             // Only clockwise triangles are accepted
-            // FF_LINUX: Flip._13 = 1.0f reverses screen-space winding; swap >= to <=
-#ifdef FF_LINUX
-            if ((((*(v + 1))->y - (*v)->y)) * (((*p)->x - (*v)->x)) <=
-                (((*(v + 1))->x - (*v)->x)) * (((*p)->y - (*v)->y)))
-#else
             if ((((*(v + 1))->y - (*v)->y)) * (((*p)->x - (*v)->x)) >=
                 (((*(v + 1))->x - (*v)->x)) * (((*p)->y - (*v)->y)))
-#endif
             {
                 // Reject
                 break;
@@ -277,8 +198,8 @@ void Render3D::ClipAndDraw3DFan(ThreeDVertex** vertPointers, unsigned count, int
 
         if (nextOut - outList <= 2)  return;
     }
-
 #endif
+#endif // DO_BACKFACE_CULLING
 
     // 2002-04-06 MN if gifPicture is false, then do the other clippings (for terrain and stuff).
     // GifPicture is only locally set to true in the case we draw a celestial object.

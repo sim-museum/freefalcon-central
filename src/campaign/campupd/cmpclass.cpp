@@ -2129,8 +2129,8 @@ void CampaignClass::Suspend(void)
             fprintf(stderr, "[FF_LINUX] CampaignClass::Suspend - waiting %d00ms...\n", waitCount);
             fflush(stderr);
         }
-        if (waitCount > 50) {  // 5 second timeout
-            fprintf(stderr, "[FF_LINUX] CampaignClass::Suspend - TIMEOUT after 5 seconds, breaking loop\n");
+        if (waitCount > 10) {  // 1 second timeout
+            fprintf(stderr, "[FF_LINUX] CampaignClass::Suspend - TIMEOUT after 1 second, breaking loop\n");
             fflush(stderr);
             break;
         }

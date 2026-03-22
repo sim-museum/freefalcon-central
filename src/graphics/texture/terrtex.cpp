@@ -1281,13 +1281,23 @@ void TextureDB::Select(ContextMPR *localContext, TextureID texID)
     int res = ExtractRes(texID);
     {
         static int selectCount = 0;
-        if (selectCount < 5) {
-            fprintf(stderr, "[TextureDB::Select] texID=0x%x set=%d tile=%d res=%d handle=%p (call #%d)\n",
-                texID, set, tile, res,
-                (set >= 0 && set < numSets && tile >= 0 && tile < TextureSets[set].numTiles)
-                    ? TextureSets[set].tiles[tile].handle[res] : NULL,
-                selectCount);
-            selectCount++;
+        selectCount++;
+        if (selectCount <= 10 || (selectCount % 500 == 0)) {
+            uintptr_t h = (set >= 0 && set < numSets && tile >= 0 && tile < TextureSets[set].numTiles)
+                    ? TextureSets[set].tiles[tile].handle[res] : 0;
+            FILE* f = fopen("/tmp/ff_draw.log", "a");
+            if (f) {
+                fprintf(f, "TERRAIN_TEX #%d texID=0x%x set=%d tile=%d res=%d handle=0x%lx hasBits=%d\n",
+                    selectCount, texID, set, tile, res, (unsigned long)h,
+                    (set >= 0 && set < numSets && tile >= 0 && tile < TextureSets[set].numTiles)
+                        ? (TextureSets[set].tiles[tile].bits[res] ? 1 : 0) : -1);
+                if (h) {
+                    TextureHandle* th = (TextureHandle*)h;
+                    fprintf(f, "  texHandle: m_pDDS=%p m_eSurfFmt=%d\n",
+                        th->m_pDDS, (int)th->m_eSurfFmt);
+                }
+                fclose(f);
+            }
         }
     }
 

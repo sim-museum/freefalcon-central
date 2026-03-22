@@ -870,13 +870,17 @@ void Render3D::DrawSquare(ThreeDVertex* v0, ThreeDVertex* v1, ThreeDVertex* v2, 
 
     if (CullFlag)
     {
-        // FF_LINUX: Flip._13 = 1.0f (vs -1.0f on Windows) reverses screen-space winding.
-        // Swap the CW/CCW interpretation for software face culling to compensate.
 #ifdef FF_LINUX
-        bool cwCheck = (CullFlag != CULL_ALLOW_CW);  // reversed
+        // FF_LINUX: Disable software face culling on Linux.
+        // The software vertex transform pipeline produces the same screen-space
+        // coordinates as Windows, but the terrain mesh winding is inconsistent
+        // after the Flip._13 change affects the D3D hardware pipeline state that
+        // interacts with the software-rendered vertex buffer. Hardware GL culling
+        // via glCullFace handles back-face removal for DXEngine objects instead.
+        (void)CullFlag;
+        // Skip all culling - let the z-buffer handle visibility
 #else
         bool cwCheck = (CullFlag == CULL_ALLOW_CW);
-#endif
 
         if (cwCheck)
         {
@@ -909,6 +913,7 @@ void Render3D::DrawSquare(ThreeDVertex* v0, ThreeDVertex* v1, ThreeDVertex* v2, 
                     useLast = FALSE;
             }
         }
+#endif
     }
 
     // If culling or clipping took care of both triangles, quit now
@@ -959,24 +964,21 @@ void Render3D::DrawTriangle(ThreeDVertex* v0, ThreeDVertex* v1, ThreeDVertex* v2
     if (CullFlag)
     {
 #ifdef FF_LINUX
-        bool cwCheck = (CullFlag != CULL_ALLOW_CW);  // reversed for Flip._13 winding
+        (void)CullFlag; // Skip software culling on Linux
 #else
         bool cwCheck = (CullFlag == CULL_ALLOW_CW);
-#endif
 
         if (cwCheck)
         {
-            // Decide if back facing CW
             if (((v2->y - v1->y)) * ((v0->x - v1->x)) > ((v2->x - v1->x)) * ((v0->y - v1->y)))
                 return;
         }
-
         else
         {
-            // Decide if back facing CCW
             if (((v2->y - v1->y)) * ((v0->x - v1->x)) < ((v2->x - v1->x)) * ((v0->y - v1->y)))
                 return;
         }
+#endif
     }
 
     // Draw the tri

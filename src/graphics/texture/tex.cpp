@@ -1582,6 +1582,20 @@ void TextureHandle::StaticInit(IDirect3DDevice7 *pD3DD)
         m_pD3DD->EnumTextureFormats(TextureSearchCallback, &ptsi[i]);
         ShiAssert(ptsi[i].bFoundGoodFormat)
     }
+#ifdef FF_LINUX
+    {
+        FILE* f = fopen("/tmp/ff_draw.log", "a");
+        if (f) {
+            fprintf(f, "[StaticInit] m_pD3DD=%p texMode=%d\n", m_pD3DD, DisplayOptions.m_texMode);
+            for (int i = 0; i < TEX_CAT_MAX; i++) {
+                fprintf(f, "  m_arrPF[%d]: bpp=%d flags=0x%x found=%d rMask=0x%x\n",
+                    i, m_arrPF[i].dwRGBBitCount, m_arrPF[i].dwFlags,
+                    ptsi[i].bFoundGoodFormat, m_arrPF[i].dwRBitMask);
+            }
+            fclose(f);
+        }
+    }
+#endif
 }
 
 void TextureHandle::StaticCleanup()

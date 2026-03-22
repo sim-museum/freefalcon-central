@@ -2895,7 +2895,6 @@ void ContextMPR::RenderPolyList(SPolygon *&pHead)
                     SetTexture2(pCur->textureID1);
                 }
 
-
                 verttot = pCur->numVertices;
                 m_pD3DD->DrawPrimitiveVB(D3DPT_TRIANGLEFAN, m_pVBB, vertcnt, verttot, 0);
 

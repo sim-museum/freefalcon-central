@@ -32,6 +32,9 @@ void RenderOTW::DrawTerrainSquare(int r, int c, int LOD)
 
 
     // Get the vertecies required to draw this square
+#ifdef FF_LINUX
+    if (!vertexBuffer[LOD]) return;
+#endif
     v0 = vertexBuffer[LOD] + maxSpanExtent * r + c; // South-West
     v1 = vertexBuffer[LOD] + maxSpanExtent * (r + 1) + c; // North-West
     v2 = v0 + 1; // South-East
@@ -114,6 +117,21 @@ void RenderOTW::DrawTerrainSquare(int r, int c, int LOD)
 #endif
     }
 
+    // FF_LINUX_DIAG: Log terrain draw calls and force green diffuse for visibility test
+#ifdef FF_LINUX
+    {
+        static int terrDrawCount = 0;
+        terrDrawCount++;
+        if (terrDrawCount <= 50 || (terrDrawCount % 500 == 0)) {
+            FILE* f = fopen("/tmp/ff_draw.log", "a");
+            if (f) {
+                fprintf(f, "TERRAIN_DRAW #%d r=%d c=%d LOD=%d maxSpan=%d vbuf=%p\n",
+                    terrDrawCount, r, c, LOD, maxSpanExtent, (void*)vertexBuffer[LOD]);
+                fclose(f);
+            }
+        }
+    }
+#endif
     // Draw the square
     DrawSquare(v0, v1, v3, v2, CULL_ALLOW_CW, false, true); //JAM 14Sep03
 }

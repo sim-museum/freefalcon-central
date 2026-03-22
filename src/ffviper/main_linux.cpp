@@ -2425,19 +2425,7 @@ static void main_loop(void) {
                 const char* desc;
             };
             static const ViewTestStep steps[] = {
-                {  3000, 1, 1100, NULL,                       "Cockpit front panel" },
-                {  6000, -1, -1, "/tmp/ff_pit_front.bmp",     "Screenshot front" },
-                {  8000, -1, 600, NULL,                       "Left panel" },
-                { 11000, -1, -1, "/tmp/ff_pit_left.bmp",      "Screenshot left" },
-                { 13000, -1, 700, NULL,                       "Right panel" },
-                { 16000, -1, -1, "/tmp/ff_pit_right.bmp",     "Screenshot right" },
-                { 18000, -1, 100, NULL,                       "Down panel" },
-                { 21000, -1, -1, "/tmp/ff_pit_down.bmp",      "Screenshot down" },
-                { 23000, 0, -1, NULL,                         "HUD-only view" },
-                { 26000, -1, -1, "/tmp/ff_view_hud.bmp",      "Screenshot HUD" },
-                { 28000, 3, -1, NULL,                         "Orbit view" },
-                { 31000, -1, -1, "/tmp/ff_view_orbit.bmp",    "Screenshot orbit" },
-                { 33000, 1, 1100, NULL,                       "Back to cockpit front" },
+                {  2000, 1, 1100, NULL,                       "Cockpit front panel" },
             };
             static const int numSteps = sizeof(steps) / sizeof(steps[0]);
 
@@ -2455,7 +2443,7 @@ static void main_loop(void) {
 
             // Auto-exit after 15 seconds to test the exit flow
             static bool autoExitTriggered = false;
-            if (simElapsed >= 15000 && !autoExitTriggered) {
+            if (simElapsed >= 120000 && !autoExitTriggered) {
                 autoExitTriggered = true;
                 fprintf(stderr, "[AUTO_TEST] Triggering auto-exit after 15 seconds...\n");
                 fflush(stderr);
