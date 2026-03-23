@@ -328,6 +328,22 @@ void CPSurface::DisplayBlit3D(BYTE blitType, BOOL Persistance, RECT *pDestRect, 
             OTWDriver.pCockpitManager->AddTurbulence(pVtx);
 
             // Setup state
+#ifdef FF_LINUX
+            {
+                static int cpDiag = 0;
+                if (cpDiag < 20) {
+                    cpDiag++;
+                    FILE* df = fopen("/tmp/ff_cockpit.log", "a");
+                    if (df) {
+                        fprintf(df, "[COCKPIT_TEX #%d] blitType=%d tex=%dx%d chromaKey=0x%X flags=0x%X surfFmt=%d rect=(%ld,%ld,%ld,%ld)\n",
+                            cpDiag, blitType, pTex->m_nWidth, pTex->m_nHeight,
+                            pTex->m_dwChromaKey, pTex->m_dwFlags, (int)pTex->m_eSurfFmt,
+                            destRect.left, destRect.top, destRect.right, destRect.bottom);
+                        fclose(df);
+                    }
+                }
+            }
+#endif
             if (blitType == TRANSPARENT)
             {
                 if (g_bFilter2DPit) //Wombat778 3-30-04 Added option to filter

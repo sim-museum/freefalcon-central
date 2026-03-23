@@ -1838,12 +1838,26 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                         for (int i = 0; i < totalBytes; i += 4) {
                             cksum += *(unsigned int*)(surf->pixelData + i);
                         }
+                        // Count alpha=0 (transparent) and alpha=0xFF (opaque) pixels
+                        int alpha0 = 0, alphaFF = 0, alphaOther = 0;
+                        if (bpp == 4) {
+                            int pixPerRow = surf->pitch / 4;
+                            for (int y2 = 0; y2 < surf->height; y2++) {
+                                DWORD* row2 = (DWORD*)surf->pixelData + y2 * pixPerRow;
+                                for (int x2 = 0; x2 < surf->width; x2++) {
+                                    DWORD a = (row2[x2] >> 24) & 0xFF;
+                                    if (a == 0) alpha0++;
+                                    else if (a == 0xFF) alphaFF++;
+                                    else alphaOther++;
+                                }
+                            }
+                        }
                         FILE* f = fopen("/tmp/ff_draw.log", "a");
                         if (f) {
-                            fprintf(f, "UPLOAD #%d %dx%d bpp=%d isDDS=0 cksum=0x%08X flags=0x%x colorKey=%d pix0=0x%08X\n",
+                            fprintf(f, "UPLOAD #%d %dx%d bpp=%d flags=0x%x colorKey=%d pix0=0x%08X a0=%d aFF=%d aOther=%d\n",
                                 texUploadDiag, surf->width, surf->height, bpp*8,
-                                cksum, surf->pixelFormat.dwFlags, surf->hasColorKey,
-                                *(unsigned int*)surf->pixelData);
+                                surf->pixelFormat.dwFlags, surf->hasColorKey,
+                                *(unsigned int*)surf->pixelData, alpha0, alphaFF, alphaOther);
                             fclose(f);
                         }
                     }
@@ -3339,7 +3353,38 @@ static HRESULT STDMETHODCALLTYPE DDS7_Blt(IDirectDrawSurface7* This, LPRECT lpDe
         int srcW = lpSrcRect ? (lpSrcRect->right - lpSrcRect->left) : src->width;
         int srcH = lpSrcRect ? (lpSrcRect->bottom - lpSrcRect->top) : src->height;
 
-        CopySurfacePixels(dst, dstX, dstY, dstW, dstH, src, srcX, srcY, srcW, srcH);
+        // FF_LINUX: Handle DDBLT_KEYSRC - skip pixels matching source color key
+        if ((dwFlags & DDBLT_KEYSRC) && src->hasColorKey && src->pixelData && dst->pixelData) {
+            int dBpp = dst->pixelFormat.dwRGBBitCount ? dst->pixelFormat.dwRGBBitCount / 8 : 4;
+            int sBpp = src->pixelFormat.dwRGBBitCount ? src->pixelFormat.dwRGBBitCount / 8 : 4;
+            DWORD rgbMask = src->pixelFormat.dwRBitMask | src->pixelFormat.dwGBitMask | src->pixelFormat.dwBBitMask;
+            DWORD ckRGB = src->colorKeyLow & rgbMask;
+
+            int copyW = (srcW < dstW) ? srcW : dstW;
+            int copyH = (srcH < dstH) ? srcH : dstH;
+            if (dstX < 0) { srcX -= dstX; copyW += dstX; dstX = 0; }
+            if (dstY < 0) { srcY -= dstY; copyH += dstY; dstY = 0; }
+            if (dstX + copyW > dst->width) copyW = dst->width - dstX;
+            if (dstY + copyH > dst->height) copyH = dst->height - dstY;
+            if (srcX + copyW > src->width) copyW = src->width - srcX;
+            if (srcY + copyH > src->height) copyH = src->height - srcY;
+
+            if (copyW > 0 && copyH > 0 && sBpp == 4 && dBpp == 4) {
+                for (int y = 0; y < copyH; y++) {
+                    DWORD* dstRow = (DWORD*)(dst->pixelData + (dstY + y) * dst->pitch) + dstX;
+                    DWORD* srcRow = (DWORD*)(src->pixelData + (srcY + y) * src->pitch) + srcX;
+                    for (int x = 0; x < copyW; x++) {
+                        if ((srcRow[x] & rgbMask) != ckRGB) {
+                            dstRow[x] = srcRow[x];
+                        }
+                    }
+                }
+            } else if (copyW > 0 && copyH > 0) {
+                CopySurfacePixels(dst, dstX, dstY, copyW, copyH, src, srcX, srcY, copyW, copyH);
+            }
+        } else {
+            CopySurfacePixels(dst, dstX, dstY, dstW, dstH, src, srcX, srcY, srcW, srcH);
+        }
         dst->isDirty = true;
     }
 
@@ -3351,7 +3396,7 @@ static HRESULT STDMETHODCALLTYPE DDS7_BltBatch(IDirectDrawSurface7* This, LPDDBL
 }
 
 static HRESULT STDMETHODCALLTYPE DDS7_BltFast(IDirectDrawSurface7* This, DWORD dwX, DWORD dwY, IDirectDrawSurface7* lpDDSrcSurface, LPRECT lpSrcRect, DWORD dwTrans) {
-    D3DGL_LOG("DDS7 BltFast %d,%d", dwX, dwY);
+    D3DGL_LOG("DDS7 BltFast %d,%d trans=0x%x", dwX, dwY, dwTrans);
 
     if (!lpDDSrcSurface) return DDERR_INVALIDPARAMS;
 
@@ -3366,7 +3411,55 @@ static HRESULT STDMETHODCALLTYPE DDS7_BltFast(IDirectDrawSurface7* This, DWORD d
     int srcW = lpSrcRect ? (lpSrcRect->right - lpSrcRect->left) : src->width;
     int srcH = lpSrcRect ? (lpSrcRect->bottom - lpSrcRect->top) : src->height;
 
-    CopySurfacePixels(dst, dwX, dwY, srcW, srcH, src, srcX, srcY, srcW, srcH);
+    // FF_LINUX: Handle DDBLTFAST_SRCCOLORKEY - skip pixels matching source color key.
+    // This implements DirectDraw's source color key transparency for 2D cockpit overlay.
+    // Without this, chroma-key pixels are copied opaquely, covering the 3D terrain.
+    {
+        static int bltDiag = 0;
+        if (bltDiag < 10) {
+            bltDiag++;
+            FILE* f = fopen("/tmp/ff_cockpit.log", "a");
+            if (f) {
+                fprintf(f, "[BLTFAST #%d] dwTrans=0x%x hasColorKey=%d ckLow=0x%x srcW=%d srcH=%d\n",
+                    bltDiag, dwTrans, src->hasColorKey, src->colorKeyLow, srcW, srcH);
+                fclose(f);
+            }
+        }
+    }
+    if ((dwTrans & DDBLTFAST_SRCCOLORKEY) && src->hasColorKey && src->pixelData && dst->pixelData) {
+        int dstBpp = dst->pixelFormat.dwRGBBitCount ? dst->pixelFormat.dwRGBBitCount / 8 : 4;
+        int srcBpp = src->pixelFormat.dwRGBBitCount ? src->pixelFormat.dwRGBBitCount / 8 : 4;
+        DWORD rgbMask = src->pixelFormat.dwRBitMask | src->pixelFormat.dwGBitMask | src->pixelFormat.dwBBitMask;
+        DWORD ckRGB = src->colorKeyLow & rgbMask;
+
+        int copyW = srcW, copyH = srcH;
+        int dX = (int)dwX, dY = (int)dwY;
+        // Clip
+        if (dX < 0) { srcX -= dX; copyW += dX; dX = 0; }
+        if (dY < 0) { srcY -= dY; copyH += dY; dY = 0; }
+        if (dX + copyW > dst->width) copyW = dst->width - dX;
+        if (dY + copyH > dst->height) copyH = dst->height - dY;
+        if (srcX + copyW > src->width) copyW = src->width - srcX;
+        if (srcY + copyH > src->height) copyH = src->height - srcY;
+
+        if (copyW > 0 && copyH > 0 && srcBpp == 4 && dstBpp == 4) {
+            for (int y = 0; y < copyH; y++) {
+                DWORD* dstRow = (DWORD*)(dst->pixelData + (dY + y) * dst->pitch) + dX;
+                DWORD* srcRow = (DWORD*)(src->pixelData + (srcY + y) * src->pitch) + srcX;
+                for (int x = 0; x < copyW; x++) {
+                    if ((srcRow[x] & rgbMask) != ckRGB) {
+                        dstRow[x] = srcRow[x];
+                    }
+                    // else: skip (transparent) - destination pixel preserved
+                }
+            }
+        } else if (copyW > 0 && copyH > 0) {
+            // Fallback for non-32bpp: just copy without transparency
+            CopySurfacePixels(dst, dX, dY, copyW, copyH, src, srcX, srcY, copyW, copyH);
+        }
+    } else {
+        CopySurfacePixels(dst, dwX, dwY, srcW, srcH, src, srcX, srcY, srcW, srcH);
+    }
     dst->isDirty = true;
 
     return DD_OK;

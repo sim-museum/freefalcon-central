@@ -721,6 +721,15 @@ void ImageBuffer::SetChromaKey(UInt32 colorKey)
 
     // Submit the request to DirectDraw
     HRESULT hr = m_pDDSFront->SetColorKey(DDCKEY_SRCBLT, &key);
+
+#ifdef FF_LINUX
+    // FF_LINUX: Also set color key on back buffer. ComposeTransparent blits from
+    // m_pDDSBack with DDBLTFAST_SRCCOLORKEY, so the back buffer needs the color key
+    // too for the D3D compat layer to skip transparent pixels.
+    if (m_pDDSBack) {
+        m_pDDSBack->SetColorKey(DDCKEY_SRCBLT, &key);
+    }
+#endif
 }
 
 // Convert a 32 bit alpha, blue, green, red color to a 16 bit pixel
