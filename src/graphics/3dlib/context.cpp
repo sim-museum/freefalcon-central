@@ -299,8 +299,20 @@ void ContextMPR::Cleanup()
 #endif
 #endif
 
+#ifdef FF_LINUX
+    // FF_LINUX: Do NOT clear the shared static StateTable here. Every context
+    // Setup() force-re-records all state blocks on its own device (see the
+    // StateSetupCounter=0 note in Setup), and block handles coincide
+    // numerically across devices - so surviving contexts keep working with
+    // the shared handles. CleanupMPRState() would zero StateTable when any
+    // context dies (e.g. a cockpit RTT canvas on a view switch), leaving the
+    // terrain context applying handle 0: fog/light state goes stale and the
+    // terrain renders black. The per-device blocks die with their device.
+    StateSetupCounter = 0;
+#else
     if (StateSetupCounter)
         CleanupMPRState(CHECK_PREVIOUS_STATE);
+#endif
 
     // Warning: The SIM code uses a shared DXContext which might be already toast when this function gets called
     // Under no circumstances access m_pCtxDX here
