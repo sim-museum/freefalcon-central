@@ -1934,10 +1934,37 @@ static void handle_sdl_events(void) {
             case SDL_JOYAXISMOTION:
                 if (event.jaxis.which == g_JoystickIndex && event.jaxis.axis < 16) {
                     g_JoystickAxes[event.jaxis.axis] = event.jaxis.value;
+
+                    // FF_LINUX: axis discovery - log the first few events per axis
+                    // so users can identify their throttle axis, and allow
+                    // remapping via FF_THROTTLE_AXIS / FF_YAW_AXIS env vars.
+                    {
+                        static int s_axisSeen[16] = {0};
+                        if (event.jaxis.axis < 16 && s_axisSeen[event.jaxis.axis] < 3 &&
+                            (event.jaxis.value > 8000 || event.jaxis.value < -8000)) {
+                            s_axisSeen[event.jaxis.axis]++;
+                            fprintf(stderr, "[Joystick] axis %d active (value %d)\n",
+                                    event.jaxis.axis, event.jaxis.value);
+                        }
+                    }
+                    static int s_throttleAxis = -2, s_yawAxis = -2;
+                    if (s_throttleAxis == -2) {
+                        const char* e = getenv("FF_THROTTLE_AXIS");
+                        s_throttleAxis = e ? atoi(e) : 2;
+                        e = getenv("FF_YAW_AXIS");
+                        s_yawAxis = e ? atoi(e) : 3;
+                        fprintf(stderr, "[Joystick] throttle axis=%d, yaw axis=%d (override with FF_THROTTLE_AXIS / FF_YAW_AXIS)\n",
+                                s_throttleAxis, s_yawAxis);
+                    }
+
                     // Update IO structure based on axis mapping
-                    // Axis 0: Roll, Axis 1: Pitch, Axis 2: Throttle, Axis 3: Yaw
+                    // Default: Axis 0: Roll, Axis 1: Pitch, Axis 2: Throttle, Axis 3: Yaw
                     int axisVal = event.jaxis.value * 10000 / 32767;
-                    switch (event.jaxis.axis) {
+                    int axisId = event.jaxis.axis;
+                    if (axisId == s_throttleAxis) axisId = 2;
+                    else if (axisId == s_yawAxis) axisId = 3;
+                    else if (axisId == 2 || axisId == 3) axisId = 16; // displaced default - ignore
+                    switch (axisId) {
                         case 0:  // Roll (X)
                             IO.analog[AXIS_ROLL].ioVal = axisVal;
                             IO.analog[AXIS_ROLL].engrValue = (float)axisVal / 10000.0f;
