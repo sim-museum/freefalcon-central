@@ -21,6 +21,9 @@ set(FF_SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 
 if(FF_PLATFORM_LINUX)
     add_compile_definitions(FF_LINUX _DEBUG NOMINMAX
+        # The RV "new" particle system: without it PPN[] stores indices that
+        # pointer-consuming code dereferences (missile-impact crash).
+        USE_NEW_PS
         stricmp=strcasecmp strnicmp=strncasecmp strcmpi=strcasecmp)
 
     # The codebase is legacy 32-bit Windows C++; relax modern strictness
