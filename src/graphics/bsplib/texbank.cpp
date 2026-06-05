@@ -44,6 +44,20 @@ bool TextureBankClass::RatedLoad;
 short *TextureBankClass::CacheLoad, *TextureBankClass::CacheRelease;
 short TextureBankClass::LoadIn, TextureBankClass::LoadOut, TextureBankClass::ReleaseIn, TextureBankClass::ReleaseOut;
 
+#ifdef FF_LINUX
+// FF_LINUX: The load/release ring buffers and refCounts are touched by the
+// render/sim threads (Reference/Release) and the background Loader thread
+// (UpdateBank) with no synchronization - the cs_ObjectLOD guard mentioned in
+// comments is not consistently held (and is commented out in Reference()).
+// View switches cause reference/release bursts that corrupt the rings and
+// crash the Loader. Serialize all bank state mutations.
+#include <mutex>
+static std::recursive_mutex s_texBankLock;
+#define FF_TEXBANK_LOCK() std::lock_guard<std::recursive_mutex> ff_tb_guard(s_texBankLock)
+#else
+#define FF_TEXBANK_LOCK() ((void)0)
+#endif
+
 DWORD gDebugTextureID;
 
 #ifdef USE_SH_POOLS
@@ -293,6 +307,8 @@ void TextureBankClass::Reference(int id)
 {
     int  isLoaded;
 
+    FF_TEXBANK_LOCK();
+
     gDebugTextureID = id;
 
     ShiAssert(IsValidIndex(id));
@@ -350,6 +366,8 @@ void TextureBankClass::Reference(int id)
 // Calls to this func are enclosed in the critical section cs_ObjectLOD by ObjectLOD::Unload()
 void TextureBankClass::Release(int id)
 {
+    FF_TEXBANK_LOCK();
+
     ShiAssert(IsValidIndex(id));
     ShiAssert(TexturePool[id].refCount > 0);
 
@@ -981,6 +999,7 @@ bool TextureBankClass::UpdateBank(void)
 {
     DWORD id;
 
+    FF_TEXBANK_LOCK();
 
     // till when data to update into caches
     while (LoadIn not_eq LoadOut or ReleaseIn not_eq ReleaseOut)
@@ -991,6 +1010,15 @@ bool TextureBankClass::UpdateBank(void)
         {
             // get the 1st texture Id from cache
             id = CacheRelease[ReleaseOut++];
+
+#ifdef FF_LINUX
+            // FF_LINUX: guard against a corrupt ring entry
+            if (id >= (DWORD)(nTextures + CACHE_MARGIN))
+            {
+                if (ReleaseOut >= (nTextures + CACHE_MARGIN)) ReleaseOut = 0;
+                continue;
+            }
+#endif
 
             // if not an order again, and no Referenced, release it
             if ( not TexFlags[id].OnOrder and not TexturePool[id].refCount and TexFlags[id].OnRelease) TexturePool[id].tex.FreeAll();
@@ -1010,6 +1038,15 @@ bool TextureBankClass::UpdateBank(void)
         {
             // get the 1st texture Id from cache
             id = CacheLoad[LoadOut++];
+
+#ifdef FF_LINUX
+            // FF_LINUX: guard against a corrupt ring entry
+            if (id >= (DWORD)(nTextures + CACHE_MARGIN))
+            {
+                if (LoadOut >= (nTextures + CACHE_MARGIN)) LoadOut = 0;
+                continue;
+            }
+#endif
 
             // if Texture not yet loaded, load it
             if ( not TexturePool[id].tex.imageData) ReadImageData(id);
