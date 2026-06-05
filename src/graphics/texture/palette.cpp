@@ -11,6 +11,10 @@
 #include "Palette.h"
 #include "tex.h"
 
+#ifdef FF_LINUX
+extern "C" unsigned int vuxGameTime_ff_probe(void);
+#endif
+
 
 static DXContext *rc = NULL;
 
@@ -181,6 +185,19 @@ void Palette::LightTexturePalette(Tcolor *light)
     r = light->r;
     g = light->g;
     b = light->b;
+
+#ifdef FF_LINUX
+    // FF_LINUX diagnostic: trace the light vector driving terrain palettes
+    {
+        static DWORD s_lastLog = 0;
+        DWORD now = GetTickCount();
+        if (now - s_lastLog > 5000) {
+            s_lastLog = now;
+            fprintf(stderr, "[PalLight] light=(%.3f %.3f %.3f) gametime=%u pal=%p\n",
+                    r, g, b, vuxGameTime_ff_probe(), (void*)this);
+        }
+    }
+#endif
 
     // Set up the loop control
     to = pal + 1;

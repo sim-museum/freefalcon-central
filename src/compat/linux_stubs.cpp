@@ -579,6 +579,11 @@ extern "C" HRESULT D3DXMakePixelFormat(D3DX_SURFACEFORMAT fmt, LPDDPIXELFORMAT p
     return S_OK;
 }
 
+extern "C" unsigned int vuxGameTime_ff_probe(void) {
+    extern unsigned int vuxGameTime;  /* VU_TIME (uint32_t) */
+    return vuxGameTime;
+}
+
 extern "C" HRESULT D3DXInitialize(void) { return S_OK; }
 extern "C" HRESULT D3DXUninitialize(void) { return S_OK; }
 

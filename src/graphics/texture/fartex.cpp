@@ -495,6 +495,12 @@ void FarTexDB::Request(TextureID texID)
     ShiAssert(texID >= (DWORD) 0);
     ShiAssert(texID < (DWORD) texCount);
 
+#ifdef FF_LINUX
+    // FF_LINUX: theater data references far-texture ids beyond texCount
+    // (known data issue); indexing texArray with them corrupts memory.
+    if (texID >= (DWORD) texCount) return;
+#endif
+
     EnterCriticalSection(&cs_textureList);
 
     ShiAssert(texArray);
@@ -529,6 +535,11 @@ void FarTexDB::Release(TextureID texID)
 
     ShiAssert(texID >= (WORD) 0);
     ShiAssert(texID < (WORD) texCount);
+
+#ifdef FF_LINUX
+    // FF_LINUX: see Request() - out-of-range ids corrupt texArray
+    if (texID >= (WORD) texCount) return;
+#endif
 
     EnterCriticalSection(&cs_textureList);
 
