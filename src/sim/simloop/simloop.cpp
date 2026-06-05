@@ -354,6 +354,13 @@ void SimulationLoopControl::Loop(void)
         // When currentMode == RunningSim, we're between missions - just sleep.
         if (currentMode == RunningSim)
         {
+            // FF_LINUX: keep RealTimeFunction ticking between missions. It is
+            // "the only safe place" where CAMP_SHUTDOWN_REQUEST is processed
+            // (ReallyEndCampaign in rtloop.cpp) and it dispatches VU messages.
+            // Without it, EndCampaign() on the exit path waits ~forever and
+            // the UI shows a white screen until something incidentally ticks.
+            vuxRealTime = GetTickCount();
+            RealTimeFunction(vuxRealTime, NULL);
             Sleep(50);
             continue;
         }
