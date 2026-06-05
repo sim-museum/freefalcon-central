@@ -101,7 +101,12 @@ void DeviceIndependentGraphicsSetup(char *theater, char *objects, char* misctex)
 
     // Setup the environmental time manager object
     TheTimeManager.Setup(2004, 300); // TODO:  Get a day of the month in here or somewhere
-    TheTimeManager.SetTime(0); // TODO:  Get a time of day in here or somewhere
+    // FF_LINUX: was SetTime(0) (midnight) - terrain blocks built during
+    // theater load bake their vertex shading from the clock at build time,
+    // so everything loaded before the campaign clock is set rendered with
+    // night lighting (near-black terrain). Default to noon like the
+    // missvis tool does; the 3D-entry Refresh adjusts sky/palettes anyway.
+    TheTimeManager.SetTime(12 * 60 * 60 * 1000UL);
 
     // Setup the time of day manager
     sprintf(fullPath, "%s\\weather", theaterPath);
