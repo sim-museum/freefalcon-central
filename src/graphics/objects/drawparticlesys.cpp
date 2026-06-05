@@ -2188,7 +2188,7 @@ int DrawableParticleSys::GetNameId(char *name)
     {
 #ifdef USE_NEW_PS
 
-        if (PPN[l] and PS_PPN[(DWORD)PPN[l]].name and stricmp(name, PS_PPN[(DWORD)PPN[l]].name) == 0) return l;
+        if (PPN[l] and (DWORD)(uintptr_t)PPN[l] < MAX_PARTICLE_PARAMETERS and PS_PPN[(DWORD)(uintptr_t)PPN[l]].name[0] and stricmp(name, PS_PPN[(DWORD)(uintptr_t)PPN[l]].name) == 0) return l;
 
 #else
 
@@ -2501,6 +2501,8 @@ void DrawableParticleSys::PS_ListsInit(void)
     if ( not PS_PPN)
     {
         PS_PPN = (PS_PPType*)malloc(MAX_PARTICLE_PARAMETERS * sizeof(PS_PPType));
+        // FF_LINUX: zero the pool so unused slots have empty names
+        if (PS_PPN) memset(PS_PPN, 0, MAX_PARTICLE_PARAMETERS * sizeof(PS_PPType));
         PS_PPNNr = 0;
     }
 
@@ -6032,9 +6034,15 @@ bool DrawableParticleSys::PS_LoadParameters(void)
     PPN = new ParticleParamNode * [l];
     PPNCount = l;
 
+    // FF_LINUX: new[] of pointers is uninitialized; ids fill the table
+    // sparsely, so unset slots held heap garbage that GetNameId then used
+    // as an index (missile-impact crash). Zero it and bounds-check ids.
+    memset(PPN, 0, sizeof(ParticleParamNode *) * l);
+
     for (int c = 0; c < l; c++)
     {
-        PPN[PS_PPN[c].id] = (ParticleParamNode *)c;
+        if (PS_PPN[c].id >= 0 && PS_PPN[c].id < l)
+            PPN[PS_PPN[c].id] = (ParticleParamNode *)c;
     }
 
     /*ppn=(ParticleParamNode *)paramList.GetHead();
