@@ -1082,6 +1082,14 @@ void CampaignClass::EndCampaign(void)
 
     while (TheCampaign.IsLoaded())
     {
+#ifdef FF_LINUX
+        // FF_LINUX: after a mission ends the sim loop idles and stops
+        // signalling the campaign thread, which sits in
+        // campaign_wait_for_sim() and never sees CAMP_SHUTDOWN_REQUEST -
+        // this loop then waits forever (white-screen hang on ESC exit).
+        // Keep kicking the campaign thread so it can process the request.
+        ThreadManager::sim_signal_campaign();
+#endif
         Sleep(100);
     }
 }
