@@ -324,11 +324,6 @@ struct RenderStateBlock {
 // ============================================================
 // D3D7 Device implementation
 // ============================================================
-/* FF_LINUX: global state-block pool shared by all devices (see note in
- * D3D7Device). Guarded implicitly by the render threads' usage pattern:
- * blocks are recorded during single-threaded setup and only read after. */
-static RenderStateBlock g_StateBlocks[MAX_STATE_BLOCKS];
-
 struct D3D7Device : public IDirect3DDevice7 {
     LONG refCount;
     D3D7Interface* d3d;
@@ -350,10 +345,7 @@ struct D3D7Device : public IDirect3DDevice7 {
     std::map<std::pair<DWORD, D3DTEXTURESTAGESTATETYPE>, DWORD> textureStageStates;
 
     // State blocks
-    /* FF_LINUX: state blocks moved to a single global pool (g_StateBlocks):
-     * the engine's ContextMPR::StateTable is a static shared by every
-     * context/device, so handles must resolve on whichever device applies
-     * them. All devices target the same GL context anyway. */
+    RenderStateBlock stateBlocks[MAX_STATE_BLOCKS];
     DWORD nextStateBlockHandle;
     bool recordingStateBlock;
     DWORD recordingStateBlockHandle;
@@ -890,7 +882,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderState(IDirect3DDevice7* This, 
 
     // If recording state block, don't apply immediately
     if (dev->recordingStateBlock) {
-        g_StateBlocks[dev->recordingStateBlockHandle].renderStates[dwState] = dwValue;
+        dev->stateBlocks[dev->recordingStateBlockHandle].renderStates[dwState] = dwValue;
         return D3D_OK;
     }
 
@@ -917,10 +909,10 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_BeginStateBlock(IDirect3DDevice7* This)
 
     // Find free state block
     for (DWORD i = 1; i < MAX_STATE_BLOCKS; i++) {
-        if (!g_StateBlocks[i].active) {
+        if (!dev->stateBlocks[i].active) {
             dev->recordingStateBlock = true;
             dev->recordingStateBlockHandle = i;
-            g_StateBlocks[i].active = true;
+            dev->stateBlocks[i].active = true;
             return D3D_OK;
         }
     }
@@ -1957,7 +1949,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTextureStageState(IDirect3DDevice7* 
     dev->textureStageStates[key] = dwState;
 
     if (dev->recordingStateBlock) {
-        g_StateBlocks[dev->recordingStateBlockHandle].textureStageStates[key] = dwState;
+        dev->stateBlocks[dev->recordingStateBlockHandle].textureStageStates[key] = dwState;
         return D3D_OK;
     }
 
@@ -1983,7 +1975,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_ApplyStateBlock(IDirect3DDevice7* This,
         }
         return DDERR_INVALIDPARAMS;
     }
-    if (!g_StateBlocks[dwBlockHandle].active) {
+    if (!dev->stateBlocks[dwBlockHandle].active) {
         static int s_inactiveLogs = 0;
         if (s_inactiveLogs < 10) {
             s_inactiveLogs++;
@@ -1993,7 +1985,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_ApplyStateBlock(IDirect3DDevice7* This,
         return DDERR_INVALIDPARAMS;
     }
 
-    RenderStateBlock& sb = g_StateBlocks[dwBlockHandle];
+    RenderStateBlock& sb = dev->stateBlocks[dwBlockHandle];
 
     // FF_LINUX: Ensure texture unit 0 is active before applying state.
     // SetTexture(1, NULL) can leave GL_TEXTURE1 active, causing glTexEnvi/glEnable
@@ -2077,7 +2069,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_CaptureStateBlock(IDirect3DDevice7* Thi
 
     if (dwBlockHandle == 0 || dwBlockHandle >= MAX_STATE_BLOCKS) return DDERR_INVALIDPARAMS;
 
-    RenderStateBlock& sb = g_StateBlocks[dwBlockHandle];
+    RenderStateBlock& sb = dev->stateBlocks[dwBlockHandle];
 
     // Always capture render states and texture stage states
     sb.renderStates = dev->renderStates;
@@ -2103,7 +2095,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DeleteStateBlock(IDirect3DDevice7* This
 
     if (dwBlockHandle == 0 || dwBlockHandle >= MAX_STATE_BLOCKS) return DDERR_INVALIDPARAMS;
 
-    g_StateBlocks[dwBlockHandle] = RenderStateBlock();
+    dev->stateBlocks[dwBlockHandle] = RenderStateBlock();
     return D3D_OK;
 }
 
@@ -2115,11 +2107,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_CreateStateBlock(IDirect3DDevice7* This
 
     // Find free state block
     for (DWORD i = 1; i < MAX_STATE_BLOCKS; i++) {
-        if (!g_StateBlocks[i].active) {
-            g_StateBlocks[i].active = true;
+        if (!dev->stateBlocks[i].active) {
+            dev->stateBlocks[i].active = true;
 
             // Capture current state based on type
-            RenderStateBlock& sb = g_StateBlocks[i];
+            RenderStateBlock& sb = dev->stateBlocks[i];
             sb.blockType = d3dsbType;
 
             // Render states and texture stage states are always captured
