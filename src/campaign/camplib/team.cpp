@@ -1792,11 +1792,19 @@ void LoadPriorityTables(void)
 // This is high level RoE. Lower level Rules of Engagement are dealt with on the unit level.
 int GetRoE(Team a, Team b, int type)
 {
+    // FF_LINUX: bounds-check all indices - corrupt/unset team or stance data
+    // walked off the RoEData global (caught by ASAN).
+    if (a >= NUM_TEAMS || b >= NUM_TEAMS || type < 0 || type > ROE_NAVAL_BOMBARD)
+        return ROE_ALLOWED;
+
     ShiAssert(TeamInfo[a]);
 
     if (TeamInfo[a])
     {
-        return RoEData[type][TeamInfo[a]->stance[b]];
+        int stance = TeamInfo[a]->stance[b];
+        if (stance < 0 || stance > War)
+            return ROE_ALLOWED;
+        return RoEData[type][stance];
     }
     else
     {

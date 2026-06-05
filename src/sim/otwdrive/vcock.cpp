@@ -1179,12 +1179,22 @@ OTWDriverClass::VCock_Init(int eCPVisType, TCHAR* eCPName, TCHAR* eCPNameNCTR)
         else if ( not strcmpi(ptoken, PROP_3D_HILIGHT))
         {
             ptoken = FindToken(&plinePtr, pseparators);
-            sscanf(ptoken, "%lx", &p3DpitHilite);
+            {
+                // FF_LINUX: p3DpitHilite is a 4-byte DWORD; %lx writes 8 bytes
+                unsigned long tmpColor = 0;
+                sscanf(ptoken, "%lx", &tmpColor);
+                p3DpitHilite = (DWORD)tmpColor;
+            }
         }
         else if ( not strcmpi(ptoken, PROP_3D_LOLIGHT))
         {
             ptoken = FindToken(&plinePtr, pseparators);
-            sscanf(ptoken, "%lx", &p3DpitLolite);
+            {
+                // FF_LINUX: p3DpitLolite is a 4-byte DWORD; %lx writes 8 bytes
+                unsigned long tmpColor = 0;
+                sscanf(ptoken, "%lx", &tmpColor);
+                p3DpitLolite = (DWORD)tmpColor;
+            }
         }
         else if ( not strcmpi(ptoken, PROP_3D_COCKPIT))
         {

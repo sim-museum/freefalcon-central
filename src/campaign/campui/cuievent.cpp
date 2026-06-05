@@ -37,7 +37,7 @@ void DisposeEventList(CampUIEventElement* root)
     {
         deadEvent = root;
         root = root->next;
-        delete deadEvent->eventText;
+        delete [] deadEvent->eventText;  // FF_LINUX: allocated with new[]
         deadEvent->eventText = NULL;
         delete deadEvent;
     }

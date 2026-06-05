@@ -250,13 +250,30 @@ The UI uses a custom "UI95" windowing system with these key components:
 - `src/compat/` - Linux compatibility layer (Windows API emulation)
 - Game data: `/home/g/ese/SAT/WP/drive_c/FreeFalcon6/`
 
-## Build Instructions
+## Build Instructions (updated June 2026)
 
 ```bash
-cd /home/g/sgl/SAT/freefalcon-central/build
+cd /home/g/ff/build
 ninja
-./src/ffviper/FFViper -window
+# run from the game data directory:
+cd /home/g/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
+/home/g/ff/build/src/ffviper/FFViper -d "$PWD" -w
 ```
+
+- Game data: `/home/g/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6` (wine install;
+  the older `/home/g/ese/...` path mentioned elsewhere in this file is stale).
+- SDL2/GLEW/OpenAL dev headers live in `extern/usr` (extracted .debs, gitignored;
+  re-create with `apt-get download libsdl2-dev libglew-dev libglew2.2 libopenal-dev`
+  + `dpkg -x` into `extern/`).
+- ASAN build in `build-asan/`.
+- `-test-ia` auto-launches Instant Action; `FF_UI_SCREENSHOT=<secs>` dumps
+  /tmp/ff_ui.bmp periodically in UI mode.
+- After adding files with Windows-cased `#include`s, run `python3 fix_include_case.py`
+  (repo root) to regenerate case-alias symlinks.
+
+**June 2026 note:** the entire untracked port infrastructure (CMakeLists.txt files
+and most of src/compat) was lost and has been reconstructed from scratch -- see
+commit "Linux port: Reconstruct lost build system and Windows compat layer".
 
 ### Session: January 21, 2026 - Button Click Detection Working
 

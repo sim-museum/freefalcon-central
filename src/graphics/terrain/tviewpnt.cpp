@@ -102,7 +102,8 @@ void TViewPoint::Cleanup(void)
     DeleteCriticalSection(&cs_update);
 }
 
-extern unsigned long vuxGameTime;
+#include "vutypes.h"
+extern VU_TIME vuxGameTime;  // FF_LINUX: must match the uint32_t definition
 #include "sim/include/phyconst.h"
 
 // Move the viewer and swap blocks as needed (X North, Y East, Z Down)
@@ -115,7 +116,7 @@ void TViewPoint::Update(const Tpoint *position)
     EnterCriticalSection(&cs_update);
 
     // JB 010608 for weather effects start
-    static unsigned long prevvuxGameTime;
+    static VU_TIME prevvuxGameTime;
 
     if (vuxGameTime not_eq prevvuxGameTime)
     {

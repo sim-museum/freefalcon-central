@@ -1693,7 +1693,7 @@ int CampaignClass::Decode(VU_BYTE **stream, long *rem)
         // ShiAssert((int)(buffer - bufhead) == datasize);  // Disabled for Linux compat
     }
 
-    delete bufhead;
+    delete [] bufhead;  // FF_LINUX: was new[] - delete mismatch
 
     return (int)(buffer - bufhead);
 }

@@ -75,6 +75,7 @@
 #include "campaign/include/iaction.h"
 #include "campaign/include/dogfight.h"
 #include "campaign/include/weather.h"  // FF_LINUX: For WeatherClass / realWeather
+#include "campaign/include/asearch.h"   // FF_LINUX: For AS_DataClass / ASD pathfinder
 
 // External initialization functions
 extern void LoadTheaterList();
@@ -1511,6 +1512,16 @@ static bool init_game_core(void) {
     // Initialize memory pools
     printf("  Initializing simulation memory pools...\n");
     SimDriver.InitializeSimMemoryPools();
+
+    // FF_LINUX: Create the global A* pathfinder (winmain's SystemLevelInit does
+    // this on Windows). Without it the campaign thread dereferences a NULL/garbage
+    // ASD as soon as a ground unit needs a path and segfaults.
+    {
+        extern AS_DataClass *ASD;
+        if (!ASD)
+            ASD = new AS_DataClass();
+    }
+    srand((unsigned int) time(NULL));
 
     // Load particle system parameters
     printf("  Loading particle system parameters...\n");
