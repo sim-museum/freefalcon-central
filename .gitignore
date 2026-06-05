@@ -15,3 +15,8 @@ obj/
 *.bak
 *.user
 *.tmp
+
+# Linux port build infrastructure
+build-asan/
+extern/
+nohup.out

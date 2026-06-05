@@ -5194,6 +5194,7 @@ bool DrawableParticleSys::PS_LoadParameters(void)
             if (fgets(buffer, sizeof buffer, fp) == 0)
             {
                 fclose(fp);
+                fp = NULL; // FF_LINUX: prevent double fclose at end of function
                 break;
             }
         }

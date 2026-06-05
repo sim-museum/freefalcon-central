@@ -175,6 +175,45 @@ struct D3D7Surface;
 extern const IDirectDrawSurface7Vtbl g_DDS7Vtbl;
 
 // ============================================================
+// FF_LINUX: Deferred GL object deletion.
+// Surfaces can be released from threads without a current GL
+// context (e.g. the background texture Loader thread). Calling
+// glDeleteTextures there crashes inside the driver. Queue the
+// ids and let the thread that owns the context drain them.
+// ============================================================
+#include <mutex>
+static std::mutex g_DeferredGLDeleteMutex;
+static std::vector<GLuint> g_DeferredTextureDeletes;
+static std::vector<GLuint> g_DeferredFboDeletes;
+
+static void FF_DeleteGLObjects(GLuint tex, GLuint fbo) {
+    if (SDL_GL_GetCurrentContext() != NULL) {
+        if (fbo) glDeleteFramebuffers(1, &fbo);
+        if (tex) glDeleteTextures(1, &tex);
+        return;
+    }
+    std::lock_guard<std::mutex> lock(g_DeferredGLDeleteMutex);
+    if (tex) g_DeferredTextureDeletes.push_back(tex);
+    if (fbo) g_DeferredFboDeletes.push_back(fbo);
+}
+
+// Called from the GL-owning thread (render/present paths)
+void FF_DrainDeferredGLDeletes() {
+    if (SDL_GL_GetCurrentContext() == NULL)
+        return;
+    std::lock_guard<std::mutex> lock(g_DeferredGLDeleteMutex);
+    if (!g_DeferredTextureDeletes.empty()) {
+        glDeleteTextures((GLsizei)g_DeferredTextureDeletes.size(), g_DeferredTextureDeletes.data());
+        g_DeferredTextureDeletes.clear();
+    }
+    if (!g_DeferredFboDeletes.empty()) {
+        for (GLuint f : g_DeferredFboDeletes)
+            glDeleteFramebuffers(1, &f);
+        g_DeferredFboDeletes.clear();
+    }
+}
+
+// ============================================================
 // D3D7 Surface (texture) implementation
 // ============================================================
 struct D3D7Surface : public IDirectDrawSurface7 {
@@ -216,11 +255,9 @@ struct D3D7Surface : public IDirectDrawSurface7 {
     }
 
     ~D3D7Surface() {
-        if (fboId) {
-            glDeleteFramebuffers(1, &fboId);
-        }
-        if (glTexture) {
-            glDeleteTextures(1, &glTexture);
+        // FF_LINUX: GL objects may be released from non-GL threads
+        if (fboId || glTexture) {
+            FF_DeleteGLObjects(glTexture, fboId);
         }
         if (pixelData) {
             delete[] pixelData;
@@ -3557,6 +3594,10 @@ void FF_PresentPrimarySurface() {
     static int frameCount = 0;
     frameCount++;
 
+    // FF_LINUX: free GL objects released from non-GL threads
+    extern void FF_DrainDeferredGLDeletes();
+    FF_DrainDeferredGLDeletes();
+
     // Validate surface
     if (!g_pPrimarySurface || !g_pPrimarySurface->pixelData) {
         return;
@@ -3749,6 +3790,10 @@ void FF_LogGLState() {
 
 void FF_SimFrameEnd() {
     g_SimFrameCount++;
+
+    // FF_LINUX: free GL objects released from non-GL threads
+    extern void FF_DrainDeferredGLDeletes();
+    FF_DrainDeferredGLDeletes();
 
     // Reset per-frame counters
     g_ClearCallCount = 0;

@@ -49,6 +49,19 @@ void C_Fontmgr::Setup(long ID, char *fontfile)
     }
 
     fread(&name_, 32, 1, fp);
+#ifdef FF_LINUX
+    // FF_LINUX: font files store 4-byte values; long is 8 bytes on 64-bit
+    {
+        int32_t tmp32;
+        fread(&tmp32, sizeof(int32_t), 1, fp); height_ = tmp32;
+        fread(&first_, sizeof(short), 1, fp);
+        fread(&last_, sizeof(short), 1, fp);
+        fread(&tmp32, sizeof(int32_t), 1, fp); bytesperline_ = tmp32;
+        fread(&tmp32, sizeof(int32_t), 1, fp); fNumChars_ = tmp32;
+        fread(&tmp32, sizeof(int32_t), 1, fp); kNumKerns_ = tmp32;
+        fread(&tmp32, sizeof(int32_t), 1, fp); dSize_ = tmp32;
+    }
+#else
     fread(&height_, sizeof(long), 1, fp);
     fread(&first_, sizeof(short), 1, fp);
     fread(&last_, sizeof(short), 1, fp);
@@ -56,6 +69,7 @@ void C_Fontmgr::Setup(long ID, char *fontfile)
     fread(&fNumChars_, sizeof(long), 1, fp);
     fread(&kNumKerns_, sizeof(long), 1, fp);
     fread(&dSize_, sizeof(long), 1, fp);
+#endif
 
     if (fNumChars_)
     {

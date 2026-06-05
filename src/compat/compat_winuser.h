@@ -1083,6 +1083,8 @@ static inline BOOL DestroyAcceleratorTable(HACCEL hAccel) {
     return TRUE;
 }
 
+static inline UINT GetDoubleClickTime(void) { return 500; }
+
 #ifdef __cplusplus
 }
 #endif

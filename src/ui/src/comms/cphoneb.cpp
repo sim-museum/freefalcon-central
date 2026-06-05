@@ -61,7 +61,21 @@ void PhoneBook::Load(char *filename)
     }
 
     // read number of entries
-    fread(&count, sizeof(long), 1, ifp);
+    // FF_LINUX: file stores a 4-byte count; long is 8 bytes on 64-bit Linux
+    {
+        int32_t count32 = 0;
+        if (fread(&count32, sizeof(int32_t), 1, ifp) != 1)
+        {
+            fclose(ifp);
+            return;
+        }
+        count = count32;
+    }
+    if (count < 0 || count > 10000)  /* sanity guard against corrupt files */
+    {
+        fclose(ifp);
+        return;
+    }
 
     // read each entry
     for (i = 0; i < count; i++)
@@ -106,8 +120,11 @@ void PhoneBook::Save(char *filename)
         return;
     }
 
-    // write count
-    fwrite(&count, sizeof(long), 1, ofp);
+    // write count (4 bytes for Windows binary compatibility)
+    {
+        int32_t count32 = (int32_t)count;
+        fwrite(&count32, sizeof(int32_t), 1, ofp);
+    }
 
     // go through list saving each
     cur = Root_;

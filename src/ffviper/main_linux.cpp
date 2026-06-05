@@ -2303,6 +2303,26 @@ static void render_frame(void) {
     // We need to present that surface via OpenGL
     if (doUI) {
         FF_PresentPrimarySurface();
+
+        // FF_LINUX debug: periodic UI screenshot when FF_UI_SCREENSHOT env var is set
+        // (value = period in seconds, written to /tmp/ff_ui.bmp before buffer swap)
+        {
+            static int s_shotPeriod = -2;
+            if (s_shotPeriod == -2) {
+                const char* e = getenv("FF_UI_SCREENSHOT");
+                s_shotPeriod = e ? atoi(e) : -1;
+            }
+            if (s_shotPeriod > 0) {
+                static Uint32 s_lastShot = 0;
+                Uint32 now = SDL_GetTicks();
+                if (now - s_lastShot >= (Uint32)s_shotPeriod * 1000u) {
+                    s_lastShot = now;
+                    extern void SaveGLFramebufferAsBMP(const char* filename);
+                    SaveGLFramebufferAsBMP("/tmp/ff_ui.bmp");
+                }
+            }
+        }
+
         SDL_GL_SwapWindow(g_SDLWindow);
     } else if (g_simOwnsGLContext) {
         // Sim mode: the sim thread owns the GL context and handles rendering.

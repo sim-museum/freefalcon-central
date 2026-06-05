@@ -14,7 +14,11 @@
 
 struct IDirectDrawSurface7;
 struct IDirect3DDevice7;
+#ifdef FF_LINUX
+#include <d3dxcore.h>   /* FF_LINUX: enum fwd-decl is ill-formed in GCC */
+#else
 enum _D3DX_SURFACEFORMAT;
+#endif
 class PaletteHandle;
 
 

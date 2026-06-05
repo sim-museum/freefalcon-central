@@ -1,0 +1,8 @@
+/* FreeFalcon Linux Port - case alias for <ciso646>.
+ * C++ has the alternative tokens built in; nothing needed. */
+#ifndef FF_COMPAT_CISO646
+#define FF_COMPAT_CISO646
+#ifndef __cplusplus
+#include <iso646.h>
+#endif
+#endif

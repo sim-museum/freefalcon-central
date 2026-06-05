@@ -1,6 +1,10 @@
 #ifndef _UI_COMMS_H_
 #define _UI_COMMS_H_
 
+#ifdef FF_LINUX
+#include <windows.h>   /* FF_LINUX: DWORD etc. */
+#endif
+
 enum
 {
     _UI_TRACK_FLAG00 = 0x00000001,
