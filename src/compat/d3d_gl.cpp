@@ -163,7 +163,9 @@ static GLenum D3DStencilOpToGL(DWORD d3dop) {
 }
 
 // Maximum state blocks
-#define MAX_STATE_BLOCKS 256
+/* FF_LINUX: blocks are never freed on the Linux exit path (cleanup deferred),
+ * so repeated mission entries accumulate them - keep plenty of headroom. */
+#define MAX_STATE_BLOCKS 4096
 
 // Forward declarations
 struct D3D7Device;
@@ -915,6 +917,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_BeginStateBlock(IDirect3DDevice7* This)
         }
     }
 
+    fprintf(stderr, "[D3D7Dev_BeginStateBlock] POOL EXHAUSTED (%d blocks, dev=%p)\n",
+            MAX_STATE_BLOCKS, (void*)dev);
     return DDERR_OUTOFMEMORY;
 }
 
@@ -1962,8 +1966,22 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_ApplyStateBlock(IDirect3DDevice7* This,
     D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("ApplyStateBlock %d", dwBlockHandle);
 
-    if (dwBlockHandle == 0 || dwBlockHandle >= MAX_STATE_BLOCKS) return DDERR_INVALIDPARAMS;
+    if (dwBlockHandle == 0 || dwBlockHandle >= MAX_STATE_BLOCKS) {
+        static int s_badHandleLogs = 0;
+        if (s_badHandleLogs < 10) {
+            s_badHandleLogs++;
+            fprintf(stderr, "[D3D7Dev_ApplyStateBlock] handle %u out of range (dev=%p)\n",
+                    (unsigned)dwBlockHandle, (void*)dev);
+        }
+        return DDERR_INVALIDPARAMS;
+    }
     if (!dev->stateBlocks[dwBlockHandle].active) {
+        static int s_inactiveLogs = 0;
+        if (s_inactiveLogs < 10) {
+            s_inactiveLogs++;
+            fprintf(stderr, "[D3D7Dev_ApplyStateBlock] handle %u not active on dev=%p (wrong device or freed)\n",
+                    (unsigned)dwBlockHandle, (void*)dev);
+        }
         return DDERR_INVALIDPARAMS;
     }
 
@@ -2117,6 +2135,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_CreateStateBlock(IDirect3DDevice7* This
         }
     }
 
+    fprintf(stderr, "[D3D7Dev_BeginStateBlock] POOL EXHAUSTED (%d blocks, dev=%p)\n",
+            MAX_STATE_BLOCKS, (void*)dev);
     return DDERR_OUTOFMEMORY;
 }
 

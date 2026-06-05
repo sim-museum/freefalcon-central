@@ -43,7 +43,10 @@ extern float g_fMipLodBias;
 #ifdef _WIN32
 #define INT3 _asm {int 3}
 #else
-#define INT3 __builtin_trap()
+/* FF_LINUX: __builtin_trap() here turned recoverable render-state failures
+ * into SIGILL crashes (e.g. missile-trail view). Log and continue instead -
+ * the wrong render state only miscolors some polygons for a frame. */
+#define INT3 fprintf(stderr, "[INT3] non-fatal debug break at %s:%d\n", __FILE__, __LINE__)
 #endif
 
 #ifdef _DEBUG
@@ -2164,7 +2167,20 @@ void ContextMPR::ApplyStateBlock(GLint state)
 
         HRESULT hr = m_pD3DD->ApplyStateBlock(StateTable[state]);
 
-        if ( not SUCCEEDED(hr)) INT3;
+        if ( not SUCCEEDED(hr))
+        {
+#ifdef FF_LINUX
+            static int s_applyFailLogs = 0;
+            if (s_applyFailLogs < 20)
+            {
+                s_applyFailLogs++;
+                fprintf(stderr, "[ContextMPR::ApplyStateBlock] FAILED state=%d handle=%lu hr=0x%x (this=%p dev=%p)\n",
+                        (int)state, (unsigned long)StateTable[state], (unsigned)hr, (void*)this, (void*)m_pD3DD);
+            }
+#else
+            INT3;
+#endif
+        }
 
 #ifdef FF_LINUX
         // FF_LINUX: ApplyStateBlock doesn't capture SetTexture calls.
