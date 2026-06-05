@@ -2341,7 +2341,10 @@ void OTWDriverClass::SetmpPadlockPriorityObject(SimBaseClass* newObject)
         if (mpPadlockPriorityObject and mpPadlockPriorityObject->IsSim() and 
             (otwPlatform.get() not_eq mpPadlockPriorityObject) and not mpPadlockPriorityObject->IsWeapon())
         {
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(FF_LINUX)
+            // FF_LINUX: shi/assert.h force-defines DEBUG, which made this
+            // branch active and left simObjectPtr stale (a Release()'d
+            // object) - Reference() on it crashed when padlocking (key 4).
             //simObjectPtr = new SimObjectType (OBJ_TAG, NULL, mpPadlockPriorityObject);
 #else
             simObjectPtr = new SimObjectType(newObject);
