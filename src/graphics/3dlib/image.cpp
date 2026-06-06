@@ -212,7 +212,34 @@ GLint ReadDDS(CImageFileMemory *fi)
 
     if (dwMagic not_eq MAKEFOURCC('D', 'D', 'S', ' ')) return BAD_FORMAT;
 
+#ifdef FF_LINUX
+    // FF_LINUX: the on-disk DDS header is the 124-byte 32-bit DDSURFACEDESC2
+    // layout. Reading sizeof(DDSURFACEDESC2) here consumed 136 bytes (LPVOID
+    // lpSurface is 8 bytes + alignment) - the pixel format (dwFourCC!) was
+    // read from the wrong offset (no DXT subtype detected -> garbage upload)
+    // AND the compressed image data was read 12 bytes late. This is why
+    // particle/SFX textures (MainSFX.dds via the DX2D atlas) rendered as
+    // uniform colored boxes. Same fix as texbank.cpp ReadImageDDS.
+    DDS_FILE_HEADER fhdr;
+    memset(&fhdr, 0, sizeof(fhdr));
+
+    if ( not fi->glReadMem(&fhdr, sizeof(DDS_FILE_HEADER))) return BAD_FORMAT;
+
+    memset(&ddsd, 0, sizeof(ddsd));
+    ddsd.dwSize = sizeof(ddsd);
+    ddsd.dwFlags = fhdr.dwFlags;
+    ddsd.dwHeight = fhdr.dwHeight;
+    ddsd.dwWidth = fhdr.dwWidth;
+    ddsd.dwLinearSize = fhdr.dwLinearSize;
+    ddsd.dwBackBufferCount = fhdr.dwBackBufferCount;
+    ddsd.dwMipMapCount = fhdr.dwMipMapCount;
+    ddsd.dwAlphaBitDepth = fhdr.dwAlphaBitDepth;
+    ddsd.ddpfPixelFormat = fhdr.ddpfPixelFormat;
+    ddsd.ddsCaps = fhdr.ddsCaps;
+    ddsd.dwTextureStage = fhdr.dwTextureStage;
+#else
     if ( not fi->glReadMem(&ddsd, sizeof(DDSURFACEDESC2))) return BAD_FORMAT;
+#endif
 
     // MLR 1/25/2004 - Little kludge so FF can read DDS files made by dxtex
     if (ddsd.dwLinearSize == 0)

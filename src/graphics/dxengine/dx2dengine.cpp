@@ -89,6 +89,16 @@ void CDXEngine::LoadTexture(char *FileName)
     sprintf(Path, "%s\\terrdata\\MiscTex\\%s.ITM", FalconDataDirectory, FileName);
     fp = fopen(Path, "r");
 
+#ifdef FF_LINUX
+    // FF_LINUX: issue - particle/SFX textures rendering as colored boxes
+    {
+        static int s_dbg = -1;
+        if (s_dbg == -1) s_dbg = getenv("FF_DEBUG_SFXTEX") ? 1 : 0;
+        if (s_dbg) fprintf(stderr, "[SFXTEX] LoadTexture '%s' -> dds='%s' itm='%s' open=%d\n",
+                           FileName, Ts->FileName, Path, fp ? 1 : 0);
+    }
+#endif
+
     // if not found return
     if ( not fp) return;
 
@@ -195,7 +205,17 @@ void CDXEngine::SetupTexturesOnDevice(void)
 
     while (Ts)
     {
-        Ts->Tex.LoadAndCreate(Ts->FileName, MPR_TI_DDS);
+        BOOL ok = Ts->Tex.LoadAndCreate(Ts->FileName, MPR_TI_DDS);
+#ifdef FF_LINUX
+        {
+            static int s_dbg = -1;
+            if (s_dbg == -1) s_dbg = getenv("FF_DEBUG_SFXTEX") ? 1 : 0;
+            if (s_dbg) fprintf(stderr, "[SFXTEX] SetupTexturesOnDevice '%s' loadAndCreate=%d texHandle=%p\n",
+                               Ts->FileName, (int)ok, (void*)Ts->Tex.TexHandle());
+        }
+#else
+        (void)ok;
+#endif
         Ts = Ts->Next;
     }
 

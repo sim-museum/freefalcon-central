@@ -2021,6 +2021,15 @@ void DrawableParticleSys::SetupTexturesOnDevice(DXContext *rc)
     {
         n->TexHandle = TheDXEngine.GetTextureHandle(n->TexName);
         n->TexItem = TheDXEngine.DX2D_GetTextureItem(n->TexName);
+#ifdef FF_LINUX
+        // FF_LINUX: issue - particle textures rendering as colored boxes
+        {
+            static int s_dbg = -1;
+            if (s_dbg == -1) s_dbg = getenv("FF_DEBUG_SFXTEX") ? 1 : 0;
+            if (s_dbg) fprintf(stderr, "[SFXTEX] particle tex '%s' -> handle=%p item=%p\n",
+                               n->TexName, (void*)n->TexHandle, (void*)n->TexItem);
+        }
+#endif
         n = (ParticleTextureNode *)n->GetSucc();
     }
 
