@@ -123,7 +123,10 @@ extern "C" int initialize_windows_sockets(WSADATA *wsaData);
 #define WINDOW_HEIGHT 768
 int g_nWindowWidth = WINDOW_WIDTH;
 int g_nWindowHeight = WINDOW_HEIGHT;
-#define WINDOW_TITLE "Free Falcon 6 Linux Port"
+#ifndef FF_GIT_HASH
+#define FF_GIT_HASH "dev"
+#endif
+#define WINDOW_TITLE "Free Falcon 6 Linux Port [" FF_GIT_HASH "]"
 
 // External globals from falclib
 extern char FalconDataDirectory[];

@@ -1,3 +1,17 @@
+
+# FF_LINUX: stamp the build with the git hash so the window title shows
+# exactly which version is running (avoids version-skew confusion)
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE FF_GIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT FF_GIT_HASH)
+    set(FF_GIT_HASH "unknown")
+endif()
+add_compile_definitions(FF_GIT_HASH="${FF_GIT_HASH}")
 # FFViper - Main executable
 # Note: The main source files are in ui library (winmain.cpp, f4config.cpp)
 # This creates the executable by linking all the libraries together

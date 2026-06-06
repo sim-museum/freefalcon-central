@@ -789,8 +789,18 @@ void SimulationDriver::Cycle()
                 pos.x = ac->XPos() + vx / vmag * 1500.0f;
                 pos.y = ac->YPos() + vy / vmag * 1500.0f;
                 pos.z = ac->ZPos();  // same altitude, dead ahead
-                fprintf(stderr, "[FF_TEST] spawning SFX_AIR_EXPLOSION at (%.0f,%.0f,%.0f)\n", pos.x, pos.y, pos.z);
-                DrawableParticleSys::PS_AddParticleEx(SFX_AIR_EXPLOSION + 1, &pos, &vec);
+                // Alternate between the direct path (known good) and the
+                // named-effect/SfxClass path used by real missile impacts.
+                static int s_alt = 0;
+                s_alt ^= 1;
+                if (s_alt) {
+                    extern int AddParticleEffect(char *name, Tpoint *pos, Tpoint *vec);
+                    int r = AddParticleEffect((char*)"_v_small_agm_miss", &pos, &vec);
+                    fprintf(stderr, "[FF_TEST] AddParticleEffect(_v_small_agm_miss) -> %d at (%.0f,%.0f,%.0f)\n", r, pos.x, pos.y, pos.z);
+                } else {
+                    fprintf(stderr, "[FF_TEST] PS_AddParticleEx(SFX_AIR_EXPLOSION) at (%.0f,%.0f,%.0f)\n", pos.x, pos.y, pos.z);
+                    DrawableParticleSys::PS_AddParticleEx(SFX_AIR_EXPLOSION + 1, &pos, &vec);
+                }
             }
         }
     }
