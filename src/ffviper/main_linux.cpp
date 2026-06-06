@@ -2887,5 +2887,14 @@ int main(int argc, char** argv) {
     cleanup();
 
     printf("Goodbye!\n");
-    return 0;
+    fflush(NULL);
+
+    // FF_LINUX: Skip static destructors. After cleanup() everything
+    // meaningful is flushed; the remaining global C++ destructors run in
+    // arbitrary order over half-torn-down state (~TimeManager warns,
+    // ~FarTexDB asserts, static texture DBs Release() D3D7Surfaces whose
+    // deferred-GL-delete vectors are already destroyed -> "double free or
+    // corruption" SIGABRT). Same exit-time bug class as ~TurbulanceList
+    // (issue #6). _exit() ends the process cleanly without running them.
+    _exit(0);
 }

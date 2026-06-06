@@ -6666,11 +6666,22 @@ void sort_path(void)
 
 void res_detach_ex(ARCHIVE * archive)
 {
+#ifndef FF_LINUX
     HASH_ENTRY * entry;
 
     int i;
+#endif
 
-#if( not RES_USE_FLAT_MODEL )
+#ifdef FF_LINUX
+    /* FF_LINUX: skip the per-entry hash unhooking. `&archive->name[i]` for
+       i in 0..num_entries indexes INTO the archive's filename buffer (and
+       past it, into struct bytes) producing garbage non-terminated "names";
+       every lookup misses (the zip hash path is bypassed on Linux - files
+       are read via fopen_nocase from the extracted tree), each miss called
+       SAY_ERROR, and the garbage names overflowed hash_find_table's
+       fullpath[_MAX_PATH] buffer -> FORTIFY abort during exit cleanup.
+       shut_down() destroys all hash tables right after detaching anyway. */
+#elif( not RES_USE_FLAT_MODEL )
     HASH_TABLE * table;
 
     for (i = 0; i < archive -> num_entries; i++)
@@ -7829,7 +7840,12 @@ void split_path(const char * in_name, char * out_filename, char * out_dirpath)
 void _say_error(int error, const char * msg, int line, const char * filename)
 {
     int err_code;
-    char buffer[ 255 ];
+    /* FF_LINUX: was char buffer[255] filled with sprintf. The default-case
+       message contains BOTH the resource name and __FILE__ (a long absolute
+       path on Linux), which overflowed the buffer and made FORTIFY abort the
+       process during shutdown (res_detach_ex -> SAY_ERROR on benign hash
+       misses). Larger buffer + snprintf: truncate, never abort. */
+    char buffer[ 1024 ];
     char title[] = "Resource Manager Error";
     char blank[] = "???";
     int  retval = 1;
@@ -7847,15 +7863,15 @@ void _say_error(int error, const char * msg, int line, const char * filename)
             /* from erno.h */
 
         case EACCES:
-            sprintf(buffer, "Tried to open read-only file (%s) for writing.", msg);
+            snprintf(buffer, sizeof(buffer), "Tried to open read-only file (%s) for writing.", msg);
             break;
 
         case EEXIST:
-            sprintf(buffer, "Create flag specified, but filename (%s) already exists.", msg);
+            snprintf(buffer, sizeof(buffer), "Create flag specified, but filename (%s) already exists.", msg);
             break;
 
         case ENOENT:
-            sprintf(buffer, "File or path not found. (%s).", msg);
+            snprintf(buffer, sizeof(buffer), "File or path not found. (%s).", msg);
             break;
 
         default:    /* an error that is specific to this file */
@@ -7867,11 +7883,11 @@ void _say_error(int error, const char * msg, int line, const char * filename)
 
                 error = error + (-RES_ERR_FIRST_ERROR - 1);
 
-                sprintf(buffer, "%s (%s)\n\n\nFile: %s\nLine: %d",  RES_ERR_OR_MSGS[ error ], msg, filename, line);
+                snprintf(buffer, sizeof(buffer), "%s (%s)\n\n\nFile: %s\nLine: %d",  RES_ERR_OR_MSGS[ error ], msg, filename, line);
             }
             else
             {
-                sprintf(buffer, "Unknown error encountered with file. (%s)\n\n\nFile: %s\nLine: %d\n", msg, filename, line);
+                snprintf(buffer, sizeof(buffer), "Unknown error encountered with file. (%s)\n\n\nFile: %s\nLine: %d\n", msg, filename, line);
             }
     }
 
