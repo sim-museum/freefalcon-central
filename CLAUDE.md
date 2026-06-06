@@ -3800,3 +3800,50 @@ Full lifecycle verified:
 
 ---
 
+
+### Session: June 5, 2026 - Major Playability Fixes (terrain, sound, throttle, effects, UI)
+
+All commits pushed to origin/develop. The window title now shows the build's
+git hash ("Free Falcon 6 Linux Port [<hash>]") - if a reported behavior doesn't
+match the latest commit, check the title first (this resolved repeated
+"version skew" confusion).
+
+#### Fixed This Session (10 commits, bc443fdc..0e54c2f5)
+
+| Commit | Fix | Root Cause |
+|--------|-----|-----------|
+| bc443fdc | **Invisible/black terrain** (the months-long "midnight terrain" bug) | `glClear` honors `glDepthMask` (D3D's Clear does not). With ZWRITEENABLE left FALSE, the per-frame depth clear silently no-op'd; stale near-depth made every terrain fragment (z=0.9999, LEQUAL) fail forever. `D3D7Dev_Clear` now forces the depth mask (and bypasses scissor). Also: proper D3D7 XYZRHW fog = specular-alpha fog factor via GL fog-coord (`FF_BeginRHWFog`); do NOT map SPECULARENABLE to GL_COLOR_SUM (MPR writes white specular RGB everywhere - whites out the cockpit). |
+| 095a9e9b | **Silent audio** | 3 bugs in openal_dsound.cpp: (1) eager AL-source creation per loaded sample exhausted OpenAL Soft's 256-source pool - sources now lazy at Play; (2) late-created sources had no buffer/gain attached - EnsureSource now applies stored state; (3) Unlock stopped streaming sources without resuming - now preserves play state/cursor. |
+| 095a9e9b | **Dead joystick throttle** | `ReadThrottle()` is DirectInput-only; with gTotalJoy==0 it forced 0.0/1.0 over the SDL value. `UseKeyboardThrottle` latch could never clear (only dead DI code cleared it). Full travel now maps 0..1.5 (AB reachable). |
+| 5783ca73 | **Invisible explosions/smoke** | CRLF line endings in terrdata/particlesys.ini: Windows text-mode fgets strips \r, Linux keeps it, so every effect name ("$GROUND_EXPLOSION\r") failed to match the SFX name table and all effects resolved to an empty PPN[0]. Parser now strips \r. **This CRLF-after-fgets bug class likely affects other text parsers reading game data - audit when txt parsing misbehaves.** |
+| 5783ca73 | Throttle/twist swapped | Axis defaults now throttle=3 / yaw=2 (twist-grip layout); FF_THROTTLE_AXIS / FF_YAW_AXIS env override. |
+| 5d87bd31 | **Black 3D-cockpit/aircraft faces** (texture churn) | Campaign aggregation flapping dropped shared texture refCounts to 0; the bank freed+reloaded them continuously (1000s of redundant DDS reads, constant tex.cpp:402 asserts). Texture bank now keeps textures 10s after refCount=0 (zeroSinceMs + sweep); Reference() cancels pending release; CreateTexture keeps a live handle; UpdateBank skips redundant reloads. (The campaign flap itself is unfixed - separate issue.) |
+| d2836c60 | **Terrain moire/aliasing** | No mipmaps (level-0 only + GL_LINEAR). Now glGenerateMipmap at upload + trilinear + 8x anisotropic. MINFILTER handler only uses mipmapped filters when a mip chain exists (RTT canvases have none and would go black). |
+| 911435dc | FF_UI_CLICK test harness | `FF_UI_CLICK="x,y@sec;x,y@secd;x,y@secr"` posts real UI mouse messages ('d'=double, 'r'=right-click). xdotool/XTEST clicks hover but don't activate buttons; this internal hook is the reliable automation path. Combine with FF_UI_SCREENSHOT=N (/tmp/ff_ui.bmp). |
+| ef2cae42 | **Double-clicks dead in entire UI** | Windows synthesizes WM_LBUTTONDBLCLK; SDL handler never did. Now generated from event.button.clicks. (Affects dogfight team/flight join, list double-clicks everywhere.) |
+| 0e54c2f5 | Git hash in window title; FF_TEST_EXPLOSION A/B | FF_TEST_EXPLOSION=1 alternates the direct particle spawn and the named-effect/SfxClass path real missile impacts use - both verified rendering. |
+
+#### Verified Working (via automation + user reports)
+- Terrain bright/smooth in all views, mipmapped, haze-to-horizon fog
+- In-flight audio (engine etc.) - measured at the PipeWire sink (pw-record stream.capture.sink=true + RMS)
+- Explosions: ground chain (fireball/flash/20s smoke/debris) and air bursts render
+- Dogfight flow: screen -> saved games -> COMMIT -> lobby -> right-click roster column -> Add Aircraft popup (aircraft list + team + skill submenus)
+- 0-view external aircraft "near perfect" (user)
+
+#### Open Issues (task list)
+1. **#11 Missile-impact explosion**: both effect code paths verified rendering in test harness; user still reported nothing at impact (observation may predate the CRLF fix - needs retest on a hash-stamped build; if still missing, suspect the FalconMissileEndMessage dispatch timing/position rather than the effect pipeline).
+2. **#12 3-view virtual pit interior black tub**: fuselage textured but cockpit interior between canopy rails solid black (user screenshot on NEW build). Not the texture churn (fixed). Suspects: pit-interior faces' specific textures never load, or material/vertex-color+lighting state in the DXEngine object pass during the VCock draw.
+3. **#13 Dogfight roster pane + Fly button**: added aircraft appear only as tiny icons at top of roster column; no list entries, no FLY button. Investigate df_teams.scf roster rendering and FLY-button conditions (may require joining a flight - double-click now works, untested by user since the DBLCLK fix).
+4. Campaign aggregation flap (AI flights reagg/deagg cycling ~constantly) - masked by the texture grace period but wasteful; campaign-side root cause unknown.
+5. Exit leaves a zombie process after the main loop ends (window closes, process hangs in cleanup; needs pkill -9).
+
+#### Debugging Infrastructure (env vars)
+| Env | Effect |
+|-----|--------|
+| FF_TEST_EXPLOSION=1 | Spawn test explosion ahead of player every 2s (alternates direct + SfxClass paths) |
+| FF_UI_CLICK="x,y@sec[d|r];..." | Scripted UI clicks (UI coords 1024x768) |
+| FF_UI_SCREENSHOT=N | Dump /tmp/ff_ui.bmp every N seconds in UI mode |
+| FF_THROTTLE_AXIS / FF_YAW_AXIS | Joystick axis remap (defaults 3 / 2) |
+| FF_NO_FOG=1 | Disable fog (diagnostic) |
+
+Audio verification without ears: `timeout 3 pw-record -P '{ stream.capture.sink=true }' --rate 44100 --channels 1 --format s16 /tmp/m.wav` then compute RMS with python wave/struct (pactl is not installed; use pipewire tools).
