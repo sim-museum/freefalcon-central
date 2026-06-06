@@ -21,6 +21,16 @@ extern bool DateOff;
 #endif
 extern int TheObjectLODsCount;
 
+#ifdef FF_LINUX
+// FF_LINUX: deferred node-memory frees (see ReleaseModel). Drained at
+// ResetDrawList, which runs at the start of the next flush under
+// LOCK_VB_MANAGER - by then last frame's deferred alpha/solid draws
+// (which reference this memory) have completed.
+#define FF_MAX_PENDING_MODEL_FREES 256
+static void* s_pendingModelFrees[FF_MAX_PENDING_MODEL_FREES];
+static int s_pendingModelFreeCount = 0;
+#endif
+
 // The ONLY Vertex Buffers Manager
 CDXVbManager TheVbManager;
 DWORD VBModels;
@@ -554,7 +564,25 @@ void CDXVbManager::ReleaseModel(DWORD ID)
     pVBuffers[ID].Valid = false;
 
     // Free Model allocated memory
+#ifdef FF_LINUX
+    // FF_LINUX: DEFER the free. Alpha/solid surfaces popped during
+    // FlushBuffers are drawn later (DX2D sorted-alpha flush at frame end,
+    // OUTSIDE the VB lock) and hold m_NODE pointers into this Root block.
+    // ReleaseModel can run between those points (e.g. a missile's death
+    // dispatched on the timer thread at ground impact while the weapon view
+    // had its exhaust-glow alpha surfaces queued) -> the deferred draw walked
+    // freed memory -> SIGSEGV in DrawSurface/DrawIndexedPrimitiveVB.
+    // The block is freed at the next flush's ResetDrawList instead.
+    if (pVBuffers[ID].Root)
+    {
+        if (s_pendingModelFreeCount < FF_MAX_PENDING_MODEL_FREES)
+            s_pendingModelFrees[s_pendingModelFreeCount++] = pVBuffers[ID].Root;
+        else
+            free(pVBuffers[ID].Root);  // overflow fallback (better leak-risk than UAF)
+    }
+#else
     if (pVBuffers[ID].Root) free(pVBuffers[ID].Root);
+#endif
 
     // Then destroy all
     if (pVBuffers[ID].pVAT) DestroyVAT(pVBuffers[ID].pVbList, pVBuffers[ID].pVAT);
@@ -709,6 +737,13 @@ void CDXVbManager::AddDrawRequest(ObjectInstance *objInst, DWORD ID, D3DXMATRIX 
 // This function Resets the draw List making them ready to be flushed
 void CDXVbManager::ResetDrawList(void)
 {
+#ifdef FF_LINUX
+    // Drain node memory released since the previous flush
+    for (int i = 0; i < s_pendingModelFreeCount; i++)
+        free(s_pendingModelFrees[i]);
+    s_pendingModelFreeCount = 0;
+#endif
+
     // Start from buffer 0 Draw Item Pointers
     BufferToDraw = 0;
     RootItemToDraw = NextItemToDraw = pVbList[BufferToDraw].pDrawRoot;

@@ -1139,6 +1139,16 @@ static void crash_signal_handler(int sig) {
 }
 
 static void setup_signal_handlers() {
+    // FF_LINUX: prime backtrace() now - its FIRST call lazily dlopens
+    // libgcc (which allocates). If the first call happens inside the crash
+    // handler while the crashing thread holds the malloc lock, the handler
+    // deadlocks after printing the "=== CRASH ===" header with no frames
+    // (seen on the TE mission-select crash).
+    {
+        void *primeFrames[4];
+        backtrace(primeFrames, 4);
+    }
+
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = signal_handler;

@@ -249,6 +249,8 @@ void OTWDriverClass::Cycle(void)
                 case 2: SetOTWDisplayMode(ModeChase); break;
                 case 3: SetOTWDisplayMode(ModeOrbit); break;
                 case 4: SetOTWDisplayMode(Mode3DCockpit); break; // virtual pit (issue #12)
+                case 5: SetOTWDisplayMode(ModeWeapon); break;    // missile/weapon view (crash repro)
+                case 6: SetOTWDisplayMode(ModeTargetToWeapon); break;
             }
         }
     }
