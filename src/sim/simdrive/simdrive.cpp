@@ -493,6 +493,24 @@ void SimulationDriver::Cycle()
     curFlyState = FalconLocalSession->GetFlyState();
     RefreshVoiceFreqs();//me123
 
+    // FF_LINUX: env-gated heartbeat - issue #14
+    {
+        static int s_dbgPickle = -1;
+        if (s_dbgPickle < 0) s_dbgPickle = getenv("FF_DEBUG_PICKLE") ? 1 : 0;
+
+        if (s_dbgPickle)
+        {
+            static DWORD s_lastBeat = 0;
+            DWORD now = GetTickCount();
+            if (now - s_lastBeat >= 1000)
+            {
+                s_lastBeat = now;
+                fprintf(stderr, "[PICKLE] SimDriver.Cycle: flyState=%d elapsed=%ld comprRatio=%d\n",
+                        (int)curFlyState, elapsedTime, gameCompressionRatio);
+            }
+        }
+    }
+
     if ((elapsedTime >= 10) and (gameCompressionRatio))
     {
         // Check if the graphics are runnning and read inputs, if so.

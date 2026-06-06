@@ -747,6 +747,16 @@ void ProcessJoyButtonAndPOVHat(void)
                 int ID;
                 theFunc = UserFunctionTable.GetButtonFunction(i, &ID);
 
+                // FF_LINUX: env-gated joystick-button trace - issue #14
+                {
+                    static int s_dbgPickle = -1;
+                    if (s_dbgPickle < 0) s_dbgPickle = getenv("FF_DEBUG_PICKLE") ? 1 : 0;
+
+                    if (s_dbgPickle)
+                        fprintf(stderr, "[PICKLE] joy button %u DOWN -> func=%p (slot%%%d=%d)\n",
+                                i, (void*)theFunc, SIMLIB_MAX_DIGITAL, (int)(i % SIMLIB_MAX_DIGITAL));
+                }
+
                 if (theFunc)
                 {
                     if (ID  < 0)

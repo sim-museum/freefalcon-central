@@ -56,8 +56,18 @@ PilotInputs::PilotInputs(void)
     PickleTime = 0;
 
     // Retro 12Jan2004 -- aargh I hate FreeFalcon
+#ifndef FF_LINUX
+    // FF_LINUX: do NOT clear the global pickle overrides here. Every AircraftClass
+    // (including every AI aircraft created by deaggregation) constructs a PilotInputs
+    // (aircraft.cpp: theInputs = new PilotInputs), and with the campaign aggregation
+    // flap constantly creating aircraft, the player's held pickle button was wiped
+    // within milliseconds of being pressed -> missiles could never launch (issue #14).
+    // These globals describe the LOCAL PLAYER's input state; a freshly constructed
+    // AI input block has no business clearing them. (TriggerOverride was never
+    // cleared here, which is why the gun kept working.)
     PickleOverride = 0;
     keyboardPickleOverride = 0;
+#endif
     trigger = Center;
     pickleButton = Off;
 
@@ -142,7 +152,7 @@ void PilotInputs::Update()
     // the other is not considered.
     //
     // This 3-state variable should also control various other avionics-related
-    // operations so that we don´t have to introduce 6.23*10^23 new keypresses
+    // operations so that we donï¿½t have to introduce 6.23*10^23 new keypresses
     //
     // Access functions to get the current controlled axis and to set it are provided
     // insider the pilotinput class. The enum is within the class scope 
@@ -320,6 +330,29 @@ void PilotInputs::Update()
 
     //all joystick button functionality is now in sijoy
     //if (IO.ReadDigital(0) or keyboardTriggerOverride)
+
+    // FF_LINUX: env-gated heartbeat - issue #14
+    {
+        static int s_dbgHb = -1;
+        if (s_dbgHb < 0) s_dbgHb = getenv("FF_DEBUG_PICKLE") ? 1 : 0;
+
+        if (s_dbgHb)
+        {
+            static DWORD s_lastBeat = 0;
+            DWORD now = GetTickCount();
+            if (now - s_lastBeat >= 1000)
+            {
+                s_lastBeat = now;
+                fprintf(stderr, "[PICKLE] PilotInputs.Update: kbdTrig=%d joyTrig=%d kbdPickle=%d "
+                        "joyPickle=%d player=%p isAirplane=%d\n",
+                        keyboardTriggerOverride, TriggerOverride,
+                        keyboardPickleOverride, PickleOverride,
+                        (void*)SimDriver.GetPlayerEntity(),
+                        SimDriver.GetPlayerEntity() ? (int)SimDriver.GetPlayerEntity()->IsAirplane() : -1);
+            }
+        }
+    }
+
     if (keyboardTriggerOverride or TriggerOverride)
     {
         trigger = Down;
@@ -332,12 +365,30 @@ void PilotInputs::Update()
         // RV - I-Hawk - Added a check to allow ARH "Maddog" launch only in boresight mode
         if ((SimDriver.GetPlayerEntity()) and (SimDriver.GetPlayerEntity()->IsAirplane()))
         {
+            // FF_LINUX: env-gated pickle-gate trace - issue #14
+            static int s_dbgPickle = -1;
+            if (s_dbgPickle < 0) s_dbgPickle = getenv("FF_DEBUG_PICKLE") ? 1 : 0;
+
             if (keyboardPickleOverride or PickleOverride)
             {
+                if (s_dbgPickle)
+                    fprintf(stderr, "[PICKLE] gate: kbd=%d joy=%d PickleTime=%u elapsed=%u "
+                            "need>%u maddog=%d button=%d\n",
+                            keyboardPickleOverride, PickleOverride,
+                            (unsigned)PickleTime, (unsigned)SimLibElapsedTime,
+                            playerAC and playerAC->FCC ? (unsigned)playerAC->FCC->GetPickleTime() : 9999u,
+                            playerAC and playerAC->FCC ? (int)playerAC->FCC->AllowMaddog() : -1,
+                            (int)pickleButton);
+
                 if ( not PickleTime) PickleTime = SimLibElapsedTime;
-                else if ((SimLibElapsedTime - PickleTime) > playerAC->FCC->GetPickleTime() and pickleButton == Off and 
+                else if ((SimLibElapsedTime - PickleTime) > playerAC->FCC->GetPickleTime() and pickleButton == Off and
                          playerAC->FCC->AllowMaddog())
+                {
                     pickleButton = On;
+
+                    if (s_dbgPickle)
+                        fprintf(stderr, "[PICKLE] pickleButton -> ON\n");
+                }
             }
             else
             {
@@ -351,6 +402,24 @@ void PilotInputs::Update()
 
 void PilotInputs::Reset(void)
 {
+    // FF_LINUX: env-gated trace - issue #14 (who clears the pickle overrides?)
+    {
+        static int s_dbgPickle = -1;
+        if (s_dbgPickle < 0) s_dbgPickle = getenv("FF_DEBUG_PICKLE") ? 1 : 0;
+
+        if (s_dbgPickle)
+        {
+            static int s_count = 0;
+            if (s_count < 50 or (s_count % 256) == 0)
+            {
+                extern void SimPickle(unsigned long, int, void*);  // anchor for PIE offset math
+                fprintf(stderr, "[PICKLE] PilotInputs::Reset #%d caller=%p anchor(SimPickle)=%p\n",
+                        s_count, __builtin_return_address(0), (void*)&SimPickle);
+            }
+            s_count++;
+        }
+    }
+
     throttleOffset = 0.0F;
     rudderOffset = 0.0F;
     rudderOffsetRate = 0.0F;

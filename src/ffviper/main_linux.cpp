@@ -2598,6 +2598,53 @@ static void main_loop(void) {
             }
         }
 
+        // FF_LINUX debug: scripted sim key injection via FF_SIM_KEY="dik@sec[+holdms];..."
+        // dik = DirectInput key code (decimal or 0x-hex, e.g. 57 or 0x39 = SPACE),
+        // sec = seconds after entering sim mode, holdms = hold duration (default 250).
+        // Pushes events into the same buffer real SDL key presses use (FF_PushKeyEvent),
+        // so the full sim input path is exercised. For automated testing of issue #14.
+        if (!doUI) {
+            static int s_keyInit = 0;
+            static struct { int dik; Uint32 atMs; Uint32 holdMs; int phase; Uint32 downAt; } s_keys[16];
+            static int s_nKeys = 0;
+            static Uint32 s_simKeyStart = 0;
+            if (!s_keyInit) {
+                s_keyInit = 1;
+                const char* e = getenv("FF_SIM_KEY");
+                if (e) {
+                    char buf[256];
+                    strncpy(buf, e, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
+                    for (char* tok = strtok(buf, ";"); tok && s_nKeys < 16; tok = strtok(NULL, ";")) {
+                        unsigned dik; float at; unsigned hold = 250;
+                        if (sscanf(tok, "%i@%f+%u", &dik, &at, &hold) >= 2) {
+                            s_keys[s_nKeys].dik = (int)dik;
+                            s_keys[s_nKeys].atMs = (Uint32)(at * 1000.0f);
+                            s_keys[s_nKeys].holdMs = hold;
+                            s_keys[s_nKeys].phase = 0;
+                            s_nKeys++;
+                        }
+                    }
+                    fprintf(stderr, "[FF_SIM_KEY] parsed %d key events\n", s_nKeys);
+                }
+            }
+            if (s_nKeys) {
+                if (!s_simKeyStart) s_simKeyStart = SDL_GetTicks();
+                Uint32 el = SDL_GetTicks() - s_simKeyStart;
+                for (int ki = 0; ki < s_nKeys; ki++) {
+                    if (s_keys[ki].phase == 0 && el >= s_keys[ki].atMs) {
+                        s_keys[ki].phase = 1;
+                        s_keys[ki].downAt = el;
+                        fprintf(stderr, "[FF_SIM_KEY] DOWN dik=0x%02x at %ums\n", s_keys[ki].dik, el);
+                        FF_PushKeyEvent(s_keys[ki].dik, true);
+                    } else if (s_keys[ki].phase == 1 && el >= s_keys[ki].downAt + s_keys[ki].holdMs) {
+                        s_keys[ki].phase = 2;
+                        fprintf(stderr, "[FF_SIM_KEY] UP   dik=0x%02x at %ums\n", s_keys[ki].dik, el);
+                        FF_PushKeyEvent(s_keys[ki].dik, false);
+                    }
+                }
+            }
+        }
+
         // Simple frame rate limiting
         Uint32 frameTime = SDL_GetTicks() - frameStart;
         if (frameTime < targetFrameTime) {

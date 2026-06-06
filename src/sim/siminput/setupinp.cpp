@@ -433,6 +433,19 @@ void CallInputFunction(unsigned long val, int state)
             ;
         theFunc = UserFunctionTable.GetFunction(val, flags, &buttonId, &mouseSide);
 
+        // FF_LINUX: env-gated key-dispatch trace - issue #14 (missile launch)
+        {
+            static int s_dbgPickle = -1;
+            if (s_dbgPickle < 0) s_dbgPickle = getenv("FF_DEBUG_PICKLE") ? 1 : 0;
+            if (s_dbgPickle)
+            {
+                extern void SimPickle(unsigned long, int, void*);
+                fprintf(stderr, "[PICKLE] CallInputFunction key=0x%02lx flags=0x%x state=0x%x -> func=%p%s\n",
+                        val, flags, state, (void*)theFunc,
+                        theFunc == &SimPickle ? " (SimPickle)" : (theFunc ? "" : " (UNMAPPED)"));
+            }
+        }
+
         /* // ASSOCIATOR: Commented this out so that Comms menu will not deactivate while pressing other keys
         // Cancel the combo, whether it is handled or not
         if (

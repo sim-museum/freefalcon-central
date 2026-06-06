@@ -964,8 +964,20 @@ void SimSpeedyGonzalesDown(unsigned long, int state, void*)
     // MonoPrint ("Speedy Down %f\n", gSpeedyGonzales);
 }
 
+// FF_LINUX: env-gated tracing for the weapon-release (pickle) path - issue #14
+static bool FF_DbgPickle()
+{
+    static int s = -1;
+    if (s < 0) s = getenv("FF_DEBUG_PICKLE") ? 1 : 0;
+    return s == 1;
+}
+
 void SimPickle(unsigned long, int state, void*)
 {
+    if (FF_DbgPickle())
+        fprintf(stderr, "[PICKLE] SimPickle called, state=0x%x (%s)\n",
+                state, (state bitand KEY_DOWN) ? "DOWN" : "UP");
+
     if (state bitand KEY_DOWN)
     {
         keyboardPickleOverride = TRUE;

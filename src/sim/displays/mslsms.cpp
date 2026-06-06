@@ -51,6 +51,16 @@ int SMSClass::LaunchMissile(void)
         Ownship()->OnGround() or
         MasterArm() not_eq Arm)
     {
+        // FF_LINUX: env-gated trace - issue #14
+        static int s_dbgPickle = -1;
+        if (s_dbgPickle < 0) s_dbgPickle = getenv("FF_DEBUG_PICKLE") ? 1 : 0;
+
+        if (s_dbgPickle)
+            fprintf(stderr, "[PICKLE] LaunchMissile REJECTED: stationOK=%d curWeapon=%p "
+                    "onGround=%d masterArm=%d (need %d)\n",
+                    (int)CurStationOK(), (void*)curWeapon.get(),
+                    (int)Ownship()->OnGround(), (int)MasterArm(), (int)Arm);
+
         return retval;
     }
 

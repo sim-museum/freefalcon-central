@@ -162,6 +162,17 @@ void AircraftClass::DoWeapons()
                  FCC->GetMasterMode() == FireControlComputer::Dogfight or
                  FCC->GetMasterMode() == FireControlComputer::MissileOverride)
         {
+            // FF_LINUX: env-gated launch trace - issue #14
+            static int s_dbgPickle = -1;
+            if (s_dbgPickle < 0) s_dbgPickle = getenv("FF_DEBUG_PICKLE") ? 1 : 0;
+
+            if (s_dbgPickle and isPlayer and FCC->releaseConsent)
+                fprintf(stderr, "[PICKLE] doweapon AA: consent=%d postDrop=%d curWeapon=%p "
+                        "wpnClass=%d masterMode=%d masterArm=%d onGround=%d\n",
+                        (int)FCC->releaseConsent, (int)FCC->postDrop,
+                        (void*)Sms->curWeapon.get(), (int)Sms->curWeaponClass,
+                        (int)FCC->GetMasterMode(), (int)Sms->MasterArm(), (int)OnGround());
+
             if (FCC->releaseConsent and not FCC->postDrop)
             {
                 // 2002-04-07 MN CTD fix - if in AA mode and gun is selected, pressing trigger will crash
@@ -169,6 +180,8 @@ void AircraftClass::DoWeapons()
                 {
                     if (Sms->LaunchMissile())
                     {
+                        if (s_dbgPickle and isPlayer)
+                            fprintf(stderr, "[PICKLE] LaunchMissile SUCCEEDED\n");
                         if (this == FalconLocalSession->GetPlayerEntity())
                         {
                             g_intellivibeData.AAMissileFired++;
