@@ -28,6 +28,9 @@
 #include "MsgInc/SimTimingMsg.h"
 #include "ThreadMgr.h"
 #include "mvrdef.h"
+#ifdef FF_LINUX
+#include "drawparticlesys.h"  // FF_LINUX: FF_TEST_EXPLOSION diagnostic hook
+#endif
 #include "aircrft.h"
 #include "acmi/src/include/acmirec.h"
 #include "simfeat.h"
@@ -763,6 +766,35 @@ void SimulationDriver::Cycle()
         }
 
     }
+
+#ifdef FF_LINUX
+    // FF_LINUX_DIAG: FF_TEST_EXPLOSION=1 spawns a ground explosion ahead of the
+    // player every ~5 seconds to exercise the particle system without weapons.
+    {
+        static int s_testExpl = -1;
+        if (s_testExpl == -1) {
+            const char* e = getenv("FF_TEST_EXPLOSION");
+            s_testExpl = (e && atoi(e)) ? 1 : 0;
+        }
+        if (s_testExpl && playerEntity && playerEntity->IsAirplane()) {
+            static VU_TIME s_lastSpawn = 0;
+            if (vuxRealTime - s_lastSpawn > 2000) {
+                s_lastSpawn = vuxRealTime;
+                SimMoverClass* ac = (SimMoverClass*)playerEntity;
+                Tpoint pos, vec = {0, 0, 0};
+                // spawn ahead along the velocity vector so it lands in view
+                float vx = ac->XDelta(), vy = ac->YDelta(), vz = ac->ZDelta();
+                float vmag = sqrtf(vx*vx + vy*vy + vz*vz);
+                if (vmag < 1.0f) { vx = 1; vy = 0; vz = 0; vmag = 1; }
+                pos.x = ac->XPos() + vx / vmag * 1500.0f;
+                pos.y = ac->YPos() + vy / vmag * 1500.0f;
+                pos.z = ac->ZPos();  // same altitude, dead ahead
+                fprintf(stderr, "[FF_TEST] spawning SFX_AIR_EXPLOSION at (%.0f,%.0f,%.0f)\n", pos.x, pos.y, pos.z);
+                DrawableParticleSys::PS_AddParticleEx(SFX_AIR_EXPLOSION + 1, &pos, &vec);
+            }
+        }
+    }
+#endif
 
     //START_PROFILE("SIMCYCLE_SOUND");
     if (gameCompressionRatio)

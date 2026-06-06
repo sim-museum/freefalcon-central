@@ -1949,10 +1949,12 @@ static void handle_sdl_events(void) {
                     }
                     static int s_throttleAxis = -2, s_yawAxis = -2;
                     if (s_throttleAxis == -2) {
+                        // Default layout matches common twist-grip sticks
+                        // (Logitech 3D Pro etc.): X=0 Y=1 twist(yaw)=2 throttle=3
                         const char* e = getenv("FF_THROTTLE_AXIS");
-                        s_throttleAxis = e ? atoi(e) : 2;
+                        s_throttleAxis = e ? atoi(e) : 3;
                         e = getenv("FF_YAW_AXIS");
-                        s_yawAxis = e ? atoi(e) : 3;
+                        s_yawAxis = e ? atoi(e) : 2;
                         fprintf(stderr, "[Joystick] throttle axis=%d, yaw axis=%d (override with FF_THROTTLE_AXIS / FF_YAW_AXIS)\n",
                                 s_throttleAxis, s_yawAxis);
                     }

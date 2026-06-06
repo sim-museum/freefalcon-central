@@ -1473,6 +1473,7 @@ int ParticleNode::IsDead(void)
 
 void ParticleNode::Draw(class RenderOTW *renderer, int LOD)
 {
+
     if (lifespan <= 0) return;
 
     // COUNT_PROFILE("PARTICLES");
@@ -4979,6 +4980,7 @@ void DrawableParticleSys::PS_KillTrail(TRAIL_HANDLE Handle)
 // THE PS PARSING MAIN FUNCTION
 void DrawableParticleSys::PS_Exec(class RenderOTW *renderer)
 {
+
     //START_PROFILE("New PS");
 
     PS_Renderer = renderer;
@@ -5202,6 +5204,17 @@ bool DrawableParticleSys::PS_LoadParameters(void)
         }
 
         // end Cobra
+
+#ifdef FF_LINUX
+        // Windows text-mode fgets strips \r\n; on Linux the \r survives and
+        // pollutes the last token of every CRLF line (names like
+        // "$GROUND_EXPLOSION\r" then fail to match the SFX name table, which
+        // silently killed all explosion/smoke effects).
+        {
+            char* cr = strchr(buffer, '\r');
+            if (cr) { cr[0] = '\n'; cr[1] = 0; }
+        }
+#endif
 
         if (buffer[0] == '#' or buffer[0] == ';' or buffer[0] == '\n')
             continue;
