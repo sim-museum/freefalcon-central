@@ -920,13 +920,50 @@ SimObjectType* RadarDopplerClass::Exec(SimObjectType* targetList)
             sendThisFrame = (SimLibElapsedTime - lastTargetLockSend > TrackUpdateTime);
         }
 
-        // S.G. Now this is where we scan for each target in our target list, à la EyeballClass::Exec
+        // S.G. Now this is where we scan for each target in our target list, ï¿½ la EyeballClass::Exec
         SimObjectType* tmpPtr = targetList;
 
         // Just in case we don't have a list but we do have a locked target OR IF THE RADAR IS NOT IN AA MODE
         // I noticed the radar isn't really used in air to ground mode so we'll do just the lockedTarget then
         if ( not tmpPtr or digimode not_eq AA)
             tmpPtr = lockedTarget;
+
+#ifdef FF_LINUX
+        // FF_LINUX: issue #9 trace - player radar scan list and rejection reasons
+        {
+            static int s_dbgRadar = -1;
+            if (s_dbgRadar == -1) s_dbgRadar = getenv("FF_DEBUG_RADAR") ? 1 : 0;
+            static unsigned long s_lastLog = 0;
+            if (s_dbgRadar && platform == SimDriver.GetPlayerAircraft() &&
+                SimLibElapsedTime - s_lastLog > 2000)
+            {
+                s_lastLog = SimLibElapsedTime;
+                int nTgt = 0;
+                fprintf(stderr, "[RADAR] player team=%d digimode=%d(AA=%d) mode=%d scanHalf=%.2f list=%p locked=%p\n",
+                        (int)platform->GetTeam(), (int)digimode, (int)AA, (int)mode,
+                        radarData ? radarData->ScanHalfAngle : -1.0f,
+                        (void*)targetList, (void*)lockedTarget);
+                for (SimObjectType* t = tmpPtr; t && nTgt < 8; t = t->next, nTgt++)
+                {
+                    if (!t->BaseData() || !t->localData) {
+                        fprintf(stderr, "[RADAR]   tgt[%d]: no base/local data\n", nTgt);
+                        continue;
+                    }
+                    fprintf(stderr, "[RADAR]   tgt[%d]: team=%d stance=%d ata=%.2f range=%.0f "
+                            "onGround=%d strength=%.2f state=%d\n",
+                            nTgt, (int)t->BaseData()->GetTeam(),
+                            TeamInfo[platform->GetTeam()] ?
+                                TeamInfo[platform->GetTeam()]->TStance(t->BaseData()->GetTeam()) : -1,
+                            t->localData->ata, t->localData->range,
+                            (int)t->BaseData()->OnGround(),
+                            ReturnStrength(t),
+                            (int)t->localData->sensorState[Radar]);
+                }
+                if (nTgt == 0)
+                    fprintf(stderr, "[RADAR]   target list EMPTY\n");
+            }
+        }
+#endif
 
         while (tmpPtr)
         {
@@ -1131,6 +1168,39 @@ SimObjectType* RadarDopplerClass::Exec(SimObjectType* targetList)
 
     targetUnderCursor = FalconNullId;
 
+#ifdef FF_LINUX
+    // FF_LINUX: issue #9 trace - player FCR main scan list
+    {
+        static int s_dbgRadar = -1;
+        if (s_dbgRadar == -1) s_dbgRadar = getenv("FF_DEBUG_RADAR") ? 1 : 0;
+        static unsigned long s_lastLog = 0;
+        if (s_dbgRadar && platform == (SimMoverClass*)SimDriver.GetPlayerAircraft() &&
+            SimLibElapsedTime - s_lastLog > 2000)
+        {
+            s_lastLog = SimLibElapsedTime;
+            int n = 0;
+            fprintf(stderr, "[RADAR-SCAN] emitting=%d mode=%d onGround=%d list=%p "
+                    "beamAz=%.3f beamEl=%.3f scanRate=%.3f frameT=%.4f scanDir=%d azScan=%.2f beamW=%.3f\n",
+                    (int)isEmitting, (int)mode, (int)platform->OnGround(), (void*)targetList,
+                    beamAz, beamEl, scanRate, SimLibMajorFrameTime, (int)scanDir, azScan, beamWidth);
+            for (SimObjectType* o = targetList; o && n < 8; o = o->next, n++)
+            {
+                if (!o->BaseData() || !o->localData) continue;
+                fprintf(stderr, "[RADAR-SCAN]   tgt[%d]: team=%d range=%.0f az=%.2f el=%.2f "
+                        "air=%d sim=%d wpn=%d looking=%d detected=%d painted=%d state=%d\n",
+                        n, (int)o->BaseData()->GetTeam(), o->localData->range,
+                        o->localData->az, o->localData->el,
+                        (int)!o->BaseData()->OnGround(), (int)o->BaseData()->IsSim(),
+                        (int)o->BaseData()->IsWeapon(),
+                        (int)LookingAtObject(o), (int)ObjectDetected(o),
+                        (int)o->localData->painted, (int)o->localData->sensorState[Radar]);
+            }
+            if (n == 0)
+                fprintf(stderr, "[RADAR-SCAN]   target list EMPTY\n");
+        }
+    }
+#endif
+
     while (rdrObj)
     {
         if (rdrObj == lockedTarget)
@@ -1161,11 +1231,34 @@ SimObjectType* RadarDopplerClass::Exec(SimObjectType* targetList)
  not rdrObj->BaseData()->OnGround() and // In the Air?
             ( not rdrObj->BaseData()->IsSim() or   // Campaign Entity
              ( not rdrObj->BaseData()->IsExploding() and // Live none weapon sim thing
- not rdrObj->BaseData()->IsWeapon())) and 
+ not rdrObj->BaseData()->IsWeapon())) and
             LookingAtObject(rdrObj))
         {
             rdrData->painted = TRUE;
             rdrData->rdrDetect = rdrData->rdrDetect >> 1;
+
+#ifdef FF_LINUX
+            // FF_LINUX: issue #9 - log every beam crossing on the player radar
+            {
+                static int s_dbgRadar = -1;
+                if (s_dbgRadar == -1) s_dbgRadar = getenv("FF_DEBUG_RADAR") ? 1 : 0;
+                static unsigned long s_lastCross = 0;
+                if (s_dbgRadar && platform == (SimMoverClass*)SimDriver.GetPlayerAircraft() &&
+                    SimLibElapsedTime - s_lastCross > 1000)
+                {
+                    s_lastCross = SimLibElapsedTime;
+                    fprintf(stderr, "[RADAR-X] beam crossed tgt az=%.2f el=%.2f rng=%.0f "
+                            "detected=%d detectFlags=0x%x S=%.3f rcs=%.4f nomRange=%.0f\n",
+                            rdrObj->localData->az, rdrObj->localData->el,
+                            rdrObj->localData->range,
+                            (int)ObjectDetected(rdrObj),
+                            (unsigned)rdrData->rdrDetect,
+                            ReturnStrength(rdrObj),
+                            rdrObj->BaseData()->GetRCSFactor(),
+                            radarData ? radarData->NominalRange : -1.0f);
+                }
+            }
+#endif
 
             if (ObjectDetected(rdrObj))
             {

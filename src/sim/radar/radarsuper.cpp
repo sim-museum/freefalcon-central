@@ -532,6 +532,35 @@ void RadarSuperClass::ExecAA(void)
     }
 
 
+#ifdef FF_LINUX
+    // FF_LINUX: issue #9 trace - player FCR target list contents
+    {
+        static int s_dbgRadar = -1;
+        if (s_dbgRadar == -1) s_dbgRadar = getenv("FF_DEBUG_RADAR") ? 1 : 0;
+        static unsigned long s_lastLog = 0;
+        if (s_dbgRadar && platform == (SimMoverClass*)SimDriver.GetPlayerAircraft() &&
+            SimLibElapsedTime - s_lastLog > 2000)
+        {
+            s_lastLog = SimLibElapsedTime;
+            int n = 0;
+            fprintf(stderr, "[RADAR-AA] player emitting=%d mode=%d rangeFT=%.0f list=%p\n",
+                    (int)isEmitting, (int)mode, rangeFT, (void*)platform->targetList);
+            for (SimObjectType* o = platform->targetList; o && n < 8; o = o->next, n++)
+            {
+                if (!o->BaseData() || !o->localData) continue;
+                fprintf(stderr, "[RADAR-AA]   tgt[%d]: type=%d team=%d range=%.0f az=%.2f el=%.2f "
+                        "onGround=%d msl=%d strength=%.2f state=%d\n",
+                        n, (int)o->BaseData()->Type(), (int)o->BaseData()->GetTeam(),
+                        o->localData->range, o->localData->az, o->localData->el,
+                        (int)o->BaseData()->OnGround(), (int)o->BaseData()->IsMissile(),
+                        ReturnStrength(o), (int)o->localData->sensorState[Radar]);
+            }
+            if (n == 0)
+                fprintf(stderr, "[RADAR-AA]   target list EMPTY\n");
+        }
+    }
+#endif
+
     // Consider each potential target in our environment for lock and cursor identification
     for (object = platform->targetList; object; object = object->next)
     {

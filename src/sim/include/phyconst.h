@@ -7,7 +7,18 @@
 #define RTD                     57.2957795F
 #define DTR                     0.01745329F
 #define VIS_RANGE               50000.0F
+#ifdef FF_LINUX
+// FF_LINUX: this constant is always paired with libc rand(). MSVC's RAND_MAX
+// is 32767, but glibc's rand() returns 0..2147483647 - with the Windows
+// constant, the radar detection roll (S >= 0.8 + 0.4*rand()/BIGGEST_...)
+// averaged a threshold of ~13000 instead of ~1.0, so ObjectDetected()
+// virtually never passed: the FCR scope stayed empty (issue #9).
+// Bug class: rand()/32767-style scaling assumes the MSVC RAND_MAX.
+#include <stdlib.h>
+#define BIGGEST_RANDOM_NUMBER   ((float)RAND_MAX)
+#else
 #define BIGGEST_RANDOM_NUMBER   32767.0F
+#endif
 #define BOLTZ                   1.38E-23
 #ifndef PI
 #define PI                      3.141592654F

@@ -24,7 +24,16 @@
 #define DEG_TO_RADIANS 0.017453F // PI / 180
 #define RADIANS_TO_DEG 57.29578F // 180 / PI
 
+#ifdef FF_LINUX
+// FF_LINUX: used as `rand() < HALF_CHANCE` (a 50% coin flip). MSVC RAND_MAX
+// is 32767 so 16000 was ~half; glibc RAND_MAX is 2147483647, making the old
+// constant a 0.0007% chance. Same rand()-scaling bug class as
+// BIGGEST_RANDOM_NUMBER (phyconst.h, issue #9 radar detection).
+#include <stdlib.h>
+#define HALF_CHANCE (RAND_MAX / 2)
+#else
 #define HALF_CHANCE 16000 // Half of RAND_MAX
+#endif
 
 #define TOD_SUNUP 300 // Sun up, in minutes since midnight
 #define TOD_SUNDOWN 1260 // Sun down, in minutes since midnight
