@@ -860,6 +860,17 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetLight(IDirect3DDevice7* This, DWORD 
     glLightfv(glLight, GL_DIFFUSE, diffuse);
     glLightfv(glLight, GL_SPECULAR, specular);
 
+    // FF_LINUX: D3D7 light coordinates are WORLD-space, transformed by the
+    // VIEW matrix at draw time. GL bakes GL_POSITION through the modelview
+    // current at glLightfv time - which here may include a stale WORLD
+    // matrix from the last drawn object, corrupting the light direction
+    // (issue #12: sun direction wrong -> zero diffuse on pit/objects).
+    // Specify positions under modelview = VIEW only; ApplyMatrices()
+    // re-specifies them whenever the view matrix changes.
+    glMatrixMode(GL_MODELVIEW);
+    glPushMatrix();
+    glLoadMatrixf((const float*)&dev->viewMatrix);
+
     if (lpLight->dltType == D3DLIGHT_DIRECTIONAL) {
         // Directional light - position w=0 means direction
         float dir[4] = { -lpLight->dvDirection.x, -lpLight->dvDirection.y, -lpLight->dvDirection.z, 0.0f };
@@ -878,6 +889,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetLight(IDirect3DDevice7* This, DWORD 
         glLightf(glLight, GL_SPOT_CUTOFF, lpLight->dvPhi * 180.0f / 3.14159f);
         glLightf(glLight, GL_SPOT_EXPONENT, lpLight->dvFalloff);
     }
+
+    glPopMatrix();
 
     return D3D_OK;
 }
@@ -1010,6 +1023,65 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitive(IDirect3DDevice7* This, D
     return D3D_OK;
 }
 
+// FF_LINUX: Issue #12 (black 3D-pit interior) - emulate D3D7
+// EMISSIVEMATERIALSOURCE = D3DMCS_COLOR2: per-vertex emissive taken from the
+// vertex SPECULAR channel. The DX engine sets this for every object surface
+// (CDXEngine::DrawSurface); the pit interior faces have black baked diffuse
+// and get ALL of their visible color from this per-vertex emissive, which
+// fixed-function GL cannot express via glColorMaterial (it can track only one
+// material property, used for diffuse). However glMaterial IS legal inside
+// glBegin/glEnd, so we update GL_EMISSION per vertex - matching D3D semantics
+// exactly: color = emission + ambient + diffuse lighting, then texture
+// modulates. Calls are cached (faces typically share one emissive color), so
+// the per-vertex cost is one DWORD compare in the common case.
+struct FFVertexEmissiveState {
+    bool active;
+    DWORD lastRGB;
+    GLfloat savedEmission[4];
+};
+
+// Call BEFORE glBegin. Activates per-vertex emissive when the device has
+// EMISSIVEMATERIALSOURCE=COLOR2 and this is a lit draw with a specular channel.
+static void FF_BeginVertexEmissive(FFVertexEmissiveState* st, D3D7Device* dev,
+                                   DWORD fvf, bool isXYZRHW) {
+    st->active = false;
+    st->lastRGB = 0xFF000001;  // sentinel: can't match a 24-bit masked value
+    static int s_noVtxEmissive = -1;
+    if (s_noVtxEmissive == -1) s_noVtxEmissive = getenv("FF_NO_VTX_EMISSIVE") ? 1 : 0;
+    if (s_noVtxEmissive)
+        return;
+    if (isXYZRHW || !(fvf & D3DFVF_SPECULAR) || !(fvf & D3DFVF_NORMAL))
+        return;
+    if (!glIsEnabled(GL_LIGHTING))
+        return;  // unlit draws use vertex color directly in both APIs
+    auto it = dev->renderStates.find(D3DRENDERSTATE_EMISSIVEMATERIALSOURCE);
+    if (it == dev->renderStates.end() || it->second != D3DMCS_COLOR2)
+        return;
+    st->active = true;
+    glGetMaterialfv(GL_FRONT, GL_EMISSION, st->savedEmission);
+}
+
+// Call inside glBegin/glEnd, before glVertex, with the vertex specular DWORD.
+static inline void FF_SetVertexEmissive(FFVertexEmissiveState* st, DWORD specular) {
+    if (!st->active) return;
+    DWORD rgb = specular & 0x00FFFFFF;  // alpha = fog factor, not emissive
+    if (rgb == st->lastRGB) return;
+    st->lastRGB = rgb;
+    GLfloat em[4] = {
+        (GLfloat)((rgb >> 16) & 0xFF) / 255.0f,
+        (GLfloat)((rgb >> 8) & 0xFF) / 255.0f,
+        (GLfloat)(rgb & 0xFF) / 255.0f,
+        1.0f
+    };
+    glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, em);
+}
+
+// Call AFTER glEnd to restore the material emission we clobbered.
+static void FF_EndVertexEmissive(FFVertexEmissiveState* st) {
+    if (st->active)
+        glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, st->savedEmission);
+}
+
 static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* This, D3DPRIMITIVETYPE dptPrimitiveType, DWORD dwVertexTypeDesc, LPVOID lpvVertices, DWORD dwVertexCount, LPWORD lpwIndices, DWORD dwIndexCount, DWORD dwFlags) {
     D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("DrawIndexedPrimitive type=%d count=%d", dptPrimitiveType, dwIndexCount);
@@ -1111,6 +1183,10 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
     }
 #endif
 
+    // FF_LINUX: Issue #12 - per-vertex emissive from vertex specular (COLOR2)
+    FFVertexEmissiveState emissiveDIP;
+    FF_BeginVertexEmissive(&emissiveDIP, dev, dwVertexTypeDesc, isXYZRHW);
+
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
         WORD idx = lpwIndices[i];
@@ -1157,6 +1233,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
             if (isXYZRHW) {
                 glFogCoordf(1.0f - (float)(specular >> 24) / 255.0f);
             }
+            // Lit draws: specular RGB = per-vertex emissive (issue #12)
+            FF_SetVertexEmissive(&emissiveDIP, specular);
             offset += sizeof(DWORD);
         }
 
@@ -1170,6 +1248,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
         }
     }
     glEnd();
+
+    // FF_LINUX: Restore material emission clobbered by per-vertex emissive
+    FF_EndVertexEmissive(&emissiveDIP);
 
     if (isXYZRHW) {
         glMatrixMode(GL_MODELVIEW);
@@ -1242,12 +1323,42 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts) {
     static unsigned lastColor = 0xdeadbeef;
     unsigned c = (px[0] << 16) | (px[1] << 8) | px[2];
     if (c != lastColor) {
-        GLint tex = 0;
+        GLint tex = 0, srcBlend = 0, dstBlend = 0;
         glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex);
+        glGetIntegerv(GL_BLEND_SRC, &srcBlend);
+        glGetIntegerv(GL_BLEND_DST, &dstBlend);
+        GLfloat fogCol[4] = {0}, fogDen = 0, fogStart = 0, fogEnd = 0;
+        GLint fogMode = 0, fogSrc = 0;
+        glGetFloatv(GL_FOG_COLOR, fogCol);
+        glGetFloatv(GL_FOG_DENSITY, &fogDen);
+        glGetFloatv(GL_FOG_START, &fogStart);
+        glGetFloatv(GL_FOG_END, &fogEnd);
+        glGetIntegerv(GL_FOG_MODE, &fogMode);
+        glGetIntegerv(GL_FOG_COORD_SRC, &fogSrc);
+        GLfloat l0amb[4]; glGetLightfv(GL_LIGHT0, GL_AMBIENT, l0amb);
+        GLfloat l0cut = 0, l0att0 = 0, l0att1 = 0, l0att2 = 0;
+        glGetLightfv(GL_LIGHT0, GL_SPOT_CUTOFF, &l0cut);
+        glGetLightfv(GL_LIGHT0, GL_CONSTANT_ATTENUATION, &l0att0);
+        glGetLightfv(GL_LIGHT0, GL_LINEAR_ATTENUATION, &l0att1);
+        glGetLightfv(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, &l0att2);
+        GLint cmMode = 0, shadeModel = 0, twoSide = 0;
+        glGetIntegerv(GL_COLOR_MATERIAL_PARAMETER, &cmMode);
+        glGetIntegerv(GL_SHADE_MODEL, &shadeModel);
+        glGetIntegerv(GL_LIGHT_MODEL_TWO_SIDE, &twoSide);
+        fprintf(stderr, "[PIXPROBE+] l0cut=%.0f att=%.2f,%.2f,%.2f cmMode=0x%x shade=0x%x "
+                "twoSide=%d norml=%d\n",
+                l0cut, l0att0, l0att1, l0att2, (unsigned)cmMode, (unsigned)shadeModel,
+                (int)twoSide, (int)glIsEnabled(GL_NORMALIZE));
         fprintf(stderr, "[PIXPROBE] %s: color 0x%06x -> 0x%06x fvf=0x%lx nVerts=%lu "
-                "tex=%d light=%d pit=%d\n",
+                "tex=%d light=%d l0=%d l0amb=%.2f pit=%d blend=%d atest=%d tex2D=%d "
+                "fog=%d(mode=0x%x den=%.3f s=%.0f e=%.0f col=%.2f,%.2f,%.2f src=0x%x)\n",
                 where, lastColor, c, (unsigned long)fvf, (unsigned long)nVerts,
-                (int)tex, (int)glIsEnabled(GL_LIGHTING), g_FF_PitModeActive);
+                (int)tex, (int)glIsEnabled(GL_LIGHTING), (int)glIsEnabled(GL_LIGHT0),
+                l0amb[0], g_FF_PitModeActive,
+                (int)glIsEnabled(GL_BLEND),
+                (int)glIsEnabled(GL_ALPHA_TEST), (int)glIsEnabled(GL_TEXTURE_2D),
+                (int)glIsEnabled(GL_FOG), (unsigned)fogMode, fogDen, fogStart, fogEnd,
+                fogCol[0], fogCol[1], fogCol[2], (unsigned)fogSrc);
         lastColor = c;
     }
 }
@@ -1316,13 +1427,25 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             glDisable(GL_LIGHTING);
         }
     } else if (!isXYZRHW && (fvf & D3DFVF_DIFFUSE) && (fvf & D3DFVF_NORMAL)) {
-        // Lit object draw: D3D7 defaults COLORVERTEX=TRUE with
-        // DIFFUSEMATERIALSOURCE=COLOR1, i.e. vertex diffuse acts as the
-        // material diffuse reflectance. Map via GL_COLOR_MATERIAL.
-        colorMatVB = !glIsEnabled(GL_COLOR_MATERIAL);
-        if (colorMatVB) {
-            glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-            glEnable(GL_COLOR_MATERIAL);
+        // Lit object draw: D3D7 COLORVERTEX=TRUE makes vertex diffuse (COLOR1)
+        // feed the material properties selected by the *MATERIALSOURCE render
+        // states. The DX engine sets BOTH DIFFUSEMATERIALSOURCE=COLOR1 and
+        // AMBIENTMATERIALSOURCE=COLOR1 - tracking only GL_DIFFUSE left the
+        // material ambient stale/black, killing the sun's ambient term: the
+        // issue #12 "black pit" (pixel = emission only).
+        auto itD = dev->renderStates.find(D3DRENDERSTATE_DIFFUSEMATERIALSOURCE);
+        auto itA = dev->renderStates.find(D3DRENDERSTATE_AMBIENTMATERIALSOURCE);
+        // D3D7 defaults: DIFFUSE source = COLOR1, AMBIENT source = MATERIAL
+        bool difC1 = (itD == dev->renderStates.end()) || itD->second == D3DMCS_COLOR1;
+        bool ambC1 = (itA != dev->renderStates.end()) && itA->second == D3DMCS_COLOR1;
+        if (difC1 || ambC1) {
+            glColorMaterial(GL_FRONT_AND_BACK,
+                            (difC1 && ambC1) ? GL_AMBIENT_AND_DIFFUSE :
+                            (difC1 ? GL_DIFFUSE : GL_AMBIENT));
+            colorMatVB = !glIsEnabled(GL_COLOR_MATERIAL);
+            if (colorMatVB) {
+                glEnable(GL_COLOR_MATERIAL);
+            }
         }
     }
 
@@ -1472,6 +1595,157 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     }
 #endif
 
+    // FF_LINUX: Issue #12 - per-vertex emissive from vertex specular (COLOR2)
+    FFVertexEmissiveState emissiveVB;
+    FF_BeginVertexEmissive(&emissiveVB, dev, fvf, isXYZRHW);
+
+    // FF_LINUX: Issue #12 experiment - FF_PIT_TEX_REPLACE=1 forces texture-only
+    // output (GL_REPLACE) for pit-mode lit draws, bisecting "texture samples
+    // black" vs "primary-color/combine path is black".
+    static int s_pitTexReplace = -1;
+    if (s_pitTexReplace == -1) s_pitTexReplace = getenv("FF_PIT_TEX_REPLACE") ? 1 : 0;
+    bool pitReplaceVB = false;
+    if (s_pitTexReplace && g_FF_PitModeActive && !isXYZRHW && (fvf & D3DFVF_NORMAL) && texCount > 0) {
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+        pitReplaceVB = true;
+    }
+
+    // FF_LINUX: Issue #12 experiment - FF_PIT_UNLIT=1 disables GL lighting for
+    // pit-mode lit draws at the GL layer (primary = white vertex color), so
+    // modulate = texture. Distinguishes "lit primary is black" from depth or
+    // texture issues.
+    static int s_pitUnlit = -1;
+    if (s_pitUnlit == -1) s_pitUnlit = getenv("FF_PIT_UNLIT") ? 1 : 0;
+    bool pitUnlitVB = false;
+    if (s_pitUnlit && g_FF_PitModeActive && !isXYZRHW && (fvf & D3DFVF_NORMAL)
+        && glIsEnabled(GL_LIGHTING)) {
+        glDisable(GL_LIGHTING);
+        pitUnlitVB = true;
+    }
+
+    // FF_LINUX: Issue #12 experiment - FF_PIT_UV_DEBUG=1 substitutes a UV-coding
+    // texture (R=u, G=v, B=128) with REPLACE for pit lit draws, so screen pixels
+    // reveal which texture coordinates each fragment samples.
+    static int s_pitUVDebug = -1;
+    if (s_pitUVDebug == -1) s_pitUVDebug = getenv("FF_PIT_UV_DEBUG") ? 1 : 0;
+    bool pitUVDebugVB = false;
+    if (s_pitUVDebug && g_FF_PitModeActive && !isXYZRHW && (fvf & D3DFVF_NORMAL) && texCount > 0) {
+        static GLuint s_uvTex = 0;
+        if (!s_uvTex) {
+            glGenTextures(1, &s_uvTex);
+            glBindTexture(GL_TEXTURE_2D, s_uvTex);
+            unsigned char* p = (unsigned char*)malloc(256 * 256 * 3);
+            for (int y = 0; y < 256; y++)
+                for (int x = 0; x < 256; x++) {
+                    p[(y*256+x)*3+0] = (unsigned char)x;
+                    p[(y*256+x)*3+1] = (unsigned char)y;
+                    p[(y*256+x)*3+2] = 128;
+                }
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, p);
+            free(p);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        }
+        glBindTexture(GL_TEXTURE_2D, s_uvTex);
+        glEnable(GL_TEXTURE_2D);
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+        pitUVDebugVB = true;
+    }
+
+    // FF_LINUX: Issue #12 diagnostic - dump vertex diffuse/specular channel
+    // stats for pit-mode lit draws (confirms the COLOR2-emissive theory).
+    static int s_vpitEmisDiag = -1;
+    if (s_vpitEmisDiag == -1) s_vpitEmisDiag = getenv("FF_DEBUG_VPIT") ? 400 : 0;
+    if (s_vpitEmisDiag > 0 && g_FF_PitModeActive &&
+        (fvf & D3DFVF_NORMAL) && (fvf & D3DFVF_DIFFUSE) && (fvf & D3DFVF_SPECULAR) && !isXYZRHW) {
+        s_vpitEmisDiag--;
+        int posSz = (fvf & D3DFVF_XYZ) ? 12 : 16;
+        int diffOff = posSz + 12;  // after normal
+        DWORD nzDiff = 0, nzSpec = 0, firstDiff = 0, firstSpec = 0;
+        DWORD darkDiff = 0, brightDiff = 0;  // <0x20 avg vs >=0x80 avg per channel
+        DWORD zeroUV = 0;
+        WORD minIdx = 0xFFFF, maxIdx = 0;
+        for (DWORD i = 0; i < dwIndexCount; i++) {
+            WORD rawIdx = lpwIndices[i];
+            if (rawIdx < minIdx) minIdx = rawIdx;
+            if (rawIdx > maxIdx) maxIdx = rawIdx;
+            const char* v = (const char*)vb->data + (DWORD)(rawIdx + dwStartVertex) * vertexSize;
+            DWORD d = *(const DWORD*)(v + diffOff) & 0xFFFFFF;
+            DWORD s = *(const DWORD*)(v + diffOff + 4) & 0xFFFFFF;
+            const float* uv = (const float*)(v + diffOff + 8);
+            if (uv[0] == 0.0f && uv[1] == 0.0f) zeroUV++;
+            if (i == 0) { firstDiff = d; firstSpec = s; }
+            if (d) nzDiff++;
+            if (s) nzSpec++;
+            DWORD lum = (((d >> 16) & 0xFF) + ((d >> 8) & 0xFF) + (d & 0xFF)) / 3;
+            if (lum < 0x20) darkDiff++;
+            else if (lum >= 0x80) brightDiff++;
+        }
+        fprintf(stderr, "[VPIT-EMIS] idx=%lu nzDiffuse=%lu nzSpecular=%lu dark=%lu bright=%lu "
+                "zeroUV=%lu idxRange=%u..%u start=%lu nVtx=%lu first(d=0x%06lx s=0x%06lx) emisActive=%d\n",
+                (unsigned long)dwIndexCount, (unsigned long)nzDiff, (unsigned long)nzSpec,
+                (unsigned long)darkDiff, (unsigned long)brightDiff,
+                (unsigned long)zeroUV, (unsigned)minIdx, (unsigned)maxIdx,
+                (unsigned long)dwStartVertex, (unsigned long)dwNumVertices,
+                (unsigned long)firstDiff, (unsigned long)firstSpec, (int)emissiveVB.active);
+        // First three vertices: position, normal, UV (layout check)
+        for (DWORD k = 0; k < 3 && k < dwIndexCount; k++) {
+            const char* v = (const char*)vb->data + (DWORD)(lpwIndices[k] + dwStartVertex) * vertexSize;
+            const float* p = (const float*)v;
+            const float* n = (const float*)(v + posSz);
+            const float* uv = (const float*)(v + posSz + 12 + 8);
+            fprintf(stderr, "[VPIT-VTX] %lu pos=%.2f,%.2f,%.2f n=%.2f,%.2f,%.2f uv=%.3f,%.3f\n",
+                    (unsigned long)k, p[0], p[1], p[2], n[0], n[1], n[2], uv[0], uv[1]);
+        }
+        // GL lighting state snapshot for this draw
+        GLfloat l0amb[4], l0dif[4], l0pos[4], mamb[4], mdif[4], gamb[4];
+        glGetLightfv(GL_LIGHT0, GL_AMBIENT, l0amb);
+        glGetLightfv(GL_LIGHT0, GL_DIFFUSE, l0dif);
+        glGetLightfv(GL_LIGHT0, GL_POSITION, l0pos);
+        glGetMaterialfv(GL_FRONT, GL_AMBIENT, mamb);
+        glGetMaterialfv(GL_FRONT, GL_DIFFUSE, mdif);
+        glGetFloatv(GL_LIGHT_MODEL_AMBIENT, gamb);
+        GLint envMode = 0;
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &envMode);
+        GLint texBind = 0, srcB = 0, dstB = 0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &texBind);
+        glGetIntegerv(GL_BLEND_SRC, &srcB);
+        glGetIntegerv(GL_BLEND_DST, &dstB);
+        // Combine parameters for unit 0 and unit 1 enable state
+        GLint cRGB=0, s0=0, s1=0, o0=0, o1=0, scale=0;
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_RGB, &cRGB);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE0_RGB, &s0);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE1_RGB, &s1);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND0_RGB, &o0);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND1_RGB, &o1);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_RGB_SCALE, &scale);
+        glActiveTexture(GL_TEXTURE1);
+        GLint t1en = glIsEnabled(GL_TEXTURE_2D), t1bind = 0, c1RGB = 0, s1_0 = 0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &t1bind);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_RGB, &c1RGB);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE0_RGB, &s1_0);
+        glActiveTexture(GL_TEXTURE0);
+        fprintf(stderr, "[VPIT-ENV] u0: combine=0x%x s0=0x%x s1=0x%x o0=0x%x o1=0x%x scale=%d | "
+                "u1: en=%d bind=%d combine=0x%x s0=0x%x\n",
+                (unsigned)cRGB, (unsigned)s0, (unsigned)s1, (unsigned)o0, (unsigned)o1, (int)scale,
+                (int)t1en, (int)t1bind, (unsigned)c1RGB, (unsigned)s1_0);
+        fprintf(stderr, "[VPIT-GL] light0=%d light1=%d colMat=%d tex2D=%d texBind=%d env=0x%x "
+                "blend=%d(%04x,%04x) atest=%d "
+                "l0amb=%.2f,%.2f,%.2f l0dif=%.2f,%.2f,%.2f l0pos=%.2f,%.2f,%.2f,%.0f "
+                "mamb=%.2f mdif=%.2f gamb=%.2f firstAlpha=0x%02lx\n",
+                (int)glIsEnabled(GL_LIGHT0), (int)glIsEnabled(GL_LIGHT1),
+                (int)glIsEnabled(GL_COLOR_MATERIAL), (int)glIsEnabled(GL_TEXTURE_2D),
+                (int)texBind, envMode,
+                (int)glIsEnabled(GL_BLEND), (unsigned)srcB, (unsigned)dstB,
+                (int)glIsEnabled(GL_ALPHA_TEST),
+                l0amb[0], l0amb[1], l0amb[2], l0dif[0], l0dif[1], l0dif[2],
+                l0pos[0], l0pos[1], l0pos[2], l0pos[3],
+                mamb[0], mdif[0], gamb[0],
+                (unsigned long)((*(const DWORD*)((const char*)vb->data + (DWORD)(lpwIndices[0] + dwStartVertex) * vertexSize + diffOff)) >> 24));
+    }
+
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
         WORD idx = lpwIndices[i] + dwStartVertex;
@@ -1516,6 +1790,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             if (isXYZRHW && !restoredViewportVB) {
                 glFogCoordf(1.0f - (float)(specular >> 24) / 255.0f);
             }
+            // Lit draws: specular RGB = per-vertex emissive (issue #12)
+            FF_SetVertexEmissive(&emissiveVB, specular);
             offset += sizeof(DWORD);
         }
 
@@ -1529,6 +1805,24 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         }
     }
     glEnd();
+
+    // FF_LINUX: Restore texture env after FF_PIT_TEX_REPLACE experiment
+    if (pitReplaceVB) {
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+    }
+    // FF_LINUX: Restore lighting after FF_PIT_UNLIT experiment
+    if (pitUnlitVB) {
+        glEnable(GL_LIGHTING);
+    }
+    // FF_LINUX: Restore texture binding/env after FF_PIT_UV_DEBUG experiment
+    if (pitUVDebugVB) {
+        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+        if (dev->textures[0] && ((D3D7Surface*)dev->textures[0])->glTexture)
+            glBindTexture(GL_TEXTURE_2D, ((D3D7Surface*)dev->textures[0])->glTexture);
+    }
+
+    // FF_LINUX: Restore material emission clobbered by per-vertex emissive
+    FF_EndVertexEmissive(&emissiveVB);
 
     // FF_LINUX: Restore GL_TEXTURE_2D if we disabled it for a null-texture draw
     if (disabledTexForNullBinding) {
@@ -1765,6 +2059,17 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                 uploadOK = false;
             }
 
+            // FF_LINUX: FF_DEBUG_TEXUP=1 - trace dirty texture uploads (issue #12)
+            static int s_texupDiag = -1;
+            if (s_texupDiag == -1) s_texupDiag = getenv("FF_DEBUG_TEXUP") ? 400 : 0;
+            if (s_texupDiag > 0) {
+                s_texupDiag--;
+                fprintf(stderr, "[TEXUP] surf=%p glTex=%u %dx%d stage=%lu dxt=%d dxtSize=%d err=0x%x ok=%d\n",
+                        (void*)surf, surf->glTexture, surf->width, surf->height,
+                        (unsigned long)dwStage, (int)(surf->dxtFormat != 0),
+                        surf->dxtDataSize, (unsigned)texErr, (int)uploadOK);
+            }
+
             // Only clear dirty flag on successful upload
             if (uploadOK) {
                 surf->isDirty = false;
@@ -1859,6 +2164,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_ApplyStateBlock(IDirect3DDevice7* This,
 
     // Apply all stored render states
     for (auto& pair : sb.renderStates) {
+        // FF_LINUX: keep the render-state cache coherent - draw-time decisions
+        // (e.g. EMISSIVEMATERIALSOURCE=COLOR2 emissive emulation) query it.
+        dev->renderStates[pair.first] = pair.second;
         dev->ApplyRenderState(pair.first, pair.second);
     }
 
@@ -2655,6 +2963,31 @@ void D3D7Device::ApplyMatrices() {
     // Result: V_d3d^T * W_d3d^T = correct GL modelview.
     glMatrixMode(GL_MODELVIEW);
     glLoadMatrixf((const float*)&viewMatrix);
+
+    // FF_LINUX: Re-specify enabled light positions while only the VIEW matrix
+    // is loaded. D3D7 light coordinates are world-space and are transformed by
+    // the view matrix at draw time; GL instead bakes GL_POSITION through the
+    // modelview at glLightfv time. Without this, lights keep whatever (view x
+    // world) matrix was current when SetLight ran - the sun direction ended up
+    // rotated by a random object's world matrix (issue #12).
+    for (int i = 0; i < MAX_GL_LIGHTS; i++) {
+        if (!lightEnabled[i]) continue;
+        const D3DLIGHT7& L = lights[i];
+        GLenum glLight = GL_LIGHT0 + i;
+        if (L.dltType == D3DLIGHT_DIRECTIONAL) {
+            float dir[4] = { -L.dvDirection.x, -L.dvDirection.y, -L.dvDirection.z, 0.0f };
+            glLightfv(glLight, GL_POSITION, dir);
+        } else if (L.dltType == D3DLIGHT_POINT) {
+            float pos[4] = { L.dvPosition.x, L.dvPosition.y, L.dvPosition.z, 1.0f };
+            glLightfv(glLight, GL_POSITION, pos);
+        } else if (L.dltType == D3DLIGHT_SPOT) {
+            float pos[4] = { L.dvPosition.x, L.dvPosition.y, L.dvPosition.z, 1.0f };
+            float sdir[3] = { L.dvDirection.x, L.dvDirection.y, L.dvDirection.z };
+            glLightfv(glLight, GL_POSITION, pos);
+            glLightfv(glLight, GL_SPOT_DIRECTION, sdir);
+        }
+    }
+
     glMultMatrixf((const float*)&worldMatrix);
 }
 
@@ -2721,10 +3054,20 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
             glDisable(GL_LIGHTING);
         }
     } else if (!isXYZRHW && (fvf & D3DFVF_DIFFUSE) && (fvf & D3DFVF_NORMAL)) {
-        colorMatDV = !glIsEnabled(GL_COLOR_MATERIAL);
-        if (colorMatDV) {
-            glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-            glEnable(GL_COLOR_MATERIAL);
+        // See DrawIndexedPrimitiveVB: track ambient too when the D3D material
+        // sources say so (issue #12 - black pit from missing ambient term).
+        auto itD = renderStates.find(D3DRENDERSTATE_DIFFUSEMATERIALSOURCE);
+        auto itA = renderStates.find(D3DRENDERSTATE_AMBIENTMATERIALSOURCE);
+        bool difC1 = (itD == renderStates.end()) || itD->second == D3DMCS_COLOR1;
+        bool ambC1 = (itA != renderStates.end()) && itA->second == D3DMCS_COLOR1;
+        if (difC1 || ambC1) {
+            glColorMaterial(GL_FRONT_AND_BACK,
+                            (difC1 && ambC1) ? GL_AMBIENT_AND_DIFFUSE :
+                            (difC1 ? GL_DIFFUSE : GL_AMBIENT));
+            colorMatDV = !glIsEnabled(GL_COLOR_MATERIAL);
+            if (colorMatDV) {
+                glEnable(GL_COLOR_MATERIAL);
+            }
         }
     }
 
@@ -2842,6 +3185,10 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     }
 #endif
 
+    // FF_LINUX: Issue #12 - per-vertex emissive from vertex specular (COLOR2)
+    FFVertexEmissiveState emissiveDV;
+    FF_BeginVertexEmissive(&emissiveDV, this, fvf, isXYZRHW);
+
     glBegin(glPrimType);
 
     for (DWORD i = 0; i < count; i++) {
@@ -2892,6 +3239,8 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
             if (isXYZRHW) {
                 glFogCoordf(1.0f - (float)(specular >> 24) / 255.0f);
             }
+            // Lit draws: specular RGB = per-vertex emissive (issue #12)
+            FF_SetVertexEmissive(&emissiveDV, specular);
             offset += sizeof(DWORD);
         }
 
@@ -2908,6 +3257,9 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     }
 
     glEnd();
+
+    // FF_LINUX: Restore material emission clobbered by per-vertex emissive
+    FF_EndVertexEmissive(&emissiveDV);
 
 
     // Restore GL_TEXTURE_2D if we disabled it for null-texture draw
@@ -3515,10 +3867,79 @@ extern "C" void FF_DumpSurfaceStats(IDirectDrawSurface7* s, const char* tag) {
         for (int i = 0; i < checked; i++)
             if (surf->pixelData[i]) nonZero++;
     }
-    fprintf(stderr, "[SURFSTAT] %s: %dx%d pitch=%d glTex=%u pixels=%p nonZero=%d/%d bpp=%u dxt=%d\n",
+    fprintf(stderr, "[SURFSTAT] %s: %dx%d pitch=%d glTex=%u pixels=%p nonZero=%d/%d bpp=%u dxt=%d dxtSize=%d dirty=%d\n",
             tag ? tag : "?", surf->width, surf->height, surf->pitch,
             surf->glTexture, (void*)surf->pixelData, nonZero, checked,
-            (unsigned)surf->pixelFormat.dwRGBBitCount, (int)(surf->dxtFormat != 0));
+            (unsigned)surf->pixelFormat.dwRGBBitCount, (int)(surf->dxtFormat != 0),
+            surf->dxtDataSize, (int)surf->isDirty);
+
+    // FF_LINUX: FF_DUMP_PIT_TEX=1 - dump the decoded GL texture image to
+    // /tmp/pit_tex_<tag>.bmp for visual inspection (issue #12).
+    if (getenv("FF_DUMP_PIT_TEX") && surf->glTexture) {
+        GLint prevTex = 0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTex);
+        glBindTexture(GL_TEXTURE_2D, surf->glTexture);
+        GLint w = 0, h = 0;
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+        if (w > 0 && h > 0 && w <= 4096 && h <= 4096) {
+            unsigned char* px = (unsigned char*)malloc((size_t)w * h * 4);
+            if (px) {
+                glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, px);
+                char path[256];
+                snprintf(path, sizeof(path), "/tmp/pit_tex_%s.bmp", tag ? tag : "x");
+                FILE* f = fopen(path, "wb");
+                if (f) {
+                    int rowSize = (w * 3 + 3) & ~3;
+                    unsigned int imageSize = rowSize * h, bfSize = 54 + imageSize, off = 54;
+                    unsigned short bfType = 0x4D42, zero16 = 0, planes = 1, bits = 24;
+                    unsigned int biSize = 40, comp = 0, ppm = 2835, clr = 0;
+                    fwrite(&bfType, 2, 1, f); fwrite(&bfSize, 4, 1, f);
+                    fwrite(&zero16, 2, 1, f); fwrite(&zero16, 2, 1, f); fwrite(&off, 4, 1, f);
+                    fwrite(&biSize, 4, 1, f); fwrite(&w, 4, 1, f); fwrite(&h, 4, 1, f);
+                    fwrite(&planes, 2, 1, f); fwrite(&bits, 2, 1, f); fwrite(&comp, 4, 1, f);
+                    fwrite(&imageSize, 4, 1, f); fwrite(&ppm, 4, 1, f); fwrite(&ppm, 4, 1, f);
+                    fwrite(&clr, 4, 1, f); fwrite(&clr, 4, 1, f);
+                    unsigned char* row = (unsigned char*)malloc(rowSize);
+                    for (int y = 0; y < h; y++) {  // BMP is bottom-up
+                        memset(row, 0, rowSize);
+                        const unsigned char* src = px + (size_t)(h - 1 - y) * w * 4;
+                        for (int x = 0; x < w; x++) {
+                            row[x*3+0] = src[x*4+2];
+                            row[x*3+1] = src[x*4+1];
+                            row[x*3+2] = src[x*4+0];
+                        }
+                        fwrite(row, 1, rowSize, f);
+                    }
+                    free(row);
+                    fclose(f);
+                    fprintf(stderr, "[SURFSTAT] dumped %s (%dx%d)\n", path, (int)w, (int)h);
+                }
+                free(px);
+            }
+            // Per-mip-level mean luminance (detects black/garbage mip chains)
+            GLint minF = 0;
+            glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &minF);
+            fprintf(stderr, "[SURFSTAT] minFilter=0x%x mips:", (unsigned)minF);
+            for (int lvl = 0; lvl <= 8; lvl++) {
+                GLint lw = 0, lh = 0;
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, lvl, GL_TEXTURE_WIDTH, &lw);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, lvl, GL_TEXTURE_HEIGHT, &lh);
+                if (lw <= 0 || lh <= 0) break;
+                unsigned char* lp = (unsigned char*)malloc((size_t)lw * lh * 4);
+                if (!lp) break;
+                glGetTexImage(GL_TEXTURE_2D, lvl, GL_RGBA, GL_UNSIGNED_BYTE, lp);
+                unsigned long long sum = 0;
+                for (long i = 0; i < (long)lw * lh; i++)
+                    sum += lp[i*4] + lp[i*4+1] + lp[i*4+2];
+                fprintf(stderr, " L%d(%dx%d)=%llu", lvl, (int)lw, (int)lh,
+                        (unsigned long long)(sum / ((unsigned long long)lw * lh * 3)));
+                free(lp);
+            }
+            fprintf(stderr, "\n");
+        }
+        glBindTexture(GL_TEXTURE_2D, prevTex);
+    }
 }
 
 // External function to ensure GL context is current (from main_linux.cpp)
@@ -4347,7 +4768,13 @@ static HRESULT STDMETHODCALLTYPE DD7_CreateSurface(IDirectDraw7* This, LPDDSURFA
         if (surf->pixelFormat.dwFlags & DDPF_FOURCC) {
             DWORD fcc = surf->pixelFormat.dwFourCC;
             if (fcc == MAKEFOURCC('D','X','T','1')) {
-                surf->dxtFormat = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+                // Use the RGBA DXT1 variant: identical data layout, but decodes
+                // the 3-color-mode punch-through index as TRANSPARENT black.
+                // D3D DXT1 always has the 1-bit alpha; the RGB variant forced
+                // alpha=1, which broke chroma-keyed surfaces (alpha test never
+                // discarded) - issue #12: opaque black "tub" slabs covering the
+                // 3D cockpit interior.
+                surf->dxtFormat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
             } else if (fcc == MAKEFOURCC('D','X','T','3')) {
                 surf->dxtFormat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
             } else if (fcc == MAKEFOURCC('D','X','T','5')) {

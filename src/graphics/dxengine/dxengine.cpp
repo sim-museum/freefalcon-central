@@ -935,6 +935,28 @@ void CDXEngine::DrawSurface()
 
 
     /////////////////////// TEXTURE CHANGE Feature //////////////////////////
+#ifdef FF_LINUX
+    // FF_LINUX: issue #12 - per-surface texture selection trace (pit mode)
+    {
+        static int s_dbgSurf = -1;
+        if (s_dbgSurf == -1) s_dbgSurf = getenv("FF_DEBUG_PIT_SURF") ? 80 : 0;
+        if (s_dbgSurf > 0 && m_PitMode) {
+            s_dbgSurf--;
+            fprintf(stderr, "[PITSURF] vCount=%lu flags=0x%08lx tex=%d texid0=%ld texid1=%ld "
+                    "m_TexID=%ld last=%ld alpha=%d vcolor=%d chroma=%d swEmis=%d gouraud=%d\n",
+                    (unsigned long)m_NODE.SURFACE->dwVCount,
+                    (unsigned long)m_NODE.SURFACE->dwFlags.w,
+                    (int)m_NODE.SURFACE->dwFlags.b.Texture,
+                    (long)(int)m_NODE.SURFACE->TexID[0], (long)(int)m_NODE.SURFACE->TexID[1],
+                    (long)(int)m_TexID, (long)(int)LastTexID,
+                    (int)m_NODE.SURFACE->dwFlags.b.Alpha,
+                    (int)m_NODE.SURFACE->dwFlags.b.VColor,
+                    (int)m_NODE.SURFACE->dwFlags.b.ChromaKey,
+                    (int)m_NODE.SURFACE->dwFlags.b.SwEmissive,
+                    (int)m_NODE.SURFACE->dwFlags.b.Gouraud);
+        }
+    }
+#endif
     if (m_TexID not_eq LastTexID)
     {
         SelectTexture(m_TexID);
@@ -1790,7 +1812,21 @@ void CDXEngine::FlushObjects(void)
                 pitProj._44 = 10.0f;
                 m_pD3DD->SetTransform(D3DTRANSFORMSTATE_PROJECTION, (LPD3DMATRIX)&pitProj);
             }
-            m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_NONE);
+            // FF_LINUX: Windows keeps back-face culling (D3DCULL_CW) in the pit.
+            // The earlier Linux CULL_NONE override drew the pit model's exterior
+            // shell faces (untextured, UV=0,0 -> black texel) over the interior:
+            // the issue #12 "black tub". FF_PIT_CULL_NONE=1 restores the old
+            // behavior for comparison.
+            {
+                static int s_pitCull = -1;
+                if (s_pitCull < 0) {
+                    const char* e = getenv("FF_PIT_CULL");  // 0=none 1=cw 2=ccw
+                    s_pitCull = e ? atoi(e) : 0;
+                }
+                m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE,
+                                        s_pitCull == 0 ? D3DCULL_NONE :
+                                        s_pitCull == 1 ? D3DCULL_CW : D3DCULL_CCW);
+            }
             // FF_LINUX: Disable stencil test for pit rendering.
             // The scene uses stencil for sky/fog masking, and pit fragments get rejected.
             glDisable(FF_GL_STENCIL_TEST);

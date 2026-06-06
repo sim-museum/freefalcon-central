@@ -1644,7 +1644,10 @@ void OTWDriverClass::VCock_DrawThePit(void)
         if (s_dbgVpit < 0) s_dbgVpit = getenv("FF_DEBUG_VPIT") ? 1 : 0;
 
         static int s_dumped = 0;
-        if (s_dbgVpit and not s_dumped)
+        static int s_pitFrames = 0;
+        // Dump on the 60th pit frame so texture uploads (which happen on
+        // first draw via SetTexture) have already completed.
+        if (s_dbgVpit and not s_dumped and ++s_pitFrames >= 60)
         {
             s_dumped = 1;
             ObjectParent* par = vrCockpit->instance.ParentObject;
