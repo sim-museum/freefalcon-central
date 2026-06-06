@@ -619,4 +619,92 @@ extern "C" HRESULT DirectDrawEnumerateExA(LPDDENUMCALLBACKEXA lpCallback, LPVOID
     return DD_OK;
 }
 
+/* ============================================================
+ * Real GetPrivateProfileString/Int backend.
+ *
+ * The compat-header versions were stubs that returned the supplied
+ * default, which silently zeroed EVERY .ini-loaded tuning value: all
+ * campaign AI inputs (Falcon4.AII via ReadCampAIInputs -
+ * REAGREGATION_RATIO=0 caused the constant aggregation flap, issue #5),
+ * game rules, force-feedback effects, cockpit settings, etc.
+ *
+ * Windows semantics implemented:
+ *  - section/key matching is case-insensitive
+ *  - whitespace around key and value is trimmed
+ *  - surrounding single/double quotes on the value are stripped
+ *  - ';' starts a comment line
+ *  - CRLF files: trailing \r is stripped (game data is Windows text)
+ * ============================================================ */
+
+static char *ff_ini_trim(char *s) {
+    while (*s == ' ' || *s == '\t') s++;
+    char *end = s + strlen(s);
+    while (end > s && (end[-1] == ' ' || end[-1] == '\t' ||
+                       end[-1] == '\r' || end[-1] == '\n'))
+        *--end = '\0';
+    return s;
+}
+
+/* Find [section] key= in file; copy trimmed value into out (size bytes).
+ * Returns 1 if found, 0 if not. */
+extern "C" int FF_IniGetValue(const char *section, const char *key,
+                              char *out, unsigned size, const char *file) {
+    if (!section || !key || !out || !size || !file)
+        return 0;
+
+    FILE *fp = fopen_nocase(file, "r");
+    if (!fp)
+        return 0;
+
+    char line[512];
+    int inSection = 0;
+    int found = 0;
+
+    while (fgets(line, sizeof(line), fp)) {
+        char *s = ff_ini_trim(line);
+
+        if (*s == '\0' || *s == ';')
+            continue;
+
+        if (*s == '[') {
+            char *close = strchr(s, ']');
+            if (close) {
+                *close = '\0';
+                inSection = (strcasecmp(s + 1, section) == 0);
+            }
+            continue;
+        }
+
+        if (!inSection)
+            continue;
+
+        char *eq = strchr(s, '=');
+        if (!eq)
+            continue;
+
+        *eq = '\0';
+        char *k = ff_ini_trim(s);
+        if (strcasecmp(k, key) != 0)
+            continue;
+
+        char *v = ff_ini_trim(eq + 1);
+
+        /* Windows strips matching surrounding quotes */
+        size_t vlen = strlen(v);
+        if (vlen >= 2 && ((v[0] == '"' && v[vlen - 1] == '"') ||
+                          (v[0] == '\'' && v[vlen - 1] == '\''))) {
+            v[vlen - 1] = '\0';
+            v++;
+        }
+
+        strncpy(out, v, size - 1);
+        out[size - 1] = '\0';
+        found = 1;
+        break;
+    }
+
+    fclose(fp);
+    return found;
+}
+
 #endif /* FF_LINUX */

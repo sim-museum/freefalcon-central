@@ -1309,21 +1309,35 @@ static inline BOOL VerQueryValueA(LPCVOID block, LPCSTR sub, LPVOID *buf, PUINT 
 #define VerQueryValue VerQueryValueA
 
 /* ============================================================
- * Private profile (.ini) stubs - return supplied defaults
+ * Private profile (.ini) functions - real implementation.
+ * Backend FF_IniGetValue() lives in linux_stubs.cpp (case-insensitive
+ * section/key match, whitespace/CR trim, quote strip). These were
+ * previously default-returning stubs, which zeroed every .ini-loaded
+ * tuning value (campaign AI inputs, rules, FF effects, ...).
  * ============================================================ */
+#ifdef __cplusplus
+extern "C"
+#else
+extern
+#endif
+int FF_IniGetValue(const char *section, const char *key,
+                   char *out, unsigned size, const char *file);
+
 static inline UINT GetPrivateProfileIntA(LPCSTR app, LPCSTR key, INT def, LPCSTR file) {
-    (void)app; (void)key; (void)file;
+    char val[64];
+    if (FF_IniGetValue(app, key, val, sizeof(val), file))
+        return (UINT)strtol(val, NULL, 0);
     return (UINT)def;
 }
 #define GetPrivateProfileInt GetPrivateProfileIntA
 static inline DWORD GetPrivateProfileStringA(LPCSTR app, LPCSTR key, LPCSTR def, LPSTR ret, DWORD size, LPCSTR file) {
-    (void)app; (void)key; (void)file;
-    if (ret && size) {
-        strncpy(ret, def ? def : "", size - 1);
-        ret[size - 1] = '\0';
+    if (!ret || !size)
+        return 0;
+    if (FF_IniGetValue(app, key, ret, size, file))
         return (DWORD)strlen(ret);
-    }
-    return 0;
+    strncpy(ret, def ? def : "", size - 1);
+    ret[size - 1] = '\0';
+    return (DWORD)strlen(ret);
 }
 #define GetPrivateProfileString GetPrivateProfileStringA
 static inline BOOL WritePrivateProfileStringA(LPCSTR app, LPCSTR key, LPCSTR str, LPCSTR file) {

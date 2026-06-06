@@ -517,6 +517,27 @@ int DeaggregationCheck(CampEntity e, FalconSessionEntity *session)
                 msg->dataBlock.message = FalconSimCampMessage::simcampDeaggregate;
                 msg->RequestReliableTransmit();
                 FalconSendMessage(msg);
+
+                // FF_LINUX: env-gated aggregation-flap trace - issue #5
+                {
+                    static int s_dbgBubble = -1;
+                    if (s_dbgBubble < 0) s_dbgBubble = getenv("FF_DEBUG_BUBBLE") ? 1 : 0;
+
+                    if (s_dbgBubble)
+                    {
+                        VuEntity* cam = session->GetCameraEntity(0);
+                        fprintf(stderr, "[BUBBLE] DEAG send id=%08x-%08x %s pos=(%.0f,%.0f) "
+                                "cam=(%.0f,%.0f) bubRange=%.0f finUpd=%.2f in1.0=%d inReag=%d\n",
+                                e->Id().num_, e->Id().creator_,
+                                e->IsFlight() ? "flight" : (e->IsBattalion() ? "battalion" : "other"),
+                                e->XPos(), e->YPos(),
+                                cam ? cam->XPos() : -1.f, cam ? cam->YPos() : -1.f,
+                                e->EntityType()->bubbleRange_,
+                                cam ? cam->EntityType()->fineUpdateMultiplier_ : -1.f,
+                                session->InSessionBubble(e, 1.0F),
+                                session->InSessionBubble(e, REAGREGATION_RATIO));
+                    }
+                }
             }
 
             e->SetInterest();
@@ -1301,6 +1322,26 @@ void RebuildBubble(int forced)
 
                     if (ok)
                     {
+                        // FF_LINUX: env-gated aggregation-flap trace - issue #5
+                        {
+                            static int s_dbgBubble = -1;
+                            if (s_dbgBubble < 0) s_dbgBubble = getenv("FF_DEBUG_BUBBLE") ? 1 : 0;
+
+                            if (s_dbgBubble)
+                            {
+                                VuEntity* cam = FalconLocalSession ? FalconLocalSession->GetCameraEntity(0) : NULL;
+                                fprintf(stderr, "[BUBBLE] REAG send id=%08x-%08x %s pos=(%.0f,%.0f) "
+                                        "cam=(%.0f,%.0f) final=%d agg=%d in1.0=%d inReag=%d\n",
+                                        c->Id().num_, c->Id().creator_,
+                                        c->IsFlight() ? "flight" : (c->IsBattalion() ? "battalion" : "other"),
+                                        c->XPos(), c->YPos(),
+                                        cam ? cam->XPos() : -1.f, cam ? cam->YPos() : -1.f,
+                                        c->IsUnit() ? (int)((Unit)c)->Final() : -1, (int)c->IsAggregate(),
+                                        FalconLocalSession ? FalconLocalSession->InSessionBubble(c, 1.0F) : -1,
+                                        FalconLocalSession ? FalconLocalSession->InSessionBubble(c, REAGREGATION_RATIO) : -1);
+                            }
+                        }
+
                         VuTargetEntity* target = (VuTargetEntity*) vuDatabase->Find(FalconLocalGame->OwnerId());
                         FalconSimCampMessage *msg = new FalconSimCampMessage(c->Id(), target);
                         msg->dataBlock.from = FalconLocalSessionId;
