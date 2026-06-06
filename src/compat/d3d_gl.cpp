@@ -1717,6 +1717,20 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
             // Only clear dirty flag on successful upload
             if (uploadOK) {
                 surf->isDirty = false;
+
+                // FF_LINUX: generate mipmaps so minified textures (terrain,
+                // distant objects) filter properly - without them external
+                // views show heavy moire/aliasing. Trilinear + anisotropic
+                // for grazing angles. FBO render targets are excluded.
+                if (!surf->fboId && surf->width > 1 && surf->height > 1) {
+                    glGenerateMipmap(GL_TEXTURE_2D);
+                    if (glGetError() == GL_NO_ERROR) {
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+                    } else {
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                    }
+                }
             }
         }
     }
@@ -2422,10 +2436,18 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
             break;
 
         case D3DTSS_MINFILTER:
-            if (value == D3DTFG_POINT || value == D3DTFN_POINT)
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            else
-                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            // FF_LINUX: textures get mipmaps at upload (see SetTexture), so use
+            // mipmapped filters here; plain GL_LINEAR would disable them again.
+            // RTT canvases (FBO) have no mip chain - a mipmapped filter would
+            // make them incomplete (black), so check level 1 first.
+            {
+                GLint mipW = 0;
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 1, GL_TEXTURE_WIDTH, &mipW);
+                if (value == D3DTFG_POINT || value == D3DTFN_POINT)
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mipW ? GL_NEAREST_MIPMAP_LINEAR : GL_NEAREST);
+                else
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, mipW ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+            }
             break;
 
         case D3DTSS_MIPFILTER:
