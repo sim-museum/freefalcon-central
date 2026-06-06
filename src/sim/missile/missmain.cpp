@@ -1245,6 +1245,19 @@ MissileClass::EndMissile(void)
             break;
     }
 
+    // FF_LINUX: env-gated missile-end trace - issue #11
+    {
+        static int s_dbgMslEnd = -1;
+        if (s_dbgMslEnd < 0) s_dbgMslEnd = getenv("FF_DEBUG_MSLEND") ? 1 : 0;
+
+        if (s_dbgMslEnd)
+            fprintf(stderr, "[MSLEND] Send: endCode=%d pos=(%.0f,%.0f,%.0f) groundZ=%.0f "
+                    "groundType=%d psName='%s'\n",
+                    (int)done, XPos(), YPos(), ZPos(), groundZ,
+                    (int)endMessage->dataBlock.groundType,
+                    endMessage->dataBlock.sfxPartSysName);
+    }
+
     // Can't send the end message until all the damage messages are gone.
     FalconSendMessage(endMessage, FALSE);
 }

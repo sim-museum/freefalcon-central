@@ -72,6 +72,17 @@ int FalconMissileEndMessage::Process(uchar autodisp)
         sid = 0;
     }
 
+    // FF_LINUX: env-gated missile-end trace - issue #11
+    static int s_dbgMslEnd = -1;
+    if (s_dbgMslEnd < 0) s_dbgMslEnd = getenv("FF_DEBUG_MSLEND") ? 1 : 0;
+
+    if (s_dbgMslEnd)
+        fprintf(stderr, "[MSLEND] Process: endCode=%d pos=(%.0f,%.0f,%.0f) groundType=%d "
+                "psName='%s' autodisp=%d otwActive=%d\n",
+                (int)dataBlock.endCode, dataBlock.x, dataBlock.y, dataBlock.z,
+                (int)dataBlock.groundType, dataBlock.sfxPartSysName,
+                (int)autodisp, (int)OTWDriver.IsActive());
+
     // prevent handling messages if the graphics isn't running
     if (autodisp or not OTWDriver.IsActive())
     {
@@ -104,8 +115,15 @@ int FalconMissileEndMessage::Process(uchar autodisp)
         // if we fail, we need to run the original sfx
         if (AddParticleEffect(dataBlock.sfxPartSysName, &pos, &vec))
         {
+            if (s_dbgMslEnd)
+                fprintf(stderr, "[MSLEND] AddParticleEffect('%s') OK\n", dataBlock.sfxPartSysName);
+
             return TRUE;
         }
+
+        if (s_dbgMslEnd)
+            fprintf(stderr, "[MSLEND] AddParticleEffect('%s') FAILED - falling back to legacy sfx\n",
+                    dataBlock.sfxPartSysName);
     }
 
     // we decide what special effects and sounds to play based on
