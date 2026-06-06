@@ -35,10 +35,13 @@
     #define FF_DEBUG(fmt, ...) do {} while(0)
     #define FF_DEBUG_JOYSTICK(fmt, ...) do {} while(0)
     #define FF_DEBUG_INIT(fmt, ...) do {} while(0)
-    #define FF_DEBUG_CLEANUP(fmt, ...) do {} while(0)
+    // FF_LINUX: cleanup markers stay enabled in release builds. Exit runs
+    // once, the output is tiny, and these lines are exactly what's needed
+    // to localize shutdown hangs (issue #6: zombie process on exit).
+    #define FF_DEBUG_CLEANUP(fmt, ...) fprintf(stderr, "[CLEANUP] " fmt, ##__VA_ARGS__)
     #define FF_DEBUG_UI(fmt, ...) do {} while(0)
     #define FF_DEBUG_INPUT(fmt, ...) do {} while(0)
-    #define FF_DEBUG_FLUSH() do {} while(0)
+    #define FF_DEBUG_FLUSH() fflush(stderr)
 #endif
 
 // Render pipeline debug - controlled separately due to high volume

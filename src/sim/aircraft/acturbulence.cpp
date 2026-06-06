@@ -14,12 +14,19 @@ uint32_t AircraftTurbulence::lastPurgeTime = 0;  // FF_LINUX: Use uint32_t for b
 
 TurbulanceList::~TurbulanceList()
 {
+#ifdef FF_LINUX
+    // FF_LINUX: lTurbulenceList is a static; this dtor runs from
+    // __run_exit_handlers AFTER game cleanup has torn down the sim.
+    // The list can contain dangling nodes at that point and walking it
+    // crashed in ANode::Remove() (SIGSEGV during exit). The process is
+    // terminating - the OS reclaims the memory - so don't walk the list.
+#else
     // this will clean up any stray objects on exit
     AircraftTurbulence *at;
 
     while (at = (AircraftTurbulence *)RemHead())
         delete at;
-
+#endif
 }
 
 
