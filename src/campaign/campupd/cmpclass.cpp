@@ -1080,6 +1080,10 @@ void CampaignClass::EndCampaign(void)
 
     TheCampaign.Flags or_eq CAMP_SHUTDOWN_REQUEST;
 
+#ifdef FF_LINUX
+    int waitedIters = 0;
+#endif
+
     while (TheCampaign.IsLoaded())
     {
 #ifdef FF_LINUX
@@ -1089,6 +1093,20 @@ void CampaignClass::EndCampaign(void)
         // this loop then waits forever (white-screen hang on ESC exit).
         // Keep kicking the campaign thread so it can process the request.
         ThreadManager::sim_signal_campaign();
+
+        // FF_LINUX: bounded wait. If no other thread is running
+        // RealTimeFunction (e.g. the sim Loop thread was never started, or
+        // is already gone during process exit), CAMP_SHUTDOWN_REQUEST is
+        // never processed. After 10s, end the campaign on THIS thread -
+        // the caller must not hold campCritical (see Camp_Exit).
+        if (++waitedIters >= 100)
+        {
+            fprintf(stderr, "[FF_LINUX] EndCampaign: shutdown request not processed "
+                    "after 10s - calling ReallyEndCampaign() directly\n");
+            TheCampaign.Flags and_eq compl CAMP_SHUTDOWN_REQUEST;
+            TheCampaign.ReallyEndCampaign();
+            break;
+        }
 #endif
         Sleep(100);
     }
@@ -2586,14 +2604,28 @@ void Camp_Init(int processor)
 
 void Camp_Exit(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX: EndCampaign() must run OUTSIDE campCritical. It spin-waits
+    // for ReallyEndCampaign(), which executes on the sim Loop thread inside
+    // RealTimeFunction() and whose first act is CampEnterCriticalSection().
+    // Holding the lock here deadlocked shutdown: window closed, process hung
+    // forever at "[CLEANUP] Stopping campaign..." (issue #6 - exit zombie).
+    if (TheCampaign.IsLoaded())
+    {
+        TheCampaign.EndCampaign();
+    }
+
+#endif
     {
         F4ScopeLock l(campCritical);
 
+#ifndef FF_LINUX
         if (TheCampaign.IsLoaded())
         {
             TheCampaign.EndCampaign();
         }
 
+#endif
         FreeIndex();
 
         if (TheCampaign.IsSuspended())

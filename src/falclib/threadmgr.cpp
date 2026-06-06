@@ -119,7 +119,20 @@ void ThreadManager::stop_campaign_thread()
 
     campaign_thread.status and_eq compl THREAD_STATUS_ACTIVE;
 
+#ifdef FF_LINUX
+    // FF_LINUX: a suspended campaign thread parks in
+    // campaign_wait_for_sim(INFINITE) and only re-checks campaign_active()
+    // after being signalled. After a mission the sim Loop thread idles and
+    // never signals it, so this join hung forever (issue #6 - exit zombie,
+    // stuck at "[CLEANUP] Stopping campaign..."). Keep signalling while we
+    // wait so the thread wakes, sees ACTIVE cleared, and exits.
+    while (WaitForSingleObject(campaign_thread.handle, 100) == WAIT_TIMEOUT)
+    {
+        sim_signal_campaign();
+    }
+#else
     WaitForSingleObject(campaign_thread.handle, INFINITE);
+#endif
 
     CloseHandle(campaign_thread.handle);
 

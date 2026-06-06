@@ -414,9 +414,20 @@ static inline DWORD WaitForSingleObject(HANDLE hHandle, DWORD dwMilliseconds) {
 
     if (type == FF_HANDLE_TYPE_THREAD) {
         FF_THREAD_HANDLE *th = (FF_THREAD_HANDLE *)hHandle;
-        /* Note: timed join ignored - join fully (the game waits for thread exit) */
         if (!th->joined) {
-            pthread_join(th->thread, NULL);
+            if (dwMilliseconds == INFINITE) {
+                pthread_join(th->thread, NULL);
+            } else {
+                /* Timed join - needed by stop_campaign_thread's
+                 * signal-while-waiting shutdown loop (issue #6). */
+                struct timespec ts;
+                clock_gettime(CLOCK_REALTIME, &ts);
+                ts.tv_sec += dwMilliseconds / 1000;
+                ts.tv_nsec += (long)(dwMilliseconds % 1000) * 1000000L;
+                if (ts.tv_nsec >= 1000000000L) { ts.tv_sec++; ts.tv_nsec -= 1000000000L; }
+                if (pthread_timedjoin_np(th->thread, NULL, &ts) != 0)
+                    return WAIT_TIMEOUT;
+            }
             th->joined = 1;
         }
         return WAIT_OBJECT_0;

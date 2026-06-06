@@ -663,6 +663,15 @@ void SimulationLoopControl::Loop(void)
             // Even if we didn't get the signal, still process real-time functions
             // to prevent hangs during startup
             RealTimeFunction(vuxRealTime, NULL);
+
+            // FF_LINUX: during shutdown the campaign thread is stopped BEFORE
+            // StopSim (cleanup() order: Camp_Exit then StopSim), so the signal
+            // never comes and the gotSig branch above never sees StoppingSim.
+            // Check here too or stop_sim_thread joins forever (issue #6).
+            if (currentMode == StoppingSim)
+            {
+                break;
+            }
         }
 #endif
 
