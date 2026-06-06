@@ -179,7 +179,7 @@ tactical_mission::~tactical_mission(void)
 {
     if (filename)
     {
-        delete filename;
+        delete[] filename;  // FF_LINUX: new[] allocation
 
         filename = NULL;
     }
@@ -741,9 +741,15 @@ void tactical_mission::info_load(char *the_filename)
 
     if (strcmp(filename, the_filename) not_eq 0)
     {
-        delete(filename);
+        // FF_LINUX: was `delete(filename)` (new[]/delete mismatch) and
+        // `new char[strlen(the_filename)]` with NO room for the NUL - the
+        // strcpy below then overflowed the heap block by one byte. glibc
+        // detected the corruption later ("free(): chunks in smallbin
+        // corrupted" -> SIGSEGV/SIGABRT ~20s after selecting a TE training
+        // mission). MSVC's heap never noticed.
+        delete[] filename;
 
-        filename = new char[strlen(the_filename)];
+        filename = new char[strlen(the_filename) + 1];
 
         strcpy(filename, the_filename);
     }
@@ -759,7 +765,7 @@ void tactical_mission::info_load(char *the_filename)
 
     process_load(data, size, FALSE);
 
-    delete data;
+    delete[] data;  // FF_LINUX: new[] in read_te_file
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -847,7 +853,7 @@ void tactical_mission::load(void)
 
          process_load (data, size, TRUE);
         */
-        delete data;
+        delete[] data;  // FF_LINUX: new[] in read_te_file
     }
     else
     {
@@ -1016,7 +1022,7 @@ void tactical_mission::set_team_name(int team, char *name)
 {
     if (team_name[team])
     {
-        delete team_name[team];
+        delete[] team_name[team];  // FF_LINUX: new[] allocation
 
         team_name[team] = NULL;
     }
