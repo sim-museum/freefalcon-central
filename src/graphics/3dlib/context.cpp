@@ -3050,6 +3050,27 @@ void ContextMPR::DrawPoly(DWORD opFlag, Poly *poly, int *xyzIdxPtr, int *rgbaIdx
             pVtx->rhw = 1.f / xyz->z;
             pVtx->specular = m_colFOG;
 
+            // FF_LINUX: env-gated pit-lighting dump - issue #12 (black pit faces)
+            {
+                static int s_dbgVpit = -1;
+                if (s_dbgVpit < 0) s_dbgVpit = getenv("FF_DEBUG_VPIT") ? 1 : 0;
+
+                if (s_dbgVpit and OTWDriver.GetOTWDisplayMode() == OTWDriverClass::Mode3DCockpit)
+                {
+                    static DWORD s_lastBeat = 0;
+                    DWORD now = GetTickCount();
+                    if (now - s_lastBeat >= 1000)
+                    {
+                        s_lastBeat = now;
+                        fprintf(stderr, "[VPIT] vtxcolor: TODcolor=0x%08lx PitLightLevel=%d "
+                                "lightLevel=%.2f texID=%d opFlag=0x%x\n",
+                                (unsigned long)TheColorBank.TODcolor,
+                                (int)TheColorBank.PitLightLevel,
+                                TheTimeOfDay.GetLightLevel(), texID, (unsigned)opFlag);
+                    }
+                }
+            }
+
             // End Mission box
             if (texID > 25 and texID < 32)
                 pVtx->color = 0xFFFFFFFF;

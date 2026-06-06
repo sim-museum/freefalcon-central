@@ -1794,11 +1794,21 @@ void CDXEngine::FlushObjects(void)
             // FF_LINUX: Disable stencil test for pit rendering.
             // The scene uses stencil for sky/fog masking, and pit fragments get rejected.
             glDisable(FF_GL_STENCIL_TEST);
-            // FF_LINUX: Disable lighting for pit rendering. The cockpit model uses
-            // pre-baked vertex colors (D3DFVF_DIFFUSE) + textures, not dynamic lights.
-            // With GL_LIGHTING enabled, glColor4f vertex colors are ignored in favor of
-            // material properties (default gray), making the cockpit appear very dark.
-            glDisable(FF_GL_LIGHTING);
+            // FF_LINUX: Lighting in pit mode. On Windows the 3D pit is lit by the
+            // D3D pipeline (sun light + vertex-diffuse material via COLORVERTEX).
+            // Early in the port GL lighting made the pit "very dark" because the
+            // GL layer didn't map vertex-diffuse->material (no GL_COLOR_MATERIAL),
+            // so it was force-disabled here - which made lighting-dependent pit
+            // faces render their raw (dark) diffuse: the issue #12 "black tub".
+            // The GL layer now maps COLOR_MATERIAL for lit FVFs (d3d_gl.cpp), so
+            // keep lighting ON by default. FF_PIT_NO_LIGHTING=1 restores the old
+            // behavior for comparison.
+            {
+                static int s_pitNoLight = -1;
+                if (s_pitNoLight < 0) s_pitNoLight = getenv("FF_PIT_NO_LIGHTING") ? 1 : 0;
+                if (s_pitNoLight)
+                    glDisable(FF_GL_LIGHTING);
+            }
             // FF_LINUX: Clear the depth buffer before pit rendering. The scene depth
             // values would otherwise reject cockpit fragments. After clearing to 1.0
             // (far), pit fragments depth-test only against each other.

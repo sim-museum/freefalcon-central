@@ -1,5 +1,9 @@
 #include "graphics/include/canvas3d.h"
 #include "graphics/include/drawbsp.h"
+#include "graphics/include/TexBank.h"   // FF_LINUX: FF_DEBUG_VPIT probe (issue #12)
+
+// FF_LINUX: FF_DEBUG_VPIT probe helper (d3d_gl.cpp) - issue #12
+extern "C" void FF_DumpSurfaceStats(IDirectDrawSurface7*, const char*);
 #include "graphics/include/renderow.h"
 #include "stdhdr.h"
 #include "soundfx.h"
@@ -1630,6 +1634,53 @@ void OTWDriverClass::VCock_DrawThePit(void)
         return;
     }
 #endif
+
+    // FF_LINUX: env-gated one-time texture dump for the 3D pit - issue #12
+    // (black cockpit interior). FF_DEBUG_VPIT=1 prints the pit model's
+    // texture-set layout and the bank handle for each texture in the
+    // selected set, so missing/unloaded textures are visible.
+    {
+        static int s_dbgVpit = -1;
+        if (s_dbgVpit < 0) s_dbgVpit = getenv("FF_DEBUG_VPIT") ? 1 : 0;
+
+        static int s_dumped = 0;
+        if (s_dbgVpit and not s_dumped)
+        {
+            s_dumped = 1;
+            ObjectParent* par = vrCockpit->instance.ParentObject;
+            int texSet = (int)vrCockpit->GetTextureSet();
+            fprintf(stderr, "[VPIT] parent=%p nLODs=%d nTextureSets=%d curSet=%d\n",
+                    (void*)par, par ? (int)par->nLODs : -1,
+                    par ? (int)par->nTextureSets : -1, texSet);
+
+            if (par)
+            {
+                for (int l = 0; l < par->nLODs; l++)
+                {
+                    ObjectLOD* lod = par->pLODs[l].objLOD;
+                    if (!lod) continue;
+                    DWORD bankSize = par->nTextureSets ? lod->NrTextures / par->nTextureSets : 0;
+                    fprintf(stderr, "[VPIT] LOD %d: NrTextures=%lu bankSize=%lu root=%p\n",
+                            l, (unsigned long)lod->NrTextures, (unsigned long)bankSize,
+                            (void*)lod->root);
+                    for (DWORD t = 0; t < bankSize && t < 32; t++)
+                    {
+                        DWORD texId = lod->TexBank[bankSize * texSet + t];
+                        TextureHandle* th = (TextureHandle*)TheTextureBank.GetHandle(texId);
+                        fprintf(stderr, "[VPIT]   set%d tex[%lu] id=%lu handle=%p\n",
+                                texSet, (unsigned long)t, (unsigned long)texId, (void*)th);
+
+                        if (th and th->m_pDDS)
+                        {
+                            char tag[32];
+                            snprintf(tag, sizeof(tag), "pit-tex-%lu", (unsigned long)texId);
+                            FF_DumpSurfaceStats(th->m_pDDS, tag);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // COBRA - DX - if using DX Engine, PIT has to be Oriented as in 3D WORLD SPACE
     vrCockpit->orientation = OTWDriver.ownshipRot;

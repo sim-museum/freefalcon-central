@@ -1222,6 +1222,36 @@ int g_DrawPrimitiveVBCount = 0;
 int g_DrawIdxPrimVBCount = 0;
 int g_FF_PitModeActive = 0;  // Set by DXEngine FlushObjects when drawing pit geometry
 
+// FF_LINUX: pixel-attribution probe - issue #12 (black pit). FF_PROBE_PIXEL="x,y"
+// (window coords, y from top). After each draw call, read that pixel; when its
+// color changes, log the draw parameters. Identifies which draw paints a pixel.
+static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts) {
+    static int s_probeX = -1, s_probeY = -1;
+    if (s_probeX == -2) return;
+    if (s_probeX == -1) {
+        const char* e = getenv("FF_PROBE_PIXEL");
+        if (!e || sscanf(e, "%d,%d", &s_probeX, &s_probeY) != 2) {
+            s_probeX = -2;
+            return;
+        }
+        fprintf(stderr, "[PIXPROBE] watching pixel (%d,%d)\n", s_probeX, s_probeY);
+    }
+    unsigned char px[4] = {0};
+    // GL origin is bottom-left; probe coords given from top
+    glReadPixels(s_probeX, 768 - 1 - s_probeY, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, px);
+    static unsigned lastColor = 0xdeadbeef;
+    unsigned c = (px[0] << 16) | (px[1] << 8) | px[2];
+    if (c != lastColor) {
+        GLint tex = 0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex);
+        fprintf(stderr, "[PIXPROBE] %s: color 0x%06x -> 0x%06x fvf=0x%lx nVerts=%lu "
+                "tex=%d light=%d pit=%d\n",
+                where, lastColor, c, (unsigned long)fvf, (unsigned long)nVerts,
+                (int)tex, (int)glIsEnabled(GL_LIGHTING), g_FF_PitModeActive);
+        lastColor = c;
+    }
+}
+
 static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitiveVB(IDirect3DDevice7* This, D3DPRIMITIVETYPE dptPrimitiveType, LPDIRECT3DVERTEXBUFFER7 lpd3dVertexBuffer, DWORD dwStartVertex, DWORD dwNumVertices, DWORD dwFlags) {
     D3D7Device* dev = (D3D7Device*)This;
     D3D7VertexBuffer* vb = (D3D7VertexBuffer*)lpd3dVertexBuffer;
@@ -1270,15 +1300,29 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         }
     }
 
-    // FF_LINUX: Disable GL_LIGHTING for non-XYZRHW draws that have vertex colors.
-    // Terrain vertex diffuse colors are PRE-LIT (StoreMPRPalette bakes in lighting).
-    // DXEngine enables GL_LIGHTING globally, causing double-lighting that makes
-    // terrain nearly black. Disable it here and restore after drawing.
+    // FF_LINUX: Disable GL_LIGHTING for non-XYZRHW draws that have PRE-LIT
+    // vertex colors. Terrain/2D VBs (XYZ|DIFFUSE, no NORMAL) bake lighting
+    // into the diffuse color (StoreMPRPalette) - lighting them again made
+    // terrain nearly black. Object VBs (D3DFVF_MANAGED = XYZ|NORMAL|DIFFUSE|
+    // SPECULAR|TEX1) are meant to be LIT by the D3D pipeline; disabling
+    // lighting for them rendered raw vertex diffuse - BLACK for the 3D-pit
+    // interior faces whose appearance depends on lighting (issue #12).
+    // Distinguish by D3DFVF_NORMAL: normals present => real lit geometry.
     GLboolean prevLightingVB = GL_FALSE;
-    if (!isXYZRHW && (fvf & D3DFVF_DIFFUSE)) {
+    GLboolean colorMatVB = GL_FALSE;
+    if (!isXYZRHW && (fvf & D3DFVF_DIFFUSE) && !(fvf & D3DFVF_NORMAL)) {
         prevLightingVB = glIsEnabled(GL_LIGHTING);
         if (prevLightingVB) {
             glDisable(GL_LIGHTING);
+        }
+    } else if (!isXYZRHW && (fvf & D3DFVF_DIFFUSE) && (fvf & D3DFVF_NORMAL)) {
+        // Lit object draw: D3D7 defaults COLORVERTEX=TRUE with
+        // DIFFUSEMATERIALSOURCE=COLOR1, i.e. vertex diffuse acts as the
+        // material diffuse reflectance. Map via GL_COLOR_MATERIAL.
+        colorMatVB = !glIsEnabled(GL_COLOR_MATERIAL);
+        if (colorMatVB) {
+            glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+            glEnable(GL_COLOR_MATERIAL);
         }
     }
 
@@ -1523,10 +1567,17 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glEnable(GL_LIGHTING);
     }
 
+    // Restore GL_COLOR_MATERIAL if we enabled it for lit object draws
+    if (colorMatVB) {
+        glDisable(GL_COLOR_MATERIAL);
+    }
+
     // Restore GL_TEXTURE_2D state if we disabled it
     if (texCountVB == 0 && prevVB_Texture2D) {
         glEnable(GL_TEXTURE_2D);
     }
+
+    FF_ProbePixel("DIPVB", fvf, dwIndexCount);
 
     return D3D_OK;
 }
@@ -2659,13 +2710,21 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         }
     }
 
-    // FF_LINUX: Disable GL_LIGHTING for non-XYZRHW draws with vertex colors.
-    // Same fix as DrawIndexedPrimitiveVB - terrain vertex colors are pre-lit.
+    // FF_LINUX: Disable GL_LIGHTING for non-XYZRHW draws with PRE-LIT vertex
+    // colors (DIFFUSE without NORMAL). See DrawIndexedPrimitiveVB - draws
+    // with normals are real lit geometry and keep lighting (issue #12).
     GLboolean prevLightingDV = GL_FALSE;
-    if (!isXYZRHW && (fvf & D3DFVF_DIFFUSE)) {
+    GLboolean colorMatDV = GL_FALSE;
+    if (!isXYZRHW && (fvf & D3DFVF_DIFFUSE) && !(fvf & D3DFVF_NORMAL)) {
         prevLightingDV = glIsEnabled(GL_LIGHTING);
         if (prevLightingDV) {
             glDisable(GL_LIGHTING);
+        }
+    } else if (!isXYZRHW && (fvf & D3DFVF_DIFFUSE) && (fvf & D3DFVF_NORMAL)) {
+        colorMatDV = !glIsEnabled(GL_COLOR_MATERIAL);
+        if (colorMatDV) {
+            glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+            glEnable(GL_COLOR_MATERIAL);
         }
     }
 
@@ -2886,10 +2945,17 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glEnable(GL_LIGHTING);
     }
 
+    // Restore GL_COLOR_MATERIAL if we enabled it for lit object draws
+    if (colorMatDV) {
+        glDisable(GL_COLOR_MATERIAL);
+    }
+
     // Restore GL_TEXTURE_2D state if we disabled it
     if (texCountCheck == 0 && prevTexture2D) {
         glEnable(GL_TEXTURE_2D);
     }
+
+    FF_ProbePixel("DrawVerts", fvf, count);
 
 #ifdef FF_LINUX_DEBUG_RENDER
     // Check for OpenGL errors after drawing (only in render debug mode)
@@ -3431,6 +3497,28 @@ static void SavePrimarySurfaceAsBMP(const char* filename) {
     delete[] row;
     fclose(f);
     fprintf(stderr, "[DEBUG] Saved screenshot to %s (%dx%d, %d bpp)\n", filename, width, height, bpp * 8);
+}
+
+// FF_LINUX: diagnostic - dump pixel stats of a surface (issue #12 black pit).
+// Prints dimensions, format and how many of the first 4096 bytes are nonzero,
+// so all-black/never-uploaded textures are identifiable from logs.
+extern "C" void FF_DumpSurfaceStats(IDirectDrawSurface7* s, const char* tag) {
+    D3D7Surface* surf = (D3D7Surface*)s;
+    if (!surf) {
+        fprintf(stderr, "[SURFSTAT] %s: NULL surface\n", tag ? tag : "?");
+        return;
+    }
+    int nonZero = 0, checked = 0;
+    if (surf->pixelData) {
+        int total = surf->pitch * surf->height;
+        checked = total < 4096 ? total : 4096;
+        for (int i = 0; i < checked; i++)
+            if (surf->pixelData[i]) nonZero++;
+    }
+    fprintf(stderr, "[SURFSTAT] %s: %dx%d pitch=%d glTex=%u pixels=%p nonZero=%d/%d bpp=%u dxt=%d\n",
+            tag ? tag : "?", surf->width, surf->height, surf->pitch,
+            surf->glTexture, (void*)surf->pixelData, nonZero, checked,
+            (unsigned)surf->pixelFormat.dwRGBBitCount, (int)(surf->dxtFormat != 0));
 }
 
 // External function to ensure GL context is current (from main_linux.cpp)

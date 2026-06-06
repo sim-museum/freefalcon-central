@@ -2598,6 +2598,60 @@ static void main_loop(void) {
             }
         }
 
+        // FF_LINUX debug: scripted view changes + screenshots via
+        // FF_VIEW_SCRIPT="<mode>@sec;s@sec;..." where <mode> is a view-mode
+        // number (0=HUD 1=2Dpit 2=chase 3=orbit 4=virtual pit) or 's' for a
+        // screenshot (written to /tmp/ff_view_<N>.bmp). For visual testing.
+        if (!doUI) {
+            static int s_vsInit = 0;
+            static struct { int mode; Uint32 atMs; int fired; } s_vs[16];
+            static int s_nVs = 0;
+            static Uint32 s_vsStart = 0;
+            static char s_shotName[32];
+            if (!s_vsInit) {
+                s_vsInit = 1;
+                const char* e = getenv("FF_VIEW_SCRIPT");
+                if (e) {
+                    char buf[256];
+                    strncpy(buf, e, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
+                    for (char* tok = strtok(buf, ";"); tok && s_nVs < 16; tok = strtok(NULL, ";")) {
+                        float at; int mode; char c;
+                        if (sscanf(tok, "s@%f", &at) == 1) {
+                            s_vs[s_nVs].mode = -2;  // screenshot
+                            s_vs[s_nVs].atMs = (Uint32)(at * 1000.0f);
+                            s_vs[s_nVs].fired = 0;
+                            s_nVs++;
+                        } else if (sscanf(tok, "%d@%f%c", &mode, &at, &c) >= 2) {
+                            s_vs[s_nVs].mode = mode;
+                            s_vs[s_nVs].atMs = (Uint32)(at * 1000.0f);
+                            s_vs[s_nVs].fired = 0;
+                            s_nVs++;
+                        }
+                    }
+                    fprintf(stderr, "[FF_VIEW_SCRIPT] parsed %d steps\n", s_nVs);
+                }
+            }
+            if (s_nVs) {
+                if (!s_vsStart) s_vsStart = SDL_GetTicks();
+                Uint32 el = SDL_GetTicks() - s_vsStart;
+                static int s_shotIdx = 0;
+                for (int vi = 0; vi < s_nVs; vi++) {
+                    if (!s_vs[vi].fired && el >= s_vs[vi].atMs) {
+                        s_vs[vi].fired = 1;
+                        if (s_vs[vi].mode == -2) {
+                            snprintf(s_shotName, sizeof(s_shotName), "/tmp/ff_view_%d.bmp", s_shotIdx++);
+                            g_screenshotFilename = s_shotName;
+                            g_screenshotRequest = 1;
+                            fprintf(stderr, "[FF_VIEW_SCRIPT] screenshot -> %s at %ums\n", s_shotName, el);
+                        } else {
+                            g_requestedViewMode = s_vs[vi].mode;
+                            fprintf(stderr, "[FF_VIEW_SCRIPT] view mode %d at %ums\n", s_vs[vi].mode, el);
+                        }
+                    }
+                }
+            }
+        }
+
         // FF_LINUX debug: scripted sim key injection via FF_SIM_KEY="dik@sec[+holdms];..."
         // dik = DirectInput key code (decimal or 0x-hex, e.g. 57 or 0x39 = SPACE),
         // sec = seconds after entering sim mode, holdms = hold duration (default 250).

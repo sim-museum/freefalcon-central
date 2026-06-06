@@ -248,6 +248,7 @@ void OTWDriverClass::Cycle(void)
                 case 1: SetOTWDisplayMode(Mode2DCockpit); break;
                 case 2: SetOTWDisplayMode(ModeChase); break;
                 case 3: SetOTWDisplayMode(ModeOrbit); break;
+                case 4: SetOTWDisplayMode(Mode3DCockpit); break; // virtual pit (issue #12)
             }
         }
     }
