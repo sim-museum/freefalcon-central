@@ -1978,8 +1978,22 @@ static void handle_sdl_events(void) {
                         case 2:  // Throttle (Z) - unipolar
                             {
                                 int throttleVal = (32767 - event.jaxis.value) * 15000 / 65535;
+                                // FF_LINUX: PilotInputs::Update() ignores the throttle
+                                // axis while UseKeyboardThrottle is set. On Windows,
+                                // GetJoystickInput() clears it when the throttle moves,
+                                // but that function early-returns on Linux (gTotalJoy==0)
+                                // so mirror that behavior here.
+                                extern int UseKeyboardThrottle;
+                                static int s_lastThrottleVal = -99999;
+                                if (abs(throttleVal - s_lastThrottleVal) > 500) {
+                                    UseKeyboardThrottle = FALSE;
+                                }
+                                s_lastThrottleVal = throttleVal;
                                 IO.analog[AXIS_THROTTLE].ioVal = throttleVal;
-                                IO.analog[AXIS_THROTTLE].engrValue = (float)throttleVal / 15000.0f;
+                                // engrValue range is 0.0 (idle) .. 1.0 (mil) .. 1.5 (full AB);
+                                // map the full physical travel to 0..1.5 so the
+                                // afterburner is reachable (top third of travel).
+                                IO.analog[AXIS_THROTTLE].engrValue = (float)throttleVal * 1.5f / 15000.0f;
                                 IO.analog[AXIS_THROTTLE].isUsed = true;
                             }
                             break;

@@ -168,6 +168,24 @@ struct OpenALSoundBuffer : public IDirectSoundBuffer
         if (!alSource && !isPrimary)
         {
             alGenSources(1, &alSource);
+            if (alSource)
+            {
+                /* FF_LINUX: apply state that was set while no source existed.
+                   DuplicateSoundBuffer and SetVolume can run before the source
+                   is created; without this, a freshly created source has no
+                   buffer attached and default gain, so Play() is silent. */
+                if (alBuffer) alSourcei(alSource, AL_BUFFER, (ALint)alBuffer);
+                alSourcef(alSource, AL_GAIN, DSVolumeToGain(volume));
+                if (frequency && format.nSamplesPerSec)
+                    alSourcef(alSource, AL_PITCH, (float)frequency / (float)format.nSamplesPerSec);
+            }
+        }
+        else if (alSource && alBuffer)
+        {
+            /* Re-attach if the buffer was created after the source */
+            ALint cur = 0;
+            alGetSourcei(alSource, AL_BUFFER, &cur);
+            if (!cur) alSourcei(alSource, AL_BUFFER, (ALint)alBuffer);
         }
     }
 };
@@ -832,19 +850,38 @@ static HRESULT STDMETHODCALLTYPE DSB_Unlock(IDirectSoundBuffer* This, LPVOID p1,
     if (!b->pcm || b->bufferBytes == 0) return DS_OK;
     (void)b1; (void)b2;
 
-    /* Re-upload the whole PCM store to the AL buffer. */
-    b->EnsureSource();
+    /* Re-upload the whole PCM store to the AL buffer.
+       FF_LINUX: do NOT create a source here - sources are a scarce resource
+       (OpenAL Soft defaults to 256) and every loaded sample passes through
+       Unlock. Creating one per sample exhausted the pool, so in-flight
+       voices could no longer get sources (AL_OUT_OF_MEMORY). The source is
+       created lazily in Play via EnsureSource. */
     if (!b->alBuffer) alGenBuffers(1, &b->alBuffer);
 
     ALenum fmt = ALFormatFor(b->format.nChannels, b->format.wBitsPerSample);
     ALsizei freq = (ALsizei)(b->format.nSamplesPerSec ? b->format.nSamplesPerSec : 44100);
 
+    /* FF_LINUX: preserve play state across the re-upload. DirectSound
+       streaming buffers are Play()ed once (looping) and then continuously
+       written via Lock/Unlock; stopping without resuming here silenced
+       every streaming sound after its first Unlock. */
+    ALint wasState = 0, sampleOff = 0;
     if (b->alSource) {
+        alGetSourcei(b->alSource, AL_SOURCE_STATE, &wasState);
+        alGetSourcei(b->alSource, AL_SAMPLE_OFFSET, &sampleOff);
         alSourceStop(b->alSource);
         alSourcei(b->alSource, AL_BUFFER, 0);   /* detach before re-filling */
     }
     alBufferData(b->alBuffer, fmt, b->pcm, (ALsizei)b->bufferBytes, freq);
-    if (b->alSource) alSourcei(b->alSource, AL_BUFFER, (ALint)b->alBuffer);
+    if (b->alSource) {
+        alSourcei(b->alSource, AL_BUFFER, (ALint)b->alBuffer);
+        if (wasState == AL_PLAYING) {
+            ALint maxOff = (ALint)(b->bufferBytes / (b->format.nBlockAlign ? b->format.nBlockAlign : 1));
+            if (sampleOff >= 0 && sampleOff < maxOff)
+                alSourcei(b->alSource, AL_SAMPLE_OFFSET, sampleOff);
+            alSourcePlay(b->alSource);
+        }
+    }
     b->alUploaded = true;
     return DS_OK;
 }
@@ -927,7 +964,8 @@ static HRESULT STDMETHODCALLTYPE DS_CreateSoundBuffer(IDirectSound* This, LPCDSB
         b->pcm = (unsigned char*)malloc(b->bufferBytes);
         if (!b->pcm) { delete b; return DSERR_OUTOFMEMORY; }
         memset(b->pcm, 0, b->bufferBytes);
-        b->EnsureSource();
+        /* FF_LINUX: no EnsureSource here - every loaded sample creates a
+           buffer, and AL sources are limited (~256). Created lazily at Play. */
         if (b->dwFlags & DSBCAPS_CTRL3D) b->is3dEnabled = true;
     }
 
@@ -978,15 +1016,13 @@ static HRESULT STDMETHODCALLTYPE DS_DuplicateSoundBuffer(IDirectSound* This, LPD
         if (!nb->pcm) { delete nb; return DSERR_OUTOFMEMORY; }
         memcpy(nb->pcm, src->pcm, src->bufferBytes);
     }
-    nb->EnsureSource();
-
-    /* Upload its own copy of the PCM data so it can play independently. */
+    /* Upload its own copy of the PCM data so it can play independently.
+       The source is created lazily at Play; EnsureSource attaches alBuffer. */
     if (nb->pcm && nb->bufferBytes) {
         alGenBuffers(1, &nb->alBuffer);
         ALenum fmt = ALFormatFor(nb->format.nChannels, nb->format.wBitsPerSample);
         ALsizei freq = (ALsizei)(nb->format.nSamplesPerSec ? nb->format.nSamplesPerSec : 44100);
         alBufferData(nb->alBuffer, fmt, nb->pcm, (ALsizei)nb->bufferBytes, freq);
-        if (nb->alSource) alSourcei(nb->alSource, AL_BUFFER, (ALint)nb->alBuffer);
         nb->alUploaded = true;
     }
 

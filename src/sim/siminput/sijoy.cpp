@@ -881,6 +881,17 @@ void ProcessJoyButtonAndPOVHat(void)
 /*****************************************************************************/
 float ReadThrottle(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX: The SDL joystick code (main_linux.cpp) populates
+    // IO.analog[AXIS_THROTTLE] directly. DirectInput is disabled
+    // (gTotalJoy == 0), so the code below would fall into the no-joystick
+    // branch and force the throttle to 0.0 (on ground) / 1.0 (in air),
+    // clobbering the real value. Return the SDL-populated value instead.
+    if (IO.AnalogIsUsed(AXIS_THROTTLE))
+    {
+        return IO.analog[AXIS_THROTTLE].engrValue;
+    }
+#endif
 
     HRESULT hRes;
     DIJOYSTATE joyState;
