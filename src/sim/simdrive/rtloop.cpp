@@ -44,7 +44,20 @@ void RealTimeFunction(unsigned long, void*)
     // Run VU Thread and handle messages
     if (vuxRealTime > update_time)
     {
-        //CampEnterCriticalSection();
+#ifdef FF_LINUX
+        // FF_LINUX: take the campaign CS BEFORE the VU CS (re-enabling the
+        // original commented-out lock). The dispatch below runs message
+        // handlers (e.g. FalconSimCampMessage::Process, simcampmsg.cpp:123)
+        // that take CampCS while we hold VuCS (Vu->Camp). The campaign
+        // thread does CampCS -> vuThread->Update() -> VuCS (Camp->Vu):
+        // AB-BA deadlock, hit intermittently at mission launch as a
+        // white-screen hang (StartLoop's GetPlayerEntity wait pumps
+        // RealTimeFunction while also waking the campaign thread). Locking
+        // Camp first makes both paths Camp->Vu. Both CSes are recursive
+        // (CRITICAL_SECTION semantics), so handlers re-entering CampCS on
+        // this thread are fine.
+        CampEnterCriticalSection();
+#endif
         // sfr: do this inside critical section because of UI shutdown
         VuEnterCriticalSection();
 #if CAP_DISPATCH
@@ -54,7 +67,9 @@ void RealTimeFunction(unsigned long, void*)
         gMainThread->Update();
 #endif
         VuExitCriticalSection();
-        //CampLeaveCriticalSection();
+#ifdef FF_LINUX
+        CampLeaveCriticalSection();
+#endif
 
         // sfr: 100 Hz always, since server can be in server mode
         update_time = vuxRealTime + 10;
