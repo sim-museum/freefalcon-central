@@ -3834,8 +3834,9 @@ match the latest commit, check the title first (this resolved repeated
 1. **#11 Missile-impact explosion**: both effect code paths verified rendering in test harness; user still reported nothing at impact (observation may predate the CRLF fix - needs retest on a hash-stamped build; if still missing, suspect the FalconMissileEndMessage dispatch timing/position rather than the effect pipeline).
 2. **#12 3-view virtual pit interior black tub**: fuselage textured but cockpit interior between canopy rails solid black (user screenshot on NEW build). Not the texture churn (fixed). Suspects: pit-interior faces' specific textures never load, or material/vertex-color+lighting state in the DXEngine object pass during the VCock draw.
 3. **#13 Dogfight roster pane + Fly button**: added aircraft appear only as tiny icons at top of roster column; no list entries, no FLY button. Investigate df_teams.scf roster rendering and FLY-button conditions (may require joining a flight - double-click now works, untested by user since the DBLCLK fix).
-4. Campaign aggregation flap (AI flights reagg/deagg cycling ~constantly) - masked by the texture grace period but wasteful; campaign-side root cause unknown.
-5. Exit leaves a zombie process after the main loop ends (window closes, process hangs in cleanup; needs pkill -9).
+4. **#14 Missile launch in dogfight broken** (user, June 5): launching with space bar or 2nd joystick trigger was always balky and has stopped working entirely. Suspects: weapon-release input path (DIK_SPACE keyboard pickle; SDL joystick button -> IO.digital[] -> weapon release binding), edge detection on the button, or SMS/master-arm state specific to dogfight spawns.
+5. Campaign aggregation flap (AI flights reagg/deagg cycling ~constantly) - masked by the texture grace period but wasteful; campaign-side root cause unknown.
+6. Exit leaves a zombie process after the main loop ends (window closes, process hangs in cleanup; needs pkill -9).
 
 #### Debugging Infrastructure (env vars)
 | Env | Effect |
