@@ -1849,10 +1849,20 @@ static void handle_sdl_events(void) {
                     } else {
                         int scaledX = x * 1024 / WINDOW_WIDTH;
                         int scaledY = y * 768 / WINDOW_HEIGHT;
+                        // FF_LINUX: Windows synthesizes WM_LBUTTONDBLCLK for the
+                        // second click of a double-click; the UI95 toolkit binds
+                        // actions to it (joining a dogfight team, list items...).
+                        // SDL reports the click count, so do the same here.
                         if (event.button.button == SDL_BUTTON_LEFT) {
-                            PostGameMessage(WM_LBUTTONDOWN, 0, MAKELPARAM(scaledX, scaledY));
+                            if (event.button.clicks >= 2)
+                                PostGameMessage(WM_LBUTTONDBLCLK, 0, MAKELPARAM(scaledX, scaledY));
+                            else
+                                PostGameMessage(WM_LBUTTONDOWN, 0, MAKELPARAM(scaledX, scaledY));
                         } else if (event.button.button == SDL_BUTTON_RIGHT) {
-                            PostGameMessage(WM_RBUTTONDOWN, 0, MAKELPARAM(scaledX, scaledY));
+                            if (event.button.clicks >= 2)
+                                PostGameMessage(WM_RBUTTONDBLCLK, 0, MAKELPARAM(scaledX, scaledY));
+                            else
+                                PostGameMessage(WM_RBUTTONDOWN, 0, MAKELPARAM(scaledX, scaledY));
                         }
                     }
                 }
@@ -2326,6 +2336,8 @@ bool ProcessGameMessages() {
                     gMainHandler->EventHandler(NULL, msg.message, msg.wParam, msg.lParam);
                 }
                 break;
+            case WM_LBUTTONDBLCLK:
+            case WM_RBUTTONDBLCLK:
             case WM_RBUTTONDOWN:
             case WM_RBUTTONUP:
             case WM_MOUSEMOVE:
@@ -2363,7 +2375,7 @@ static void render_frame(void) {
         // messages a real mouse click produces - for automated UI testing.
         {
             static int s_clickInit = 0;
-            static struct { int x, y; Uint32 atMs; int fired; } s_clicks[16];
+            static struct { int x, y; Uint32 atMs; int fired; int dbl; } s_clicks[16];
             static int s_nClicks = 0;
             static Uint32 s_uiStart = 0;
             if (!s_clickInit) {
@@ -2374,11 +2386,13 @@ static void render_frame(void) {
                     strncpy(buf, e, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
                     for (char* tok = strtok(buf, ";"); tok && s_nClicks < 16; tok = strtok(NULL, ";")) {
                         int cx, cy; float at;
-                        if (sscanf(tok, "%d,%d@%f", &cx, &cy, &at) == 3) {
+                        char dbl = 0;  // 'd' = double-click, 'r' = right-click
+                        if (sscanf(tok, "%d,%d@%f%c", &cx, &cy, &at, &dbl) >= 3) {
                             s_clicks[s_nClicks].x = cx;
                             s_clicks[s_nClicks].y = cy;
                             s_clicks[s_nClicks].atMs = (Uint32)(at * 1000.0f);
                             s_clicks[s_nClicks].fired = 0;
+                            s_clicks[s_nClicks].dbl = (dbl == 'd') ? 1 : (dbl == 'r') ? 2 : 0;
                             s_nClicks++;
                         }
                     }
@@ -2393,8 +2407,18 @@ static void render_frame(void) {
                         LPARAM lp = MAKELPARAM(s_clicks[ci].x, s_clicks[ci].y);
                         fprintf(stderr, "[FF_UI_CLICK] firing (%d,%d) at %ums\n", s_clicks[ci].x, s_clicks[ci].y, el);
                         PostGameMessage(WM_MOUSEMOVE, 0, lp);
-                        PostGameMessage(WM_LBUTTONDOWN, 0, lp);
-                        PostGameMessage(WM_LBUTTONUP, 0, lp);
+                        if (s_clicks[ci].dbl == 2) {
+                            // context menus open on RBUTTONUP over a window
+                            PostGameMessage(WM_RBUTTONDOWN, 0, lp);
+                            PostGameMessage(WM_RBUTTONUP, 0, lp);
+                        } else {
+                            PostGameMessage(WM_LBUTTONDOWN, 0, lp);
+                            PostGameMessage(WM_LBUTTONUP, 0, lp);
+                        }
+                        if (s_clicks[ci].dbl == 1) {
+                            PostGameMessage(WM_LBUTTONDBLCLK, 0, lp);
+                            PostGameMessage(WM_LBUTTONUP, 0, lp);
+                        }
                     }
                 }
             }
