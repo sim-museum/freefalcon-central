@@ -140,6 +140,31 @@ void C_Dog_Flight::Draw(SCREEN *surface, UI95_RECT *cliprect)
     if (GetFlags() bitand C_BIT_INVISIBLE or Parent_ == NULL)
         return;
 
+#ifdef FF_LINUX
+    // FF_LINUX: issue #13 - dogfight roster item draw trace
+    {
+        static int s_dbgDF = -1;
+        if (s_dbgDF == -1) s_dbgDF = getenv("FF_DEBUG_DF") ? 40 : 0;
+        if (s_dbgDF > 0)
+        {
+            s_dbgDF--;
+            fprintf(stderr, "[DOGFLT] Draw xywh=(%ld,%ld,%ld,%ld) clip=(%ld,%ld,%ld,%ld) "
+                    "icon=(%ld,%ld,%ldx%ld) call=(%ld,%ld,%ldx%ld,'%s') ac=(%ld,%ld,%ldx%ld,'%s') font=%ld\n",
+                    (long)GetX(), (long)GetY(), (long)GetW(), (long)GetH(),
+                    (long)cliprect->left, (long)cliprect->top, (long)cliprect->right, (long)cliprect->bottom,
+                    Icon_ ? (long)Icon_->GetX() : -1, Icon_ ? (long)Icon_->GetY() : -1,
+                    Icon_ ? (long)Icon_->GetW() : -1, Icon_ ? (long)Icon_->GetH() : -1,
+                    Callsign_ ? (long)Callsign_->GetX() : -1, Callsign_ ? (long)Callsign_->GetY() : -1,
+                    Callsign_ ? (long)Callsign_->GetW() : -1, Callsign_ ? (long)Callsign_->GetH() : -1,
+                    (Callsign_ && Callsign_->GetText()) ? Callsign_->GetText() : "?",
+                    Aircraft_ ? (long)Aircraft_->GetX() : -1, Aircraft_ ? (long)Aircraft_->GetY() : -1,
+                    Aircraft_ ? (long)Aircraft_->GetW() : -1, Aircraft_ ? (long)Aircraft_->GetH() : -1,
+                    (Aircraft_ && Aircraft_->GetText()) ? Aircraft_->GetText() : "?",
+                    (long)Font_);
+        }
+    }
+#endif
+
     if (Icon_)
         Icon_->Draw(surface, cliprect);
 

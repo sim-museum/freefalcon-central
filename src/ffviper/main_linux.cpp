@@ -2220,6 +2220,45 @@ bool ProcessGameMessages() {
                 break;
 
             // =========================================================
+            // UI refresh notifications (issue #13). UI_Refresh() posts
+            // these after slot/team/type changes; on Windows they're
+            // handled by FalconWndProc (winmain.cpp:1546-1570). Without
+            // them the dogfight roster/TE/campaign mission windows never
+            // rebuild after joining or adding aircraft.
+            // =========================================================
+            case FM_UI_UPDATE_GAMELIST:
+                if (doUI && gMainHandler) {
+                    extern void UI_UpdateGameList();
+                    UI_UpdateGameList();
+                }
+                break;
+
+            case FM_REFRESH_DOGFIGHT:
+                if (doUI && gMainHandler) {
+                    extern void CopyDFSettingsToWindow(void);
+                    CopyDFSettingsToWindow();
+                }
+                break;
+
+            case FM_REFRESH_TACTICAL:
+                if (doUI && gMainHandler) {
+                    extern void UpdateMissionWindow(long ID);
+                    extern void CheckCampaignFlyButton(void);
+                    UpdateMissionWindow(30305 /* TAC_AIRCRAFT (userids.h) */);
+                    CheckCampaignFlyButton();
+                }
+                break;
+
+            case FM_REFRESH_CAMPAIGN:
+                if (doUI && gMainHandler) {
+                    extern void UpdateMissionWindow(long ID);
+                    extern void CheckCampaignFlyButton(void);
+                    UpdateMissionWindow(6100 /* CB_MISSION_SCREEN (userids.h) */);
+                    CheckCampaignFlyButton();
+                }
+                break;
+
+            // =========================================================
             // Sim entry: start flying
             // =========================================================
             case FM_START_INSTANTACTION:
@@ -2504,6 +2543,18 @@ static void main_loop(void) {
         if (currentTime - lastTimerTime >= timerUpdateInterval) {
             PostGameMessage(FM_TIMER_UPDATE, 0, 0);
             lastTimerTime = currentTime;
+
+            // FF_LINUX: With NEW_SYNC the campaign thread parks in
+            // campaign_wait_for_sim(INFINITE) after every iteration and is
+            // only woken by sim_signal_campaign() - which only the sim Loop
+            // thread calls. In UI mode nothing signals it, so campaign time
+            // never advances and DoCompressionLoop() never runs: the
+            // dogfight/TE/campaign TAKEOFF buttons hang forever (issue #13).
+            // Kick it on the UI timer tick, mirroring the sim loop's
+            // per-frame signal.
+            if (doUI) {
+                ThreadManager::sim_signal_campaign();
+            }
         }
 
         // TEST: Auto-launch instant action after delay

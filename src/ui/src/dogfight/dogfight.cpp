@@ -1390,6 +1390,23 @@ void BuildDFPlayerList()
     C_Window *win;
     C_TreeList *flist, *tlist;
     C_Pilot *furplt, *teamplt;
+
+#ifdef FF_LINUX
+    // FF_LINUX: issue #13 trace - count flights visible to the roster builder
+    if (getenv("FF_DEBUG_DF"))
+    {
+        int nUnits = 0, nFlights = 0;
+        VuListIterator cit(AllRealList);
+        for (Unit u = (Unit)cit.GetFirst(); u; u = (Unit)cit.GetNext())
+        {
+            nUnits++;
+            if (u->IsFlight() && !u->IsDead()) nFlights++;
+        }
+        fprintf(stderr, "[DF-LIST] BuildDFPlayerList: units=%d flights=%d win=%p\n",
+                nUnits, nFlights,
+                (void*)(gMainHandler ? gMainHandler->FindWindow(DF_TEAM_WIN) : NULL));
+    }
+#endif
     C_Dog_Flight *furflt, *teamflt;
     long timestamp;
 

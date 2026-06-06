@@ -60,6 +60,12 @@ BOOL RequestACSlot(Flight flight, uchar team, uchar plane_slot, uchar skill, int
         msg->dataBlock.current_pilot_slot = 255;
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX: issue #13 trace
+    if (getenv("FF_DEBUG_DF"))
+        fprintf(stderr, "[DF-SLOT] RequestACSlot send: flight=%p team=%d acType=%d player=%d target=%p\n",
+                (void*)flight, (int)team, ac_type, player, (void*)target);
+#endif
     FalconSendMessage(msg, TRUE);
     return(TRUE);
 }

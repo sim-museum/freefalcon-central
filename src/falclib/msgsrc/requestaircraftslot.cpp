@@ -37,6 +37,14 @@ int UI_RequestAircraftSlot::Process(uchar autodisp)
     Flight flight;
     int retval = FALSE;
 
+#ifdef FF_LINUX
+    // FF_LINUX: issue #13 trace
+    if (getenv("FF_DEBUG_DF"))
+        fprintf(stderr, "[DF-SLOT] Process: autodisp=%d localGame=%p reqType=%d team=%d acType=%d\n",
+                (int)autodisp, (void*)FalconLocalGame, (int)dataBlock.request_type,
+                (int)dataBlock.team, (int)dataBlock.requested_type);
+#endif
+
     if (autodisp or not FalconLocalGame)
     {
         return FALSE;
@@ -101,6 +109,10 @@ int UI_RequestAircraftSlot::Process(uchar autodisp)
         case REQUEST_SLOT_JOIN_AI:
         default:
             retval = AddFlightSlot(flight);
+#ifdef FF_LINUX
+            if (getenv("FF_DEBUG_DF"))
+                fprintf(stderr, "[DF-SLOT] AddFlightSlot(%p) -> %d\n", (void*)flight, retval);
+#endif
             break;
     }
 
