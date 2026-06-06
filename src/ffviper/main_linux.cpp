@@ -2358,6 +2358,48 @@ static void render_frame(void) {
     if (doUI) {
         FF_PresentPrimarySurface();
 
+        // FF_LINUX debug: scripted UI clicks via FF_UI_CLICK="x,y@sec;x,y@sec..."
+        // (UI-surface coordinates, 1024x768). Posts the same WM_LBUTTONDOWN/UP
+        // messages a real mouse click produces - for automated UI testing.
+        {
+            static int s_clickInit = 0;
+            static struct { int x, y; Uint32 atMs; int fired; } s_clicks[16];
+            static int s_nClicks = 0;
+            static Uint32 s_uiStart = 0;
+            if (!s_clickInit) {
+                s_clickInit = 1;
+                const char* e = getenv("FF_UI_CLICK");
+                if (e) {
+                    char buf[256];
+                    strncpy(buf, e, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
+                    for (char* tok = strtok(buf, ";"); tok && s_nClicks < 16; tok = strtok(NULL, ";")) {
+                        int cx, cy; float at;
+                        if (sscanf(tok, "%d,%d@%f", &cx, &cy, &at) == 3) {
+                            s_clicks[s_nClicks].x = cx;
+                            s_clicks[s_nClicks].y = cy;
+                            s_clicks[s_nClicks].atMs = (Uint32)(at * 1000.0f);
+                            s_clicks[s_nClicks].fired = 0;
+                            s_nClicks++;
+                        }
+                    }
+                }
+            }
+            if (s_nClicks) {
+                if (!s_uiStart) s_uiStart = SDL_GetTicks();
+                Uint32 el = SDL_GetTicks() - s_uiStart;
+                for (int ci = 0; ci < s_nClicks; ci++) {
+                    if (!s_clicks[ci].fired && el >= s_clicks[ci].atMs) {
+                        s_clicks[ci].fired = 1;
+                        LPARAM lp = MAKELPARAM(s_clicks[ci].x, s_clicks[ci].y);
+                        fprintf(stderr, "[FF_UI_CLICK] firing (%d,%d) at %ums\n", s_clicks[ci].x, s_clicks[ci].y, el);
+                        PostGameMessage(WM_MOUSEMOVE, 0, lp);
+                        PostGameMessage(WM_LBUTTONDOWN, 0, lp);
+                        PostGameMessage(WM_LBUTTONUP, 0, lp);
+                    }
+                }
+            }
+        }
+
         // FF_LINUX debug: periodic UI screenshot when FF_UI_SCREENSHOT env var is set
         // (value = period in seconds, written to /tmp/ff_ui.bmp before buffer swap)
         {
