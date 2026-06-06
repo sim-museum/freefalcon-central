@@ -691,7 +691,13 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_Clear(IDirect3DDevice7* This, DWORD dwC
         clearMask |= GL_DEPTH_BUFFER_BIT;
     }
 
+    GLint savedStencilWriteMask = ~0;
     if (dwFlags & D3DCLEAR_STENCIL) {
+        // FF_LINUX: glClear(GL_STENCIL_BUFFER_BIT) honors glStencilMask;
+        // D3D's Clear does not - force the write mask (same bug class as
+        // the depth-mask clear fix above).
+        glGetIntegerv(GL_STENCIL_WRITEMASK, &savedStencilWriteMask);
+        glStencilMask(0xFFFFFFFFu);
         glClearStencil(dwStencil);
         clearMask |= GL_STENCIL_BUFFER_BIT;
     }
@@ -716,6 +722,10 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_Clear(IDirect3DDevice7* This, DWORD dwC
 
     if (dwFlags & D3DCLEAR_ZBUFFER) {
         glDepthMask(savedDepthMask);
+    }
+
+    if (dwFlags & D3DCLEAR_STENCIL) {
+        glStencilMask((GLuint)savedStencilWriteMask);
     }
 
     return D3D_OK;

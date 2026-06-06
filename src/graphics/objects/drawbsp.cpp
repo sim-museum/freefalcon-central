@@ -566,6 +566,17 @@ void DrawableBSP::Draw(RenderOTW *renderer, int)
     // check for inhibit
     if (inhibitDraw)
     {
+#ifdef FF_LINUX
+        // FF_LINUX: issue #8 trace - inhibit consumed
+        {
+            static int s_dbg = -1;
+            if (s_dbg == -1) s_dbg = getenv("FF_DEBUG_VIEW") ? 1 : 0;
+            static unsigned long s_cnt = 0;
+            if (s_dbg && (++s_cnt % 60) == 1)
+                fprintf(stderr, "[VIEW] DrawableBSP::Draw(RenderOTW) inhibit consumed (this=%p, n=%lu)\n",
+                        (void*)this, s_cnt);
+        }
+#endif
         SetInhibitFlag(FALSE);
         return;
     }

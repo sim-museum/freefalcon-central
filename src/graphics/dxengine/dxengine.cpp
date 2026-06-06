@@ -1804,12 +1804,20 @@ void CDXEngine::FlushObjects(void)
                 D3DXMATRIX pitProj = Projection;  // Copy scene projection (preserves Flip+FOV)
                 pitProj._13 = pitFar / (pitFar - pitNear);
                 pitProj._43 = -pitNear * pitFar / (pitFar - pitNear);
-                // FF_LINUX: Add constant to clip_w to prevent GL frustum clipping of
-                // near-field cockpit geometry. With Flip-based projection, clip_w = sim_x
-                // (forward distance). Cockpit vertices extend further vertically/laterally
-                // than forward, so |clip_y| > clip_w causes GL to clip them. D3D7 avoids
-                // this with guard-band clipping. _44 = C makes clip_w = sim_x + C.
-                pitProj._44 = 10.0f;
+                // FF_LINUX: _44 was previously forced to 10.0 ("guard band"
+                // workaround) - but that changes clip_w from sim_x to sim_x+10,
+                // which DIVIDES near geometry by ~11x instead of ~1x: the whole
+                // pit shrank into the distance and looked like it was viewed
+                // from outside/above (issue #8). Keep the true perspective
+                // (w = sim_x); FF_PIT_W_OFFSET overrides for comparison.
+                {
+                    static float s_pitWOfs = -1.0f;
+                    if (s_pitWOfs < 0.0f) {
+                        const char* e = getenv("FF_PIT_W_OFFSET");
+                        s_pitWOfs = e ? (float)atof(e) : 0.0f;
+                    }
+                    pitProj._44 = s_pitWOfs;
+                }
                 m_pD3DD->SetTransform(D3DTRANSFORMSTATE_PROJECTION, (LPD3DMATRIX)&pitProj);
             }
             // FF_LINUX: Windows keeps back-face culling (D3DCULL_CW) in the pit.
@@ -1827,9 +1835,22 @@ void CDXEngine::FlushObjects(void)
                                         s_pitCull == 0 ? D3DCULL_NONE :
                                         s_pitCull == 1 ? D3DCULL_CW : D3DCULL_CCW);
             }
-            // FF_LINUX: Disable stencil test for pit rendering.
-            // The scene uses stencil for sky/fog masking, and pit fragments get rejected.
-            glDisable(FF_GL_STENCIL_TEST);
+            // FF_LINUX: Pit stencil masking (issue #8 - ownship exterior model
+            // covering the pit interior). Windows draws the pit FIRST with
+            // STENCIL_WRITE (ref=N), clears depth at pit exit, then the world
+            // pass runs with STENCIL_CHECK (GREATER, ref=N) so world fragments
+            // are REJECTED over pit pixels. An early Linux hack disabled
+            // GL_STENCIL_TEST here (pit fragments were being rejected by stale
+            // sky/fog stencil state before the stencil render states + the
+            // stencil-clear write-mask fix existed). With those in place,
+            // honor the engine's STENCIL_WRITE. FF_PIT_NO_STENCIL=1 restores
+            // the old disable for comparison.
+            {
+                static int s_pitNoStencil = -1;
+                if (s_pitNoStencil < 0) s_pitNoStencil = getenv("FF_PIT_NO_STENCIL") ? 1 : 0;
+                if (s_pitNoStencil)
+                    glDisable(FF_GL_STENCIL_TEST);
+            }
             // FF_LINUX: Lighting in pit mode. On Windows the 3D pit is lit by the
             // D3D pipeline (sun light + vertex-diffuse material via COLORVERTEX).
             // Early in the port GL lighting made the pit "very dark" because the

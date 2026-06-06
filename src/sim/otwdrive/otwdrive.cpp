@@ -1938,6 +1938,12 @@ void OTWDriverClass::SetGraphicsOwnship(SimBaseClass* obj)
             avionicsObj = static_cast<AircraftClass*>(otwPlatform.get());
             // MLR 12/1/2003 - Exports the old EyeFromCG stuff
             pilotEyePos = *(avionicsObj->af->GetPilotEyePos());
+#ifdef FF_LINUX
+            // FF_LINUX: issue #8 trace - eye position loaded from aux aero data
+            if (getenv("FF_DEBUG_VIEW"))
+                fprintf(stderr, "[VIEW] pilotEyePos from auxaero: (%.2f, %.2f, %.2f)\n",
+                        pilotEyePos.x, pilotEyePos.y, pilotEyePos.z);
+#endif
         }
         else
         {

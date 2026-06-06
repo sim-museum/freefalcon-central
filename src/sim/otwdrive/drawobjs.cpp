@@ -52,6 +52,19 @@ void OTWDriverClass::UpdateVehicleDrawables(void)
         {
             // Inhibit the drawing of the otwPlatform drawable
             otwPlatform->drawPointer->SetInhibitFlag(TRUE);
+#ifdef FF_LINUX
+            // FF_LINUX: issue #8 trace
+            {
+                static int s_dbg = -1;
+                if (s_dbg == -1) s_dbg = getenv("FF_DEBUG_VIEW") ? 1 : 0;
+                static unsigned long s_last = 0;
+                if (s_dbg && vuxRealTime - s_last > 1000) {
+                    s_last = vuxRealTime;
+                    fprintf(stderr, "[VIEW] ownship inhibit set (drawPtr=%p, inCockpit=%d)\n",
+                            (void*)otwPlatform->drawPointer, (int)DisplayInCockpit());
+                }
+            }
+#endif
         }
         else
         {

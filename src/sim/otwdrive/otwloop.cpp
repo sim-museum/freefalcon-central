@@ -2260,6 +2260,29 @@ void OTWDriverClass::RenderFrame()
     ObserverPosition.y = viewPos.y = focusPoint.y + cameraPos.y;
     ObserverPosition.z = viewPos.z = focusPoint.z + cameraPos.z;
 
+#ifdef FF_LINUX
+    // FF_LINUX: issue #8 trace - camera assembly in cockpit modes
+    {
+        static int s_dbgView = -1;
+        if (s_dbgView == -1) s_dbgView = getenv("FF_DEBUG_VIEW") ? 1 : 0;
+        static unsigned long s_lastViewLog = 0;
+        if (s_dbgView && GetOTWDisplayMode() == Mode3DCockpit &&
+            vuxRealTime - s_lastViewLog > 1000) {
+            s_lastViewLog = vuxRealTime;
+            float ax = otwPlatform.get() ? otwPlatform->XPos() : 0;
+            float ay = otwPlatform.get() ? otwPlatform->YPos() : 0;
+            float az = otwPlatform.get() ? otwPlatform->ZPos() : 0;
+            fprintf(stderr, "[VIEW] 3dpit focus=(%.1f,%.1f,%.1f) camOfs=(%.2f,%.2f,%.2f) "
+                    "eye=(%.1f,%.1f,%.1f) ac=(%.1f,%.1f,%.1f) eyeOfsFromAC=(%.2f,%.2f,%.2f)\n",
+                    focusPoint.x, focusPoint.y, focusPoint.z,
+                    cameraPos.x, cameraPos.y, cameraPos.z,
+                    ObserverPosition.x, ObserverPosition.y, ObserverPosition.z,
+                    ax, ay, az,
+                    ObserverPosition.x - ax, ObserverPosition.y - ay, ObserverPosition.z - az);
+        }
+    }
+#endif
+
 
     ObserverYaw = flyingEye->Yaw();
     ObserverPitch = flyingEye->Pitch();
