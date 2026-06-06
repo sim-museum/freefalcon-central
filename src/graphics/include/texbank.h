@@ -22,6 +22,9 @@ typedef struct TexBankEntry
     Texture texN; // The container class which manages the texture data
     int palID; // The offset into ThePaletteBank to use with this texture
     int refCount; // How many objects want this texture right now
+#ifdef FF_LINUX
+    unsigned int zeroSinceMs; // FF_LINUX: when refCount hit 0 (0 = referenced); free after a grace period
+#endif
 } TexBankEntry;
 
 typedef struct TempTexBankEntry

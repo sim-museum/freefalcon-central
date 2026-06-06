@@ -406,6 +406,12 @@ bool Texture::CreateTexture(char *strName)
     if (rc == NULL || imageData == NULL) {
         return false;
     }
+    // FF_LINUX: if a live texture already exists, keep it - re-creating over
+    // it leaks the old GL texture and causes a reload churn (id re-ordered,
+    // image re-read, handle re-created every few frames -> black flicker).
+    if (texHandle != NULL) {
+        return true;
+    }
 #endif
 
     // JB 010318 CTD

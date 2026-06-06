@@ -342,6 +342,14 @@ void TextureBankClass::Reference(int id)
         ShiAssert(TexturePool[id].tex.GetPalette());
         TexturePool[id].tex.GetPalette()->Reference();
 
+#ifdef FF_LINUX
+        // FF_LINUX: cancel any pending release - we are referenced again.
+        // Without this, GetHandle() returns blank while a stale release-queue
+        // entry has OnRelease set, and the grace timer below keeps running.
+        TexFlags[id].OnRelease = false;
+        TexturePool[id].zeroSinceMs = 0;
+#endif
+
         // Mark for the request if not already marked
         if ( not TexFlags[id].OnOrder)
         {
@@ -1021,7 +1029,16 @@ bool TextureBankClass::UpdateBank(void)
 #endif
 
             // if not an order again, and no Referenced, release it
-            if ( not TexFlags[id].OnOrder and not TexturePool[id].refCount and TexFlags[id].OnRelease) TexturePool[id].tex.FreeAll();
+            // FF_LINUX: don't free immediately - stamp the time and let the
+            // grace-period sweep below free it if it stays unreferenced.
+            // Campaign aggregation flapping drops shared texture refCounts to
+            // zero for a few seconds; freeing instantly made cockpit/aircraft
+            // faces go black until the next bubble pass reloaded them.
+            if ( not TexFlags[id].OnOrder and not TexturePool[id].refCount and TexFlags[id].OnRelease)
+            {
+                if (TexturePool[id].zeroSinceMs == 0)
+                    TexturePool[id].zeroSinceMs = GetTickCount();
+            }
 
             // clear flag, in any case
             TexFlags[id].OnRelease = false;
@@ -1049,7 +1066,11 @@ bool TextureBankClass::UpdateBank(void)
 #endif
 
             // if Texture not yet loaded, load it
-            if ( not TexturePool[id].tex.imageData) ReadImageData(id);
+            // FF_LINUX: skip the reload when a live GL texture already exists.
+            // CreateTexture frees the CPU image after upload, so checking
+            // imageData alone re-reads (and re-creates) textures that are
+            // perfectly healthy, producing a permanent reload churn.
+            if ( not TexturePool[id].tex.imageData and not TexturePool[id].tex.TexHandle()) ReadImageData(id);
 
             // if Texture not yet created, create it
 #ifdef FF_LINUX
@@ -1074,6 +1095,28 @@ bool TextureBankClass::UpdateBank(void)
             if (RatedLoad) return true;
         }
 
+    }
+
+    // FF_LINUX: grace-period sweep - free textures that have stayed
+    // unreferenced for a while (see release processing above).
+    {
+        static unsigned int lastSweepMs = 0;
+        unsigned int nowMs = GetTickCount();
+        if (nowMs - lastSweepMs > 2000)
+        {
+            lastSweepMs = nowMs;
+            for (int sid = 0; sid < nTextures; sid++)
+            {
+                if (TexturePool[sid].zeroSinceMs and
+                    TexturePool[sid].refCount == 0 and
+                    (nowMs - TexturePool[sid].zeroSinceMs) > 10000)
+                {
+                    TexturePool[sid].tex.FreeAll();
+                    TexturePool[sid].texN.FreeAll();
+                    TexturePool[sid].zeroSinceMs = 0;
+                }
+            }
+        }
     }
 
     // if here, nothing done, back is up to date
