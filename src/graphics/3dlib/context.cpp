@@ -6,6 +6,7 @@
     //JAM 06Oct03 - Begin Major Rewrite
 \***************************************************************************/
 #include "stdafx.h"
+#include <execinfo.h>  // FF_LINUX: FF_DEBUG_FLUSHES backtrace
 #include "imagebuf.h"
 #include "context.h"
 #include "polylib.h"
@@ -2565,6 +2566,22 @@ void ContextMPR::FlushPolyLists()
     g_RenderFrameCount++;
     FF_DEBUG_RENDER_FRAME(g_RenderFrameCount, "FlushPolyLists ENTER\n");
     FF_DEBUG_RENDER_FLUSH();
+
+    // FF_LINUX: issue #8 follow-up trace - which flush carries how many polys
+    {
+        static int s_dbgFl = -1;
+        if (s_dbgFl == -1) s_dbgFl = getenv("FF_DEBUG_FLUSHES") ? 60 : 0;
+        if (s_dbgFl > 0) {
+            s_dbgFl--;
+            void* bt[5];
+            int n = backtrace(bt, 5);
+            char** syms = backtrace_symbols(bt, n);
+            fprintf(stderr, "[FLUSH] plain=%ld tex=%ld trans=%ld caller=%s\n",
+                    (long)plainPolyVCnt, (long)texturedPolyVCnt, (long)translucentPolyVCnt,
+                    (n > 2 && syms) ? syms[2] : "?");
+            free(syms);
+        }
+    }
 #endif
 
     VCounter = 0;

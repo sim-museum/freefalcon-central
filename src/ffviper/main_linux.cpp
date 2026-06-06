@@ -206,6 +206,12 @@ void FF_SimThreadReleaseGL() {
 
 // Swap buffers - callable from any thread that owns the GL context
 void FF_SwapBuffers() {
+    // FF_LINUX: frame marker for FF_PROBE_PIXEL draw attribution
+    {
+        static int s_probeMark = -1;
+        if (s_probeMark == -1) s_probeMark = getenv("FF_PROBE_PIXEL") ? 1 : 0;
+        if (s_probeMark) fprintf(stderr, "[PIXPROBE] ---- SWAP ----\n");
+    }
     static int swapCount = 0;
     swapCount++;
 

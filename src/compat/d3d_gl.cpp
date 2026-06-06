@@ -26,6 +26,7 @@
 #include "d3d.h"
 
 #include "ffviper/ff_linux_debug.h"
+#include <execinfo.h>  // FF_LINUX: FF_PROBE_BT backtrace attribution
 // External frame counter for correlated debug output
 extern unsigned long g_RenderFrameCount;
 
@@ -626,6 +627,17 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This,
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
             }
+
+            // FF_LINUX: Clamp the texture to level 0 and non-mipmapped
+            // filtering. The surface may have been used as an ordinary
+            // texture earlier - SetTexture's dirty-upload path generated a
+            // mip chain from whatever content it had then. FBO rendering
+            // only updates level 0, so trilinear minification sampled STALE
+            // mip levels: old scene/UI imagery showing "through" the 3D-pit
+            // MFDs and panels (issue #8 follow-up).
+            glBindTexture(GL_TEXTURE_2D, newTarget->glTexture);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
             // Attach texture as color attachment
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, newTarget->glTexture, 0);
@@ -1316,7 +1328,8 @@ int g_FF_PitModeActive = 0;  // Set by DXEngine FlushObjects when drawing pit ge
 // FF_LINUX: pixel-attribution probe - issue #12 (black pit). FF_PROBE_PIXEL="x,y"
 // (window coords, y from top). After each draw call, read that pixel; when its
 // color changes, log the draw parameters. Identifies which draw paints a pixel.
-static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts) {
+static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
+                          const void* firstVert = nullptr) {
     static int s_probeX = -1, s_probeY = -1;
     if (s_probeX == -2) return;
     if (s_probeX == -1) {
@@ -1327,6 +1340,11 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts) {
         }
         fprintf(stderr, "[PIXPROBE] watching pixel (%d,%d)\n", s_probeX, s_probeY);
     }
+    // FF_LINUX: only meaningful for the default framebuffer - skip when an
+    // FBO is bound (otherwise we read CANVAS pixels and misattribute draws).
+    GLint boundFB = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &boundFB);
+    if (boundFB != 0) return;
     unsigned char px[4] = {0};
     // GL origin is bottom-left; probe coords given from top
     glReadPixels(s_probeX, 768 - 1 - s_probeY, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, px);
@@ -1346,6 +1364,13 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts) {
         glGetIntegerv(GL_FOG_MODE, &fogMode);
         glGetIntegerv(GL_FOG_COORD_SRC, &fogSrc);
         GLfloat l0amb[4]; glGetLightfv(GL_LIGHT0, GL_AMBIENT, l0amb);
+        GLint stEn = glIsEnabled(GL_STENCIL_TEST), stFn = 0, stRef = 0, stVal = -1;
+        glGetIntegerv(GL_STENCIL_FUNC, &stFn);
+        glGetIntegerv(GL_STENCIL_REF, &stRef);
+        glReadPixels(s_probeX, 768 - 1 - s_probeY, 1, 1, GL_STENCIL_INDEX, GL_INT, &stVal);
+        fprintf(stderr, "[PIXPROBE-ST] stencil en=%d func=0x%x ref=%d bufVal=%d depthTest=%d zwrite=%d\n",
+                (int)stEn, (unsigned)stFn, (int)stRef, (int)stVal,
+                (int)glIsEnabled(GL_DEPTH_TEST), ({GLboolean dm; glGetBooleanv(GL_DEPTH_WRITEMASK,&dm); (int)dm;}));
         GLfloat l0cut = 0, l0att0 = 0, l0att1 = 0, l0att2 = 0;
         glGetLightfv(GL_LIGHT0, GL_SPOT_CUTOFF, &l0cut);
         glGetLightfv(GL_LIGHT0, GL_CONSTANT_ATTENUATION, &l0att0);
@@ -1359,10 +1384,13 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts) {
                 "twoSide=%d norml=%d\n",
                 l0cut, l0att0, l0att1, l0att2, (unsigned)cmMode, (unsigned)shadeModel,
                 (int)twoSide, (int)glIsEnabled(GL_NORMALIZE));
-        fprintf(stderr, "[PIXPROBE] %s: color 0x%06x -> 0x%06x fvf=0x%lx nVerts=%lu "
+        fprintf(stderr, "[PIXPROBE] %s: color 0x%06x -> 0x%06x fvf=0x%lx nVerts=%lu v0=(%.0f,%.0f,%.4f) "
                 "tex=%d light=%d l0=%d l0amb=%.2f pit=%d blend=%d atest=%d tex2D=%d "
                 "fog=%d(mode=0x%x den=%.3f s=%.0f e=%.0f col=%.2f,%.2f,%.2f src=0x%x)\n",
                 where, lastColor, c, (unsigned long)fvf, (unsigned long)nVerts,
+                firstVert ? ((const float*)firstVert)[0] : -1.0f,
+                firstVert ? ((const float*)firstVert)[1] : -1.0f,
+                firstVert ? ((const float*)firstVert)[2] : -1.0f,
                 (int)tex, (int)glIsEnabled(GL_LIGHTING), (int)glIsEnabled(GL_LIGHT0),
                 l0amb[0], g_FF_PitModeActive,
                 (int)glIsEnabled(GL_BLEND),
@@ -1370,6 +1398,75 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts) {
                 (int)glIsEnabled(GL_FOG), (unsigned)fogMode, fogDen, fogStart, fogEnd,
                 fogCol[0], fogCol[1], fogCol[2], (unsigned)fogSrc);
         lastColor = c;
+
+        // FF_LINUX: FF_PROBE_BT=1 - print a backtrace per probed change
+        {
+            static int s_probeBT = -1;
+            if (s_probeBT == -1) s_probeBT = getenv("FF_PROBE_BT") ? 1 : 0;
+            if (s_probeBT) {
+                void* bt[10];
+                int n = backtrace(bt, 10);
+                char** syms = backtrace_symbols(bt, n);
+                for (int i = 2; i < n && syms; i++)
+                    fprintf(stderr, "[PIXPROBE-BT]   %s\n", syms[i]);
+                free(syms);
+            }
+        }
+
+        // FF_LINUX: FF_DUMP_GLTEX=<id> - one-shot dump of that GL texture's
+        // level 0 to /tmp/gltex_<id>.bmp when seen bound at a probed draw.
+        static int s_dumpTex = -2;
+        if (s_dumpTex == -2) {
+            const char* e = getenv("FF_DUMP_GLTEX");
+            s_dumpTex = e ? atoi(e) : -1;
+        }
+        static int s_dumpSkip = -2;
+        if (s_dumpSkip == -2) {
+            const char* e = getenv("FF_DUMP_GLTEX_SKIP");
+            s_dumpSkip = e ? atoi(e) : 0;
+        }
+        if (s_dumpTex > 0 && tex == s_dumpTex && s_dumpSkip-- <= 0) {
+            s_dumpTex = -1;  // one-shot
+            GLint w = 0, h = 0;
+            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+            fprintf(stderr, "[PIXPROBE] dumping glTex=%d (%dx%d)\n", tex, (int)w, (int)h);
+            if (w > 0 && h > 0 && w <= 4096 && h <= 4096) {
+                unsigned char* px = (unsigned char*)malloc((size_t)w * h * 4);
+                if (px) {
+                    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, px);
+                    char path[64];
+                    snprintf(path, sizeof(path), "/tmp/gltex_%d.bmp", tex);
+                    FILE* f = fopen(path, "wb");
+                    if (f) {
+                        int rowSize = (w * 3 + 3) & ~3;
+                        unsigned int imageSize = rowSize * h, bfSize = 54 + imageSize, off = 54;
+                        unsigned short bfType = 0x4D42, zero16 = 0, planes = 1, bits = 24;
+                        unsigned int biSize = 40, comp = 0, ppm = 2835, clr = 0;
+                        fwrite(&bfType, 2, 1, f); fwrite(&bfSize, 4, 1, f);
+                        fwrite(&zero16, 2, 1, f); fwrite(&zero16, 2, 1, f); fwrite(&off, 4, 1, f);
+                        fwrite(&biSize, 4, 1, f); fwrite(&w, 4, 1, f); fwrite(&h, 4, 1, f);
+                        fwrite(&planes, 2, 1, f); fwrite(&bits, 2, 1, f); fwrite(&comp, 4, 1, f);
+                        fwrite(&imageSize, 4, 1, f); fwrite(&ppm, 4, 1, f); fwrite(&ppm, 4, 1, f);
+                        fwrite(&clr, 4, 1, f); fwrite(&clr, 4, 1, f);
+                        unsigned char* row = (unsigned char*)malloc(rowSize);
+                        for (int y = 0; y < h; y++) {
+                            memset(row, 0, rowSize);
+                            const unsigned char* src = px + (size_t)(h - 1 - y) * w * 4;
+                            for (int x = 0; x < w; x++) {
+                                row[x*3+0] = src[x*4+2];
+                                row[x*3+1] = src[x*4+1];
+                                row[x*3+2] = src[x*4+0];
+                            }
+                            fwrite(row, 1, rowSize, f);
+                        }
+                        free(row); fclose(f);
+                        fprintf(stderr, "[PIXPROBE] wrote %s\n", path);
+                    }
+                    free(px);
+                }
+            }
+        }
     }
 }
 
@@ -1881,7 +1978,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glEnable(GL_TEXTURE_2D);
     }
 
-    FF_ProbePixel("DIPVB", fvf, dwIndexCount);
+    FF_ProbePixel("DIPVB", fvf, dwIndexCount, vb->data);
 
     return D3D_OK;
 }
@@ -3317,7 +3414,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glEnable(GL_TEXTURE_2D);
     }
 
-    FF_ProbePixel("DrawVerts", fvf, count);
+    FF_ProbePixel("DrawVerts", fvf, count, vertices);
 
 #ifdef FF_LINUX_DEBUG_RENDER
     // Check for OpenGL errors after drawing (only in render debug mode)
@@ -4783,8 +4880,13 @@ static HRESULT STDMETHODCALLTYPE DD7_CreateSurface(IDirectDraw7* This, LPDDSURFA
                 // D3D DXT1 always has the 1-bit alpha; the RGB variant forced
                 // alpha=1, which broke chroma-keyed surfaces (alpha test never
                 // discarded) - issue #12: opaque black "tub" slabs covering the
-                // 3D cockpit interior.
-                surf->dxtFormat = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+                // 3D cockpit interior. FF_DXT1_RGB=1 restores the RGB variant
+                // for comparison (dark DXT1 regions compress into punch-through
+                // blocks, so the RGBA variant can make them transparent).
+                static int s_dxt1rgb = -1;
+                if (s_dxt1rgb == -1) s_dxt1rgb = getenv("FF_DXT1_RGB") ? 1 : 0;
+                surf->dxtFormat = s_dxt1rgb ? GL_COMPRESSED_RGB_S3TC_DXT1_EXT
+                                            : GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
             } else if (fcc == MAKEFOURCC('D','X','T','3')) {
                 surf->dxtFormat = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
             } else if (fcc == MAKEFOURCC('D','X','T','5')) {

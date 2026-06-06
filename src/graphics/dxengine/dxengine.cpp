@@ -507,6 +507,12 @@ DWORD CDXEngine::SetStencilMode(DWORD Stencil)
 
     DWORD LastMode = (DWORD)m_StencilMode;
 
+    // FF_LINUX: track the logical stencil mode (was never updated, so
+    // LastMode was always stale). Needed to re-assert the mode after
+    // ApplyStateBlock clobbers the stencil render states (issue #8).
+    if (Stencil != STENCIL_ON)
+        m_StencilMode = (StencilModeType)Stencil;
+
     switch (Stencil)
     {
 
@@ -2355,6 +2361,30 @@ void CDXEngine::ModelInit(ObjectInstance *objInst, DxDbHeader* Header, DWORD *Te
 
     // Setup the state for the DX engine
     CheckHR(m_pD3DD->ApplyStateBlock(DxEngineStateHandle));
+
+#ifdef FF_LINUX
+    // FF_LINUX: DxEngineStateHandle was captured at engine init with the
+    // stencil render states present in the device cache (disabled), so
+    // applying it here clobbers the pit pass's STENCIL_WRITE/CHECK setup -
+    // the pit then drew without stencil writes and the world/glass painted
+    // over it (issue #8 see-through MFDs). Re-assert the tracked mode.
+    {
+        StencilModeType cur = m_StencilMode;
+        if (cur == STENCIL_WRITE) {
+            // Re-apply WRITE without bumping the ref counter
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_STENCILFUNC, D3DCMP_ALWAYS);
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_STENCILMASK, 0xffffffff);
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_STENCILWRITEMASK, 0xffffffff);
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_STENCILREF, m_StencilRef);
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_STENCILPASS, D3DSTENCILOP_REPLACE);
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_STENCILENABLE, TRUE);
+        } else if (cur == STENCIL_CHECK) {
+            SetStencilMode(STENCIL_CHECK);
+        } else {
+            SetStencilMode(STENCIL_OFF);
+        }
+    }
+#endif
 
     // *** Default engine initializations ***
     m_pD3DD->SetRenderState(D3DRENDERSTATE_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
