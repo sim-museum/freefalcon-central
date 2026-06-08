@@ -205,6 +205,25 @@ void FF_SimThreadReleaseGL() {
 }
 
 // Swap buffers - callable from any thread that owns the GL context
+// FF_LINUX: Paint both buffers black during mission load, before the renderer
+// is ready to draw the splash. Without this the uninitialized GL back buffer
+// shows as a white screen during the (several-second) device/terrain setup at
+// the start of OTWDriver::Enter(). Called on the sim thread, which owns the GL
+// context at that point.
+void FF_LoadingClear() {
+    if (!g_SDLWindow || !g_GLContext) return;
+    if (SDL_GL_GetCurrentContext() != g_GLContext) return;  // only if we own it
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GLboolean savedScissor = glIsEnabled(GL_SCISSOR_TEST);
+    if (savedScissor) glDisable(GL_SCISSOR_TEST);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    for (int i = 0; i < 2; i++) {            // clear both front and back
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        SDL_GL_SwapWindow(g_SDLWindow);
+    }
+    if (savedScissor) glEnable(GL_SCISSOR_TEST);
+}
+
 void FF_SwapBuffers() {
     // FF_LINUX: frame marker for FF_PROBE_PIXEL draw attribution
     {
@@ -2173,6 +2192,12 @@ bool ProcessGameMessages() {
             case FM_LOAD_CAMPAIGN:
             {
                 fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN received (type=%ld)\n", (long)msg.lParam);
+                // FF_LINUX: Paint the screen black before the (multi-second)
+                // campaign decode that runs on this (main) thread, which would
+                // otherwise leave a white screen until OTWDriver::Enter() shows
+                // the loading splash. The main thread still owns the GL context
+                // here. (FF_LoadingClear is a no-op if we don't own it.)
+                { extern void FF_LoadingClear(); FF_LoadingClear(); }
                 // For non-campaign/TE types, use "Instant" as campaign file
                 if ((FalconGameType)msg.lParam != game_Campaign &&
                     (FalconGameType)msg.lParam != game_TacticalEngagement) {

@@ -226,6 +226,22 @@ void OTWDriverClass::SplashScreenUpdate(int frame)
 
     if ( not originalImage)
     {
+#ifdef FF_LINUX
+        // FF_LINUX: If the splash GIF failed to load, still present a cleared
+        // (black) frame rather than leaving the uninitialized white back buffer
+        // on screen during the multi-second load.
+        if (renderer)
+        {
+            renderer->context.StartFrame();
+            renderer->SetViewport(-1.0f, 1.0f, 1.0f, -1.0f);
+            renderer->StartDraw();
+            renderer->SetBackground(0xFF000000);
+            renderer->ClearDraw();
+            renderer->EndDraw();
+            renderer->context.FinishFrame(NULL);
+            if (OTWImage) OTWImage->SwapBuffers(NULL);
+        }
+#endif
         return;
     }
 

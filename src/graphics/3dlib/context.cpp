@@ -407,7 +407,30 @@ void ContextMPR::ClearBuffers(WORD ClearInfo)
 
     if (ClearInfo bitand MPR_CI_ZBUFFER) dwClearFlags or_eq D3DCLEAR_ZBUFFER;
 
+#ifdef FF_LINUX
+    // FF_LINUX: Scope the clear to the CURRENT viewport (D3D7's documented
+    // semantics for Clear). Passing NULL rects clears the whole framebuffer on
+    // GL, which let the padlock/SA sidebar's ClearDraw wipe the 3D world drawn
+    // earlier in the frame (left the right ~80% of the screen showing the
+    // sidebar background "light blue"). Build a rect from the active viewport.
+    D3DVIEWPORT7 vp;
+    HRESULT hr;
+    if (SUCCEEDED(m_pD3DD->GetViewport(&vp)) && vp.dwWidth && vp.dwHeight)
+    {
+        D3DRECT rc;
+        rc.x1 = vp.dwX;
+        rc.y1 = vp.dwY;
+        rc.x2 = vp.dwX + vp.dwWidth;
+        rc.y2 = vp.dwY + vp.dwHeight;
+        hr = m_pD3DD->Clear(1, &rc, dwClearFlags, m_colBG, 1.0f, NULL);
+    }
+    else
+    {
+        hr = m_pD3DD->Clear(NULL, NULL, dwClearFlags, m_colBG, 1.0f, NULL);
+    }
+#else
     HRESULT hr = m_pD3DD->Clear(NULL, NULL, dwClearFlags, m_colBG, 1.0f, NULL);
+#endif
     ShiAssert(SUCCEEDED(hr));
 }
 
@@ -1662,7 +1685,11 @@ void ContextMPR::SetCurrentState(GLint state, GLint flag)
             // material/light pipeline and making terrain appear dark.
             FlushVB();
             m_pD3DD->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
-            m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
+            // FF_LINUX: Do NOT disable FOG here. Far terrain (STATE_GOURAUD) and
+            // DDS-mode near terrain (STATE_MULTITEXTURE) both render with fog
+            // enabled (haze-to-horizon). Disabling it only on the palette-mode
+            // landscape states produced a visible brightness SEAM at the
+            // near/far boundary. Keep fog consistent across all terrain states.
 #endif
 
             break;
@@ -1693,7 +1720,7 @@ void ContextMPR::SetCurrentState(GLint state, GLint flag)
             // FF_LINUX: Explicitly disable GL_LIGHTING for terrain (see STATE_LANDSCAPE_LIT)
             FlushVB();
             m_pD3DD->SetRenderState(D3DRENDERSTATE_LIGHTING, FALSE);
-            m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE);
+            // FF_LINUX: Keep FOG enabled here for seam-free near/far terrain (see STATE_LANDSCAPE_LIT)
 #endif
 
             break;

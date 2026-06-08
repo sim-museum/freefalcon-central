@@ -1315,14 +1315,15 @@ long CampaignClass::SaveSize(void)
     size += sizeof(CampaignTime);
     size += sizeof(CampaignTime);
     size += sizeof(CampaignTime);
-    size += sizeof(long);
-    size += sizeof(long);
-    size += sizeof(long);
-    size += sizeof(long) * 8;
-    size += sizeof(long) * 8;
-    size += sizeof(long);
-    size += sizeof(long) * 8;
-    size += sizeof(long);
+    // FF_LINUX: 4-byte fields to match Encode's int32_t writes / Decode reads
+    size += sizeof(int32_t);       // TE_VictoryPoints
+    size += sizeof(int32_t);       // TE_type
+    size += sizeof(int32_t);       // TE_number_teams
+    size += sizeof(int32_t) * 8;   // TE_number_aircraft
+    size += sizeof(int32_t) * 8;   // TE_number_f16s
+    size += sizeof(int32_t);       // TE_team
+    size += sizeof(int32_t) * 8;   // TE_team_pts
+    size += sizeof(int32_t);       // TE_flags
 
     size += sizeof(uchar) * 8;
     size += sizeof(uchar) * 8;
@@ -1391,9 +1392,10 @@ long CampaignClass::SaveSize(void)
 
     size += sizeof(uchar);
 
-    size += sizeof(long);
-    size += sizeof(long);
-    size += sizeof(long);
+    // FF_LINUX: 4-byte fields to match Encode/Decode (CreatorIP/CreationTime/CreationRand)
+    size += sizeof(int32_t);
+    size += sizeof(int32_t);
+    size += sizeof(int32_t);
 
     return size;
 }
@@ -1751,23 +1753,29 @@ int CampaignClass::Encode(VU_BYTE **stream)
     buffer += sizeof(CampaignTime);
     memcpy(buffer, &TE_TimeLimit, sizeof(CampaignTime));
     buffer += sizeof(CampaignTime);
-    memcpy(buffer, &TE_VictoryPoints, sizeof(long));
-    buffer += sizeof(long);
+    // FF_LINUX: write 4-byte fields to match Decode's int32_t reads and the
+    // 32-bit Windows on-disk format (long is 8 bytes on 64-bit Linux).
+    {
+        int32_t te32;
+        int32_t te32_arr[8];
 
-    memcpy(buffer, &TE_type, sizeof(long));
-    buffer += sizeof(long);
-    memcpy(buffer, &TE_number_teams, sizeof(long));
-    buffer += sizeof(long);
-    memcpy(buffer, TE_number_aircraft, sizeof(long) * 8);
-    buffer += sizeof(long) * 8;
-    memcpy(buffer, TE_number_f16s, sizeof(long) * 8);
-    buffer += sizeof(long) * 8;
-    memcpy(buffer, &TE_team, sizeof(long));
-    buffer += sizeof(long);
-    memcpy(buffer, TE_team_pts, sizeof(long) * 8);
-    buffer += sizeof(long) * 8;
-    memcpy(buffer, &TE_flags, sizeof(long));
-    buffer += sizeof(long);
+        te32 = (int32_t)TE_VictoryPoints;
+        memcpy(buffer, &te32, sizeof(int32_t)); buffer += sizeof(int32_t);
+        te32 = (int32_t)TE_type;
+        memcpy(buffer, &te32, sizeof(int32_t)); buffer += sizeof(int32_t);
+        te32 = (int32_t)TE_number_teams;
+        memcpy(buffer, &te32, sizeof(int32_t)); buffer += sizeof(int32_t);
+        for (int j = 0; j < 8; j++) te32_arr[j] = (int32_t)TE_number_aircraft[j];
+        memcpy(buffer, te32_arr, sizeof(int32_t) * 8); buffer += sizeof(int32_t) * 8;
+        for (int j = 0; j < 8; j++) te32_arr[j] = (int32_t)TE_number_f16s[j];
+        memcpy(buffer, te32_arr, sizeof(int32_t) * 8); buffer += sizeof(int32_t) * 8;
+        te32 = (int32_t)TE_team;
+        memcpy(buffer, &te32, sizeof(int32_t)); buffer += sizeof(int32_t);
+        for (int j = 0; j < 8; j++) te32_arr[j] = (int32_t)TE_team_pts[j];
+        memcpy(buffer, te32_arr, sizeof(int32_t) * 8); buffer += sizeof(int32_t) * 8;
+        te32 = (int32_t)TE_flags;
+        memcpy(buffer, &te32, sizeof(int32_t)); buffer += sizeof(int32_t);
+    }
 
     for (loop = 0; loop < 8; loop ++)
     {
@@ -1948,12 +1956,16 @@ int CampaignClass::Encode(VU_BYTE **stream)
 
     memcpy(buffer, &Tempo, sizeof(uchar));
     buffer += sizeof(uchar);
-    memcpy(buffer, &CreatorIP, sizeof(long));
-    buffer += sizeof(long);
-    memcpy(buffer, &CreationTime, sizeof(long));
-    buffer += sizeof(long);
-    memcpy(buffer, &CreationRand, sizeof(long));
-    buffer += sizeof(long);
+    // FF_LINUX: 4-byte fields to match Decode's int32_t reads (long is 8 bytes here)
+    {
+        int32_t c32;
+        c32 = (int32_t)CreatorIP;
+        memcpy(buffer, &c32, sizeof(int32_t)); buffer += sizeof(int32_t);
+        c32 = (int32_t)CreationTime;
+        memcpy(buffer, &c32, sizeof(int32_t)); buffer += sizeof(int32_t);
+        c32 = (int32_t)CreationRand;
+        memcpy(buffer, &c32, sizeof(int32_t)); buffer += sizeof(int32_t);
+    }
     ShiAssert((int)(buffer - bufhead) == datasize);
 
     // Compress it and return
@@ -1980,6 +1992,16 @@ int CampaignClass::LoadScenarioStats(FalconGameType type, char *savefile)
     StartReadCampFile(type, savefile);
 
     gCampDataVersion = ReadVersionNumber(savefile);
+
+    // FF_LINUX: Cap version to what this code supports (mirrors LoadCampaign).
+    // Real campaign saves (save0/1/2) are version 99 but this decode path is
+    // designed for version 73; an uncapped version causes stream desync and
+    // garbage that crashes the ATM/GTM when the user clicks a save in the list.
+    if (gCampDataVersion > gCurrentDataVersion) {
+        fprintf(stderr, "[FF_LINUX] LoadScenarioStats: WARNING - Capping version from %d to %d\n",
+                gCampDataVersion, gCurrentDataVersion);
+        gCampDataVersion = gCurrentDataVersion;
+    }
 
     CampaignData cd;
     cd = ReadCampFile(savefile, "cmp");

@@ -676,6 +676,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_GetRenderTarget(IDirect3DDevice7* This,
 int g_ClearCallCount = 0;
 int g_DrawPrimitiveCount = 0;
 static HRESULT STDMETHODCALLTYPE D3D7Dev_Clear(IDirect3DDevice7* This, DWORD dwCount, LPD3DRECT lpRects, DWORD dwFlags, D3DCOLOR dwColor, D3DVALUE dvZ, DWORD dwStencil) {
+    D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("Clear flags=0x%x color=0x%x", dwFlags, dwColor);
     g_ClearCallCount++;
 
@@ -720,12 +721,31 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_Clear(IDirect3DDevice7* This, DWORD dwC
             glClear(clearMask);
             if (savedScissor) glEnable(GL_SCISSOR_TEST);
         } else {
-            // Clear specific rectangles
+            // FF_LINUX: Clear specific rectangles. D3DRECT coords are top-down
+            // (origin top-left); GL scissor is bottom-up (origin bottom-left),
+            // so we must flip Y using the render target height. This path is how
+            // ClearBuffers() scopes a clear to the current viewport (e.g. the
+            // padlock/SA sidebar sub-windows), matching D3D7's documented
+            // "Clear affects only the current viewport" semantics. Without the
+            // flip (and previously, without honoring the viewport at all) the
+            // sidebar's ClearDraw wiped the 3D world drawn earlier in the frame.
+            int targetH;
+            D3D7Surface* rt = dev->renderTarget;
+            if (rt && rt != dev->defaultRenderTarget && rt->fboId) {
+                targetH = rt->height;
+            } else {
+                extern SDL_Window* g_SDLWindow;
+                int winW;
+                SDL_GetWindowSize(g_SDLWindow, &winW, &targetH);
+            }
             glEnable(GL_SCISSOR_TEST);
             for (DWORD i = 0; i < dwCount; i++) {
-                glScissor(lpRects[i].x1, lpRects[i].y1,
-                         lpRects[i].x2 - lpRects[i].x1,
-                         lpRects[i].y2 - lpRects[i].y1);
+                int x = lpRects[i].x1;
+                int w = lpRects[i].x2 - lpRects[i].x1;
+                int h = lpRects[i].y2 - lpRects[i].y1;
+                int glY = targetH - lpRects[i].y2;
+                if (glY < 0) glY = 0;
+                glScissor(x, glY, w, h);
                 glClear(clearMask);
             }
             if (!savedScissor) glDisable(GL_SCISSOR_TEST);

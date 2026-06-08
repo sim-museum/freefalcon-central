@@ -1004,6 +1004,17 @@ void SimulationLoopControl::StartLoop(void)
             ThreadManager::sim_signal_campaign();
             ThreadManager::sim_wait_for_campaign(10);
 
+            // FF_LINUX: Animate the loading splash so the user sees the
+            // moving-plane progress indicator instead of a white screen during
+            // the (multi-second) deaggregation wait. The 5-frame palette-cycle
+            // splash freezes on frame 3 (lastframe latch), so cycle the other
+            // frames {0,1,2,4} to keep the plane moving. SplashScreenUpdate
+            // presents a frame (SwapBuffers) each call.
+            {
+                static const int animSeq[] = {0, 1, 2, 4};
+                OTWDriver.SplashScreenUpdate(animSeq[deagLoopCounter & 3]);
+            }
+
             // Short sleep to avoid busy-waiting
             Sleep(100);
 
@@ -1068,6 +1079,13 @@ void SimulationLoopControl::StartLoop(void)
                 ThreadManager::sim_wait_for_campaign(10);
 
                 simDriverWaitCount++;
+
+                // FF_LINUX: keep the splash animating during this wait too
+                {
+                    static const int animSeq[] = {0, 1, 2, 4};
+                    OTWDriver.SplashScreenUpdate(animSeq[simDriverWaitCount & 3]);
+                }
+
                 // Timeout after ~30 seconds to prevent infinite loop
                 if (simDriverWaitCount > 300)
                 {

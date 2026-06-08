@@ -448,7 +448,8 @@ void tactical_mission::process_load(char *data, int size, int)
     {
         ptr = buffer;
 
-        while (size)
+        // FF_LINUX: bound ptr to buffer to prevent stack overflow on overlong lines
+        while (size and (ptr < buffer + sizeof(buffer) - 1))
         {
             *ptr = *data;
 
@@ -565,12 +566,23 @@ void tactical_mission::process_load(char *data, int size, int)
                 case t_number_teams:
                 {
                     number_teams = atoi(buffer);
+
+                    // FF_LINUX: team arrays are [8]; clamp to prevent OOB in callers
+                    if (number_teams < 0) number_teams = 0;
+                    if (number_teams > 8) number_teams = 8;
                     break;
                 }
 
                 case t_team_info:
                 {
                     sscanf(buffer, "%d %d %d", &team, &x, &y);
+
+                    // FF_LINUX: arrays are [8]; clamp file-supplied team index
+                    if (team < 0 or team >= 8)
+                    {
+                        team = 0;
+                        break;
+                    }
 
                     number_aircraft[team] = x;
                     number_f16s[team] = y;
@@ -613,7 +625,7 @@ char *tactical_mission::read_te_file(char *filename, int *size)
     offset;
 
     char
-    name[100],
+    name[256],  // FF_LINUX: was [100]; str_len can be up to 255
          te_filename[100],
          *ext,
          *src,
@@ -680,6 +692,14 @@ char *tactical_mission::read_te_file(char *filename, int *size)
                 {
                     fread(&offset, 4, 1, fp);
                     fread(size, 4, 1, fp);
+
+                    // FF_LINUX: sanity-check the file-supplied size before allocating
+                    if (*size <= 0 or *size > 0x4000000)
+                    {
+                        fclose(fp);
+                        *size = 0;
+                        return NULL;
+                    }
 
                     fseek(fp, offset, 0);
 
@@ -1011,6 +1031,8 @@ int tactical_mission::get_number_of_f16s(int team)
 
 char *tactical_mission::get_team_name(int team)
 {
+    if (team < 0 or team >= 8) return NULL;  // FF_LINUX: bounds guard
+
     return team_name[team];
 }
 
@@ -1020,6 +1042,8 @@ char *tactical_mission::get_team_name(int team)
 
 void tactical_mission::set_team_name(int team, char *name)
 {
+    if (team < 0 or team >= 8) return;  // FF_LINUX: bounds guard
+
     if (team_name[team])
     {
         delete[] team_name[team];  // FF_LINUX: new[] allocation
@@ -1038,6 +1062,8 @@ void tactical_mission::set_team_name(int team, char *name)
 
 int tactical_mission::get_team_flag(int team)
 {
+    if (team < 0 or team >= 8) return 0;  // FF_LINUX: bounds guard
+
     return team_flag[team];
 }
 
@@ -1047,6 +1073,8 @@ int tactical_mission::get_team_flag(int team)
 
 void tactical_mission::set_team_flag(int team, int flag)
 {
+    if (team < 0 or team >= 8) return;  // FF_LINUX: bounds guard
+
     team_flag[team] = static_cast<char>(flag);
 }
 

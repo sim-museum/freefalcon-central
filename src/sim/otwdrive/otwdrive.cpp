@@ -2036,6 +2036,13 @@ void OTWDriverClass::Enter(void)
     OTWWin = FalconDisplay.appWin;
     SetResolution(FalconDisplayConfiguration::Sim);
 
+#ifdef FF_LINUX
+    // FF_LINUX: Paint black at the very start of Enter (the sim thread already
+    // owns the GL context here) so the UI->Sim handoff and the EnterMode device
+    // setup don't flash a white screen before the splash appears.
+    { extern void FF_LoadingClear(); FF_LoadingClear(); }
+#endif
+
     fprintf(stderr, "[OTWDriver.Enter] Calling FalconDisplay.EnterMode(Sim)...\n"); fflush(stderr);
     FalconDisplay.EnterMode(
         FalconDisplayConfiguration::Sim,
@@ -2043,6 +2050,16 @@ void OTWDriverClass::Enter(void)
         DisplayOptions.DispVideoDriver
     );
     fprintf(stderr, "[OTWDriver.Enter] EnterMode done\n"); fflush(stderr);
+
+#ifdef FF_LINUX
+    // FF_LINUX: Paint the screen black now so the user doesn't see a white
+    // (uninitialized) buffer during the device/terrain setup that follows,
+    // before the renderer is ready to draw the loading splash.
+    {
+        extern void FF_LoadingClear();
+        FF_LoadingClear();
+    }
+#endif
 
     OTWImage = FalconDisplay.GetImageBuffer();
     fprintf(stderr, "[OTWDriver.Enter] OTWImage=%p, targetSurface=%p\n",
