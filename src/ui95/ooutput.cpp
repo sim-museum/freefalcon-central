@@ -410,7 +410,7 @@ void O_Output::Cleanup()
             MemFreePtr(Label_);
 
 #else
-            delete Label_;
+            delete[] Label_;  // FF_LINUX: Label_ is new _TCHAR[] (was delete -> alloc-dealloc-mismatch)
 #endif
         Label_ = NULL;
         SetReady(0);

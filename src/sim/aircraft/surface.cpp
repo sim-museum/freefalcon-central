@@ -350,6 +350,10 @@ float AircraftClass::CalculateRudder(float qfactor)
 // happens at a given rate though. Optionally play SFX during the time.
 void AircraftClass::MoveDof(int dof, float newval, float rate, int ssfx, int lsfx, int esfx)
 {
+    // FF_LINUX: GetHpDofType()/GetGunDofType() return -1 when this aircraft model
+    // has no DOF for that hardpoint/gun; skip rather than index DOFData[-1].
+    if (dof < 0) return;
+
     float changeval;
     float cdof = GetDOFValue(dof);
     bool doend = false;

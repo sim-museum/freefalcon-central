@@ -130,39 +130,43 @@ public:
 
     void SetDOFs(float*);
     void SetSwitches(int*);
+    // FF_LINUX: guard the LOWER bound too - a negative dof/num passes "< count"
+    // and reads/writes before the array (heap-buffer-overflow, seen in
+    // GetDOFValue from MoveSurfaces/MoveDof under ASAN).
     void SetDOF(int dof, float val)
     {
-        ShiAssert(dof < numDofs);
+        ShiAssert(dof >= 0 and dof < numDofs);
 
-        if (dof < numDofs)
+        if (dof >= 0 and dof < numDofs)
         {
             DOFData[dof] = val;
         }
     }
     void SetDOFInc(int dof, float val)
     {
-        ShiAssert(dof < numDofs);
+        ShiAssert(dof >= 0 and dof < numDofs);
 
-        if (dof < numDofs)
+        if (dof >= 0 and dof < numDofs)
         {
             DOFData[dof] += val;
         }
     }
     float GetDOFValue(int dof)
     {
-        ShiAssert(dof < numDofs);
-        return dof < numDofs ? DOFData[dof] : 0;
+        ShiAssert(dof >= 0 and dof < numDofs);
+        return (dof >= 0 and dof < numDofs) ? DOFData[dof] : 0;
     }
     void SetDOFType(int dof, int type)
     {
-        ShiAssert(dof < numDofs);
-        DOFType[dof] = type;
+        ShiAssert(dof >= 0 and dof < numDofs);
+        if (dof >= 0 and dof < numDofs)
+            DOFType[dof] = type;
     }
     void SetSwitch(int num, int val)
     {
-        ShiAssert(num < numSwitches);
+        ShiAssert(num >= 0 and num < numSwitches);
 
-        if (num < numSwitches)
+        if (num >= 0 and num < numSwitches)
         {
             switchData[num] = val;
             switchChange[num] = TRUE;
@@ -170,7 +174,7 @@ public:
     }
     int GetSwitch(int num)
     {
-        return num < numSwitches ? switchData[num] : 0;
+        return (num >= 0 and num < numSwitches) ? switchData[num] : 0;
     }
     void AddDataRequest(int flag);
     int DataRequested(void)
