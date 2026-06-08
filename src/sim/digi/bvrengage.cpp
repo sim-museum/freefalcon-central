@@ -663,7 +663,7 @@ void DigitalBrain::BvrChooseTactic(void)
     {
         bvrCurrTactic = BvrNotch;
         bvrTacticTimer = SimLibElapsedTime + 20 * CampaignSeconds + SkillLevel() * 5 * CampaignSeconds;
-        short edata[3];
+        short edata[10];  // FF_LINUX: AiMakeRadioResponse reads 10
         int flightIdx = self->GetCampaignObject()->GetComponentIndex(self);
         edata[0] = flightIdx;
         edata[1] = 0;//notching
@@ -2036,7 +2036,7 @@ void DigitalBrain::Defensive(void)
 
             bvrCurrTactic = BvrNotch;
             bvrTacticTimer = SimLibElapsedTime + 15 * CampaignSeconds;
-            short edata[3];
+            short edata[10];  // FF_LINUX: AiMakeRadioResponse reads 10
             int flightIdx = self->GetCampaignObject()->GetComponentIndex(self);
             edata[0] = flightIdx;
             edata[1] = 0;//notching
@@ -2046,7 +2046,7 @@ void DigitalBrain::Defensive(void)
         {
             bvrCurrTactic = BvrPump;
             bvrTacticTimer = SimLibElapsedTime + 30 * CampaignSeconds + SkillLevel() * 5 * CampaignSeconds;
-            short edata[3];
+            short edata[10];  // FF_LINUX: AiMakeRadioResponse reads 10
             int flightIdx = self->GetCampaignObject()->GetComponentIndex(self);
             edata[0] = flightIdx;
             edata[1] = 3;//pumping
@@ -2057,7 +2057,7 @@ void DigitalBrain::Defensive(void)
         {// our lead draged us into a dangeres situation we need to split and notch
         bvrCurrTactic = BvrNotch;
         bvrTacticTimer = SimLibElapsedTime + 15 * CampaignSeconds;
-         short edata[3];
+         short edata[10];  // FF_LINUX: AiMakeRadioResponse reads 10
          int flightIdx = self->GetCampaignObject()->GetComponentIndex(self);
          edata[0] = flightIdx;
          edata[1] = 0;//notching

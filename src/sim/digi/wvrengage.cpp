@@ -750,7 +750,7 @@ void DigitalBrain::WvrGunJink(void)
 */
 void DigitalBrain::SetThreat(FalconEntity *obj)
 {
-    short edata[6];
+    short edata[10];  // FF_LINUX: AiMakeRadioResponse reads 10
     int randNum, response;
 
     // don't pre-empt current threat with a new threat until we've been

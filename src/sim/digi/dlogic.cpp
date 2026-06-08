@@ -478,7 +478,7 @@ void DigitalBrain::PrtMode(void)
 
 void DigitalBrain::SetTarget(SimObjectType* newTarget)
 {
-    short edata[6];
+    short edata[10];  // FF_LINUX: AiMakeRadioResponse reads 10
     int response, navAngle;
     float rz;
 

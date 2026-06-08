@@ -3220,7 +3220,7 @@ void DigitalBrain::IPCheck(void)
     //TJL 10/20/03 Added back in dZ
     float dX, dY, dZ;
     float rangeSq, tgtrangeSq;
-    short edata[6];
+    short edata[10];  // FF_LINUX: AiMakeRadioResponse reads 10
     int response;
 
     // Only for the player's wingmen

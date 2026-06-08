@@ -29,7 +29,7 @@ extern float g_fAIDropStoreLauncherRange;
 
 void DigitalBrain::MissileDefeatCheck(void)
 {
-    short edata[6];
+    short edata[10];  // FF_LINUX: AiMakeRadioResponse reads 10
     int   response;
 
     //Cobra Moved here before jump out of function code.
