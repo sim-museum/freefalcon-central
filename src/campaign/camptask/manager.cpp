@@ -288,6 +288,11 @@ VU_ERRCODE CampManagerClass::InsertionCallback(void)
 
 VU_ERRCODE CampManagerClass::RemovalCallback(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX: guard out-of-range owner (see InsertionCallback)
+    if ((unsigned)owner >= (unsigned)NUM_TEAMS)
+        return VU_NO_OP;
+#endif
     // ShiAssert(TeamInfo[owner]);
     if (TeamInfo[owner])
     {

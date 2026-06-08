@@ -1628,7 +1628,9 @@ void UpdateMissionWindow(long ID)
 
         if (curflight)
         {
-            while (curflight->plane_stats[planecount] not_eq AIRCRAFT_NOT_ASSIGNED and planecount < PILOTS_PER_FLIGHT)
+            // FF_LINUX: test the bound BEFORE the array access (was reading
+            // plane_stats[PILOTS_PER_FLIGHT] - heap-buffer-overflow)
+            while (planecount < PILOTS_PER_FLIGHT and curflight->plane_stats[planecount] not_eq AIRCRAFT_NOT_ASSIGNED)
                 planecount++;
         }
 

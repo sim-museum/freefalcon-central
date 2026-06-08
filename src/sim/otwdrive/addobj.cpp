@@ -394,6 +394,11 @@ long TeamSimColorList[NUM_TEAMS] = { 0xfffffffe, // Thunderbird // White not qui
 
 void SetLabel(SimBaseClass* theObject)
 {
+#ifdef FF_LINUX
+    // FF_LINUX: called from the campaign thread (UpdatePlayerSessions) during the
+    // takeoff transition; theObject can be NULL/partly-initialized.
+    if (not theObject) return;
+#endif
     Falcon4EntityClassType *classPtr = (Falcon4EntityClassType*)theObject->EntityType();
     CampEntity campObj;
     char label[40] = {0};
@@ -456,8 +461,14 @@ void SetLabel(SimBaseClass* theObject)
     //ShiAssert(TeamInfo[theObject->GetTeam()]);
 
 
-    if (TeamInfo[theObject->GetTeam()])
-        labelColor = TeamSimColorList[TeamInfo[theObject->GetTeam()]->GetColor()];
+    // FF_LINUX: GetTeam() is a uchar and can exceed NUM_TEAMS on a corrupt/partly
+    // -initialized entity; TeamInfo[OOB] returns a garbage non-NULL pointer that
+    // crashes on ->GetColor(). Guard the index (recurring TeamInfo[team] bug).
+    {
+        int teamIdx = theObject->GetTeam();
+        if (teamIdx >= 0 and teamIdx < NUM_TEAMS and TeamInfo[teamIdx])
+            labelColor = TeamSimColorList[TeamInfo[teamIdx]->GetColor()];
+    }
 
     // KCK: This uses the UI's colors. For a while these didn't work well in Sim
     // They may be ok now, though - KCK: As of 10/25, still looked bad
