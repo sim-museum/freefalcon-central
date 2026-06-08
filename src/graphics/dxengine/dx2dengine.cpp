@@ -395,7 +395,7 @@ bool CDXEngine::DX2D_GetVisibility(D3DXVECTOR3 *Pos, float Radius, DWORD Flags)
     //Store the radius
     Radius2D = Radius;
     // get the position and make it camera relative
-    XMMPos.Xmm = _mm_loadu_ps((float*)Pos);
+    XMMPos.Xmm = _mm_set_ps(0.0f, Pos->z, Pos->y, Pos->x);  // FF_LINUX: Pos is a 3-float vec3; _mm_loadu_ps read 1 float past it (ASAN stack-buffer-overflow)
 
     if ( not (Flags bitand CAMERA_VERTICES)) XMMPos.Xmm = _mm_sub_ps(XMMPos.Xmm, XMMCamera.Xmm);
 
@@ -412,7 +412,7 @@ bool CDXEngine::DX2D_GetVisibility(D3DXVECTOR3 *Pos, float Radius, DWORD Flags)
 DWORD CDXEngine::ComputeSphereVisibility(LPD3DVECTOR lpCenters, LPD3DVALUE  lpRadii, DWORD dwNumSpheres)
 {
     DWORD ClipResult;
-    XMMAcc = _mm_loadu_ps((float*)lpCenters);
+    XMMAcc = _mm_set_ps(0.0f, lpCenters->z, lpCenters->y, lpCenters->x);  // FF_LINUX: 3-float vec3, avoid over-read
     XMMPos.Xmm = _mm_sub_ps(XMMAcc, XMMCamera.Xmm);
     // Check for object visibility, return NULL is not visible
     m_pD3DD->ComputeSphereVisibility((D3DVECTOR*)&XMMPos.d3d, lpRadii, dwNumSpheres, 0, &ClipResult);
@@ -428,7 +428,7 @@ float CDXEngine::DX2D_GetDistance(D3DXVECTOR3 *Pos, float Radius, DWORD Flags)
     //Store the radius
     Radius2D = Radius;
     // get the position and make it camera relative
-    XMMPos.Xmm = _mm_loadu_ps((float*)Pos);
+    XMMPos.Xmm = _mm_set_ps(0.0f, Pos->z, Pos->y, Pos->x);  // FF_LINUX: Pos is a 3-float vec3; _mm_loadu_ps read 1 float past it (ASAN stack-buffer-overflow)
 
     if ( not (Flags bitand CAMERA_VERTICES))XMMPos.Xmm = _mm_sub_ps(XMMPos.Xmm, XMMCamera.Xmm);
 
@@ -446,7 +446,7 @@ float CDXEngine::DX2D_GetDistance(D3DXVECTOR3 *Pos, float Radius, DWORD Flags)
 float CDXEngine::DX2D_GetDistance(D3DXVECTOR3 *Pos, DWORD Flags)
 {
     // get the position and make it camera relative
-    XMMPos.Xmm = _mm_loadu_ps((float*)Pos);
+    XMMPos.Xmm = _mm_set_ps(0.0f, Pos->z, Pos->y, Pos->x);  // FF_LINUX: Pos is a 3-float vec3; _mm_loadu_ps read 1 float past it (ASAN stack-buffer-overflow)
 
     if ( not (Flags bitand CAMERA_VERTICES))XMMPos.Xmm = _mm_sub_ps(XMMPos.Xmm, XMMCamera.Xmm);
 
