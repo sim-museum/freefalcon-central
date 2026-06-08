@@ -178,6 +178,20 @@ void DisplayDevice::Setup(int driverNum, int devNum, int width, int height, int 
     ShowWindow(appWin, SW_SHOW);
     fprintf(stderr, "  [DisplayDevice::Setup] ShowWindow done\n"); fflush(stderr);
 
+#ifdef FF_LINUX
+    // FF_LINUX: This Setup (window show + image/RTT surface creation below) runs
+    // for ~1.5-2s on a mission load and presents no frames, so the window shows
+    // a white (uninitialized) buffer. The SDL GL context already exists and
+    // persists through Setup, and FF_LoadingClear binds the default framebuffer
+    // explicitly, so paint black between the heavy steps to keep it from going
+    // white. Sim-mode only (bWillCallSwapBuffer). No-op if we don't own the GL.
+    if (bWillCallSwapBuffer)
+    {
+        extern void FF_LoadingClear();
+        FF_LoadingClear();
+    }
+#endif
+
 
     // Select the requested mode of operation
     if (fullScreen)
@@ -202,6 +216,10 @@ void DisplayDevice::Setup(int driverNum, int devNum, int width, int height, int 
     }
     fprintf(stderr, "  [DisplayDevice::Setup] image.Setup done\n"); fflush(stderr);
 
+#ifdef FF_LINUX
+    if (bWillCallSwapBuffer) { extern void FF_LoadingClear(); FF_LoadingClear(); }
+#endif
+
     // Make sure we haven't gotten confused about how many contexts we have
     // ShiAssert( ContextMPR::StateSetupCounter == 0 );
     if (ContextMPR::StateSetupCounter not_eq 0)
@@ -211,6 +229,10 @@ void DisplayDevice::Setup(int driverNum, int devNum, int width, int height, int 
     fprintf(stderr, "  [DisplayDevice::Setup] Calling SetRenderTarget, targetSurface=%p...\n", (void*)image.targetSurface()); fflush(stderr);
     m_DXCtx->SetRenderTarget(image.targetSurface());
     fprintf(stderr, "  [DisplayDevice::Setup] SetRenderTarget done\n"); fflush(stderr);
+
+#ifdef FF_LINUX
+    if (bWillCallSwapBuffer) { extern void FF_LoadingClear(); FF_LoadingClear(); }
+#endif
 
     fprintf(stderr, "  [DisplayDevice::Setup] Calling movieInit...\n"); fflush(stderr);
     movieInit(2, m_DXCtx->m_pDD);
