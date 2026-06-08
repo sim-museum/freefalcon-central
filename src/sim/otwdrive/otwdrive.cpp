@@ -2154,6 +2154,9 @@ void OTWDriverClass::Enter(void)
     fprintf(stderr, "[OTWDriver.Enter] Calling renderer->Setup...\n"); fflush(stderr);
     renderer->Setup(OTWImage, viewPoint);
     fprintf(stderr, "[OTWDriver.Enter] renderer->Setup done\n"); fflush(stderr);
+#ifdef FF_LINUX
+    { extern void FF_LoadingClear(); FF_LoadingClear(); }
+#endif
 
     // COBRA - DX - Switching btw Old and New Engine - Initialize DX Engine and VB Manager
     if (g_bUse_DX_Engine)
@@ -2203,14 +2206,18 @@ void OTWDriverClass::Enter(void)
     VCock_Init(eCPVisType, eCPName, eCPNameNCTR);
     fprintf(stderr, "[OTWDriver.Enter] VCock_Init done\n"); fflush(stderr);
 #ifdef FF_LINUX
-    // FF_LINUX: keep the loading splash on screen through the heavy cockpit
-    // (RTT canvas) setup so it doesn't fall back to a white framebuffer.
-    SplashScreenUpdate(1);
+    // FF_LINUX: paint black through the heavy cockpit/RTT setup so the load shows
+    // black instead of a white window. A single-swap splash present does NOT
+    // become visible on Wayland during setup (see FF_LoadingClear), so use it.
+    { extern void FF_LoadingClear(); FF_LoadingClear(); }
 #endif
     //Wombat778 10-10-2003  Initialize buttons for clickable cockpit
     fprintf(stderr, "[OTWDriver.Enter] Button3D_Init...\n"); fflush(stderr);
     Button3D_Init(eCPVisType, eCPName, eCPNameNCTR);
     fprintf(stderr, "[OTWDriver.Enter] Button3D_Init done\n"); fflush(stderr);
+#ifdef FF_LINUX
+    { extern void FF_LoadingClear(); FF_LoadingClear(); }
+#endif
     // MonoPrint("Initializing hud.. %d\n",vuxRealTime);
 
     fprintf(stderr, "[OTWDriver.Enter] Initializing view state...\n"); fflush(stderr);
@@ -2504,6 +2511,9 @@ void OTWDriverClass::Enter(void)
     // RED - Create the drawables shared by the MFDs
     fprintf(stderr, "[OTWDriver.Enter] MFD CreateDrawables...\n"); fflush(stderr);
     MFDClass::CreateDrawables();
+#ifdef FF_LINUX
+    { extern void FF_LoadingClear(); FF_LoadingClear(); }
+#endif
 
     for (i = 0; i < NUM_MFDS; i++)
     {
@@ -2522,8 +2532,7 @@ void OTWDriverClass::Enter(void)
     CreateCockpitGeometry(&vrCockpit, vrCockpitModel[0], vrCockpitModel[1]);
     fprintf(stderr, "[OTWDriver.Enter] CreateCockpitGeometry done\n"); fflush(stderr);
 #ifdef FF_LINUX
-    // FF_LINUX: refresh the splash again after the cockpit geometry / RTT setup
-    SplashScreenUpdate(2);
+    { extern void FF_LoadingClear(); FF_LoadingClear(); }
 #endif
 
     /*if(renderer->GetAlphaMode())*/

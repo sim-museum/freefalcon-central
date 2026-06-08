@@ -216,8 +216,20 @@ void FF_LoadingClear() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     GLboolean savedScissor = glIsEnabled(GL_SCISSOR_TEST);
     if (savedScissor) glDisable(GL_SCISSOR_TEST);
+    // FF_LINUX: D3D/GL setup on the sim thread can leave colour/depth writes
+    // masked; force full write state so the clear actually takes effect (without
+    // this the sim-thread loading clears ran but were masked out -> white).
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    for (int i = 0; i < 2; i++) {            // clear both front and back
+    // FF_LINUX: On Wayland, a single SDL_GL_SwapWindow on the sim thread during
+    // the (non-continuously-swapping) mission-load setup does NOT become visible
+    // - the surface only presents once swapping is continuous (e.g. the cockpit).
+    // The back buffer IS cleared black (verified by glReadPixels), it just isn't
+    // shown. A short burst of swaps reliably commits the surface, so the load
+    // shows black instead of a white (uninitialized) window. Call this at every
+    // heavy setup checkpoint so black persists through the blocking steps.
+    for (int i = 0; i < 4; i++) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         SDL_GL_SwapWindow(g_SDLWindow);
     }
