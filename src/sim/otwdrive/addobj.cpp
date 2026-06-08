@@ -16,6 +16,7 @@
 #include "Entity.h"
 #include "otwdrive.h"
 #include "simbase.h"
+#include "SimLoop.h"  // FF_LINUX: SimulationLoopControl::InSim()
 #include "missile.h"
 #include "camp2sim.h"
 #include "simfeat.h"
@@ -474,9 +475,18 @@ void SetLabel(SimBaseClass* theObject)
     // They may be ok now, though - KCK: As of 10/25, still looked bad
     // labelColor = TeamColorList[TeamInfo[theObject->GetTeam()]->GetColor()];
 
+#ifdef FF_LINUX
+    // FF_LINUX: drawPointer (an OTW drawable) is set up/torn down by the sim
+    // thread during the takeoff transition. The campaign thread calls this
+    // (UpdatePlayerSessions -> UpdatePlayer) and would dereference a dangling
+    // drawPointer -> SIGSEGV. Only touch the OTW drawable once the sim loop is
+    // fully running; the label is refreshed every campaign cycle anyway.
+    if (SimulationLoopControl::InSim() and theObject->drawPointer)
+        theObject->drawPointer->SetLabel(label, labelColor);
+#else
     if (theObject->drawPointer)
         theObject->drawPointer->SetLabel(label, labelColor);
-
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
