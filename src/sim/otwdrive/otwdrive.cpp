@@ -2202,6 +2202,11 @@ void OTWDriverClass::Enter(void)
     fprintf(stderr, "[OTWDriver.Enter] VCock_Init...\n"); fflush(stderr);
     VCock_Init(eCPVisType, eCPName, eCPNameNCTR);
     fprintf(stderr, "[OTWDriver.Enter] VCock_Init done\n"); fflush(stderr);
+#ifdef FF_LINUX
+    // FF_LINUX: keep the loading splash on screen through the heavy cockpit
+    // (RTT canvas) setup so it doesn't fall back to a white framebuffer.
+    SplashScreenUpdate(1);
+#endif
     //Wombat778 10-10-2003  Initialize buttons for clickable cockpit
     fprintf(stderr, "[OTWDriver.Enter] Button3D_Init...\n"); fflush(stderr);
     Button3D_Init(eCPVisType, eCPName, eCPNameNCTR);
@@ -2516,6 +2521,10 @@ void OTWDriverClass::Enter(void)
     fprintf(stderr, "[OTWDriver.Enter] CreateCockpitGeometry...\n"); fflush(stderr);
     CreateCockpitGeometry(&vrCockpit, vrCockpitModel[0], vrCockpitModel[1]);
     fprintf(stderr, "[OTWDriver.Enter] CreateCockpitGeometry done\n"); fflush(stderr);
+#ifdef FF_LINUX
+    // FF_LINUX: refresh the splash again after the cockpit geometry / RTT setup
+    SplashScreenUpdate(2);
+#endif
 
     /*if(renderer->GetAlphaMode())*/
     vrCockpit->SetSwitchMask(0, 1);

@@ -288,6 +288,19 @@ void FalconDisplayConfiguration::EnterMode(DisplayMode newMode, int theDevice, i
                      rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER);
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX: The window resize above + the DisplayDevice Cleanup/Setup that
+    // follows leave the window showing a white (uninitialized) framebuffer for
+    // ~1s during a mission load. The GL context is still valid here (Setup
+    // hasn't torn it down yet), so paint black now; it persists through Setup
+    // until OTWDriver::Enter draws the loading splash.
+    if (newMode == Sim)
+    {
+        extern void FF_LoadingClear();
+        FF_LoadingClear();
+    }
+#endif
+
     if (pDI)
     {
         /*JAM 01Dec03 if((g_bForceSoftwareGUI or pDI->Is3dfx() or not pDI->CanRenderWindowed()) and newMode not_eq Sim)

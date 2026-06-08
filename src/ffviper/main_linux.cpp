@@ -2204,7 +2204,25 @@ bool ProcessGameMessages() {
                     strcpy(gUI_CampaignFile, "Instant");
                 }
                 fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Calling TheCampaign.LoadCampaign()...\n");
-                int retval = TheCampaign.LoadCampaign((FalconGameType)msg.lParam, gUI_CampaignFile);
+                int retval;
+                // FF_LINUX: A desynced/incompatible save (e.g. some Tactical
+                // Engagement missions whose unit data overruns the decode buffer)
+                // makes memcpychk throw InvalidBufferException (std::out_of_range).
+                // On Windows this was swallowed by SEH; on Linux an uncaught throw
+                // calls std::terminate -> SIGABRT. Catch it and fail the load
+                // gracefully (return to the menu) instead of crashing.
+                try {
+                    retval = TheCampaign.LoadCampaign((FalconGameType)msg.lParam, gUI_CampaignFile);
+                } catch (const std::exception& e) {
+                    fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: LoadCampaign threw (%s) - failing load gracefully\n", e.what());
+                    // The throw unwinds past the (recursive) campCritical leaves in
+                    // Decode/LoadCampaign, leaving this thread holding it N deep.
+                    // Drain it so the campaign thread doesn't deadlock later.
+                    extern int F4CheckHasCriticalSection(F4CSECTIONHANDLE*);
+                    while (campCritical && F4CheckHasCriticalSection(campCritical))
+                        CampLeaveCriticalSection();
+                    retval = 0;
+                }
                 fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: LoadCampaign() returned %d\n", retval);
                 if (retval) {
                     fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_SUCCEEDED\n");
