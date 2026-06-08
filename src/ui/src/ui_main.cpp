@@ -1827,6 +1827,8 @@ int UI_Startup()
     return(0);
 }
 
+extern volatile int g_simTakingOverDisplay;  // FF_LINUX: main-thread guard for sim display handoff
+
 void UI_Cleanup()
 {
     int i;
@@ -1908,7 +1910,7 @@ void UI_Cleanup()
     // On Linux, EnterMode(Sim) is called by the sim thread before EndUI() completes.
     // Don't call CleanViewpoint() as it would destroy the viewPoint that the sim thread
     // just created in OTWDriver.Enter(). Only clean viewpoint if we're NOT in Sim mode.
-    if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim)
+    if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim and not g_simTakingOverDisplay)
     {
         fprintf(stderr, "[UI_Cleanup] Calling CleanViewpoint()...\n");
         fflush(stderr);
@@ -1925,7 +1927,7 @@ void UI_Cleanup()
     // The sim thread has already called DeviceDependentGraphicsCleanup/Setup
     // in OTWDriver.Enter(). If we clean up here, we'd destroy the rc (DXContext)
     // that the sim thread just set up, causing all texture creation to fail.
-    if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim)
+    if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim and not g_simTakingOverDisplay)
     {
         fprintf(stderr, "[UI_Cleanup] Calling DeviceDependentGraphicsCleanup()...\n");
         fflush(stderr);
@@ -2168,7 +2170,7 @@ void UI_Cleanup()
     // just set up. The sim thread already called EnterMode(Sim) which cleaned up the UI
     // mode and set up the Sim mode display.
     // Only call LeaveMode() if we're NOT in Sim mode (e.g., returning to UI from Sim).
-    if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim)
+    if (FalconDisplay.currentMode != FalconDisplayConfiguration::Sim and not g_simTakingOverDisplay)
     {
         FalconDisplay.LeaveMode();
     }

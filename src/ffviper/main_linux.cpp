@@ -168,6 +168,13 @@ int shiHardCrashOn = 0;
 static std::mutex g_glContextMutex;
 bool g_simOwnsGLContext = false;  // Non-static: accessed from simloop.cpp via extern
 
+// FF_LINUX: Set on the MAIN thread in the FM_START_* handlers before EndUI(), so
+// UI_Cleanup() reliably skips tearing down the display device while the sim
+// thread is concurrently (re)building it in EnterMode(Sim)/DisplayDevice::Setup.
+// The old guard checked FalconDisplay.currentMode, which the sim thread only sets
+// to Sim at the END of EnterMode - a TOCTOU race (crash in CDXEngine::Release).
+volatile int g_simTakingOverDisplay = 0;
+
 // Release GL context from current thread (call before another thread acquires it)
 void FF_ReleaseGLContext() {
     std::lock_guard<std::mutex> lock(g_glContextMutex);
@@ -2147,6 +2154,7 @@ bool ProcessGameMessages() {
 
             case FM_START_UI:
                 fprintf(stderr, "[FM] FM_START_UI received\n");
+                g_simTakingOverDisplay = 0;  // FF_LINUX: back in UI; UI_Cleanup may tear down the device again
                 // FF_LINUX: Restore OS cursor for UI mode
                 SDL_SetRelativeMouseMode(SDL_FALSE);
                 // Re-acquire GL context on main thread if sim was running
@@ -2358,6 +2366,7 @@ bool ProcessGameMessages() {
                 // 1. StartGraphics() - signals sim thread to start graphics (just sets a flag)
                 // 2. Release GL context - sim thread will need it when StartLoop() wakes up
                 // 3. EndUI() - may block in TheCampaign.Suspend(), so must be last
+                g_simTakingOverDisplay = 1;  // FF_LINUX: tell UI_Cleanup not to tear down the display device
                 fprintf(stderr, "[FM] Calling StartGraphics()...\n");
                 fflush(stderr);
                 SimulationLoopControl::StartGraphics();
@@ -2377,6 +2386,7 @@ bool ProcessGameMessages() {
                 fprintf(stderr, "[FM] FM_START_DOGFIGHT received\n");
                 FalconLocalSession->SetFlyState(FLYSTATE_LOADING);
                 // Same critical order as INSTANTACTION
+                g_simTakingOverDisplay = 1;  // FF_LINUX: tell UI_Cleanup not to tear down the display device
                 SimulationLoopControl::StartGraphics();
                 FF_ReleaseGLContext();
                 EndUI();
@@ -2388,6 +2398,7 @@ bool ProcessGameMessages() {
                 fprintf(stderr, "[FM] FM_START_CAMPAIGN received\n");
                 FalconLocalSession->SetFlyState(FLYSTATE_LOADING);
                 // Same critical order as INSTANTACTION
+                g_simTakingOverDisplay = 1;  // FF_LINUX: tell UI_Cleanup not to tear down the display device
                 SimulationLoopControl::StartGraphics();
                 FF_ReleaseGLContext();
                 EndUI();
@@ -2398,6 +2409,7 @@ bool ProcessGameMessages() {
                 fprintf(stderr, "[FM] FM_START_TACTICAL received\n");
                 FalconLocalSession->SetFlyState(FLYSTATE_LOADING);
                 // Same critical order as INSTANTACTION
+                g_simTakingOverDisplay = 1;  // FF_LINUX: tell UI_Cleanup not to tear down the display device
                 SimulationLoopControl::StartGraphics();
                 FF_ReleaseGLContext();
                 EndUI();
