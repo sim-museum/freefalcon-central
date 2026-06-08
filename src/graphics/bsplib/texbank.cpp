@@ -312,6 +312,13 @@ void TextureBankClass::Reference(int id)
     gDebugTextureID = id;
 
     ShiAssert(IsValidIndex(id));
+#ifdef FF_LINUX
+    // FF_LINUX: object texture sets can contain an invalid/sentinel id (e.g. -1);
+    // the ShiAssert is a no-op here, so guard at runtime to avoid TexturePool[-1].
+    // (FF_TEXBANK_LOCK is a RAII lock_guard - it releases on return.)
+    if (not IsValidIndex(id))
+        return;
+#endif
 
     // Get our reference to this texture recorded to ensure it doesn't disappear out from under us
     //EnterCriticalSection(&ObjectLOD::cs_ObjectLOD);
@@ -377,10 +384,15 @@ void TextureBankClass::Release(int id)
     FF_TEXBANK_LOCK();
 
     ShiAssert(IsValidIndex(id));
+#ifdef FF_LINUX
+    // FF_LINUX: guard against invalid/sentinel ids (see Reference()).
+    if (not IsValidIndex(id))
+        return;
+#endif
     ShiAssert(TexturePool[id].refCount > 0);
 
-    // RED - no reference, no party... 
-    if ( not TexturePool[id].refCount) 
+    // RED - no reference, no party...
+    if ( not TexturePool[id].refCount)
         return;
 
     TexturePool[id].refCount--;
