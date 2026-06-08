@@ -1834,11 +1834,11 @@ static void handle_sdl_events(void) {
                 break;
 
             case SDL_KEYDOWN:
-                if (event.key.keysym.sym == SDLK_ESCAPE && doUI) {
-                    // FF_LINUX: Only quit on ESC in UI mode. During flight,
-                    // ESC is passed to the sim as DIK_ESCAPE to open the exit menu.
-                    g_running = false;
-                }
+                // FF_LINUX: ESC is passed through to the UI/sim below as
+                // DIK_ESCAPE (UI uses it to back out of a screen / open the exit
+                // menu). Do NOT quit the whole app on ESC - that surprised the
+                // user by closing the window from a menu. Quit is via the Exit
+                // button or the window close box (SDL_QUIT).
                 if (event.key.keysym.sym == SDLK_F5 && doUI && !g_autoTestInstantAction) {
                     // F5: Quick-launch Instant Action (bypasses UI clicking)
                     fprintf(stderr, "[F5] Launching Instant Action...\n");

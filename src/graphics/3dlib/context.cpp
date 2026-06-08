@@ -413,9 +413,16 @@ void ContextMPR::ClearBuffers(WORD ClearInfo)
     // GL, which let the padlock/SA sidebar's ClearDraw wipe the 3D world drawn
     // earlier in the frame (left the right ~80% of the screen showing the
     // sidebar background "light blue"). Build a rect from the active viewport.
+    //
+    // BUT only do this for PURE COLOR clears (the sidebar case). The cockpit
+    // clears the whole Z-buffer between the world flush and the pit draw
+    // (RenderFrame -> ClearZBuffer) so terrain depth can't survive in the MFD
+    // chroma-holes; that clear MUST be full-screen. A viewport-scoped Z-clear
+    // left terrain showing through the MFDs/panels.
+    bool scopeToViewport = (dwClearFlags == D3DCLEAR_TARGET);  // color-only, no Z
     D3DVIEWPORT7 vp;
     HRESULT hr;
-    if (SUCCEEDED(m_pD3DD->GetViewport(&vp)) && vp.dwWidth && vp.dwHeight)
+    if (scopeToViewport && SUCCEEDED(m_pD3DD->GetViewport(&vp)) && vp.dwWidth && vp.dwHeight)
     {
         D3DRECT rc;
         rc.x1 = vp.dwX;

@@ -3434,6 +3434,11 @@ void DrawableParticleSys::PS_AddParticleEx(int ID, Tpoint *Pos, Tpoint *Vel)
 // Adds a PARTICLE NODE to the Particle nodes list, setups all it's parameters
 void DrawableParticleSys::PS_AddParticle(int ID, Tpoint *Pos, Tpoint *Vel, Tpoint *Aim, float fRotationRate, PS_PTR Cluster, PS_PTR Light)
 {
+#ifdef FF_LINUX
+    // FF_LINUX: ID indexes PS_PPN[MAX_PARTICLE_PARAMETERS]; an unresolved/invalid
+    // effect id would read past it (ASAN heap-buffer-overflow at PS_PPN[ID]).
+    if (ID < 0 or ID >= MAX_PARTICLE_PARAMETERS) return;
+#endif
     // Get a free slot
     PS_PTR ptr = PS_AddItem(PS_PARTICLES_IDX);
 

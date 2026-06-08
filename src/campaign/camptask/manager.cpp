@@ -244,6 +244,12 @@ VU_ERRCODE CampManagerClass::InsertionCallback(void)
 {
     // sfr: why do we need this ref/unref??
     //VuReferenceEntity(this);
+#ifdef FF_LINUX
+    // FF_LINUX: owner can be out of range (corrupt/incomplete campaign data);
+    // TeamInfo is [NUM_TEAMS], so guard before indexing (ASAN global-overflow).
+    if ((unsigned)owner >= (unsigned)NUM_TEAMS)
+        return VU_NO_OP;
+#endif
     ShiAssert(TeamInfo[owner]);
 
     if (TeamInfo[owner])

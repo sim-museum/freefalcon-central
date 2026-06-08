@@ -338,6 +338,14 @@ void CampaignJoinFail(void)
         gMainHandler->HideWindow(win);
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX: For single-player (TE / non-online campaign), a join failure is a
+    // local load failure (e.g. an incompatible mission that fails to decode), NOT
+    // a network problem - so don't show the misleading "Failed to connect to
+    // server" comms dialog. Just fall back to the menu.
+    if (not (gCommsMgr and gCommsMgr->Online()))
+        return;
+#endif
     CommsErrorDialog(TXT_JOINING_GAME, TXT_COMMS_NO_SERVER, NULL, NULL);
 }
 
