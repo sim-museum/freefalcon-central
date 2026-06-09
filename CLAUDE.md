@@ -3980,3 +3980,73 @@ latent — fix as ASAN surfaces them in their flows (mostly multiplayer).
 **Left for later (benign):** two pre-existing 1-byte READ over-reads in
 objectiv.cpp `GetFeatureStatus`/`BestTargetFeature` (`fstatus[f/4]` and stack
 `targeted[f]` when feature count exceeds the buffer) — reads only, don't corrupt.
+
+---
+
+### Session: June 8, 2026 (cont.) - Campaign runway-start flight launch (strobe + commit crash)
+
+Launching a campaign flight (START CAMPAIGN -> pick a Sweep mission -> click the
+bottom TAKEOFF button -> choose the **TAKEOFF/runway** start tile) either crashed
+at the start-position commit or hung the sim-load screen **strobing black/white
+forever**. Commit `ddd20274`. Diagnosed with a new `FF_DEBUG_DEAG` trace + ASAN.
+
+**The flight launch flow (for reference / scripting):** Campaign(924,745) ->
+COMMIT(905,758) -> mission-priorities OK(563,751) -> **START CAMPAIGN**(495,390,
+center map button) -> running map. The top-left panel is the ATO schedule
+(P/Takeoff/Role/Package); click a flight row (Sweep ~110,135) to select it ->
+its 4 pilot slots show below; click a slot (~95,340) to put the player in ->
+bottom-right **TAKEOFF**(976,750) opens the start-position screen (RAMP START /
+TAXI / **TAKEOFF**=runway as three tiles down the left, ~180,155 / 375 / 595, with
+a `T- hh:mm:ss` countdown). Clicking a tile commits with that start type; the
+campaign then fast-forwards (DoCompressionLoop compresses vuxGameTime to the
+flight's takeoff time, sets `SimLibElapsedTime=vuxGameTime`, posts
+FM_START_CAMPAIGN) and enters the sim. **The ATO list is LIVE and reorders as the
+clock advances** - scripted clicks that take ~40s wall-clock often end up
+committing a stale flight that has aged/been-killed (the `m_tankcap` airframe
+fuel assert / IsDead flights seen in testing are mostly this repro artifact, not
+the code).
+
+**Bug 1 - player flight never deaggregates => infinite strobe.** The StartLoop
+deagg-wait spins until the player flight leaves aggregate state. `DeaggregationCheck`
+(campaign.cpp) only posts the deaggregate message when `InSessionBubble(e,1.0) and
+not g_bSleepAll`. `StartGraphics` sets `g_bSleepAll=TRUE` (sleep everything for the
+UI->sim handoff) and `StartLoop` clears it (`g_bSleepAll=FALSE` "ok to wake now
+you're attached"); on Linux these **race across threads**, so the player flight is
+frequently checked while the flag is still set => never deaggregates => the
+`FF_LoadingClear` in the wait loop paints black every iter while un-presented
+white frames show through = the strobe. Compounding: `RebuildBubble`'s grid
+iterator doesn't reliably re-check the player flight each pass, so it can be
+missed entirely during the wait (cf: player flight got 0-2 DeaggregationCheck
+calls in a multi-minute wait). Fixes:
+  - **Exempt the player's own flight from `g_bSleepAll`** in DeaggregationCheck
+    (`e == session->GetPlayerFlight()`). It's the entity we're entering the sim to
+    fly; it must come alive regardless of the sleep-all handoff flag.
+  - The deagg-wait loop (simloop.cpp) now **directly calls `DeaggregationCheck` on
+    the player flight**, throttled to ~once/sec (every 10th 100ms iter). Posting a
+    fresh deaggregate every iteration FLOODS duplicate deaggregations that race
+    aircraft creation and can kill the just-made player aircraft (saw 1128 sends +
+    death in one run).
+  - **Break the deagg-wait if `flight->IsDead()`** - a dead/scrubbed flight can
+    never deaggregate (UnitClass::Deaggregate early-returns on IsDead), so don't
+    spin forever; fall through to the existing player==NULL bail/cleanup path.
+  Verified: valid flights now deaggregate (`IsAggregate=0`) and reach
+  `StartRunningGraphics` -> 3D (3/3 valid-flight runs); dead/stale flights break
+  the wait instead of hanging.
+
+**Bug 2 - heap-corruption crash at the runway-start commit** ("malloc(): unaligned
+tcache chunk detected" SIGABRT). `VoiceFilter::GetBullseyeComm` indexes
+`data[positionElement]` and `[positionElement+1]` where `data` is the radio
+message's `edata[MAX_EVALS_PER_RADIO_MESSAGE]` (=10) and `positionElement` is a
+`char` read from the comm file, checked only for `> -1`. An out-of-range value
+reads and (lines 1198-1199) **WRITES** past the array => heap metadata corruption.
+Fix: also require `positionElement + 1 < 10`. (ASAN pinpointed it as
+heap-buffer-overflow in GetBullseyeComm.)
+
+New diagnostic env var: **`FF_DEBUG_DEAG=1`** - traces the player-flight
+deaggregation decision (`[DEAGCHK] PLAYERFLIGHT ... IsAggregate/InBubble/
+g_bSleepAll/camN`), the StartLoop deagg-wait start/done, and is the lens for any
+future "sim load hangs / strobes" report. **Bug classes reinforced:** (a)
+cross-thread flag races where Windows relied on implicit main-thread ordering
+(g_bSleepAll, like the earlier EnterMode/LeaveMode and viewPoint races); (b)
+unbounded file-supplied indices -> heap/stack corruption (same class as the
+tac_class / TE-parser fixes).
