@@ -1,3 +1,4 @@
+#include <cstdint>  // FF_LINUX: uint32_t
 /**************************************************************************
 *
 * Mission.h
@@ -339,7 +340,10 @@ public:
     Team vs;
     CampaignTime tot;
     GridIndex tx, ty;
-    ulong flags;
+    uint32_t flags;  // FF_LINUX: was 'ulong' (8 bytes on 64-bit) - broke the
+                     // blob (de)serialization of MissionRequestClass vs the
+                     // 32-bit Windows file layout, desyncing TE/campaign unit
+                     // decode (PackageClass reads sizeof(MissionRequestClass)).
     short caps;
     short target_num;
     short speed;
