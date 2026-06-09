@@ -2636,6 +2636,27 @@ static void main_loop(void) {
             // Kick it on the UI timer tick, mirroring the sim loop's
             // per-frame signal.
             if (doUI) {
+                // FF_LINUX: NO_TIMER_THREAD is defined, so the Windows timer
+                // thread (which advances vuxGameTime in BOTH UI and sim modes)
+                // doesn't exist - and only the sim loop advances vuxGameTime.
+                // In campaign/UI mode nothing did, so the campaign clock was
+                // frozen and time compression had no effect ("acts like 0x").
+                // Advance it here, mirroring timerThread()'s core logic.
+                {
+                    extern VU_TIME vuxGameTime, vuxRealTime;
+                    extern uint32_t lastStartTime;
+                    extern uint32_t gCompressTillTime;
+                    const DWORD MAX_TD = 500;  // MAX_TIME_DELTA
+                    vuxRealTime = GetTickCount();
+                    DWORD tdelta = (DWORD)(vuxRealTime - lastStartTime);
+                    if (tdelta > MAX_TD) tdelta = MAX_TD;
+                    if (!gCompressTillTime ||
+                        vuxGameTime + tdelta * gameCompressionRatio < gCompressTillTime)
+                        vuxGameTime += tdelta * gameCompressionRatio;
+                    else if (vuxGameTime < gCompressTillTime)
+                        vuxGameTime = gCompressTillTime;
+                    lastStartTime = vuxRealTime;
+                }
                 ThreadManager::sim_signal_campaign();
             }
         }
