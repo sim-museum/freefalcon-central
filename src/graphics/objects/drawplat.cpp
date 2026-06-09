@@ -143,10 +143,16 @@ void DrawablePlatform::Draw(class RenderOTW *renderer, int LOD)
     // do the same for the runway surfaces. (RenderOTW : public Render3D.)
     float ffSavedBias = 0.0f;
     bool ffBias = (getenv("FF_RUNWAY_NOBIAS") == 0);
+    // FF_RUNWAY_BIAS overrides the bias magnitude for tuning (default 0.04,
+    // same order as the shadow decal bias). Larger pulls the runway further
+    // toward the camera; if even a large value doesn't reveal the airstrips,
+    // the cause is not depth (it's the surface texture/material).
+    float ffBiasVal = 0.04f;
+    { const char *e = getenv("FF_RUNWAY_BIAS"); if (e) ffBiasVal = (float)atof(e); }
     int ffFlatCount = 0;
     bool ffDbg = getenv("FF_DEBUG_RUNWAY") != 0;
     if (ffBias)
-        ((Render3D *)renderer)->context.setGlobalZBias(0.04f);
+        ((Render3D *)renderer)->context.setGlobalZBias(ffBiasVal);
 #endif
     while (obj)
     {
