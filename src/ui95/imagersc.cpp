@@ -2167,8 +2167,8 @@ void IMAGE_RSC::ScaleUp8(SCREEN *surface, long *Rows, long *Cols, long dx, long 
         }
     }
 
-    delete cpyline;
-    delete cpyline2;
+    delete[] cpyline;  // FF_LINUX: new WORD[] -> delete[]
+    delete[] cpyline2;  // FF_LINUX: new DWORD[] -> delete[]
 }
 
 void IMAGE_RSC::ScaleUp8Overlay(SCREEN *surface, long *Rows, long *Cols, long dx, long dy, long dw, long dh, BYTE *overlay, WORD *Palette[])
@@ -2305,7 +2305,7 @@ void IMAGE_RSC::ScaleUp8Overlay(SCREEN *surface, long *Rows, long *Cols, long dx
         }
     }
 
-    delete cpyline;
-    delete cpyline2;
+    delete[] cpyline;  // FF_LINUX: new WORD[] -> delete[]
+    delete[] cpyline2;  // FF_LINUX: new DWORD[] -> delete[]
 }
 

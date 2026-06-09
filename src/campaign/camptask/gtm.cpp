@@ -1460,7 +1460,7 @@ void SavePrimaryObjectiveList(char* scenario)
     size = EncodePrimaryObjectiveList(teammask, &data);
     fwrite(data, size, 1, fp);
     CloseCampFile(fp);
-    delete data;
+    delete[] data;  // FF_LINUX: new[] -> delete[]
 }
 
 int LoadPrimaryObjectiveList(char* scenario)

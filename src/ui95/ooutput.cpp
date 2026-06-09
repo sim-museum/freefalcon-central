@@ -308,7 +308,7 @@ void O_Output::WordWrap()
                 WWCount_ = 0;
 
                 if (Wrap_)
-                    delete Wrap_;
+                    delete[] Wrap_;  // FF_LINUX: new WORDWRAP[] -> delete[]
 
                 Wrap_ = NULL;
             }
@@ -355,7 +355,7 @@ void O_Output::WordWrap()
             WWCount_ = 0;
 
             if (Wrap_)
-                delete Wrap_;
+                delete[] Wrap_;  // FF_LINUX: new WORDWRAP[] -> delete[]
 
             Wrap_ = NULL;
             count = 0;
@@ -424,7 +424,7 @@ void O_Output::Cleanup()
 #ifdef USE_SH_POOLS
         MemFreePtr(Rows_);
 #else
-        delete Rows_;
+        delete[] Rows_;  // FF_LINUX: new[] -> delete[]
 #endif
         Rows_ = NULL;
     }
@@ -434,7 +434,7 @@ void O_Output::Cleanup()
 #ifdef USE_SH_POOLS
         MemFreePtr(Cols_);
 #else
-        delete Cols_;
+        delete[] Cols_;  // FF_LINUX: new[] -> delete[]
 #endif
         Cols_ = NULL;
     }
@@ -443,7 +443,7 @@ void O_Output::Cleanup()
 
     if (Wrap_)
     {
-        delete Wrap_;
+        delete[] Wrap_;  // FF_LINUX: new WORDWRAP[] -> delete[]
         Wrap_ = NULL;
     }
 }

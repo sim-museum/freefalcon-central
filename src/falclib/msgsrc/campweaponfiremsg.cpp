@@ -83,7 +83,7 @@ FalconCampWeaponsFire::FalconCampWeaponsFire(VU_MSG_TYPE type, VU_ID senderid, V
 FalconCampWeaponsFire::~FalconCampWeaponsFire(void)
 {
     if (dataBlock.data)
-        delete dataBlock.data;
+        delete[] dataBlock.data;  // FF_LINUX: new[] -> delete[]
 }
 
 int FalconCampWeaponsFire::Size() const

@@ -2472,7 +2472,7 @@ void RefreshMapEventList(long winID, long client)
                 blip->Refresh();
             }
 
-            delete evt->eventText;
+            delete[] evt->eventText;  // FF_LINUX: new[] -> delete[]
             delete evt;
             win->RefreshClient(client);
         }
@@ -2533,7 +2533,7 @@ void RefreshEventList()
                 y += txt->GetH() + 2;
             }
 
-            delete evt->eventText;
+            delete[] evt->eventText;  // FF_LINUX: new[] -> delete[]
             delete evt;
             i++;
             evt = RetrieveEvent(i);

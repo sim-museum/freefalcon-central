@@ -2147,7 +2147,7 @@ void CleanupCampaignUI()
         {
             if (ObjStr[i])
             {
-                delete ObjStr[i];
+                delete[] ObjStr[i];  // FF_LINUX: new[] -> delete[]
             }
 
             ObjStr[i] = NULL;

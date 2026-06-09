@@ -44,7 +44,7 @@ CampDirtyData::~CampDirtyData(void)
 {
     if (dataBlock.data)
     {
-        delete dataBlock.data;
+        delete[] dataBlock.data;  // FF_LINUX: allocated with new uchar[] (was new[]/delete mismatch -> heap corruption)
     }
 
     dataBlock.data = NULL;

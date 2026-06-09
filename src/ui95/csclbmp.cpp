@@ -84,7 +84,7 @@ void C_ScaleBitmap::Cleanup()
         MemFreePtr(Overlay_);
 
 #else
-        delete Overlay_;
+        delete[] Overlay_;  // FF_LINUX: new[] -> delete[]
 #endif
 
     for (i = 1; i < 16; i++)

@@ -5386,7 +5386,7 @@ void SaveUnits(char* scenario)
     fwrite(&size, sizeof(long), 1, fp);
     fwrite(buffer, size, 1, fp);
     CloseCampFile(fp);
-    delete buffer;
+    delete[] buffer;  // FF_LINUX: new[] -> delete[]
 }
 
 //sfr: added to size(as remaining) to DecodeUnitData
@@ -6098,7 +6098,7 @@ int EncodeUnitData(VU_BYTE **stream, FalconSessionEntity *owner)
 
     buf = bufhead;
     newsize = LZSS_Compress(buf, sptr, size);
-    delete bufhead;
+    delete[] bufhead;  // FF_LINUX: new VU_BYTE[] -> delete[]
 
     MonoPrint("Encode Unit Data %d => %d\n", size, newsize);
 
@@ -6240,7 +6240,7 @@ int DecodeUnitData(VU_BYTE **stream, long *rem, FalconSessionEntity *owner)
         count--;
     }
 
-    delete bufhead;
+    delete[] bufhead;  // FF_LINUX: new VU_BYTE[] -> delete[]
 
     if (load_log)
     {

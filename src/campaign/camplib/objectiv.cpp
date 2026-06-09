@@ -3121,7 +3121,7 @@ void SaveObjectiveDeltas(char* savefile)
 
     fwrite(&csize, sizeof(long), 1, fp);
     fwrite(cbuffer, csize, 1, fp);
-    delete cbuffer;
+    delete[] cbuffer;  // FF_LINUX: new[] -> delete[]
     CloseCampFile(fp);
 }
 
@@ -3535,7 +3535,7 @@ int EncodeObjectiveDeltas(VU_BYTE **stream, FalconSessionEntity *owner)
     sptr += sizeof(long);
     buf = bufhead;
     newsize = LZSS_Compress(buf, sptr, size);
-    delete bufhead;
+    delete[] bufhead;  // FF_LINUX: new[] -> delete[]
 
     return newsize + sizeof(short) + sizeof(long);
 }

@@ -1303,7 +1303,7 @@ int CampaignClass::SaveData(FILE *fp)
     int32_t file_size = static_cast<int32_t>(size);
     fwrite(&file_size, sizeof(int32_t), 1, fp);
     fwrite(buffer, size, 1, fp);
-    delete buffer;
+    delete[] buffer;  // FF_LINUX: new[] -> delete[]
     return size;
 }
 
@@ -1975,7 +1975,7 @@ int CampaignClass::Encode(VU_BYTE **stream)
     sptr += sizeof(long);
     newsize = LZSS_Compress(bufhead, sptr, datasize);
 
-    delete bufhead;
+    delete[] bufhead;  // FF_LINUX: new[] -> delete[]
 
     return newsize + sizeof(long);
 }
@@ -2333,7 +2333,7 @@ void CampaignClass::AddCampaignEvent(CampUIEventElement *newEvent)
         }
         else
         {
-            delete newEvent->eventText;
+            delete[] newEvent->eventText;  // FF_LINUX: new[] -> delete[]
             delete newEvent;
         }
     }
@@ -2507,7 +2507,7 @@ void CampaignClass::FreeSquadronData(void)
 {
     NumAvailSquadrons = 0;
     LastIndexNum = -1;
-    delete CampaignSquadronData;
+    delete[] CampaignSquadronData;  // FF_LINUX: new[] -> delete[]
     CampaignSquadronData = NULL;
 }
 
