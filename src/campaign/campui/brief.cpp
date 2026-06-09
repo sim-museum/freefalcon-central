@@ -1317,7 +1317,11 @@ char* ReadToken(FILE *fp, char name[], int len)
     char buffer[256];
     char *sptr;
 
-    fgets(buffer, 256, fp);
+    // FF_LINUX: clear the buffer so a failed read (EOF) doesn't leave the
+    // previous line's stale content (which caused campaign-start infinite loops).
+    buffer[0] = 0;
+    if (fgets(buffer, 256, fp) == NULL)
+        buffer[0] = 0;
     strncpy(name, buffer, len);
 
     if (name[len - 1])

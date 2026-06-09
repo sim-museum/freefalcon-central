@@ -168,6 +168,14 @@ int ReadNumberOfEvents(char* scenario)
         ReadComments(fp);
         ReadToken(fp, token, 120);
 
+#ifdef FF_LINUX
+        // FF_LINUX: break on EOF. If the file lacks its terminator token, fgets
+        // returns NULL at EOF leaving `token` stale (non-empty), so the loop's
+        // `done` flag never gets set -> infinite spin (campaign-start hang).
+        if (feof(fp))
+            break;
+#endif
+
         if ( not token[0])
             continue;
 
@@ -205,6 +213,14 @@ void SetInitialEvents(char* scenario)
     {
         ReadComments(fp);
         ReadToken(fp, token, 120);
+
+#ifdef FF_LINUX
+        // FF_LINUX: break on EOF. If the file lacks its terminator token, fgets
+        // returns NULL at EOF leaving `token` stale (non-empty), so the loop's
+        // `done` flag never gets set -> infinite spin (campaign-start hang).
+        if (feof(fp))
+            break;
+#endif
 
         if ( not token[0])
             continue;
@@ -281,6 +297,14 @@ void ReadSpecialCampaignData(char* scenario)
     {
         ReadComments(fp);
         ReadToken(fp, token, 120);
+
+#ifdef FF_LINUX
+        // FF_LINUX: break on EOF. If the file lacks its terminator token, fgets
+        // returns NULL at EOF leaving `token` stale (non-empty), so the loop's
+        // `done` flag never gets set -> infinite spin (campaign-start hang).
+        if (feof(fp))
+            break;
+#endif
 
         if ( not token[0])
             continue;
@@ -468,6 +492,14 @@ int ReadScriptedTriggerFile(char* filename)
     {
         ReadComments(fp);
         ReadToken(fp, token, 120);
+
+#ifdef FF_LINUX
+        // FF_LINUX: break on EOF. If the file lacks its terminator token, fgets
+        // returns NULL at EOF leaving `token` stale (non-empty), so the loop's
+        // `done` flag never gets set -> infinite spin (campaign-start hang).
+        if (feof(fp))
+            break;
+#endif
 
         if ( not token[0])
             continue;
