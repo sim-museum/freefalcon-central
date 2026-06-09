@@ -3918,3 +3918,65 @@ User confirmed the load white is real (black→white→3D, no splash plane). Roo
 - This also explains why earlier single-swap `SplashScreenUpdate` "splash presents" never showed the plane during load — they don't get committed on Wayland. **The splash GIF loads fine; it just can't be shown during setup. So the loading screen is now solid BLACK (not the animated plane) — an acceptable trade for killing the white.**
 - The fix is **dense `FF_LoadingClear` placement at every load checkpoint**: FM_LOAD_CAMPAIGN, EnterMode (post-resize), the 3 DisplayDevice::Setup steps, and — the piece that finally got it to 0 white — after **every** heavy `OTWDriver::Enter` step (renderer->Setup, VCock_Init, Button3D_Init, CockpitManager, MFD CreateDrawables, CreateCockpitGeometry) AND after **every** `SplashScreenUpdate` call in `StartLoop` (970, the deagg/player wait loops, 1102, 1152+). Measured: full IA load is **black throughout → cockpit, 0 white frames** (was ~6). Dogfight shares the identical FM_START→StartGraphics→StartLoop→OTWDriver::Enter path, so it's fixed too.
 - Caveat: `FF_LoadingClear`'s burst is vsync-blocked (`SDL_GL_SetSwapInterval(1)`); it runs per-iteration in the deagg/player wait loops, so a slow deaggregation makes the (black) load screen take a bit longer in wall-clock — the iteration/timeout count is unchanged, so deagg still completes. Window-title git hash is captured at cmake *configure* time, not build — stale after `ninja`-only rebuilds (`cmake .` to refresh); the binary is still current.
+
+---
+
+### Session: June 8, 2026 - Campaign frozen clock + campaign-exit crash
+
+Two campaign-mode bugs, both committed/pushed to origin/develop.
+
+#### 1. Frozen campaign clock (commit ead4ae36)
+
+**Symptom:** Commit/START CAMPAIGN ran "as if time multiplier = 0x"; setting any
+compression (1x..60x) produced no activity — the strategic clock never advanced.
+
+**Root cause:** `NO_TIMER_THREAD` is defined (timerthread.h:7), so the Windows
+timer thread — which advances `vuxGameTime` in **both** UI and sim modes — is
+compiled out on Linux. Only the sim loop advanced `vuxGameTime`, so in the
+campaign/UI map the clock was frozen. `SetTimeCompression(N)` does set
+`gameCompressionRatio=N` (single-player path sets it directly), but nothing
+consumed it in UI mode.
+
+**Fix:** Mirror `timerThread()`'s core advance in the UI timer tick (the `doUI`
+branch of `main_loop`, main_linux.cpp):
+`vuxGameTime += min(realDelta, MAX_TIME_DELTA) * gameCompressionRatio`, capped by
+`gCompressTillTime`. Ratio 0 (paused) adds nothing; once START CAMPAIGN fires
+`SetTimeCompression(1)` the clock advances ~real-time. **Verified** via a temp
+`FF_DEBUG_CAMPTIME` trace: post-START, ratio=1 and vuxGameTime climbs
+(32401938→32404917→…); previously pinned at 32400000.
+
+Note: the campaign map starts **paused** (ratio 0) by design — the user starts it
+with the center **START CAMPAIGN** button (or the `x1` time dropdown, top-right
+under the clock). Bottom-left yellow **RESCUE** back-arrow (~45,750 in 1024x768)
+is the exit/back control.
+
+#### 2. Campaign-exit crash — "window disappears" (commit 31cc565e)
+
+**Symptom:** Leaving a running campaign returned to the campaign-select screen,
+then the window vanished (crash).
+
+**Root cause:** widespread **operator new[] / operator delete mismatches** —
+buffers allocated `new T[n]` freed with plain `delete` (UB; corrupts allocator
+metadata). Many fire continuously while the campaign runs (CampDirtyData dtor,
+RefreshEventList, AddCampaignEvent, map ScaleUp8 blits) and during campaign-UI
+teardown (`CleanupCampaignUI` 5x on exit), so corruption accumulated until the
+exit transition crashed.
+
+**Method:** the **ASAN build** (`build-asan`, `-fsanitize-recover=address`,
+`ASAN_OPTIONS=halt_on_error=0`) logs-and-continues, so a single scripted
+commit→START→exit run (`FF_UI_CLICK`) enumerated *every* `alloc-dealloc-mismatch`
+site at once. Fixed all of them to `delete[]` across ui95 (ooutput, imagersc,
+csclbmp), ui/campaign (campaign.cpp, general.cpp), campaign/{campupd,camplib,
+camptask} (cmpclass, objectiv, unit, gtm) and falclib/msgsrc (campdirtydatamsg,
+campweaponfiremsg). Iterated build→ASAN-run 3× until **zero**
+alloc-dealloc-mismatch / use-after-free / SEGV through the whole flow; release
+build now returns cleanly to the campaign-select screen.
+
+**Bug class to keep sweeping:** other `delete dataBlock.data` message dtors in
+`src/falclib/msgsrc/*` (FlightPlan, SendImage, SendEval, SimDirtyData, sendvc,
+requestcampaigndata, …) follow the same `new uchar[]`/`delete` pattern and are
+latent — fix as ASAN surfaces them in their flows (mostly multiplayer).
+
+**Left for later (benign):** two pre-existing 1-byte READ over-reads in
+objectiv.cpp `GetFeatureStatus`/`BestTargetFeature` (`fstatus[f/4]` and stack
+`targeted[f]` when feature count exceeds the buffer) — reads only, don't corrupt.
