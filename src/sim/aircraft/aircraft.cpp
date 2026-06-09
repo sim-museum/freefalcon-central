@@ -3894,6 +3894,7 @@ int AircraftClass::FindBestSpawnPoint(Objective obj, SimInitDataClass* initData)
         // it onto the point and face it down the runway (toward the next point).
         if (obj and initData->ptIndex > 0)
         {
+            float ox = af->x, oy = af->y;
             TranslatePointData(obj, initData->ptIndex, &af->x, &af->y);
             int npt = GetPrevTaxiPt(initData->ptIndex);
             if (npt > 0)
@@ -3905,7 +3906,17 @@ int AircraftClass::FindBestSpawnPoint(Objective obj, SimInitDataClass* initData)
             }
             af->initialX = af->groundAnchorX = af->x;
             af->initialY = af->groundAnchorY = af->y;
+            // also update initData so the later GroundInit SetPosition (which uses
+            // initData->x/y) doesn't overwrite the translated position.
+            initData->x = af->x;
+            initData->y = af->y;
+            if (getenv("FF_DEBUG_SPAWN"))
+                fprintf(stderr, "[SPAWN] FindBestSpawnPoint RUNWAY: ptIndex=%d objPos=(%.1f,%.1f) preXlate=(%.1f,%.1f) postXlate=(%.1f,%.1f) npt=%d\n",
+                        initData->ptIndex, obj->XPos(), obj->YPos(), ox, oy, af->x, af->y, npt);
         }
+        else if (getenv("FF_DEBUG_SPAWN"))
+            fprintf(stderr, "[SPAWN] FindBestSpawnPoint RUNWAY: SKIPPED translate (obj=%p ptIndex=%d)\n",
+                    (void*)obj, initData->ptIndex);
 #endif
         spawnpoint = initData->ptIndex; //RAS-11Nov04-store initial spawn point
         return initData->ptIndex;
