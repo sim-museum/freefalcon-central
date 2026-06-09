@@ -3885,6 +3885,28 @@ int AircraftClass::FindBestSpawnPoint(Objective obj, SimInitDataClass* initData)
     if (PlayerOptions.GetStartFlag() == PlayerOptionsClass::START_RUNWAY)
     {
         af->vt = 0.0f;
+#ifdef FF_LINUX
+        // FF_LINUX: place the aircraft AT the runway taxi point. The RAMP/TAXI
+        // cases below call TranslatePointData to move the aircraft onto its
+        // spawn point; the runway case returned early without it, leaving the
+        // aircraft at the airbase-center position (~30ft off the runway, which
+        // dropped it onto lower terrain ~5ft below the runway surface). Translate
+        // it onto the point and face it down the runway (toward the next point).
+        if (obj and initData->ptIndex > 0)
+        {
+            TranslatePointData(obj, initData->ptIndex, &af->x, &af->y);
+            int npt = GetPrevTaxiPt(initData->ptIndex);
+            if (npt > 0)
+            {
+                float nx, ny;
+                TranslatePointData(obj, npt, &nx, &ny);
+                // same convention as the RAMP/TAXI branch below
+                af->initialPsi = af->psi = af->sigma = (float)atan2((ny - af->y), (nx - af->x));
+            }
+            af->initialX = af->groundAnchorX = af->x;
+            af->initialY = af->groundAnchorY = af->y;
+        }
+#endif
         spawnpoint = initData->ptIndex; //RAS-11Nov04-store initial spawn point
         return initData->ptIndex;
     }

@@ -107,6 +107,13 @@ void AirframeClass::Initialize()
         Tpoint normal;
         float groundZ = OTWDriver.GetGroundLevel(x, y, &normal);
 
+#ifdef FF_LINUX
+        if (getenv("FF_DEBUG_SPAWN"))
+            fprintf(stderr, "[SPAWN] Init ground place: x=%.1f y=%.1f z(in)=%.2f groundZ=%.2f CheckHeight=%.2f -> z(out)=%.2f drawPtr=%p\n",
+                    x, y, z, groundZ, CheckHeight(),
+                    (z > groundZ - CheckHeight() + 0.01F) ? (groundZ - CheckHeight()) : z,
+                    platform ? (void*)platform->drawPointer : (void*)0);
+#endif
         if (z > groundZ - CheckHeight() + 0.01F)
             z = groundZ - CheckHeight();
     }
@@ -316,6 +323,13 @@ void AirframeClass::ReInitialize()
         Tpoint normal;
         float groundZ = OTWDriver.GetGroundLevel(x, y, &normal);
 
+#ifdef FF_LINUX
+        if (getenv("FF_DEBUG_SPAWN"))
+            fprintf(stderr, "[SPAWN] Init ground place: x=%.1f y=%.1f z(in)=%.2f groundZ=%.2f CheckHeight=%.2f -> z(out)=%.2f drawPtr=%p\n",
+                    x, y, z, groundZ, CheckHeight(),
+                    (z > groundZ - CheckHeight() + 0.01F) ? (groundZ - CheckHeight()) : z,
+                    platform ? (void*)platform->drawPointer : (void*)0);
+#endif
         if (z > groundZ - CheckHeight() + 0.01F)
             z = groundZ - CheckHeight();
     }

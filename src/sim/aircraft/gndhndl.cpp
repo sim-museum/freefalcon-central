@@ -91,6 +91,15 @@ void AircraftClass::OnGroundInit(SimInitDataClass* initData)
     af->initialMach = 0.0F;
     // sfr: try to fix sink
     af->initialZ    = initData->z - af->CheckHeight();
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_SPAWN"))
+    {
+        float gz = OTWDriver.GetGroundLevel(initData->x, initData->y);
+        fprintf(stderr, "[SPAWN] GroundInit: pos=(%.1f,%.1f) initData->z=%.2f groundZ@pos=%.2f CheckHeight=%.2f initialZ=%.2f ptIndex=%d heading=%.1f\n",
+                initData->x, initData->y, initData->z, gz, af->CheckHeight(), af->initialZ,
+                initData->ptIndex, psi * 57.2958f);
+    }
+#endif
     SetPosition(initData->x, initData->y, af->initialZ);
     SetYPR(psi, 0.0F, 0.0F);
     SetDelta(0.0f, 0.0F, 0.0F);
