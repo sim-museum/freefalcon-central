@@ -339,10 +339,22 @@ void CreateDrawable(SimBaseClass* theObject, float objectScale)
                     if (((SimFeatureClass*)theObject)->displayPriority <= PlayerOptions.BuildingDeaggLevel())
                     {
                         if (theObject->IsSetCampaignFlag((FEAT_FLAT_CONTAINER bitor FEAT_ELEV_CONTAINER)))
+                        {
+#ifdef FF_LINUX
+                            if (getenv("FF_DEBUG_RUNWAY"))
+                                fprintf(stderr, "[RUNWAY] InsertStaticSurface (flat runway/tarmac) visType=%d prio=%d\n",
+                                        visType, ((SimFeatureClass*)theObject)->displayPriority);
+#endif
                             ((DrawablePlatform*)((SimFeatureClass*)baseObject)->baseObject)->InsertStaticSurface(((DrawableBuilding*)theObject->drawPointer));
+                        }
                         else
                             ((DrawablePlatform*)((SimFeatureClass*)baseObject)->baseObject)->InsertStaticObject(theObject->drawPointer);
                     }
+#ifdef FF_LINUX
+                    else if (getenv("FF_DEBUG_RUNWAY") and theObject->IsSetCampaignFlag((FEAT_FLAT_CONTAINER bitor FEAT_ELEV_CONTAINER)))
+                        fprintf(stderr, "[RUNWAY] flat surface SKIPPED (prio %d > BuildingDeaggLevel %d)\n",
+                                ((SimFeatureClass*)theObject)->displayPriority, PlayerOptions.BuildingDeaggLevel());
+#endif
                 }
                 else
                 {

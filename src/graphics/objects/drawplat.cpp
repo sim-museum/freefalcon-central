@@ -8,6 +8,10 @@
 ***************************************************************************/
 #include "drawbldg.h"
 #include "drawplat.h"
+#ifdef FF_LINUX
+#include "renderow.h"  // FF_LINUX: full Render3D + context for setGlobalZBias (runway decal bias)
+#include "context.h"
+#endif
 
 #ifdef USE_SH_POOLS
 MEM_POOL DrawablePlatform::pool;
@@ -130,11 +134,39 @@ void DrawablePlatform::Draw(class RenderOTW *renderer, int LOD)
     flatStaticObjects.ResetTraversal();
     obj = flatStaticObjects.GetNextAndAdvance();
 
+#ifdef FF_LINUX
+    // FF_LINUX: The flat platform surfaces (runways/tarmac) are decals that lie
+    // co-planar with the terrain mesh. Without a depth bias toward the camera
+    // they z-fight with / sink below the terrain and become invisible (the
+    // airstrips "disappear" - terrain shows through where the runway should be).
+    // Shadows (also ground decals) solve this with context.setGlobalZBias();
+    // do the same for the runway surfaces. (RenderOTW : public Render3D.)
+    float ffSavedBias = 0.0f;
+    bool ffBias = (getenv("FF_RUNWAY_NOBIAS") == 0);
+    int ffFlatCount = 0;
+    bool ffDbg = getenv("FF_DEBUG_RUNWAY") != 0;
+    if (ffBias)
+        ((Render3D *)renderer)->context.setGlobalZBias(0.04f);
+#endif
     while (obj)
     {
         obj->Draw(renderer, LOD);
+#ifdef FF_LINUX
+        ffFlatCount++;
+#endif
         obj = flatStaticObjects.GetNextAndAdvance();
     }
+#ifdef FF_LINUX
+    if (ffBias)
+        ((Render3D *)renderer)->context.setGlobalZBias(ffSavedBias);
+    if (ffDbg)
+    {
+        static int s_n = 0;
+        if ((s_n++ % 120) == 0)
+            fprintf(stderr, "[RUNWAY] DrawablePlatform::Draw(OTW) flatSurfaces=%d pos=(%.0f,%.0f) bias=%d\n",
+                    ffFlatCount, position.x, position.y, ffBias ? 1 : 0);
+    }
+#endif
 
     // Finally, draw all the non-flat objects in range order
     tallStaticObjects.ResetTraversal();
@@ -167,11 +199,28 @@ void DrawablePlatform::Draw(class Render3D *renderer)
     flatStaticObjects.ResetTraversal();
     obj = flatStaticObjects.GetNextAndAdvance();
 
+#ifdef FF_LINUX
+    int ffFlatCount = 0, ffTallCount = 0;
+    bool ffDbg = getenv("FF_DEBUG_RUNWAY") != 0;
+#endif
     while (obj)
     {
         obj->Draw(renderer);
+#ifdef FF_LINUX
+        ffFlatCount++;
+#endif
         obj = flatStaticObjects.GetNextAndAdvance();
     }
+#ifdef FF_LINUX
+    if (ffDbg)
+    {
+        (void)ffTallCount;
+        static int s_n = 0;
+        if ((s_n++ % 120) == 0)
+            fprintf(stderr, "[RUNWAY] DrawablePlatform::Draw flatSurfaces=%d pos=(%.0f,%.0f)\n",
+                    ffFlatCount, position.x, position.y);
+    }
+#endif
 
     // Finally, draw all the non-flat objects in range order
     tallStaticObjects.ResetTraversal();
