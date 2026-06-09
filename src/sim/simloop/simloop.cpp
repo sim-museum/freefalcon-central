@@ -984,7 +984,15 @@ void SimulationLoopControl::StartLoop(void)
         // FF_LINUX: Reset deagg loop counter for each mission launch
         int deagLoopCounter = 0;
 
-        while (flight and flight->IsAggregate() and (delayCounter))
+        while (flight and flight->IsAggregate()
+#ifdef FF_LINUX
+               // FF_LINUX: a dead/scrubbed flight can never deaggregate
+               // (UnitClass::Deaggregate early-returns on IsDead), so don't
+               // spin the wait forever on it - break out and let the post-wait
+               // logic bail back to the UI.
+               and not flight->IsDead()
+#endif
+               and (delayCounter))
         {
 #ifdef FF_LINUX
             // FF_LINUX: Instead of just sleeping, we need to:
@@ -997,6 +1005,23 @@ void SimulationLoopControl::StartLoop(void)
 
             // Call RebuildBubble to trigger deaggregation message
             RebuildBubble(0);
+
+            // FF_LINUX: RebuildBubble's grid iterator doesn't reliably re-check
+            // the player flight on every pass (it depends on bubble-grid cell
+            // membership), and the StartGraphics/StartLoop g_bSleepAll toggle
+            // races. If the player flight is left aggregated the sim-load loop
+            // spins forever (black/white strobe). So directly request the player
+            // flight's deaggregation - DeaggregationCheck posts the
+            // simcampDeaggregate message (player flight is exempt from g_bSleepAll),
+            // and the RealTimeFunction call below dispatches it. THROTTLE this to
+            // ~once/second: posting a fresh deaggregate every 100ms iteration
+            // floods duplicate deaggregations that race aircraft creation and can
+            // kill the just-created player aircraft.
+            {
+                extern int DeaggregationCheck(CampEntity e, FalconSessionEntity *session);
+                if (flight and flight->IsAggregate() and (deagLoopCounter % 10) == 0)
+                    DeaggregationCheck((CampEntity)flight, FalconLocalSession);
+            }
 
             // Process VU messages via RealTimeFunction
             RealTimeFunction(vuxRealTime, NULL);

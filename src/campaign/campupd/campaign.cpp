@@ -486,10 +486,25 @@ int DeaggregationCheck(CampEntity e, FalconSessionEntity *session)
     bool didsimlistcrap = FALSE;
     int inbobble = (session->InSessionBubble(e, REAGREGATION_RATIO));
 
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_DEAG") and e == session->GetPlayerFlight())
+        fprintf(stderr, "[DEAGCHK] PLAYERFLIGHT e=%p IsAggregate=%d InBubble1.0=%d g_bSleepAll=%d IsLocal=%d pos=(%.0f,%.0f) camN=%d\n",
+                (void*)e, e->IsAggregate(), session->InSessionBubble(e, 1.0F), (int)g_bSleepAll,
+                e->IsLocal(), e->XPos(), e->YPos(), session->CameraCount());
+#endif
+
 
     if (e->IsAggregate())
     {
-        if (session->InSessionBubble(e, 1.0F) and not g_bSleepAll)
+        // FF_LINUX: The player's own flight must deaggregate when it enters its
+        // bubble even while g_bSleepAll is set. g_bSleepAll keeps AI/campaign
+        // entities asleep during the UI->sim graphics handoff, but the player
+        // flight is the entity we are entering the sim to fly - if the (racy)
+        // StartGraphics/StartLoop g_bSleepAll toggle leaves it set when the
+        // player flight is checked, the flight never deaggregates and the sim
+        // load loop spins forever (black/white strobe). Exempt the player flight.
+        bool ffPlayerFlight = (e == session->GetPlayerFlight());
+        if (session->InSessionBubble(e, 1.0F) and (not g_bSleepAll or ffPlayerFlight))
         {
             // It's in our bubble, post deaggregate message if host
             if (e->IsLocal())
@@ -3195,7 +3210,7 @@ void UpdateParentUnits(CampaignTime deltatime)
         }
         else
         {
-            printf("does this happen?");
+            // FF_LINUX: silenced leftover debug spam (fired per-unit, no newline)
         }
     }
 

@@ -1156,7 +1156,11 @@ int VoiceFilter::GetBullseyeComm(int *mesgID, short *data)
 
     float dist = 0;
 
-    if (commHdrInfo->positionElement > -1)
+    // FF_LINUX: bound positionElement so data[positionElement] and [+1] stay
+    // within edata[MAX_EVALS_PER_RADIO_MESSAGE] - an out-of-range index from the
+    // comm file otherwise reads/WRITES past the array (heap corruption).
+    if (commHdrInfo->positionElement > -1 and
+        commHdrInfo->positionElement + 1 < 10 /* MAX_EVALS_PER_RADIO_MESSAGE: edata[] size */)
     {
         GridIndex x1, y1, x2, y2;
         float theta, xs1, ys1, xs2, ys2;
