@@ -135,24 +135,13 @@ void DrawablePlatform::Draw(class RenderOTW *renderer, int LOD)
     obj = flatStaticObjects.GetNextAndAdvance();
 
 #ifdef FF_LINUX
-    // FF_LINUX: The flat platform surfaces (runways/tarmac) are decals that lie
-    // co-planar with the terrain mesh. Without a depth bias toward the camera
-    // they z-fight with / sink below the terrain and become invisible (the
-    // airstrips "disappear" - terrain shows through where the runway should be).
-    // Shadows (also ground decals) solve this with context.setGlobalZBias();
-    // do the same for the runway surfaces. (RenderOTW : public Render3D.)
-    float ffSavedBias = 0.0f;
-    bool ffBias = (getenv("FF_RUNWAY_NOBIAS") == 0);
-    // FF_RUNWAY_BIAS overrides the bias magnitude for tuning (default 0.04,
-    // same order as the shadow decal bias). Larger pulls the runway further
-    // toward the camera; if even a large value doesn't reveal the airstrips,
-    // the cause is not depth (it's the surface texture/material).
-    float ffBiasVal = 0.04f;
-    { const char *e = getenv("FF_RUNWAY_BIAS"); if (e) ffBiasVal = (float)atof(e); }
+    // FF_LINUX: NOTE - the runway/tarmac flat surfaces render with the wrong
+    // texture/material (they show as terrain, not asphalt). Confirmed via user
+    // testing that this is NOT a depth/z-fighting issue (a large setGlobalZBias
+    // made no difference), so no depth bias is applied here. The cause is the
+    // flat-surface texture path; FF_DEBUG_RUNWAY traces surface creation/counts.
     int ffFlatCount = 0;
     bool ffDbg = getenv("FF_DEBUG_RUNWAY") != 0;
-    if (ffBias)
-        ((Render3D *)renderer)->context.setGlobalZBias(ffBiasVal);
 #endif
     while (obj)
     {
@@ -163,14 +152,12 @@ void DrawablePlatform::Draw(class RenderOTW *renderer, int LOD)
         obj = flatStaticObjects.GetNextAndAdvance();
     }
 #ifdef FF_LINUX
-    if (ffBias)
-        ((Render3D *)renderer)->context.setGlobalZBias(ffSavedBias);
     if (ffDbg)
     {
         static int s_n = 0;
         if ((s_n++ % 120) == 0)
-            fprintf(stderr, "[RUNWAY] DrawablePlatform::Draw(OTW) flatSurfaces=%d pos=(%.0f,%.0f) bias=%d\n",
-                    ffFlatCount, position.x, position.y, ffBias ? 1 : 0);
+            fprintf(stderr, "[RUNWAY] DrawablePlatform::Draw(OTW) flatSurfaces=%d pos=(%.0f,%.0f)\n",
+                    ffFlatCount, position.x, position.y);
     }
 #endif
 
