@@ -318,6 +318,20 @@ void BRoot::Draw(void)
     int texOffset = TheStateStack.CurrentInstance->TextureSet *
                     (nTexIDs / max(1, (int)TheStateStack.CurrentInstance->ParentObject->nTextureSets)); // Cobra - TexSets = 0 CTD
     TheStateStack.SetTextureTable(pTexIDs + texOffset);
+#ifdef FF_LINUX
+    extern int g_ffRunwayDbg;
+    if (g_ffRunwayDbg && getenv("FF_DEBUG_RUNWAY"))
+    {
+        static int s_rn = 0;
+        if (s_rn++ < 20)
+            fprintf(stderr, "[RUNWAY] BRoot::Draw TextureSet=%d nTexIDs=%d nTextureSets=%d texOffset=%d tex[0..2]=%d,%d,%d\n",
+                    TheStateStack.CurrentInstance->TextureSet, nTexIDs,
+                    (int)TheStateStack.CurrentInstance->ParentObject->nTextureSets, texOffset,
+                    nTexIDs > 0 ? (int)pTexIDs[texOffset] : -1,
+                    nTexIDs > 1 ? (int)pTexIDs[texOffset+1] : -1,
+                    nTexIDs > 2 ? (int)pTexIDs[texOffset+2] : -1);
+    }
+#endif
 
     if (ScriptNumber > 0)
     {

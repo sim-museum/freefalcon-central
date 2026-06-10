@@ -11,6 +11,7 @@
 #ifdef FF_LINUX
 #include "renderow.h"  // FF_LINUX: full Render3D + context for setGlobalZBias (runway decal bias)
 #include "context.h"
+int g_ffRunwayDbg = 0;  // set while drawing flat platform (runway) surfaces; read by BRoot::Draw
 #endif
 
 #ifdef USE_SH_POOLS
@@ -140,8 +141,10 @@ void DrawablePlatform::Draw(class RenderOTW *renderer, int LOD)
     // testing that this is NOT a depth/z-fighting issue (a large setGlobalZBias
     // made no difference), so no depth bias is applied here. The cause is the
     // flat-surface texture path; FF_DEBUG_RUNWAY traces surface creation/counts.
+    extern int g_ffRunwayDbg;
     int ffFlatCount = 0;
     bool ffDbg = getenv("FF_DEBUG_RUNWAY") != 0;
+    g_ffRunwayDbg = 1;  // scope BRoot::Draw texture-table logging to flat surfaces
 #endif
     while (obj)
     {
@@ -152,6 +155,7 @@ void DrawablePlatform::Draw(class RenderOTW *renderer, int LOD)
         obj = flatStaticObjects.GetNextAndAdvance();
     }
 #ifdef FF_LINUX
+    g_ffRunwayDbg = 0;
     if (ffDbg)
     {
         static int s_n = 0;

@@ -555,6 +555,22 @@ void TextureBankClass::FlushHandles(void)
 
 void TextureBankClass::Select(int id)
 {
+#ifdef FF_LINUX
+    // FF_LINUX EXPERIMENT (FF_TEXFIX=1): the BSP poly draw path calls
+    // TheTextureBank.Select(CurrentTextureTable[poly->texIndex]) to bind each
+    // polygon's texture, but this function was an empty stub - so the per-poly
+    // texture is never bound and the deferred SPolygon captures a stale
+    // currentTexture1. Implement it the same way CDXEngine::SelectTexture does:
+    // map the texture id -> handle (GetHandle) and bind it via SelectHandle ->
+    // SelectTexture1. Candidate fix for the missing-runway (wrong-texture)
+    // airfield surfaces. Gated so building rendering can be A/B compared.
+    static int s_on = -1;
+    if (s_on < 0) s_on = getenv("FF_TEXFIX") ? 1 : 0;
+    if (s_on && id >= 0)
+        SelectHandle(GetHandle((DWORD)id));
+#else
+    (void)id;
+#endif
 }
 
 
