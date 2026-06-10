@@ -54,6 +54,18 @@ DrawableBuilding::DrawableBuilding(int ID, Tpoint *pos, float heading, float s)
 \***************************************************************************/
 void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
 {
+#ifdef FF_LINUX
+    {
+        extern int g_ffRunwayDbg;
+        if (g_ffRunwayDbg && previousLOD == -1 && getenv("FF_DEBUG_RUNWAY"))
+        {
+            static int n = 0;
+            if (n++ < 20)
+                fprintf(stderr, "[RUNWAY] flat ORIGINAL z (feature data, pre-overwrite) = %.2f pos=(%.0f,%.0f)\n",
+                        position.z, position.x, position.y);
+        }
+    }
+#endif
     // See if we need to update our ground position
     if (LOD not_eq previousLOD)
     {
