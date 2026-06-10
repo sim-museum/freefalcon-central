@@ -64,6 +64,21 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
         previousLOD = LOD;
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX test (FF_RUNWAY_ZLIFT=<feet>): GetGroundLevelApproximation returns
+    // 0 at the airbase (post out of the loaded range), so the FLAT platform
+    // surfaces (runways) sit at sea level, buried under the slightly elevated
+    // rendered terrain (buildings survive because they stick up through it).
+    // While drawing flat surfaces (g_ffRunwayDbg set by DrawablePlatform::Draw)
+    // lift z toward the camera/up (NED: -Z is up) to confirm burial is the cause.
+    {
+        extern int g_ffRunwayDbg;
+        static float s_zl = -9999.f;
+        if (s_zl < -9000.f) { const char *e = getenv("FF_RUNWAY_ZLIFT"); s_zl = e ? (float)atof(e) : 0.f; }
+        if (g_ffRunwayDbg && s_zl != 0.f) position.z -= s_zl;
+    }
+#endif
+
     if (renderer)
         DrawableBSP::Draw(renderer, LOD);
 }

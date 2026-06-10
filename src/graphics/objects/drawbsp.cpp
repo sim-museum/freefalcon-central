@@ -578,10 +578,31 @@ void DrawableBSP::Draw(RenderOTW *renderer, int)
         }
 #endif
         SetInhibitFlag(FALSE);
+#ifdef FF_LINUX
+        { extern int g_ffRunwayDbg; if (g_ffRunwayDbg && getenv("FF_DEBUG_RUNWAY")) fprintf(stderr, "[RUNWAY] DrawableBSP::Draw id=%d EARLY-RETURN inhibitDraw\n", id); }
+#endif
         return;
     }
 
+#ifdef FF_LINUX
+    {
+        extern int g_ffRunwayDbg;
+        if (g_ffRunwayDbg && getenv("FF_DEBUG_RUNWAY"))
+        {
+            bool vis = SetupVisibility(renderer);
+            static int s_n = 0;
+            if (s_n++ < 30)
+                fprintf(stderr, "[RUNWAY] DrawableBSP::Draw id=%d SetupVisibility=%d pos=(%.0f,%.0f,%.1f) radius=%.1f\n",
+                        id, vis ? 1 : 0, position.x, position.y, position.z, radius);
+            if (!vis) return;
+            goto ffVisOk;
+        }
+    }
+#endif
     if ( not SetupVisibility(renderer)) return;
+#ifdef FF_LINUX
+ffVisOk:;
+#endif
 
     // JB 010112
     float scalefactor = 1;
