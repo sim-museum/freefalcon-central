@@ -144,11 +144,19 @@ void DrawablePlatform::Draw(class RenderOTW *renderer, int LOD)
     extern int g_ffRunwayDbg;
     int ffFlatCount = 0;
     bool ffDbg = getenv("FF_DEBUG_RUNWAY") != 0;
+    // FF_RUNWAY_SKIP=1: don't draw the flat surfaces at all - decisive test for
+    // whether they contribute anything visible (if the airfield looks identical
+    // with them skipped, they're already rendering invisibly).
+    static int ffSkip = -1;
+    if (ffSkip < 0) ffSkip = getenv("FF_RUNWAY_SKIP") ? 1 : 0;
     g_ffRunwayDbg = 1;  // scope BRoot::Draw texture-table logging to flat surfaces
 #endif
     while (obj)
     {
-        obj->Draw(renderer, LOD);
+#ifdef FF_LINUX
+        if (!ffSkip)
+#endif
+            obj->Draw(renderer, LOD);
 #ifdef FF_LINUX
         ffFlatCount++;
 #endif
