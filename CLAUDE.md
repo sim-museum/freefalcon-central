@@ -4050,3 +4050,47 @@ cross-thread flag races where Windows relied on implicit main-thread ordering
 (g_bSleepAll, like the earlier EnterMode/LeaveMode and viewPoint races); (b)
 unbounded file-supplied indices -> heap/stack corruption (same class as the
 tac_class / TE-parser fixes).
+
+---
+
+### Session: June 2026 - Campaign playable end-to-end; runway-elevation diagnosis; loading animation
+
+A long session. All committed/pushed to origin/develop.
+
+**Campaign now playable end-to-end** (these all fixed + pushed):
+- Frozen campaign clock (ead4ae36): NO_TIMER_THREAD compiles out the timer thread
+  that advances vuxGameTime in UI mode; advance it in the UI timer tick.
+- Campaign-exit crash (31cc565e): ~20 operator new[]/delete mismatches corrupting
+  the heap during campaign run + CleanupCampaignUI; all -> delete[] (ASAN-enumerated).
+- Campaign runway-start flight launch (ddd20274): the black/white sim-load strobe
+  was the player flight never deaggregating - DeaggregationCheck gated on
+  `not g_bSleepAll` which races across StartGraphics/StartLoop threads; exempt the
+  player flight + directly DeaggregationCheck it (throttled) in the StartLoop
+  deagg-wait + break on IsDead. Plus a commit-time heap crash: VoiceFilter::
+  GetBullseyeComm wrote past edata[10] (unbounded positionElement).
+- Runway-start spawn off the runway (207de9d7): FindBestSpawnPoint's START_RUNWAY
+  case skipped TranslatePointData (later found to be a no-op - real cause below).
+
+**OPEN: runways/airstrips invisible + can't land (terrain elevation decoupling).**
+See memory `runway-elevation-decoupling.md` + commit 84b6a8ab. The airfield renders
+as a ~20ft plateau but collision/elevation data is flat z=0 (GetGroundLevel returns
+0 - airfield post outside the loaded fine-terrain radius, RangeFromCenter 72-113 vs
+availRange 20, falls back to coarse 0). Flat runways buried at z=0 (buildings stick
+up so survive); jet collides at z=0, 20ft below the visible runway -> crash "in the
+dirt under the terrain roof". RULED OUT: depth/z-bias (FF_RUNWAY_BIAS - flat
+surfaces use deferred BSP flush, bias only works immediate-mode like shadows),
+texture binding (FF_TEXFIX implementing the empty TextureBankClass::Select - no
+effect, cockpit textures fine), world-z lift (FF_RUNWAY_ZLIFT - moves the picture
+but jet still collides at 0; defaulted OFF). Real fix must reconcile rendered
+airfield elevation with the collision/elevation query. **Blocker: agent can't
+capture sim-mode frames (glReadPixels=white, import-window=black) so every attempt
+needs the user's eyes.** Diagnostics: FF_DEBUG_RUNWAY.
+
+**Loading animation (cc4e2517):** the animated loading-plane progress bar now shows
+during the multi-second 3D setup instead of black/white. SplashScreenUpdate(frame)
+builds the plane-progress image (palette per-frame "lit") but its single
+SDL_GL_SwapWindow isn't presented on Wayland during non-continuous-swap setup;
+present it as a 4x draw+swap burst (like FF_LoadingClear), drop the FF_LoadingClear
+black-overwrite that followed each splash call in StartLoop, and animate frames
+(1/2/4/0) through the OTWDriver::Enter heavy-setup checkpoints. Pre-splash phases
+still paint black. Sequence: brief black -> animated plane -> cockpit.
