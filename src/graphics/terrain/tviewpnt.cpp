@@ -483,6 +483,19 @@ float TViewPoint::GetGroundLevelApproximation(float x, float y)
     // Lock everyone else out of this viewpoint while we're using it
     EnterCriticalSection(&cs_update);
 
+#ifdef FF_LINUX
+    {
+        extern int g_ffRunwayDbg;
+        if (g_ffRunwayDbg && getenv("FF_DEBUG_RUNWAY"))
+        {
+            static int n = 0;
+            if (n++ < 16)
+                fprintf(stderr, "[RUNWAY] GGLapprox x=%.0f y=%.0f minLOD=%d maxLOD=%d row=%d col=%d range=%d availRange=%d\n",
+                        x, y, minLOD, maxLOD, row, col,
+                        blockLists[minLOD].RangeFromCenter(row, col), blockLists[minLOD].GetAvailablePostRange());
+        }
+    }
+#endif
     // Figure out the highest detail level which has the required data available
     while (blockLists[LOD].RangeFromCenter(row, col) >= blockLists[LOD].GetAvailablePostRange())
     {

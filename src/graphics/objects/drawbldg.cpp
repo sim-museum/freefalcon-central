@@ -85,11 +85,11 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
     // small decal offset to keep them just above the terrain. NON-accumulating.
     {
         extern int g_ffRunwayDbg;
-        if (g_ffRunwayDbg)
+        static float s_off = -9999.f;
+        if (s_off < -9000.f) { const char *e = getenv("FF_RUNWAY_ZLIFT"); s_off = e ? (float)atof(e) : 0.f; }
+        if (g_ffRunwayDbg && s_off != 0.f)
         {
             float gl = renderer->viewpoint->GetGroundLevel(position.x, position.y);
-            static float s_off = -9999.f;
-            if (s_off < -9000.f) { const char *e = getenv("FF_RUNWAY_ZLIFT"); s_off = e ? (float)atof(e) : 2.f; }
             position.z = gl - s_off;
             if (getenv("FF_DEBUG_RUNWAY"))
             {
