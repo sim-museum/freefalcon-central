@@ -968,7 +968,6 @@ void SimulationLoopControl::StartLoop(void)
         //MonoPrint("Done initializing graphics, waiting for deaggregation..  %d\n", GetTickCount());
 
         OTWDriver.SplashScreenUpdate(1);
-        { extern void FF_LoadingClear(); FF_LoadingClear(); }  // FF_LINUX: ensure black presents on Wayland (splash single-swap is not shown during load)
 
         ///////////////////////////////////////////////////////////////////////////////
 
@@ -1039,7 +1038,6 @@ void SimulationLoopControl::StartLoop(void)
             {
                 static const int animSeq[] = {0, 1, 2, 4};
                 OTWDriver.SplashScreenUpdate(animSeq[deagLoopCounter & 3]);
-                { extern void FF_LoadingClear(); FF_LoadingClear(); }  // FF_LINUX: ensure black presents on Wayland (splash single-swap is not shown during load)
             }
 
             // Short sleep to avoid busy-waiting
@@ -1111,7 +1109,6 @@ void SimulationLoopControl::StartLoop(void)
                 {
                     static const int animSeq[] = {0, 1, 2, 4};
                     OTWDriver.SplashScreenUpdate(animSeq[simDriverWaitCount & 3]);
-                    { extern void FF_LoadingClear(); FF_LoadingClear(); }  // FF_LINUX: ensure black presents on Wayland (splash single-swap is not shown during load)
                 }
 
                 // Timeout after ~30 seconds to prevent infinite loop
@@ -1128,7 +1125,6 @@ void SimulationLoopControl::StartLoop(void)
             fprintf(stderr, "[StartLoop] SimDriver.GetPlayerEntity()=%p, calling SplashScreenUpdate(2)\n",
                     (void*)SimDriver.GetPlayerEntity());
             OTWDriver.SplashScreenUpdate(2);
-            { extern void FF_LoadingClear(); FF_LoadingClear(); }  // FF_LINUX: ensure black presents on Wayland (splash single-swap is not shown during load)
 
             ///////////////////////////////////////////////////////////////////////////////
 
@@ -1179,7 +1175,6 @@ void SimulationLoopControl::StartLoop(void)
             CampLeaveCriticalSection();
 
             OTWDriver.SplashScreenUpdate(3);
-            { extern void FF_LoadingClear(); FF_LoadingClear(); }  // FF_LINUX: ensure black presents on Wayland (splash single-swap is not shown during load)
 
             ///////////////////////////////////////////////////////////////////////////////
 
@@ -1195,7 +1190,6 @@ void SimulationLoopControl::StartLoop(void)
              if ( delayCounter == 300 )
              {
              OTWDriver.SplashScreenUpdate( 4 );
-             { extern void FF_LoadingClear(); FF_LoadingClear(); }  // FF_LINUX: ensure black presents on Wayland (splash single-swap is not shown during load)
              }
              }
 
@@ -1218,7 +1212,6 @@ void SimulationLoopControl::StartLoop(void)
             // Ok, so this is hacky.. KCK
             FixupGroundHeights();
             OTWDriver.SplashScreenUpdate(4);
-            { extern void FF_LoadingClear(); FF_LoadingClear(); }  // FF_LINUX: ensure black presents on Wayland (splash single-swap is not shown during load)
 
             ///////////////////////////////////////////////////////////////////////////////
 
@@ -1235,7 +1228,6 @@ void SimulationLoopControl::StartLoop(void)
             // FFV - The return to the 4rd "pie" is caused by a display of the fore buffer (pie #4)
             // after the last back buffer (pie #5).  Displaying Pie 5(#4) again fills both buffers with 5 (#4).
             OTWDriver.SplashScreenUpdate(4);
-            { extern void FF_LoadingClear(); FF_LoadingClear(); }  // FF_LINUX: ensure black presents on Wayland (splash single-swap is not shown during load)
 
 #ifdef DEBUG
             // Go ahead and start rendering frames

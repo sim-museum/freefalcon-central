@@ -249,15 +249,6 @@ void OTWDriverClass::SplashScreenUpdate(int frame)
     // The buffer will be same size of the Original Image with 32bit Pixel Size
     DWORD *WorkBuffer = (DWORD*)malloc(originalHeight * originalWidth * sizeof(DWORD));
 
-    // Clear the back buffer to black to erase anything that might already be there
-    renderer->context.StartFrame();
-    renderer->SetViewport(-1.0f, 1.0f, 1.0f, -1.0f);
-    renderer->StartDraw();
-    renderer->SetBackground(0xFF000000);
-    renderer->ClearDraw();
-    renderer->context.UpdateSpecularFog(0xff000000);
-
-
     // Darken all but the specified frame in the palette
     srcPal = originalPalette;
     dstPal = tweakedPalette;
@@ -283,12 +274,10 @@ void OTWDriverClass::SplashScreenUpdate(int frame)
     // Copy the invariant high portion of the palette
     while (srcPal < stop) *dstPal++ = *srcPal++;
 
-    // Point to the originalImage
+    // Build the 32-bit frame image once (per-pixel palette lookup)
     imagePtr = originalImage;
-
     DWORD *pixel;
 
-    // Now, build image based on tweaked palette
     for (y = 0; y < originalHeight; y ++)
     {
         pixel = &WorkBuffer[ y * originalWidth ];
@@ -301,6 +290,36 @@ void OTWDriverClass::SplashScreenUpdate(int frame)
         }
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX: present the plane-progress frame as a BURST of draw+swap (4x),
+    // for the same reason FF_LoadingClear bursts: on Wayland a single
+    // SDL_GL_SwapWindow on the sim thread during the (non-continuously-swapping)
+    // mission-load setup is not made visible. Re-rendering the (already built)
+    // WorkBuffer into each back buffer and swapping a few times reliably commits
+    // the surface, so the animated loading plane actually shows instead of a
+    // black/white screen. The per-pixel palette build above is done only once.
+    for (int ffp = 0; ffp < 4; ffp++)
+    {
+        renderer->context.StartFrame();
+        renderer->SetViewport(-1.0f, 1.0f, 1.0f, -1.0f);
+        renderer->StartDraw();
+        renderer->SetBackground(0xFF000000);
+        renderer->ClearDraw();
+        renderer->context.UpdateSpecularFog(0xff000000);
+        renderer->Render2DBitmap(0, 0, 0, 0, originalWidth, originalHeight, originalWidth, WorkBuffer, true);
+        renderer->EndDraw();
+        renderer->context.FinishFrame(NULL);
+        OTWImage->SwapBuffers(NULL);
+    }
+#else
+    // Clear the back buffer to black to erase anything that might already be there
+    renderer->context.StartFrame();
+    renderer->SetViewport(-1.0f, 1.0f, 1.0f, -1.0f);
+    renderer->StartDraw();
+    renderer->SetBackground(0xFF000000);
+    renderer->ClearDraw();
+    renderer->context.UpdateSpecularFog(0xff000000);
+
     // Go, render it requesting a Fit To Screen
     renderer->Render2DBitmap(0, 0, 0, 0, originalWidth, originalHeight, originalWidth, WorkBuffer, true);
     renderer->EndDraw();
@@ -308,6 +327,7 @@ void OTWDriverClass::SplashScreenUpdate(int frame)
 
     // flip the surface
     OTWImage->SwapBuffers(NULL);
+#endif
 
     free(WorkBuffer);
 }

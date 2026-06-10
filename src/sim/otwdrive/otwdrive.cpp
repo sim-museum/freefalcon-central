@@ -2209,14 +2209,14 @@ void OTWDriverClass::Enter(void)
     // FF_LINUX: paint black through the heavy cockpit/RTT setup so the load shows
     // black instead of a white window. A single-swap splash present does NOT
     // become visible on Wayland during setup (see FF_LoadingClear), so use it.
-    { extern void FF_LoadingClear(); FF_LoadingClear(); }
+    SplashScreenUpdate(1);  // FF_LINUX: animated loading-plane frame (instead of black)
 #endif
     //Wombat778 10-10-2003  Initialize buttons for clickable cockpit
     fprintf(stderr, "[OTWDriver.Enter] Button3D_Init...\n"); fflush(stderr);
     Button3D_Init(eCPVisType, eCPName, eCPNameNCTR);
     fprintf(stderr, "[OTWDriver.Enter] Button3D_Init done\n"); fflush(stderr);
 #ifdef FF_LINUX
-    { extern void FF_LoadingClear(); FF_LoadingClear(); }
+    SplashScreenUpdate(2);  // FF_LINUX: animated loading-plane frame (instead of black)
 #endif
     // MonoPrint("Initializing hud.. %d\n",vuxRealTime);
 
@@ -2512,7 +2512,7 @@ void OTWDriverClass::Enter(void)
     fprintf(stderr, "[OTWDriver.Enter] MFD CreateDrawables...\n"); fflush(stderr);
     MFDClass::CreateDrawables();
 #ifdef FF_LINUX
-    { extern void FF_LoadingClear(); FF_LoadingClear(); }
+    SplashScreenUpdate(4);  // FF_LINUX: animated loading-plane frame (instead of black)
 #endif
 
     for (i = 0; i < NUM_MFDS; i++)
@@ -2532,7 +2532,7 @@ void OTWDriverClass::Enter(void)
     CreateCockpitGeometry(&vrCockpit, vrCockpitModel[0], vrCockpitModel[1]);
     fprintf(stderr, "[OTWDriver.Enter] CreateCockpitGeometry done\n"); fflush(stderr);
 #ifdef FF_LINUX
-    { extern void FF_LoadingClear(); FF_LoadingClear(); }
+    SplashScreenUpdate(0);  // FF_LINUX: animated loading-plane frame (instead of black)
 #endif
 
     /*if(renderer->GetAlphaMode())*/
