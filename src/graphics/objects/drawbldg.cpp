@@ -65,17 +65,28 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
     }
 
 #ifdef FF_LINUX
-    // FF_LINUX test (FF_RUNWAY_ZLIFT=<feet>): GetGroundLevelApproximation returns
-    // 0 at the airbase (post out of the loaded range), so the FLAT platform
-    // surfaces (runways) sit at sea level, buried under the slightly elevated
-    // rendered terrain (buildings survive because they stick up through it).
-    // While drawing flat surfaces (g_ffRunwayDbg set by DrawablePlatform::Draw)
-    // lift z toward the camera/up (NED: -Z is up) to confirm burial is the cause.
+    // FF_LINUX: the FLAT platform surfaces (runways/tarmac) get z=0 from
+    // GetGroundLevelApproximation (returns 0 - post out of loaded range), so they
+    // sit at sea level and are buried under the rendered terrain. Re-fetch the
+    // ground level with the accurate GetGroundLevel every frame for flat surfaces
+    // (g_ffRunwayDbg set by DrawablePlatform::Draw) and place them there, minus a
+    // small decal offset to keep them just above the terrain. NON-accumulating.
     {
         extern int g_ffRunwayDbg;
-        static float s_zl = -9999.f;
-        if (s_zl < -9000.f) { const char *e = getenv("FF_RUNWAY_ZLIFT"); s_zl = e ? (float)atof(e) : 0.f; }
-        if (g_ffRunwayDbg && s_zl != 0.f) position.z -= s_zl;
+        if (g_ffRunwayDbg)
+        {
+            float gl = renderer->viewpoint->GetGroundLevel(position.x, position.y);
+            static float s_off = -9999.f;
+            if (s_off < -9000.f) { const char *e = getenv("FF_RUNWAY_ZLIFT"); s_off = e ? (float)atof(e) : 2.f; }
+            position.z = gl - s_off;
+            if (getenv("FF_DEBUG_RUNWAY"))
+            {
+                static int n = 0;
+                if (n++ < 20)
+                    fprintf(stderr, "[RUNWAY] flat z: GetGroundLevel=%.1f off=%.1f -> z=%.1f pos=(%.0f,%.0f)\n",
+                            gl, s_off, position.z, position.x, position.y);
+            }
+        }
     }
 #endif
 
