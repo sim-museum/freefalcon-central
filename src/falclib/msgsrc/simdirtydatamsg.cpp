@@ -24,7 +24,7 @@ SimDirtyData::~SimDirtyData(void)
 {
     if (dataBlock.data)
     {
-        delete dataBlock.data;
+        delete[] dataBlock.data;
     }
 
     dataBlock.data = NULL;

@@ -253,7 +253,7 @@ GunClass::UpdateShell(void)
         // else if ( (rand() bitand 0x1F ) == 0x1F )
         // Marco Edit - tried to return back to 1.08i2 + RP4 values
         // else if (40.0f * (float)rand() / 32767.0f * (float)sqrt(shellTargetPtr->localData->range * ((SimMoverClass *)shellTargetPtr->BaseData())->GetKias() / 100000.0f) < 0.040625f)
-        else if (31.0f * (float)rand() / 32767.0f * (float)sqrt(shellTargetPtr->localData->range * ((SimMoverClass *)shellTargetPtr->BaseData())->GetKias() / g_fBiasFactorForFlaks) < 0.0325f)
+        else if (31.0f * (float)rand() / (float)RAND_MAX * (float)sqrt(shellTargetPtr->localData->range * ((SimMoverClass *)shellTargetPtr->BaseData())->GetKias() / g_fBiasFactorForFlaks) < 0.0325f)
         {
             hitSomething = TRUE;
             SendDamageMessage(t,
@@ -278,7 +278,7 @@ GunClass::UpdateShell(void)
             // 2000-08-30 MODIFIED BY S.G. TO ACCOMODATE FOR ALTITUDE AND SPEED. 1.08i2 ALSO USES rand INSTEAD OF PRANDFloatPos
             // 2000-09-06 CHANGED AGAIN TO A NEW EQUATION (sqrt(speed / 100) * sqrt(range / 1000))
             // rangeSquare *= 40.0f * PRANDFloatPos();
-            rangeSquare *= 40.0f * rand() / 32767.0f * (float)sqrt(shellTargetPtr->localData->range * ((SimMoverClass *)shellTargetPtr->BaseData())->GetKias() / g_fBiasFactorForFlaks);
+            rangeSquare *= 40.0f * rand() / (float)RAND_MAX * (float)sqrt(shellTargetPtr->localData->range * ((SimMoverClass *)shellTargetPtr->BaseData())->GetKias() / g_fBiasFactorForFlaks);
 
             // 2002-03-12 ADDED BY S.G. Use the ground troop skill if requested
             if (g_bUseSkillForFlaks and parent and parent->IsGroundVehicle())

@@ -2114,6 +2114,9 @@ void RDLoadRackData(void)
     {
         char *com, *arg;
 
+        // FF_LINUX: strip trailing CR/LF so the last token (via strtok(0,"\n")) isn't polluted by \r
+        { char *e = buffer + strlen(buffer); while (e > buffer and (e[-1] == '\r' or e[-1] == '\n')) *--e = '\0'; }
+
         if (buffer[0] == '#' or buffer[0] == ';' or buffer[0] == '\n')
             continue;
 

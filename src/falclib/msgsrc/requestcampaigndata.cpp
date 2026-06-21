@@ -53,7 +53,7 @@ FalconRequestCampaignData::FalconRequestCampaignData(VU_MSG_TYPE type, VU_ID sen
 FalconRequestCampaignData::~FalconRequestCampaignData(void)
 {
     if (dataBlock.data)
-        delete dataBlock.data;
+        delete[] dataBlock.data;
 
     dataBlock.data = NULL;
 }

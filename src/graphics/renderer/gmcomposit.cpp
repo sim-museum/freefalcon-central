@@ -413,7 +413,7 @@ void RenderGMComposite::DrawComposite(Tpoint *center, float platformHdg)
         }
 
         context.RestoreState(STATE_TEXTURE);
-        context.SelectTexture1((UInt) rTexHandle);
+        context.SelectTexture1((intptr_t) rTexHandle);
         ClipAndDraw2DFan(vertArray, num);
     }
 
@@ -479,7 +479,7 @@ void RenderGMComposite::DrawComposite(Tpoint *center, float platformHdg)
         }
 
         context.RestoreState(STATE_TEXTURE);
-        context.SelectTexture1((UInt) lTexHandle);
+        context.SelectTexture1((intptr_t) lTexHandle);
         ClipAndDraw2DFan(vertArray, num);
     }
 
@@ -848,7 +848,7 @@ void RenderGMComposite::DebugDrawLeftTexture(Render2D *renderer)
 
 
     renderer->context.RestoreState(STATE_TEXTURE);
-    renderer->context.SelectTexture1((UInt) lTexHandle);
+    renderer->context.SelectTexture1((intptr_t) lTexHandle);
 
     v0.x = 1.0f;
     v0.y = 1.0f;

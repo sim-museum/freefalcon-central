@@ -30,7 +30,7 @@ SendEvalMessage::SendEvalMessage(VU_MSG_TYPE type, VU_ID senderid, VU_ID target)
 SendEvalMessage::~SendEvalMessage()
 {
     if (dataBlock.data)
-        delete dataBlock.data;
+        delete[] dataBlock.data;
 }
 
 int SendEvalMessage::Size() const

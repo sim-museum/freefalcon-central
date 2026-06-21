@@ -1393,7 +1393,9 @@ bool RealWeather::ReadWeather(void)
             t++;
             continue;
         }
-        else
+        // FF_LINUX: strip trailing CR/LF before tokenizing the METAR line
+        { char *e = file + strlen(file); while (e > file and (e[-1] == '\r' or e[-1] == '\n')) *--e = '\0'; }
+        if (true)
         {
             if (strncmp(file, "BIEG", 4) == 0)
             {
@@ -1678,6 +1680,8 @@ bool RealWeather::ReadWeather(void)
      fgets(file,1024,fp);
      if (file[0] == '\r' or file[0] == '#' or file[0] == ';' or file[0] == '\n')
      continue;
+     // FF_LINUX: strip trailing CR/LF so per-field strcpy() doesn't capture the line terminator
+     { char *e = file + strlen(file); while (e > file and (e[-1] == '\r' or e[-1] == '\n')) *--e = '\0'; }
 
      switch (cnt)
      {

@@ -36,7 +36,7 @@ FalconSendPersistantList::FalconSendPersistantList(VU_MSG_TYPE type, VU_ID sende
 FalconSendPersistantList::~FalconSendPersistantList(void)
 {
     if (dataBlock.data)
-        delete dataBlock.data;
+        delete[] dataBlock.data;
 
     dataBlock.data = NULL;
 }

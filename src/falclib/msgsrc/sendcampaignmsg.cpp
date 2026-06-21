@@ -35,7 +35,7 @@ FalconSendCampaign::FalconSendCampaign(VU_MSG_TYPE type, VU_ID senderid, VU_ID t
 
 FalconSendCampaign::~FalconSendCampaign(void)
 {
-    delete dataBlock.campInfo;
+    delete[] dataBlock.campInfo;
     dataBlock.campInfo = NULL;
 }
 

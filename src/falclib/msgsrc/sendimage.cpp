@@ -20,7 +20,7 @@ UI_SendImage::UI_SendImage(VU_MSG_TYPE type, VU_ID senderid, VU_ID target) : Fal
 UI_SendImage::~UI_SendImage(void)
 {
     // Your Code Goes Here
-    delete dataBlock.data;
+    delete[] dataBlock.data;
 }
 
 int UI_SendImage::Process(uchar autodisp)
