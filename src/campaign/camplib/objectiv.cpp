@@ -475,8 +475,8 @@ int ObjectiveClass::Save(VU_BYTE **stream)
 
     memcpy(*stream, &obj_data.last_repair, sizeof(CampaignTime));
     *stream += sizeof(CampaignTime);
-    memcpy(*stream, &obj_data.obj_flags, sizeof(ulong));
-    *stream += sizeof(ulong);
+    // FF_LINUX: emit 4 bytes (matches the uint32_t Load) — byte-identical on Windows where ulong==4
+    { uint32_t v = (uint32_t)obj_data.obj_flags; memcpy(*stream, &v, sizeof(uint32_t)); *stream += sizeof(uint32_t); }
     memcpy(*stream, &obj_data.supply, sizeof(uchar));
     *stream += sizeof(uchar);
     memcpy(*stream, &obj_data.fuel, sizeof(uchar));

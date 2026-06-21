@@ -536,8 +536,8 @@ int FlightClass::Save(VU_BYTE **stream)
 
     memcpy(*stream, &pos_.z_, sizeof(BIG_SCALAR));
     *stream += sizeof(BIG_SCALAR);
-    memcpy(*stream, &fuel_burnt, sizeof(long));
-    *stream += sizeof(long);
+    // FF_LINUX: emit 4 bytes (matches the int32_t Load) — byte-identical on Windows where long==4
+    { int32_t v = (int32_t)fuel_burnt; memcpy(*stream, &v, sizeof(int32_t)); *stream += sizeof(int32_t); }
     memcpy(*stream, &last_move, sizeof(CampaignTime));
     *stream += sizeof(CampaignTime);
     memcpy(*stream, &last_combat, sizeof(CampaignTime));

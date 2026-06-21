@@ -254,8 +254,8 @@ int WayPointClass::Save(VU_BYTE **stream)
     *stream += sizeof(uchar);
     memcpy(*stream, &Formation, sizeof(uchar));
     *stream += sizeof(uchar);
-    memcpy(*stream, &Flags, sizeof(ulong));
-    *stream  += sizeof(ulong);
+    // FF_LINUX: emit 4 bytes (matches the uint32_t Load) — byte-identical on Windows where ulong==4
+    { uint32_t v = (uint32_t)Flags; memcpy(*stream, &v, sizeof(uint32_t)); *stream  += sizeof(uint32_t); }
 
 
     if (haves bitand WP_HAVE_TARGET)

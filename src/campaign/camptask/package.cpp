@@ -625,8 +625,8 @@ int PackageClass::Save(VU_BYTE **stream)
         memcpy(*stream, &tp_time, sizeof(CampaignTime));
         *stream += sizeof(CampaignTime);
         // package flags need to be saved always... MOVE IN FUTURE
-        memcpy(*stream, &package_flags, sizeof(ulong));
-        *stream += sizeof(ulong);
+        // FF_LINUX: emit 4 bytes (matches the uint32_t Load) — byte-identical on Windows where ulong==4
+        { uint32_t v = (uint32_t)package_flags; memcpy(*stream, &v, sizeof(uint32_t)); *stream += sizeof(uint32_t); }
         memcpy(*stream, &caps, sizeof(short));
         *stream += sizeof(short);
         memcpy(*stream, &requests, sizeof(short));
