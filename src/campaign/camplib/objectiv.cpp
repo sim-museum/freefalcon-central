@@ -2340,6 +2340,13 @@ void ObjectiveClass::SetFeatureStatus(int f, int n)
 {
     int i = f / 4;
 
+    // FF_LINUX: bound the feature index. OOB f writes past fstatus[i] (heap corruption),
+    // indexes FeatureEntryDataTable out of range, and the critical-link recursion (f-1/f+1)
+    // can push f past either end (negative shift is UB). The original "garbage" guards were
+    // misplaced (after the f%4 modulo) and never bounded the byte index.
+    if (f < 0 or not static_data.class_data or f >= static_data.class_data->Features)
+        return;
+
     if (GetFeatureStatus(f) == n)
         return;
 
@@ -2365,6 +2372,13 @@ void ObjectiveClass::SetFeatureStatus(int f, int n)
 void ObjectiveClass::SetFeatureStatus(int f, int n, int from)
 {
     int i = f / 4;
+
+    // FF_LINUX: bound the feature index. OOB f writes past fstatus[i] (heap corruption),
+    // indexes FeatureEntryDataTable out of range, and the critical-link recursion (f-1/f+1)
+    // can push f past either end (negative shift is UB). The original "garbage" guards were
+    // misplaced (after the f%4 modulo) and never bounded the byte index.
+    if (f < 0 or not static_data.class_data or f >= static_data.class_data->Features)
+        return;
 
     if (GetFeatureStatus(f) == n)
         return;
@@ -2410,17 +2424,16 @@ short ObjectiveClass::GetAdjustedDataRate(void)
 int ObjectiveClass::GetFeatureStatus(int f)
 {
     int i = f / 4;
+
+    // FF_LINUX: bound the byte index against the fstatus allocation
+    // (size = ((Features*2)+7)/8 bytes). The old "f > 255" check ran after the f%4
+    // modulo below and never bounded i, allowing an OOB read of fstatus[i].
+    if (f < 0 or not obj_data.fstatus or not static_data.class_data)
+        return 0;
+    if (i < 0 or i >= (((static_data.class_data->Features * 2) + 7) / 8))
+        return 0;
+
     f -= i * 4;
-
-    //if (f<=0)Cobra Put this back to below. This breaks damage stuff
-    if (f < 0)
-        return 0;
-
-    if (f > 255) // FRB - garbage check
-        return 0;
-
-    if ( not obj_data.fstatus)
-        return 0;
 
     return (obj_data.fstatus[i] >> (f * 2)) bitand 0x03;
 }
