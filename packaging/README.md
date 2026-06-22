@@ -43,22 +43,26 @@ for d in *.deb; do dpkg -x "$d" . ; done
 - The window title shows the git hash CMake was *configured* at; after a
   `ninja`-only rebuild re-run `cmake .` to refresh it.
 
-## Full relocatable AppImage (future / optional)
+## Relocatable AppDir / AppImage
 
-The dev binary's `RUNPATH` is an absolute path (`extern/usr/...`), so it is **not**
-relocatable as-is. To produce a portable AppImage:
+`packaging/build-appdir.sh` assembles a **relocatable AppDir** with no `patchelf`
+needed — its `AppRun` sets `LD_LIBRARY_PATH` to the bundled libs. It bundles the
+app's multimedia stack (SDL2, GLEW, OpenAL + private codec deps) and leaves the host
+to provide the GL driver, X/Wayland and glibc (the standard AppImage host/bundle
+split). The script verifies the bundle resolves before finishing.
 
-1. Re-link with an `$ORIGIN`-relative rpath, or `patchelf --set-rpath '$ORIGIN/lib'
-   FFViper` after copying the needed `.so` files next to it.
-2. Stage an AppDir: `AppRun` → launcher, `FFViper` + bundled
-   `libSDL2`, `libGLEW`, `libopenal` (NOT `libGL*` — use the host driver),
-   `freefalcon.desktop`, an icon.
-3. `appimagetool AppDir FreeFalcon6-x86_64.AppImage` (download `appimagetool`
-   if not installed).
+```bash
+packaging/build-appdir.sh                 # -> ./FreeFalcon6.AppDir (verified)
+FF_DATA_DIR=/path/to/FreeFalcon6 ./FreeFalcon6.AppDir/AppRun   # run it
+appimagetool ./FreeFalcon6.AppDir         # -> single-file .AppImage (needs appimagetool)
+```
 
-The data dir is still supplied at runtime via the launcher's `-d` flag, so even an
-AppImage does not embed game data. This step is documented but not yet automated —
-the `install.sh` path covers the common "I built it locally" case.
+Only the final single-file compression needs `appimagetool` (a self-contained
+download); everything up to it is automated and locally verified. Game data is still
+supplied at runtime via `FF_DATA_DIR`/`-d` — even the AppImage does not embed it.
+On the dev box `appimagetool`/`patchelf` are not installed and there is no clean test
+VM, so cross-machine relocation is structurally correct + locally `ldd`-verified but
+not yet run on a second machine.
 
 ## Upstreaming
 

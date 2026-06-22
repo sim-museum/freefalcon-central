@@ -20,3 +20,7 @@ obj/
 build-asan/
 extern/
 nohup.out
+
+# AppImage build artifact
+FreeFalcon6.AppDir/
+*.AppImage
