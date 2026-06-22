@@ -488,8 +488,15 @@ float TViewPoint::GetGroundLevelApproximation(float x, float y)
     bool ff_trace = false;
     int ff_range0 = blockLists[minLOD].RangeFromCenter(row, col);
     int ff_avail0 = blockLists[minLOD].GetAvailablePostRange();
-    Tpost* ff_finePost = blockLists[minLOD].GetPost(row, col);   // does a FINE post exist here?
-    float ff_fineZ = ff_finePost ? ff_finePost->z : -99999.0f;
+    float ff_fineZ = -99999.0f;
+    // FF_LINUX: only probe the fine post when it is in the loaded range. Calling GetPost on
+    // an out-of-range block dereferences a NULL block->Posts() (crash during OTWDriver.Enter
+    // setup). Out-of-range is exactly the "no fine data here" case we want to report anyway.
+    if (ff_range0 < ff_avail0)
+    {
+        Tpost* ff_finePost = blockLists[minLOD].GetPost(row, col);
+        if (ff_finePost) ff_fineZ = ff_finePost->z;
+    }
     if (g_ffRunwayDbg && getenv("FF_DEBUG_RUNWAY"))
     {
         static long ff_c = 0;
