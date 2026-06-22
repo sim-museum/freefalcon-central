@@ -11,12 +11,14 @@ void ReceiveChatString(VU_ID from, _TCHAR *message); // from ui\src\ui_comms.cpp
 
 UI_SendChatMessage::UI_SendChatMessage(VU_ID entityId, VuTargetEntity *target, VU_BOOL loopback) : FalconEvent(SendChatMessage, FalconEvent::SimThread, entityId, target, loopback)
 {
+    dataBlock.size = 0; dataBlock.message = NULL;  // FF_LINUX: don't let the dtor read uninitialized size / free a garbage pointer
     RequestOutOfBandTransmit();
     RequestReliableTransmit();
 }
 
 UI_SendChatMessage::UI_SendChatMessage(VU_MSG_TYPE type, VU_ID senderid, VU_ID target) : FalconEvent(SendChatMessage, FalconEvent::SimThread, senderid, target)
 {
+    dataBlock.size = 0; dataBlock.message = NULL;  // FF_LINUX: don't let the dtor read uninitialized size / free a garbage pointer
     RequestOutOfBandTransmit();
     RequestReliableTransmit();
     // Your Code Goes Here
