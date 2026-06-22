@@ -3232,7 +3232,9 @@ int BestTargetFeature(Objective o, uchar targeted[])
 
     // Find 'quickest fix'. That is, the feature which will give us the most operational
     // percentage in the shortest time.
-    for (f = 0; f < o->GetTotalFeatures(); f++)
+    // FF_LINUX: both callers pass a uchar targeted[128]; an objective whose
+    // GetTotalFeatures() exceeds 128 would overflow it (ASAN: campaign soak). Cap at 128.
+    for (f = 0; f < o->GetTotalFeatures() and f < 128; f++)
     {
         s = o->GetFeatureStatus(f);
 
