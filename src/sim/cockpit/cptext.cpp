@@ -54,7 +54,7 @@ CPText::~CPText()
         delete mpString[i];
     }
 
-    delete mpString;
+    delete[] mpString;
 }
 
 

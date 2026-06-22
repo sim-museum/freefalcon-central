@@ -124,7 +124,7 @@ void C_Fill::SetDither(short size, short range)
 #ifdef USE_SH_POOLS
             MemFreePtr(DitherPattern_);
 #else
-            delete DitherPattern_;
+            delete[] DitherPattern_;
 #endif
             DitherPattern_ = NULL;
         }
@@ -159,7 +159,7 @@ void C_Fill::Cleanup(void)
 #ifdef USE_SH_POOLS
         MemFreePtr(DitherPattern_);
 #else
-        delete DitherPattern_;
+        delete[] DitherPattern_;
 #endif
         DitherPattern_ = NULL;
     }

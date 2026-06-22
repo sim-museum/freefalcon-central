@@ -381,7 +381,7 @@ void O_Output::SetTextWidth(long w)
 #ifdef USE_SH_POOLS
             MemFreePtr(Label_);
 #else
-            delete Label_;
+            delete[] Label_;
 #endif
         }
         else

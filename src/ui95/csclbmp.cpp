@@ -115,7 +115,7 @@ void C_ScaleBitmap::InitOverlay()
         MemFreePtr(Overlay_);
 
 #else
-        delete Overlay_;
+        delete[] Overlay_;
 #endif
 
 #ifdef USE_SH_POOLS

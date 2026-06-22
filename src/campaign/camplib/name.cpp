@@ -57,7 +57,7 @@ void LoadNames(char* filename)
 
     if (NameIndex not_eq NULL)
     {
-        delete NameIndex;
+        delete[] NameIndex;
     }
 
     NameIndex = new short[NameEntries];

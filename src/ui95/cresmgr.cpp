@@ -440,7 +440,7 @@ void C_Resmgr::LoadData()
         return;
 
     if (Data_)
-        delete Data_;
+        delete[] Data_;
 
     strcpy(buffer, name_);
     strcat(buffer, ".rsc");
@@ -489,7 +489,7 @@ void C_Resmgr::UnloadData()
 {
     if (Data_)
     {
-        delete Data_;
+        delete[] Data_;
         Data_ = NULL;
     }
 }

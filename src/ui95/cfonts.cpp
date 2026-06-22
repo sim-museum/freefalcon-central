@@ -120,7 +120,7 @@ void C_Font::Cleanup()
         last = cur;
         cur = cur->Next;
         DeleteObject(last->Font_);
-        delete last->Widths_;
+        delete[] last->Widths_;
         delete last;
     }
 

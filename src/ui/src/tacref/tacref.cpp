@@ -80,7 +80,7 @@ void TacticalReference::Cleanup()
 
     if (Data_)
     {
-        delete Data_;
+        delete[] Data_;
         Data_ = NULL;
         Size_ = 0;
     }

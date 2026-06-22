@@ -80,11 +80,11 @@ void C_Custom::Cleanup(void)
     for (i = 0; i < Count_; i++)
         Items_[i].Cleanup();
 
-    delete Items_;
+    delete[] Items_;
 #ifdef USE_SH_POOLS
     MemFreePtr(ItemValues_);
 #else
-    delete ItemValues_;
+    delete[] ItemValues_;
 #endif
 
     Items_ = NULL;

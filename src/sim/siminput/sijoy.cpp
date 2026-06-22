@@ -1555,13 +1555,13 @@ BOOL JoystickCreateEffect(DWORD)
 
         if (axesArray)
         {
-            delete axesArray;
+            delete[] axesArray;
             axesArray = NULL;
         }
 
         if (dirArray)
         {
-            delete dirArray;
+            delete[] dirArray;
             dirArray = NULL;
         }
 
@@ -1643,7 +1643,7 @@ BOOL JoystickCreateEffect(DWORD)
 
                 if (forceData)
                 {
-                    delete forceData;
+                    delete[] forceData;
                     forceData = NULL;
                 }
 
@@ -1771,7 +1771,7 @@ BOOL JoystickCreateEffect(DWORD)
             case DIEFT_CONDITION:
                 if (conditionHolder)
                 {
-                    delete conditionHolder;
+                    delete[] conditionHolder;
                     conditionHolder = NULL;
                 }
 
@@ -1807,25 +1807,25 @@ BOOL JoystickCreateEffect(DWORD)
 
     if (axesArray)
     {
-        delete axesArray;
+        delete[] axesArray;
         axesArray = NULL;
     }
 
     if (dirArray)
     {
-        delete dirArray;
+        delete[] dirArray;
         dirArray = NULL;
     }
 
     if (forceData)
     {
-        delete forceData;
+        delete[] forceData;
         forceData = NULL;
     }
 
     if (conditionHolder)
     {
-        delete conditionHolder;
+        delete[] conditionHolder;
         conditionHolder = NULL;
     }
 

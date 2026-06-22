@@ -449,7 +449,7 @@ void C_Music::QNext(SOUNDSTREAM *Stream)
                     if (Stream->ImaInfo)
                     {
                         if (Stream->ImaInfo->src)
-                            delete Stream->ImaInfo->src;
+                            delete[] Stream->ImaInfo->src;
 
                         delete Stream->ImaInfo;
                         Stream->ImaInfo = NULL;

@@ -107,7 +107,7 @@ int FalconSendUnitData::Decode(VU_BYTE **buf, long *rem)
         {
             MonoPrint("Tossing old Set, starting a new one\n");
             // New data - toss the old stuff
-            delete session->unitDataReceiveBuffer;
+            delete[] session->unitDataReceiveBuffer;
             session->unitDataReceiveBuffer = NULL;
             session->unitDataReceiveSet = dataBlock.set;
             memset(session->unitDataReceived, 0, FS_MAXBLK / 8);

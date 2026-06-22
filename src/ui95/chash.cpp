@@ -58,7 +58,7 @@ void C_Hash::Cleanup()
                         MemFreePtr(prev->Record);
 
 #else
-                        delete[] (char*)prev->Record;  // FF_LINUX: AddTextID stores new _TCHAR[] (was new[]/delete -> heap corruption)
+                        delete prev->Record;
 #endif
                 }
 
@@ -387,7 +387,7 @@ void C_Hash::Remove(long ID)
                         MemFreePtr(prev->Record);
 
 #else
-                        delete[] (char*)prev->Record;  // FF_LINUX: AddTextID stores new _TCHAR[] (was new[]/delete -> heap corruption)
+                        delete prev->Record;
 #endif
                 }
 

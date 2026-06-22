@@ -47,7 +47,7 @@ DivisionClass::~DivisionClass(void)
         MemFreePtr(element);
 
 #else
-        delete element;
+        delete[] element;
 #endif
     element = NULL;
     next = NULL;
@@ -152,7 +152,7 @@ void DivisionClass::RemoveChildren(void)
         MemFreePtr(element);
 
 #else
-        delete element;
+        delete[] element;
 #endif
     element = NULL;
 }

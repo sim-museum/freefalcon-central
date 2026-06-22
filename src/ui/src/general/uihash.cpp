@@ -52,7 +52,7 @@ void UI_Hash::Cleanup()
             }
         }
 
-        delete Table_;
+        delete[] Table_;
         Table_ = NULL;
         TableSize_ = 0;
     }

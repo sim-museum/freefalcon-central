@@ -98,7 +98,7 @@ int FalconSendObjData::Process(uchar autodisp)
         if (dataBlock.set not_eq session->objDataReceiveSet)
         {
             // New data - toss the old stuff
-            delete session->objDataReceiveBuffer;
+            delete[] session->objDataReceiveBuffer;
             session->objDataReceiveBuffer = NULL;
             session->objDataReceiveSet = dataBlock.set;
             memset(session->objDataReceived, 0, FS_MAXBLK / 8);
