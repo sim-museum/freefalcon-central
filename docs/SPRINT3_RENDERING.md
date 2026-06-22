@@ -82,6 +82,31 @@ photo/description is enough.)
 
 ---
 
+## Issue C — Intermittent SIGSEGV in far-terrain draw (NVIDIA driver) — found by dogfight ASAN soak
+
+A 200s dogfight ASAN soak crashed once (SIGSEGV) inside `libnvidia-glcore` during
+far-terrain rendering. Symbolized backtrace:
+`SimLoop → OTWDriver::Cycle → RenderFrame (otwloop.cpp:2598) → ContextMPR::FlushPolyLists
+(context.cpp:2638) → RenderPolyList (context.cpp:2995) → D3D7Dev_DrawPrimitiveVB
+(d3d_gl.cpp:1507) → D3D7Device::DrawVertices (d3d_gl.cpp:3241) → NVIDIA driver → SEGV`.
+Immediately preceded by a non-fatal `fartex.cpp:537` assert (`texID < texCount` failed).
+
+**Ruled out:** the far-texture DB is NOT the direct cause — `FarTexDB::Select`,
+`Release`, and `Request` already bounds-guard `texID` on Linux (return early when
+`texID >= texCount`), so no OOB far-texture is bound. The bad `texID` reaching `Release`
+points at an upstream stale/corrupt texture reference (the documented texture-churn /
+campaign-aggregation-flap lifecycle area), and the actual fault is bad GL state at draw
+time inside the driver.
+
+**Why not blindly fixed:** it's intermittent (texture-churn timing), in the rendering
+pipeline, and any change (e.g. skipping a tile, altering the VB/scissor state at
+`DrawVertices`) needs a *rendered frame* to confirm terrain still draws correctly — the
+same PO-visual gate as issues A/B. IA + Campaign soaks did NOT hit this (dogfight-arena
+terrain only, or churn timing). **PO action:** if/when you fly dogfight and see a crash
+or far-terrain glitches, that's this; reproduce with the dogfight soak
+(`run-asan-ui-soak.sh dogfight "870,745@12;201,134@18;884,741@24;900,750@34" 200`) and
+the `/tmp/ff-asan-dogfight.log` backtrace will pinpoint the live draw call.
+
 ## Why this sprint is PO-gated, not blocked-forever
 I can write both candidate fixes; what I cannot do is see whether they worked. The
 moment you run one recipe and report what you see (a sentence + the log lines), the
