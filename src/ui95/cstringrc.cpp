@@ -73,7 +73,7 @@ void C_String::Cleanup()
 #ifdef USE_SH_POOLS
         MemFreePtr(IDTable_);
 #else
-        delete IDTable_;
+        delete[] IDTable_;  // FF_LINUX: new long[IDSize_]
 #endif
         IDTable_ = NULL;
     }

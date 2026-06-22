@@ -2121,7 +2121,7 @@ void UI_Cleanup()
 
     if (gScreenShotEnabled and gScreenShotBuffer)
     {
-        delete gScreenShotBuffer;
+        delete[] gScreenShotBuffer;  // FF_LINUX: new WORD[w*h]
         gScreenShotBuffer = NULL;
     }
 

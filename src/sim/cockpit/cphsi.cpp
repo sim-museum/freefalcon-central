@@ -696,7 +696,7 @@ CPHsiView::CPHsiView(ObjectInitStr *pobjectInitStr, HsiInitStr *phsiInitStr) : C
 CPHsiView::~CPHsiView(void)
 {
 
-    delete mpCompassCircle;
+    delete[] mpCompassCircle;  // FF_LINUX: new int[arraySize]
 
     //Wombat778 3-22-04 clean up buffers
     if (DisplayOptions.bRender2DCockpit)

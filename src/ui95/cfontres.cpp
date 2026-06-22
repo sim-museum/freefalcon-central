@@ -146,7 +146,7 @@ void C_Fontmgr::Cleanup()
 
     if (fontTable_)
     {
-        delete fontTable_;
+        delete[] fontTable_;  // FF_LINUX: new CharStr[fNumChars_]
         fontTable_ = NULL;
     }
 
@@ -154,7 +154,7 @@ void C_Fontmgr::Cleanup()
 
     if (kernList_)
     {
-        delete kernList_;
+        delete[] kernList_;  // FF_LINUX: new KerningStr[kNumKerns_]
         kernList_ = NULL;
     }
 
@@ -165,7 +165,7 @@ void C_Fontmgr::Cleanup()
 #ifdef USE_SH_POOLS
         MemFreePtr(fontData_);
 #else
-        delete fontData_;
+        delete[] fontData_;  // FF_LINUX: new char[dSize_]
 #endif
         fontData_ = NULL;
     }

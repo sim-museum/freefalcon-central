@@ -47,7 +47,7 @@ void TBlock::Cleanup(void)
         // MemFreeFS( posts );
         MemFreePtr(posts);
 #else
-        delete posts;
+        delete[] posts;  // FF_LINUX: posts is a Tpost[] array (was new[]/delete mismatch)
 #endif
     }
 
