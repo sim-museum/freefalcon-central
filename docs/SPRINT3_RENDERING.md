@@ -98,14 +98,25 @@ points at an upstream stale/corrupt texture reference (the documented texture-ch
 campaign-aggregation-flap lifecycle area), and the actual fault is bad GL state at draw
 time inside the driver.
 
-**Why not blindly fixed:** it's intermittent (texture-churn timing), in the rendering
-pipeline, and any change (e.g. skipping a tile, altering the VB/scissor state at
-`DrawVertices`) needs a *rendered frame* to confirm terrain still draws correctly — the
-same PO-visual gate as issues A/B. IA + Campaign soaks did NOT hit this (dogfight-arena
-terrain only, or churn timing). **PO action:** if/when you fly dogfight and see a crash
-or far-terrain glitches, that's this; reproduce with the dogfight soak
-(`run-asan-ui-soak.sh dogfight "870,745@12;201,134@18;884,741@24;900,750@34" 200`) and
-the `/tmp/ff-asan-dogfight.log` backtrace will pinpoint the live draw call.
+**FIXED (the texture-delete crash):** root-caused via 4 dogfight ASAN soaks. The
+far-texture's GL texture was deleted **immediately mid-frame** (`FF_DeleteGLObjects`
+deleted on the GL-owning thread) when terrain streaming freed it during the sim `Cycle`,
+pulling it out from under the **deferred** poly-list that still referenced it → driver
+SEGV at flush. Fix (commit, verified): always defer GL deletes to the frame-boundary
+drains (`FF_SimFrameEnd`/`FF_PresentPrimarySurface`), which run after all draws. The
+`DrawVertices` SEGV no longer reproduces.
+
+**STILL OPEN (deeper, rarer):** with the texture crash gone, the dogfight soak now gets
+further and occasionally SEGVs in `glClear` (`D3D7Dev_Clear`) in the first render frames
+right after deaggregation — i.e. a **GL-context/framebuffer-state race during the
+UI→sim render hand-off**, distinct from the texture issue (glClear faulting = corrupt GL
+state, not a guardable NULL). It was always present in that early-frame window, just
+masked by the texture crash that fired first. **Likely ASAN-timing-amplified** — normal
+(non-instrumented) dogfight play has not shown it (dogfight was verified end-to-end
+previously). Needs focused investigation of the GL-context transfer
+(`FF_ReleaseGLContext`/`FF_AcquireGLContext`) + first-frame readiness; PO-gated because
+verifying any change needs a rendered frame. Reproduce:
+`run-asan-ui-soak.sh dogfight "870,745@12;201,134@18;884,741@24;900,750@34" 200`.
 
 ## Why this sprint is PO-gated, not blocked-forever
 I can write both candidate fixes; what I cannot do is see whether they worked. The
