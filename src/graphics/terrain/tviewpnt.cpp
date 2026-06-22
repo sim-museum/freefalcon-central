@@ -484,16 +484,16 @@ float TViewPoint::GetGroundLevelApproximation(float x, float y)
     EnterCriticalSection(&cs_update);
 
 #ifdef FF_LINUX
+    extern int g_ffRunwayDbg;
+    bool ff_trace = false;
+    int ff_range0 = blockLists[minLOD].RangeFromCenter(row, col);
+    int ff_avail0 = blockLists[minLOD].GetAvailablePostRange();
+    Tpost* ff_finePost = blockLists[minLOD].GetPost(row, col);   // does a FINE post exist here?
+    float ff_fineZ = ff_finePost ? ff_finePost->z : -99999.0f;
+    if (g_ffRunwayDbg && getenv("FF_DEBUG_RUNWAY"))
     {
-        extern int g_ffRunwayDbg;
-        if (g_ffRunwayDbg && getenv("FF_DEBUG_RUNWAY"))
-        {
-            static int n = 0;
-            if (n++ < 16)
-                fprintf(stderr, "[RUNWAY] GGLapprox x=%.0f y=%.0f minLOD=%d maxLOD=%d row=%d col=%d range=%d availRange=%d\n",
-                        x, y, minLOD, maxLOD, row, col,
-                        blockLists[minLOD].RangeFromCenter(row, col), blockLists[minLOD].GetAvailablePostRange());
-        }
+        static long ff_c = 0;
+        if ((ff_c++ % 120) == 0) ff_trace = true;   // sample across the whole flight, not just startup
     }
 #endif
     // Figure out the highest detail level which has the required data available
@@ -505,6 +505,11 @@ float TViewPoint::GetGroundLevelApproximation(float x, float y)
 
         if (LOD > maxLOD)
         {
+#ifdef FF_LINUX
+            if (ff_trace)
+                fprintf(stderr, "[RUNWAY] GGLapprox pos=(%.0f,%.0f) range0=%d avail=%d fineZ=%.1f -> RAN OUT OF LODs (>maxLOD) elevation=0\n",
+                        x, y, ff_range0, ff_avail0, ff_fineZ);
+#endif
             // Unlock the viewpoint
             LeaveCriticalSection(&cs_update);
 
@@ -524,6 +529,12 @@ float TViewPoint::GetGroundLevelApproximation(float x, float y)
     {
         elevation = 0.0F;
     }
+
+#ifdef FF_LINUX
+    if (ff_trace)
+        fprintf(stderr, "[RUNWAY] GGLapprox pos=(%.0f,%.0f) range0=%d avail=%d fineLOD%d_z=%.1f -> resolvedLOD=%d elevation=%.1f\n",
+                x, y, ff_range0, ff_avail0, minLOD, ff_fineZ, LOD, elevation);
+#endif
 
     // Unlock the viewpoint
     LeaveCriticalSection(&cs_update);
