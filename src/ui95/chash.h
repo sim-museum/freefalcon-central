@@ -62,6 +62,12 @@ private:
 
     void (*Callback_)(void *rec);
 
+    // FF_LINUX: AddText/AddTextID allocate the Record with new _TCHAR[]; Add() stores
+    // a caller-owned (typically scalar-new) pointer. An instance is used one way or the
+    // other, so track which so Cleanup/Remove free with the matching form (delete[] vs
+    // delete) instead of a single wrong delete = heap corruption.
+    bool ownsStrings_;
+
 public:
 
     C_Hash();

@@ -8,6 +8,7 @@ C_Hash::C_Hash()
     Check_ = 0;
 
     Callback_ = NULL;
+    ownsStrings_ = false;  // FF_LINUX: set true once AddText/AddTextID store a new[] string
 }
 
 C_Hash::~C_Hash()
@@ -58,7 +59,7 @@ void C_Hash::Cleanup()
                         MemFreePtr(prev->Record);
 
 #else
-                        delete prev->Record;
+                        { if (ownsStrings_) delete[] (char*)prev->Record; else delete prev->Record; }
 #endif
                 }
 
@@ -166,6 +167,7 @@ long C_Hash::AddText(const _TCHAR *string)
     _tcsncpy(data, string, i);
     data[i] = 0;
     newhash->Record = data;
+    ownsStrings_ = true;  // FF_LINUX: data is new _TCHAR[] -> Cleanup must delete[] it
     newhash->Check = Check_;
     newhash->Next = NULL;
 
@@ -231,6 +233,7 @@ long C_Hash::AddTextID(long TextID, _TCHAR *string)
     data[i] = 0;
     newhash->ID = TextID;
     newhash->Record = data;
+    ownsStrings_ = true;  // FF_LINUX: data is new _TCHAR[] -> Cleanup must delete[] it
     newhash->Check = Check_;
     newhash->Next = NULL;
 
@@ -361,7 +364,7 @@ void C_Hash::Remove(long ID)
                 MemFreePtr(prev->Record);
 
 #else
-                delete prev->Record;
+                { if (ownsStrings_) delete[] (char*)prev->Record; else delete prev->Record; }
 #endif
         }
 
@@ -387,7 +390,7 @@ void C_Hash::Remove(long ID)
                         MemFreePtr(prev->Record);
 
 #else
-                        delete prev->Record;
+                        { if (ownsStrings_) delete[] (char*)prev->Record; else delete prev->Record; }
 #endif
                 }
 
@@ -423,7 +426,7 @@ void C_Hash::RemoveOld()
                     MemFreePtr(prev->Record);
 
 #else
-                    delete prev->Record;
+                    { if (ownsStrings_) delete[] (char*)prev->Record; else delete prev->Record; }
 #endif
             }
 
@@ -450,7 +453,7 @@ void C_Hash::RemoveOld()
                             MemFreePtr(prev->Record);
 
 #else
-                            delete prev->Record;
+                            { if (ownsStrings_) delete[] (char*)prev->Record; else delete prev->Record; }
 #endif
                     }
 
