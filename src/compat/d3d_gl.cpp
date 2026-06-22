@@ -3138,6 +3138,12 @@ int g_DrawVerticesCount = 0;
 static int g_RHWDrawCount_local = 0;
 static int g_WorldDrawCount_local = 0;
 void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* vertices, DWORD count) {
+#ifdef FF_LINUX
+    // FF_LINUX: skip degenerate draws. A NULL / zero / absurd-count vertex set handed to
+    // the GL immediate-mode path can fault inside the driver (observed during far-terrain
+    // texture churn in a dogfight soak). A draw with no valid vertices is a no-op, not a crash.
+    if (!vertices || count == 0 || count > 1000000u) return;
+#endif
     int vertexSize = GetVertexSize(fvf);
     GLenum glPrimType = GetGLPrimitiveType(primType);
     g_DrawVerticesCount++;
