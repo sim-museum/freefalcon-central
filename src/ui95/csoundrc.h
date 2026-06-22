@@ -39,7 +39,7 @@ public:
     void Cleanup()
     {
         if (filename)
-            delete filename;
+            delete[] filename;  // FF_LINUX: filename is new char[] (was new[]/delete mismatch)
 
         filename = NULL;
     }

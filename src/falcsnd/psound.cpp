@@ -3650,7 +3650,7 @@ SoundStream::~SoundStream()
     if (ImaInfo)
     {
         if (ImaInfo->srcbuffer)
-            delete ImaInfo->srcbuffer;
+            delete[] ImaInfo->srcbuffer;  // FF_LINUX: allocated new char[bufsize] (was new[]/delete mismatch)
 
         delete ImaInfo;
     }
