@@ -190,11 +190,14 @@ static std::vector<GLuint> g_DeferredTextureDeletes;
 static std::vector<GLuint> g_DeferredFboDeletes;
 
 static void FF_DeleteGLObjects(GLuint tex, GLuint fbo) {
-    if (SDL_GL_GetCurrentContext() != NULL) {
-        if (fbo) glDeleteFramebuffers(1, &fbo);
-        if (tex) glDeleteTextures(1, &tex);
-        return;
-    }
+    // FF_LINUX: ALWAYS defer to the next frame-boundary drain, even on the GL-owning
+    // thread. Deleting a texture immediately mid-frame can pull it out from under a
+    // DEFERRED poly-list that still references it -- terrain streaming frees far-textures
+    // during the sim Cycle, then FlushPolyLists draws far-terrain that sampled them, and
+    // the driver SIGSEGVs on the dead texture (reproduced in dogfight ASAN soaks:
+    // FlushPolyLists -> RenderPolyList -> DrawVertices -> libnvidia-glcore). The drains
+    // (FF_SimFrameEnd / FF_PresentPrimarySurface) run AFTER all draws, so deferring is
+    // safe; a GL texture name is not reused until it is actually deleted.
     std::lock_guard<std::mutex> lock(g_DeferredGLDeleteMutex);
     if (tex) g_DeferredTextureDeletes.push_back(tex);
     if (fbo) g_DeferredFboDeletes.push_back(fbo);

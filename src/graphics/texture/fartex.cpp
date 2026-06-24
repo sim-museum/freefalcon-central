@@ -546,10 +546,27 @@ void FarTexDB::Release(TextureID texID)
     // Release our hold on this texture
     texArray[texID].refCount--;
 
-    if (texArray[texID].refCount == 0)
+    if (texArray[texID].refCount <= 0)
     {
+#ifdef FF_LINUX
+        // FF_LINUX: do NOT free a far-texture the instant its refCount hits 0. A far-texture
+        // released by terrain streaming in one frame is still referenced by the DEFERRED
+        // poly-list (this frame) and often by the next frame's polys; freeing it (the GL
+        // texture delete) then SIGSEGVs in the driver during the far-terrain DrawVertices
+        // flush. Deferring just the glDeleteTextures call is not enough (the next frame still
+        // binds the dead name). The loaded far-texture set is bounded (~96k * 512B ~= 50MB
+        // worst case), so keeping them resident for the mission is cheap and crash-proof.
+        // FF_FARTEX_FREE=1 restores eager freeing.
+        texArray[texID].refCount = 0;   // clamp; keep resident
+        if (getenv("FF_FARTEX_FREE"))
+        {
+            Deactivate(texID);
+            Free(texID);
+        }
+#else
         Deactivate(texID);
         Free(texID);
+#endif
     }
 
     LeaveCriticalSection(&cs_textureList);

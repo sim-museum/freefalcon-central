@@ -34,19 +34,30 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 
 ### Needs the Product Owner's eyes (cannot be verified by the agent — no 3D frame capture)
 
-1. **Runway landing (highest value).** Runways render ~10 ft below the surrounding
-   terrain; the jet lands beside/through them. Root-caused from a PO flight: flat
-   runway surfaces only refreshed their elevation on an LOD change, so on a steady
-   approach they stayed frozen at the far-time coarse value (~0) while collision used
-   the fine ~10 ft. **Candidate fix committed** — flat surfaces now re-fetch the
-   accurate `GetGroundLevel` every frame (`FF_RUNWAY_OLD=1` reverts). **Awaiting a
-   verification flight:** `FF_DEBUG_RUNWAY=1 ... -w` then `grep "GGLapprox pos"
-   /tmp/ff_runway.log | tail -40` (the probe reports `fineLOD0_z`, confirming the fix).
-2. **Dogfight `glClear` GL-state race.** With the far-terrain texture crash fixed, a
-   deeper/rarer SEGV in `glClear` appears in the first frames after deaggregation — a
-   GL-context/framebuffer-readiness race during the UI→sim hand-off, almost certainly
-   ASAN-timing-amplified (normal dogfight play has not shown it). PO-gated.
-3. **Terrain visible through 3D-pit MFD screens (#10), ACMI, night ops, weather** —
+1. **Runway landing (highest value).** Two distinct sub-problems, both now fixed and
+   awaiting a PO verification flight of the "Landing Final Approach" TE:
+   - *Elevation:* flat runway surfaces only refreshed z on an LOD change, so on a
+     steady approach they stayed frozen at the far-time coarse value while collision
+     used the fine elevation. Fixed: flat surfaces re-fetch the accurate
+     `GetGroundLevel` every frame (`FF_RUNWAY_OLD=1` reverts).
+   - *Visibility:* placing the runway exactly AT the terrain z made it z-fight the
+     terrain mesh and vanish. Fixed: lift it ~3 ft above the terrain (a decal),
+     tunable via `FF_RUNWAY_ZLIFT`. (`GetGroundLevel` returns the real height only
+     when the player is near the airfield; far away it falls back to ~0 — so the value
+     resolves correctly on approach.)
+   - **Verify:** fly the landing TE; runway should now be visible and the jet land on
+     it. `FF_DEBUG_RUNWAY=1` logs `[RUNWAY] flat GetGroundLevel=.. decal=.. -> z=..`.
+2. **Far-terrain crash (was blocking the landing test).** The jet's window "exited
+   before landing" = a far-terrain `DrawVertices` → NVIDIA-driver SIGSEGV. A far-texture
+   freed by terrain streaming in one frame is still referenced the next frame; freeing
+   it mid-render killed the driver (deferring just the GL delete was not enough).
+   **Fixed:** far-textures stay resident for the mission (bounded ~50 MB; the loaded set
+   is finite), `FF_FARTEX_FREE=1` restores eager freeing. Verified: 0 crashes in a 95 s
+   Instant Action flight (previously reproduced repeatedly).
+3. **Dogfight `glClear` GL-state race.** A separate, rarer SEGV in `glClear` in the
+   first frames after deaggregation (GL-context/framebuffer-readiness race), almost
+   certainly ASAN-timing-amplified. PO-gated.
+4. **Terrain visible through 3D-pit MFD screens (#10), ACMI, night ops, weather** —
    untested/visual.
 
 ### Low-frequency / deferred (documented in `docs/SPRINT2_CRASH.md`)

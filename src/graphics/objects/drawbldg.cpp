@@ -81,14 +81,20 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
         if (g_ffRunwayDbg && !getenv("FF_RUNWAY_OLD"))
         {
             float gl = renderer->viewpoint->GetGroundLevel(position.x, position.y);
+            // FF_LINUX: lift the runway a few feet ABOVE the terrain (a decal). Placing it
+            // exactly AT the terrain z makes it z-fight the terrain mesh -> the runway
+            // flickers/vanishes (it was visible before only because the old coarse z left it
+            // BELOW the terrain). Negative z is UP, so subtract. Tunable via FF_RUNWAY_ZLIFT.
+            static float decal = -9999.f;
+            if (decal < -9000.f) { const char* e = getenv("FF_RUNWAY_ZLIFT"); decal = e ? (float)atof(e) : 3.0f; }
             if (getenv("FF_DEBUG_RUNWAY"))
             {
                 static long c = 0;
                 if ((c++ % 120) == 0)
-                    fprintf(stderr, "[RUNWAY] flat re-fetch GetGroundLevel=%.1f (was z=%.1f) pos=(%.0f,%.0f)\n",
-                            gl, position.z, position.x, position.y);
+                    fprintf(stderr, "[RUNWAY] flat GetGroundLevel=%.1f decal=%.1f -> z=%.1f pos=(%.0f,%.0f)\n",
+                            gl, decal, gl - decal, position.x, position.y);
             }
-            position.z = gl;
+            position.z = gl - decal;
             previousLOD = LOD;
         }
         else if (LOD not_eq previousLOD)
