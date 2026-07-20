@@ -2807,6 +2807,62 @@ static void main_loop(void) {
             }
         }
 
+        // FF_LINUX: sim-mode (3D) frame capture, the counterpart of FF_UI_SCREENSHOT.
+        //   FF_SIM_SCREENSHOT="<sec>[:<path>];<sec>[:<path>];..."
+        // Each entry requests one capture <sec> seconds after the sim starts
+        // rendering; the default path is /tmp/ff_sim_<N>.bmp.
+        //
+        // The capture itself deliberately does NOT happen here: this is the MAIN
+        // thread, and in sim mode the SIM thread owns the GL context (see
+        // FF_SimThreadAcquireGL). A glReadPixels from here reads a context this
+        // thread does not have current -> the historical "white frame" / driver
+        // SIGSEGV. Instead we only raise a request flag; the sim thread services it
+        // inside its own swap path (ImageBuffer::SwapBuffers, immediately before
+        // FF_SwapBuffers/SDL_GL_SwapWindow), i.e. on the context-owning thread with
+        // the frame complete. Same mechanism the FF_VIEW_SCRIPT 's' action uses.
+        if (!doUI) {
+            static int s_ssInit = 0;
+            static struct { Uint32 atMs; int fired; char path[128]; } s_ss[16];
+            static int s_nSs = 0;
+            static Uint32 s_ssStart = 0;
+            if (!s_ssInit) {
+                s_ssInit = 1;
+                const char* e = getenv("FF_SIM_SCREENSHOT");
+                if (e) {
+                    char buf[512];
+                    strncpy(buf, e, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
+                    int idx = 0;
+                    for (char* tok = strtok(buf, ";"); tok && s_nSs < 16; tok = strtok(NULL, ";")) {
+                        float at = 0.0f; char p[128];
+                        p[0] = 0;
+                        if (sscanf(tok, "%f:%127s", &at, p) >= 1) {
+                            s_ss[s_nSs].atMs = (Uint32)(at * 1000.0f);
+                            s_ss[s_nSs].fired = 0;
+                            if (p[0]) snprintf(s_ss[s_nSs].path, sizeof(s_ss[s_nSs].path), "%s", p);
+                            else snprintf(s_ss[s_nSs].path, sizeof(s_ss[s_nSs].path), "/tmp/ff_sim_%d.bmp", idx);
+                            idx++; s_nSs++;
+                        }
+                    }
+                    fprintf(stderr, "[FF_SIM_SCREENSHOT] parsed %d capture(s)\n", s_nSs);
+                }
+            }
+            if (s_nSs) {
+                if (!s_ssStart) s_ssStart = SDL_GetTicks();
+                Uint32 el = SDL_GetTicks() - s_ssStart;
+                for (int si = 0; si < s_nSs; si++) {
+                    // Serialise: only arm the next request once the sim thread has
+                    // consumed the previous one (g_screenshotRequest back to 0).
+                    if (!s_ss[si].fired && el >= s_ss[si].atMs && !g_screenshotRequest) {
+                        s_ss[si].fired = 1;
+                        g_screenshotFilename = s_ss[si].path;
+                        g_screenshotRequest = 1;
+                        fprintf(stderr, "[FF_SIM_SCREENSHOT] requested %s at %ums\n", s_ss[si].path, el);
+                        fflush(stderr);
+                    }
+                }
+            }
+        }
+
         // FF_LINUX debug: scripted sim key injection via FF_SIM_KEY="dik@sec[+holdms];..."
         // dik = DirectInput key code (decimal or 0x-hex, e.g. 57 or 0x39 = SPACE),
         // sec = seconds after entering sim mode, holdms = hold duration (default 250).

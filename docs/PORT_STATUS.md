@@ -27,7 +27,7 @@ compatibility layer and keeps the original game code largely intact:
 | Win32 API (files, threads, sync, registry-ish `.ini`) | `src/compat/` headers: pthreads-backed `CRITICAL_SECTION`/events/threads, case-insensitive file resolution (`fopen_nocase`), real `GetPrivateProfileInt/String` |
 | MSVC build | CMake + Ninja, GCC, 64-bit |
 
-**Repository:** `/home/g/ff`, branch `develop`, pushed to `sim-museum/freefalcon-central`.
+**Repository:** `/home/admin/free-falcon`, branch `develop`, pushed to `sim-museum/freefalcon-central`.
 The window title bar shows the git hash the binary was built from, e.g.
 `Free Falcon 6 Linux Port [00725ef1]`.
 
@@ -151,45 +151,45 @@ them first. Each was fixed in multiple places and is documented at the fix sites
   they are extracted into `extern/usr` (gitignored). To recreate:
 
 ```bash
-cd /home/g/ff/extern
+cd /home/admin/free-falcon/extern
 apt-get download libsdl2-dev libglew-dev libglew2.2 libopenal-dev
 for d in *.deb; do dpkg -x "$d" . ; done
 ```
 
 * Game data: a FreeFalcon 6 installation (e.g., from an old Wine prefix). Dev machine path:
-  `/home/g/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6`. The data dir needs a
+  `/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6`. The data dir needs a
   `sim -> Zips/sim` symlink (zip contents pre-extracted; the resource-manager zip path is
   bypassed on Linux).
 
 ## 5.2 Build
 
 ```bash
-cd /home/g/ff/build        # CMake already configured with -G Ninja (Release)
+cd /home/admin/free-falcon/build        # CMake already configured with -G Ninja (Release)
 ninja                       # incremental build; full build ~570 targets
 # ASAN variant:
-cd /home/g/ff/build-asan && ninja
+cd /home/admin/free-falcon/build-asan && ninja
 ```
 
 First-time configure, if ever needed:
 
 ```bash
-cmake -S /home/g/ff -B /home/g/ff/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake -S /home/admin/free-falcon -B /home/admin/free-falcon/build -G Ninja -DCMAKE_BUILD_TYPE=Release
 ```
 
 After adding source files that use Windows-cased `#include`s, regenerate the case-alias
-symlinks: `python3 /home/g/ff/fix_include_case.py` (run from the repo root; converges in
+symlinks: `python3 /home/admin/free-falcon/fix_include_case.py` (run from the repo root; converges in
 two passes).
 
 ## 5.3 Run
 
 ```bash
 # Easiest: the launcher script (also exposed as a desktop entry "FreeFalcon 6 (Linux Port)")
-/home/g/ff/run-freefalcon.sh            # normal windowed session
-/home/g/ff/run-freefalcon.sh -test-ia   # auto-launch Instant Action (testing)
+/home/admin/free-falcon/run-freefalcon.sh            # normal windowed session
+/home/admin/free-falcon/run-freefalcon.sh -test-ia   # auto-launch Instant Action (testing)
 
 # Equivalent manual invocation:
-cd /home/g/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
-/home/g/ff/build/src/ffviper/FFViper -d "$PWD" -w
+cd /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
+/home/admin/free-falcon/build/src/ffviper/FFViper -d "$PWD" -w
 ```
 
 `-d <dir>` points at the game data; `-w` selects windowed mode (1024×768).

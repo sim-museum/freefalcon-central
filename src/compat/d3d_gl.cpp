@@ -4206,6 +4206,37 @@ void SaveGLFramebufferAsBMP(const char* filename) {
     }
     if (w <= 0 || h <= 0) return;
 
+#ifdef FF_LINUX
+    // FF_LINUX: harden the read against the state the sim thread may be in when
+    // the capture fires. This is what made sim-mode capture "return white" and
+    // occasionally SIGSEGV inside libnvidia-glcore:
+    //   * an RTT canvas FBO (cockpit HUD/MFD/DED render targets, see the
+    //     glBindFramebuffer sites above) can still be bound -> glReadPixels reads
+    //     that small, freshly-cleared target instead of the window;
+    //   * a bound GL_PIXEL_PACK_BUFFER turns the `pixels` pointer into a buffer
+    //     OFFSET -> the driver writes into the PBO / faults;
+    //   * the read buffer may be left on a colour attachment.
+    // Bind the default framebuffer + no PBO + GL_BACK for the read, then restore.
+    // FF_NO_CAPTURE_FIX=1 reverts to the old unguarded read.
+    static int s_noCapFix = -1;
+    if (s_noCapFix < 0) s_noCapFix = getenv("FF_NO_CAPTURE_FIX") ? 1 : 0;
+    GLint oldReadFbo = 0, oldPackBuf = 0, oldReadBuf = 0;
+    if (!s_noCapFix) {
+        glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &oldReadFbo);
+        glGetIntegerv(GL_PIXEL_PACK_BUFFER_BINDING, &oldPackBuf);
+        glGetIntegerv(GL_READ_BUFFER, &oldReadBuf);
+        if (oldReadFbo != 0) glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        if (oldPackBuf != 0) glBindBuffer(GL_PIXEL_PACK_BUFFER, 0);
+        glReadBuffer(GL_BACK);
+        glPixelStorei(GL_PACK_ROW_LENGTH, 0);
+        glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
+        glPixelStorei(GL_PACK_SKIP_ROWS, 0);
+        // Make sure every draw of this frame has landed before we read it back.
+        glFinish();
+        while (glGetError() != GL_NO_ERROR) { }
+    }
+#endif
+
     // Set pack alignment to 1 to avoid row padding mismatch
     GLint oldAlign;
     glGetIntegerv(GL_PACK_ALIGNMENT, &oldAlign);
@@ -4214,6 +4245,19 @@ void SaveGLFramebufferAsBMP(const char* filename) {
     unsigned char* pixels = (unsigned char*)malloc(w * h * 3);
     if (!pixels) { glPixelStorei(GL_PACK_ALIGNMENT, oldAlign); return; }
     glReadPixels(0, 0, w, h, GL_BGR, GL_UNSIGNED_BYTE, pixels);
+
+#ifdef FF_LINUX
+    if (!s_noCapFix) {
+        GLenum err = glGetError();
+        if (err != GL_NO_ERROR)
+            fprintf(stderr, "[Screenshot] glReadPixels glErr=0x%x (fbo was %d, pbo was %d)\n",
+                    (unsigned)err, (int)oldReadFbo, (int)oldPackBuf);
+        // Restore whatever the renderer had bound.
+        if (oldReadBuf) glReadBuffer((GLenum)oldReadBuf);
+        if (oldPackBuf != 0) glBindBuffer(GL_PIXEL_PACK_BUFFER, (GLuint)oldPackBuf);
+        if (oldReadFbo != 0) glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)oldReadFbo);
+    }
+#endif
 
     #pragma pack(push, 1)
     struct { uint16_t type; uint32_t size; uint16_t r1, r2; uint32_t offset; } bh;
@@ -4237,7 +4281,34 @@ void SaveGLFramebufferAsBMP(const char* filename) {
         }
         free(row);
         fclose(f);
+#ifdef FF_LINUX
+        // FF_LINUX: print objective content stats with the save, so an automated
+        // caller can tell "real frame" from "white/black frame" straight from the
+        // log (the harness in tools/ff_validate.sh does the full per-band report).
+        {
+            unsigned long nonBlack = 0, nonWhite = 0;
+            unsigned long long sr = 0, sg = 0, sb = 0;
+            unsigned distinct = 0;
+            static unsigned char seen[1 << 15];  // 5:5:5 colour-presence bitmap-ish
+            memset(seen, 0, sizeof(seen));
+            for (int i = 0; i < w * h; i++) {
+                unsigned char b = pixels[i * 3 + 0], g = pixels[i * 3 + 1], r = pixels[i * 3 + 2];
+                if (r || g || b) nonBlack++;
+                if (r != 255 || g != 255 || b != 255) nonWhite++;
+                sr += r; sg += g; sb += b;
+                unsigned key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+                if (!seen[key]) { seen[key] = 1; distinct++; }
+            }
+            double n = (double)(w * h);
+            fprintf(stderr, "[Screenshot] Saved %dx%d framebuffer to %s "
+                            "(nonblack=%.1f%% nonwhite=%.1f%% distinct15bit=%u avgRGB=%d,%d,%d)\n",
+                    w, h, filename, 100.0 * nonBlack / n, 100.0 * nonWhite / n, distinct,
+                    (int)(sr / (unsigned long long)n), (int)(sg / (unsigned long long)n),
+                    (int)(sb / (unsigned long long)n));
+        }
+#else
         fprintf(stderr, "[Screenshot] Saved %dx%d framebuffer to %s\n", w, h, filename);
+#endif
     }
     free(pixels);
     glPixelStorei(GL_PACK_ALIGNMENT, oldAlign);

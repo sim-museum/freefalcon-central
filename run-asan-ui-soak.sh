@@ -9,8 +9,9 @@ set -u
 [ $# -ge 2 ] || { echo "usage: $0 <label> \"<FF_UI_CLICK>\" [secs]"; exit 2; }
 LABEL="$1"; CLICKS="$2"; T="${3:-200}"
 export DISPLAY=:0
-GAMEDATA="/home/g/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6"
-BIN="/home/g/ff/build-asan/src/ffviper/FFViper"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GAMEDATA="${FF_GAMEDATA:-$HOME/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6}"
+BIN="${FF_ASAN_BIN:-$SCRIPT_DIR/build-asan/src/ffviper/FFViper}"
 LOG="/tmp/ff-asan-${LABEL}.log"
 pgrep -f mutter-x11-frames >/dev/null || { setsid /usr/libexec/mutter-x11-frames >/dev/null 2>&1 & sleep 1; }
 cd "$GAMEDATA" || { echo "no game data"; exit 1; }

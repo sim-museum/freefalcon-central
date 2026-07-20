@@ -37,13 +37,31 @@ next sprint). Developer/Scrum execution: Claude (autonomous between impediments)
 8. OpenGL state-at-call-time vs D3D state-at-draw-time (clear masks, light xform,
    per-vertex emissive, DXT1 RGBA variant).
 
-# Known hard impediment (Product-Owner action required)
+# Known hard impediment — RESOLVED (July 2026)
 
-The agent **cannot capture sim-mode (3D) frames** — `glReadPixels` returns white
-and external window-grab is black during GL rendering. Every *rendering-correctness*
-defect therefore needs the PO's eyes to confirm. Such items are prepared with
-env-toggleable candidate fixes and **batched to the PO at a sprint's review** rather
-than blind-iterated.
+~~The agent cannot capture sim-mode (3D) frames.~~ **Sim-mode frame capture works.**
+The capture must happen on the thread that owns the GL context — in sim mode that is
+the SIM thread — inside its own swap path, i.e. in `ImageBuffer::SwapBuffers`
+(`src/graphics/ddstuff/imagebuf.cpp`) immediately before `FF_SwapBuffers()` /
+`SDL_GL_SwapWindow`, when the frame is complete. A `glReadPixels` issued from the main
+thread reads a context it does not have current (→ white), and an external window grab
+is black under Wayland/XWayland while the sim thread is presenting.
+
+The read is additionally guarded (`SaveGLFramebufferAsBMP`, `src/compat/d3d_gl.cpp`)
+against the state the sim thread can be in: default framebuffer bound (a cockpit RTT
+canvas FBO may still be current), no pixel-pack buffer, `GL_BACK` read buffer,
+`GL_PACK_ALIGNMENT` 1, `glFinish` first. `FF_NO_CAPTURE_FIX=1` reverts the guards.
+
+Hooks: `FF_SIM_SCREENSHOT="<sec>[:<path>];..."` (sim), the `s` action of
+`FF_VIEW_SCRIPT` (sim), `FF_UI_SCREENSHOT=<sec>` (UI). Objective validation harness:
+`tools/ff_validate.sh <tag> [-m sim|ui] [-t sec] [-v viewmode] [-c clicks]` — captures
+one frame and prints size / distinct colours / non-black % / per-band average RGB,
+exiting non-zero on a blank frame.
+
+Note: the documented "FF_VIEW_SCRIPT screenshots SIGSEGV in libnvidia-glcore right
+after glReadPixels" is **not** a capture bug — the same SIGSEGV (far-terrain
+`DrawVertices`, Sprint 3 issue C) reproduces identically in a run with no screenshot
+at all.
 
 ---
 

@@ -33,7 +33,7 @@
  * Resolves each path component case-insensitively against the
  * actual directory contents. Backslashes are converted to '/'.
  * ============================================================ */
-static int resolve_nocase(const char *filepath, char *resolved, size_t resolvedSize) {
+static int resolve_nocase_uncached(const char *filepath, char *resolved, size_t resolvedSize) {
     char work[2048];
     size_t i = 0;
     for (; filepath[i] && i < sizeof(work) - 1; i++)
@@ -114,9 +114,158 @@ static int resolve_nocase(const char *filepath, char *resolved, size_t resolvedS
     return 0;
 }
 
+/* ============================================================
+ * FF_LINUX: resolve_nocase() result cache
+ *
+ * Every texture / terrain / model / resource load goes through
+ * resolve_nocase(), and each miss of the exact-case fast path
+ * re-opendir()s *every* component of the path. That is squarely on
+ * the hot loading path, so the resolved names are cached.
+ *
+ * Correctness rules (the game creates and writes files: campaign
+ * saves, logbook, debrief, ACMI):
+ *   1. ONLY successful resolutions are cached. A negative result is
+ *      never remembered, so a file that appears later (because the
+ *      game just created it) is always found.
+ *   2. Every cache hit is validated with a single access(F_OK) on the
+ *      cached target. If it has been deleted or renamed the entry is
+ *      dropped and the full walk re-runs. One syscall still beats N
+ *      directory scans.
+ *   3. Any create/write open (fopen_nocase with w/a/+, open_nocase
+ *      with O_CREAT/O_TRUNC/write access) flushes the whole cache, so
+ *      a save that changes what exists on disk can never be served
+ *      from a stale entry. Writes are rare; reads are the hot path.
+ *
+ * FF_NO_PATHCACHE=1   - bypass the cache entirely (revert switch).
+ * FF_TRACE_PATHCACHE=1- hit/miss/validate-fail/flush trace + periodic
+ *                       summary on stderr.
+ * ============================================================ */
+#include <string>
+#include <unordered_map>
+#include <mutex>
+
+#define FF_PATHCACHE_MAX 20000
+
+static std::mutex                                    g_pcMutex;
+static std::unordered_map<std::string, std::string> *g_pcMap = NULL;
+static unsigned long g_pcHits = 0, g_pcMisses = 0, g_pcStale = 0, g_pcFlushes = 0;
+
+static int pc_disabled(void) {
+    static int v = -1;
+    if (v < 0) v = getenv("FF_NO_PATHCACHE") ? 1 : 0;
+    return v;
+}
+static int pc_trace(void) {
+    static int v = -1;
+    if (v < 0) v = getenv("FF_TRACE_PATHCACHE") ? 1 : 0;
+    return v;
+}
+
+static void pc_report(void) {
+    if (!pc_trace()) return;
+    unsigned long total = g_pcHits + g_pcMisses;
+    if (total && (total % 1000) == 0)
+        fprintf(stderr, "[PATHCACHE] lookups=%lu hits=%lu (%.1f%%) misses=%lu stale=%lu flushes=%lu entries=%zu\n",
+                total, g_pcHits, 100.0 * (double)g_pcHits / (double)total,
+                g_pcMisses, g_pcStale, g_pcFlushes, g_pcMap ? g_pcMap->size() : (size_t)0);
+}
+
+/* Drop everything. Called whenever the caller is about to create or
+   write a file, i.e. whenever the on-disk name set may change. */
+static void pc_flush(const char *why) {
+    if (pc_disabled()) return;
+    std::lock_guard<std::mutex> lk(g_pcMutex);
+    if (g_pcMap && !g_pcMap->empty()) {
+        if (pc_trace())
+            fprintf(stderr, "[PATHCACHE] flush (%s): dropped %zu entries\n", why, g_pcMap->size());
+        g_pcMap->clear();
+        g_pcFlushes++;
+    }
+}
+
+/* Decide whether a create/write open really needs a flush.
+   Writing to a file that ALREADY exists cannot change the set of names on
+   disk, so every cached resolution stays valid - no flush needed. Only a
+   write that may CREATE a new name invalidates the cache. (Without this the
+   port's per-frame diagnostic log opens flushed the cache thousands of times
+   per mission and the hit rate collapsed to ~20%.) Deletions/renames are
+   covered separately by the per-hit access() validation. */
+static void pc_flush_for_write(const char *filepath, const char *why) {
+    if (pc_disabled() || !filepath) return;
+    char conv[2048];
+    size_t i = 0;
+    for (; filepath[i] && i < sizeof(conv) - 1; i++)
+        conv[i] = (filepath[i] == '\\') ? '/' : filepath[i];
+    conv[i] = '\0';
+    if (access(conv, F_OK) == 0) return;             /* plain overwrite */
+    {
+        std::lock_guard<std::mutex> lk(g_pcMutex);
+        if (g_pcMap) {
+            std::unordered_map<std::string, std::string>::iterator it = g_pcMap->find(filepath);
+            if (it != g_pcMap->end() && access(it->second.c_str(), F_OK) == 0)
+                return;                              /* overwrite of a case-variant */
+        }
+    }
+    pc_flush(why);                                   /* may create a new name */
+}
+
+static int resolve_nocase(const char *filepath, char *resolved, size_t resolvedSize) {
+    if (pc_disabled() || !filepath || !*filepath)
+        return resolve_nocase_uncached(filepath, resolved, resolvedSize);
+
+    {
+        std::lock_guard<std::mutex> lk(g_pcMutex);
+        if (!g_pcMap) g_pcMap = new std::unordered_map<std::string, std::string>();
+        std::unordered_map<std::string, std::string>::iterator it = g_pcMap->find(filepath);
+        if (it != g_pcMap->end()) {
+            /* Validate: the target must still exist (rule 2). */
+            if (access(it->second.c_str(), F_OK) == 0) {
+                strncpy(resolved, it->second.c_str(), resolvedSize - 1);
+                resolved[resolvedSize - 1] = '\0';
+                g_pcHits++;
+                if (pc_trace()) {
+                    fprintf(stderr, "[PATHCACHE] hit  %s -> %s\n", filepath, it->second.c_str());
+                    pc_report();
+                }
+                return 0;
+            }
+            g_pcStale++;
+            if (pc_trace())
+                fprintf(stderr, "[PATHCACHE] stale %s -> %s (gone, re-resolving)\n",
+                        filepath, it->second.c_str());
+            g_pcMap->erase(it);
+        }
+    }
+
+    int rc = resolve_nocase_uncached(filepath, resolved, resolvedSize);
+
+    {
+        std::lock_guard<std::mutex> lk(g_pcMutex);
+        g_pcMisses++;
+        /* Rule 1: cache successes only. */
+        if (rc == 0 && g_pcMap) {
+            if (g_pcMap->size() >= FF_PATHCACHE_MAX) {
+                if (pc_trace())
+                    fprintf(stderr, "[PATHCACHE] cap %d reached, clearing\n", FF_PATHCACHE_MAX);
+                g_pcMap->clear();
+            }
+            (*g_pcMap)[filepath] = resolved;
+        }
+        if (pc_trace()) {
+            fprintf(stderr, "[PATHCACHE] miss %s -> %s (rc=%d)\n", filepath, resolved, rc);
+            pc_report();
+        }
+    }
+    return rc;
+}
+
 extern "C" FILE *fopen_nocase(const char *filepath, const char *mode) {
     if (!filepath || !mode)
         return NULL;
+    /* FF_LINUX: a write/append/update open can create a file or change what
+       exists on disk -> drop the resolve cache (rule 3 above). */
+    if (strchr(mode, 'w') || strchr(mode, 'a') || strchr(mode, '+'))
+        pc_flush_for_write(filepath, "fopen write");
     char resolved[2048];
     if (resolve_nocase(filepath, resolved, sizeof(resolved)) == 0) {
         /* Windows fopen() fails on directories; Linux succeeds. Match Windows. */
@@ -134,6 +283,10 @@ extern "C" FILE *fopen_nocase(const char *filepath, const char *mode) {
 extern "C" int open_nocase(const char *filepath, int flags, int mode) {
     if (!filepath)
         return -1;
+    /* FF_LINUX: same rule as fopen_nocase - any create/truncate/write open
+       may change the on-disk name set, so drop the resolve cache. */
+    if ((flags & (O_CREAT | O_TRUNC)) || (flags & O_ACCMODE) == O_WRONLY || (flags & O_ACCMODE) == O_RDWR)
+        pc_flush_for_write(filepath, "open write");
     char resolved[2048];
     if (resolve_nocase(filepath, resolved, sizeof(resolved)) == 0)
         return open(resolved, flags, mode);

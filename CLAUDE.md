@@ -248,19 +248,19 @@ The UI uses a custom "UI95" windowing system with these key components:
 ### Key Directories
 - `src/ui95/` - UI system implementation
 - `src/compat/` - Linux compatibility layer (Windows API emulation)
-- Game data: `/home/g/ese/SAT/WP/drive_c/FreeFalcon6/`
+- Game data: `/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/`
 
 ## Build Instructions (updated June 2026)
 
 ```bash
-cd /home/g/ff/build
+cd /home/admin/free-falcon/build
 ninja
 # run from the game data directory:
-cd /home/g/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
-/home/g/ff/build/src/ffviper/FFViper -d "$PWD" -w
+cd /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
+/home/admin/free-falcon/build/src/ffviper/FFViper -d "$PWD" -w
 ```
 
-- Game data: `/home/g/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6` (wine install;
+- Game data: `/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6` (wine install;
   the older `/home/g/ese/...` path mentioned elsewhere in this file is stale).
 - SDL2/GLEW/OpenAL dev headers live in `extern/usr` (extracted .debs, gitignored;
   re-create with `apt-get download libsdl2-dev libglew-dev libglew2.2 libopenal-dev`
@@ -551,7 +551,7 @@ Uses CMake with the following structure:
 
 ### Data Files
 
-Game data location: `/home/g/ese/SAT/WP/drive_c/FreeFalcon6/`
+Game data location: `/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/`
 
 Key data directories:
 - `art/` - UI resources and textures
@@ -3870,6 +3870,10 @@ match the latest commit, check the title first (this resolved repeated
 | FF_PIT_NO_LIGHTING=1 | Restore old force-unlit 3D-pit rendering (default is now lit, matching Windows) |
 | FF_UI_CLICK="x,y@sec[d|r];..." | Scripted UI clicks (UI coords 1024x768) |
 | FF_UI_SCREENSHOT=N | Dump /tmp/ff_ui.bmp every N seconds in UI mode |
+| FF_SIM_SCREENSHOT="sec[:path];..." | **Sim-mode (3D) frame capture.** Main thread only raises the request; the SIM thread (which owns the GL context) services it in its own swap path (imagebuf.cpp SwapBuffers, just before SDL_GL_SwapWindow). Default path /tmp/ff_sim_N.bmp. The save logs objective stats (nonblack%/distinct/avgRGB) |
+| FF_NO_CAPTURE_FIX=1 | Revert the screenshot read guards (bind FBO 0 / unbind PBO / GL_BACK / PACK_ALIGNMENT 1 / glFinish). Without the guards a bound cockpit-RTT FBO is what glReadPixels reads = the historical "white frame" |
+| FF_NO_PATHCACHE=1 | Disable the resolve_nocase() result cache in linux_stubs.cpp (revert switch) |
+| FF_TRACE_PATHCACHE=1 | Path-cache hit/miss/stale/flush trace + a summary line every 1000 lookups |
 | FF_THROTTLE_AXIS / FF_YAW_AXIS | Joystick axis remap (defaults 3 / 2) |
 | FF_NO_FOG=1 | Disable fog (diagnostic) |
 

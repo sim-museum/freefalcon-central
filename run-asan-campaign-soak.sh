@@ -5,8 +5,9 @@
 # intermittent AS_DataClass::ASSearch (ground-unit A*) crash. Timings stretched for ASAN.
 set -u
 export DISPLAY=:0
-GAMEDATA="/home/g/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6"
-BIN="/home/g/ff/build-asan/src/ffviper/FFViper"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GAMEDATA="${FF_GAMEDATA:-$HOME/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6}"
+BIN="${FF_ASAN_BIN:-$SCRIPT_DIR/build-asan/src/ffviper/FFViper}"
 LOG=/tmp/ff-asan-campaign.log
 T="${1:-220}"
 pgrep -f mutter-x11-frames >/dev/null || { setsid /usr/libexec/mutter-x11-frames >/dev/null 2>&1 & sleep 1; }

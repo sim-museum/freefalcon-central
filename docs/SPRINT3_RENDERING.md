@@ -1,8 +1,12 @@
-# Sprint 3 — Rendering correctness (PO visual gate)
+# Sprint 3 — Rendering correctness
 
-Two open *rendering* defects. The agent **cannot capture 3D/sim frames**
-(`glReadPixels`→white, window-grab→black), so these need the Product Owner's eyes
-and a live FF_DEBUG trace. This doc is the analysis + the exact test recipe to run.
+**Update (July 2026): 3D/sim frame capture now works** — see the "Known hard
+impediment" section of `docs/COMPLETION_PLAN.md`. Capture on the sim thread inside its
+swap path; drive it with `tools/ff_validate.sh <tag> -m sim -t <sec> -v <mode>`.
+Issue B below is now reproducible without the PO: `tools/ff_validate.sh vpit -m sim
+-t 38 -v 4` captures the 3D virtual pit and the terrain bleed is plainly visible across
+both MFDs and the lower panel. Issue A still needs a human, but for a different reason:
+it needs someone to *fly a landing approach*, not to look at a frame.
 
 ---
 
@@ -43,8 +47,8 @@ step is data from a real approach, not another blind toggle.
 
 ### PO test recipe (≈3 min)
 ```bash
-cd /home/g/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
-FF_DEBUG_RUNWAY=1 /home/g/ff/build/src/ffviper/FFViper -d "$PWD" -w -test-ia 2>ff_runway.log
+cd /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
+FF_DEBUG_RUNWAY=1 /home/admin/free-falcon/build/src/ffviper/FFViper -d "$PWD" -w -test-ia 2>ff_runway.log
 # In the sim: fly toward the nearest airbase; descend to a low approach over the
 # runway. Note whether the runway surface looks raised vs the ground you collide with.
 ```

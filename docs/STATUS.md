@@ -32,7 +32,18 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 
 ## Open items
 
-### Needs the Product Owner's eyes (cannot be verified by the agent — no 3D frame capture)
+### Sim-mode frame capture — WORKING (July 2026)
+
+The "cannot capture 3D frames" impediment is lifted; see `docs/COMPLETION_PLAN.md`.
+Capture happens on the GL-context-owning (sim) thread inside its swap path.
+`tools/ff_validate.sh <tag> -m sim -t <sec> -v <viewmode>` drives Instant Action and
+prints objective per-band statistics for the captured frame. Verified captures:
+2D pit (`-v 1`) and 3D virtual pit (`-v 4`), both ~94–99% non-black with ~30k–92k
+distinct colours. The 3D-pit capture visibly shows issue #4 below (terrain bleeding
+across the MFD screens and lower panel), so that defect no longer needs the PO's eyes
+to reproduce — only to accept a fix.
+
+### Still needs the Product Owner (gameplay judgement, not frame capture)
 
 1. **Runway landing (highest value).** Two distinct sub-problems, both now fixed and
    awaiting a PO verification flight of the "Landing Final Approach" TE:
@@ -70,14 +81,40 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 ## Build & run
 
 ```bash
-cd /home/g/ff/build && ninja                       # release
-cd /home/g/ff/build-asan && ninja                  # ASAN variant
+cd /home/admin/free-falcon/build && ninja                       # release
+cd /home/admin/free-falcon/build-asan && ninja                  # ASAN variant
 # run:
-cd /home/g/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
-/home/g/ff/build/src/ffviper/FFViper -d "$PWD" -w  # add -test-ia for Instant Action
+cd /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
+/home/admin/free-falcon/build/src/ffviper/FFViper -d "$PWD" -w  # add -test-ia for Instant Action
 # package against a user data install:
-/home/g/ff/packaging/install.sh --data /path/to/FreeFalcon6
+/home/admin/free-falcon/packaging/install.sh --data /path/to/FreeFalcon6
 ```
+
+## Cross-port exchange (new, 2026-07-19)
+
+FreeFalcon has joined the numbered cross-port note exchange that the two **Rowan-engine** Linux ports
+— MiG Alley (`~/ma`) and Battle of Britain (`~/bob`) — have run since June. Our outbound opener is
+`docs/CROSS-PORT-FROM-FF-2026-07-19.md` (**note 12**), delivered into both peers' doc dirs.
+
+**Scope limit, stated up front:** we share no code with the Rowan engine (Falcon 4 lineage, 64-bit,
+no MFC/ActiveX, our own UI95 toolkit, D3D7→GL shim vs their software rasterizer / Lib3D). Nothing
+tagged `[ENGINE]` in their shared lessons doc transfers to us, and nothing engine-specific of ours
+transfers to them. The exchange is **class-level only**: Win32→POSIX bug classes, D3D→GL semantic
+mismatches, and QA methodology. They maintain a byte-identical shared lessons doc between their two
+trees; we deliberately do **not** join that (it would be mostly inapplicable) — point-to-point notes
+only.
+
+**Given:** our 8-bug-class taxonomy (now §7b of their shared doc, annotated for which classes apply
+at `-m32` — two do not), and our packaging scripts as the model for theirs.
+
+**Received — and it resolved our longest-standing impediment.** Both ports capture frames routinely;
+we had "cannot capture sim-mode 3D frames" recorded as a hard blocker for months. Their methodology
+(capture at the present point on the context-owning thread; `glPixelStorei(GL_PACK_ALIGNMENT,1)`;
+objective band statistics instead of eyeballing; the original under Wine as a pixel oracle) prompted
+the re-test that showed **the blocker was stale** — see "Sim-mode frame capture — WORKING" above.
+The transferable lesson, from BoB's sprint S101: they burned a sprint chasing a *render* bug that was
+actually a bug in their *capture tool*. A diagnostic that lies is worse than no diagnostic — re-test
+long-standing impediments before treating them as constraints.
 
 ## Recommended next step
 

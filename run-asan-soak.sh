@@ -5,8 +5,9 @@
 # Usage: ./run-asan-soak.sh [timeout_secs]
 set -u
 export DISPLAY=:0
-GAMEDATA="/home/g/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6"
-BIN="/home/g/ff/build-asan/src/ffviper/FFViper"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GAMEDATA="${FF_GAMEDATA:-$HOME/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6}"
+BIN="${FF_ASAN_BIN:-$SCRIPT_DIR/build-asan/src/ffviper/FFViper}"
 LOG=/tmp/ff-asan-soak.log
 T="${1:-200}"
 
