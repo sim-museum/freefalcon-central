@@ -1013,6 +1013,56 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_PreLoad(IDirect3DDevice7* This, LPDIREC
     return D3D_OK;
 }
 
+// FF_LINUX: RWY-2 -- depth bias for flat runway/tarmac decal polys.
+// The flat surfaces are drawn through the DEFERRED SPolygon lists
+// (ContextMPR::RenderPolyList), so a world-z lift is the only thing the old
+// code could do -- and a ~3 ft lift falls below the depth-buffer LSB at
+// approach distances (sz ~= 1 - near/z compresses the whole approach range
+// into a few hundred LSBs), so the strip z-fights the terrain and vanishes.
+// glPolygonOffset operates directly in depth-buffer units at raster time:
+// offset = factor*DZ + units*r. The slope term scales with the grazing angle
+// of the terrain (exactly when the fight is worst) and the units term gives a
+// guaranteed floor, so the decal wins at ANY distance without moving world z
+// (collision/landing height is untouched).
+// Called from RenderPolyList for polys tagged ffFlags&1 (flat surfaces).
+// Default ON; FF_RUNWAY_NOBIAS=1 disables; FF_RUNWAY_BIAS="factor,units" tunes.
+extern "C" void FF_SetRunwayDepthBias(int enable)
+{
+    static int s_mode = -1;                 // -1 uninit / 0 disabled / 1 active
+    static float s_factor = -3.0f, s_units = -64.0f;
+    static int s_cur = 0;
+    if (s_mode < 0) {
+        if (getenv("FF_RUNWAY_NOBIAS")) {
+            s_mode = 0;
+        } else {
+            s_mode = 1;
+            const char* e = getenv("FF_RUNWAY_BIAS");
+            if (e) sscanf(e, "%f,%f", &s_factor, &s_units);
+        }
+    }
+    if (!s_mode) return;
+    enable = enable ? 1 : 0;
+    // NOTE: when enabling, always re-issue the GL calls even if we believe the
+    // bias is already active -- the D3DRENDERSTATE_ZBIAS handler also drives
+    // glPolygonOffset/GL_POLYGON_OFFSET_FILL and could have changed the state
+    // behind our cache. The cache only elides redundant *disables* (the
+    // per-draw-item common case), so we never clobber a live ZBIAS offset.
+    if (!enable && enable == s_cur) return;
+    s_cur = enable;
+    if (enable) {
+        if (getenv("FF_DEBUG_RUNWAY")) {
+            static long s_n = 0;
+            if ((s_n++ % 600) == 0)
+                fprintf(stderr, "[RUNWAY] depth bias ACTIVE (factor=%.1f units=%.1f, n=%ld)\n",
+                        s_factor, s_units, s_n);
+        }
+        glPolygonOffset(s_factor, s_units);
+        glEnable(GL_POLYGON_OFFSET_FILL);
+    } else {
+        glDisable(GL_POLYGON_OFFSET_FILL);
+    }
+}
+
 // FF_LINUX: D3D7 semantics for pre-transformed (XYZRHW) vertices:
 //  - If FOGENABLE, the fog factor comes from the vertex SPECULAR alpha
 //    (0xFF = unfogged, 0x00 = fully fog-colored). We map this onto GL fog

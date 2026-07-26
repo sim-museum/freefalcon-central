@@ -96,6 +96,12 @@ public:
     bool DynamicLited; // under Fx of Dynamic lights
     DWORD LightID; // Light Owner ID
     float FogLevel; // The Fog Level for the Object
+#ifdef FF_LINUX
+    // FF_LINUX: RWY-2 -- bit 0: this draw is a flat runway/tarmac surface
+    // (queued while g_ffRunwayDbg is set by DrawablePlatform::Draw). Consumed
+    // by CDXEngine::FlushObjects to draw the item with a depth bias.
+    DWORD FFFlags;
+#endif
 };
 
 

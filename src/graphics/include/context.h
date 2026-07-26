@@ -624,6 +624,13 @@ extern  "C" {
 #ifdef FF_LINUX
         intptr_t textureID0; // FF_LINUX: Use intptr_t to hold TextureHandle* on 64-bit
         intptr_t textureID1;
+        // FF_LINUX: RWY-2 -- per-poly flags carried to the deferred flush.
+        // Bit 0: poly belongs to a flat runway/tarmac surface (tagged while
+        // g_ffRunwayDbg is set by DrawablePlatform::Draw); RenderPolyList draws
+        // it with a slope-scaled glPolygonOffset so the decal wins the depth
+        // test over the coplanar terrain mesh at ANY distance (a world-z lift
+        // shrinks below the depth-buffer LSB at approach ranges).
+        DWORD ffFlags;
 #else
         GLint textureID0;
         GLint textureID1;

@@ -1,6 +1,6 @@
 # FreeFalcon Linux Port — Current Status
 
-_Last updated: 2026-06-23. Branch `develop`, all commits pushed to origin._
+_Last updated: 2026-07-26. Branch `develop`, all commits pushed to origin._
 
 This is the live status of the Scrum effort to finish the Linux port (plan:
 `docs/COMPLETION_PLAN.md`; per-sprint detail: `docs/SPRINT{1,2,3,5}_*.md`).
@@ -17,6 +17,8 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 5 Cross-platform discipline | ✅ done | Windows build green (risk LOW); choice-point recs |
 | 6 Packaging | ✅ done | `install.sh` (ingests user data) + `build-appdir.sh` (relocatable AppDir) |
 | 7 Performance & polish | ⬜ pending | Lower priority (stable ~60 FPS); profiling needs a running sim |
+| 8 RWY-2 defect (reopened) | ✅ done | Runway z-fight root-caused (world-z lift < depth LSB at range); slope-scaled `glPolygonOffset` on tagged runway batch, default ON; 07-25 A/B approach captures decisive + 07-26 engagement/regression re-runs; cross-port note 14 |
+| 9 EPIC SP screen parity | ⬜ next | Gold-shot inventory + parity table (`docs/screen-parity.md` prepared; zero Sprint-8 time spent per PO scope) |
 
 ## What works (verified)
 
@@ -45,19 +47,17 @@ to reproduce — only to accept a fix.
 
 ### Still needs the Product Owner (gameplay judgement, not frame capture)
 
-1. **Runway landing (highest value).** Two distinct sub-problems, both now fixed and
-   awaiting a PO verification flight of the "Landing Final Approach" TE:
+1. **Runway landing (highest value).** Two distinct sub-problems:
    - *Elevation:* flat runway surfaces only refreshed z on an LOD change, so on a
      steady approach they stayed frozen at the far-time coarse value while collision
      used the fine elevation. Fixed: flat surfaces re-fetch the accurate
      `GetGroundLevel` every frame (`FF_RUNWAY_OLD=1` reverts).
-   - *Visibility:* placing the runway exactly AT the terrain z made it z-fight the
-     terrain mesh and vanish. Fixed: lift it ~3 ft above the terrain (a decal),
-     tunable via `FF_RUNWAY_ZLIFT`. (`GetGroundLevel` returns the real height only
-     when the player is near the airfield; far away it falls back to ~0 — so the value
-     resolves correctly on approach.)
+   - *Visibility:* the Sprint-3 world-z decal lift (`FF_RUNWAY_ZLIFT`) failed PO
+     acceptance and was superseded in Sprint 8 by the default-ON depth-bias fix —
+     see "RWY-2" below for root cause, fix, and capture evidence.
    - **Verify:** fly the landing TE; runway should now be visible and the jet land on
-     it. `FF_DEBUG_RUNWAY=1` logs `[RUNWAY] flat GetGroundLevel=.. decal=.. -> z=..`.
+     it. `FF_DEBUG_RUNWAY=1` logs runway surface placement + `[RUNWAY] depth bias
+     ACTIVE` once the bias engages.
 2. **Far-terrain crash (was blocking the landing test).** The jet's window "exited
    before landing" = a far-terrain `DrawVertices` → NVIDIA-driver SIGSEGV. A far-texture
    freed by terrain streaming in one frame is still referenced the next frame; freeing
@@ -80,22 +80,65 @@ to reproduce — only to accept a fix.
 
 ## Product backlog additions (PO, 2026-07-25)
 
-### RWY-2 — Landing-strip z-fighting REOPENED (top priority — failed acceptance)
+### RWY-2 — Landing-strip z-fighting: FIXED (Sprint 8, 2026-07-26) — awaiting PO sign-off
 
-The PO reports the defect **persists**: z-fighting at landing strips makes the landing
-strip itself invisible — the terrain covers the runway. This is the acceptance test of
-the Sprint-3 fix (runway decal lift, `FF_RUNWAY_ZLIFT`, commit `8e5db807`) **failing**,
-so the story returns to the sprint backlog as a defect, not a new discovery.
-Investigation starters: (a) is the decal lift actually default-ON in the shipped path,
-or still env-gated? (b) is ~3 ft enough given the far-terrain LOD z error at approach
-distances (the elevation fix refreshes z per frame only for *flat* surfaces — does the
-runway polygon take that path in all LODs)? (c) consider a true depth-bias route now
-that the flat-surface flush path is understood (`glPolygonOffset` on the runway batch),
-since a world-z lift fights the collision height. Cross-port note: BoB fixed its
-external-view z-fighting with default-on scene depth-sorting (S118–S119) — different
-renderer, same defect class; read their notes before re-attempting.
-Acceptance: PO (or `tools/ff_validate.sh` capture on final approach) sees the full
-runway surface rendered over the terrain from approach through touchdown.
+Reopened 2026-07-25 after the Sprint-3 decal lift (`FF_RUNWAY_ZLIFT`, commit
+`8e5db807`) failed PO acceptance ("terrain covers the runway" on approach).
+
+**Root cause of the failed fix:** a world-space lift is a near-field fix for a
+depth-buffer problem. With window depth `z_w ≈ 1 - near/z`, a 3 ft lift at a 2 nm
+approach distance moves depth by only ~6 LSBs of a 24-bit buffer (~1 LSB at 5 nm) —
+below vertex-transform float noise, so the runway z-fights the coplanar terrain mesh
+and loses exactly in the approach regime. Near the field the same lift is thousands
+of LSBs, which is why the original nearby-spawn eyeball test passed.
+
+**Fix (default ON):** slope-scaled depth bias on the runway batch only.
+Flat runway/tarmac polys are tagged at submission time (per-poly `ffFlags` /
+per-draw-item `FFFlags`, set while `DrawablePlatform::Draw` walks its flat
+surfaces) and carried through BOTH deferred draw paths (MPR `RenderPolyList` and
+DXEngine `FlushObjects`); at flush, tagged draws get
+`glPolygonOffset(-3, -64)` + `GL_POLYGON_OFFSET_FILL` (see `FF_SetRunwayDepthBias`,
+`src/compat/d3d_gl.cpp`), which operates in depth-buffer units at raster time, so
+the decal wins the depth test at ANY distance without moving world z (collision
+height untouched). Escape hatches: `FF_RUNWAY_NOBIAS=1` disables,
+`FF_RUNWAY_BIAS="factor,units"` tunes. An earlier June conclusion "depth bias ruled
+out" was wrong because the bias had been applied in immediate mode while these
+surfaces draw through the deferred queues — tagging through the queue is the load-
+bearing part.
+
+**Evidence (objective, agent-run):** TE mission "09 Landing Final Approach"
+(`FF_UI_CLICK="624,745@8;210,247@14;825,750@18;976,750@30"`), autopilot
+(`FF_SIM_KEY="0x1e@5"`), HUD view, sim-thread captures at 50–145 s
+(`FF_SIM_SCREENSHOT`, 9 frames/run):
+- **Decisive A/B (2026-07-25):** identical script, bias-ON (`fx*`) vs
+  `FF_RUNWAY_NOBIAS=1` (`nb*`). Bias-ON frames show the full airbase slab
+  (runway + tarmac) rendered over the terrain at approach distance; control
+  frames show the terrain eating the strip (only edge fragments visible).
+  All frames alive (99.9% non-black, 216–608 distinct colours). The decisive
+  airfield-crop pair is committed in `docs/rwy2/` (BoB before/after-pair
+  precedent); full frames `/tmp/ffval/fx*|nb*`.
+- **2026-07-26 re-runs before landing (same source, rebuilt):** bias engagement
+  verified live (603 throttled `[RUNWAY] depth bias ACTIVE` logs across a 145 s
+  flight ≈ 360k biased draws), 18/18 frames captured and healthy (99.9%
+  non-black), no rendering regression. The re-runs could NOT reproduce the
+  airfield-in-view geometry: under the identical script the mission autopilot
+  held heading instead of turning inbound (flight-path nondeterminism, twice;
+  a third variant crashed into the sea) — so the over-terrain-at-distance
+  verdict rests on the 07-25 A/B pair. Frames `/tmp/ffval2/A*|B*|C*`.
+
+**Two defects found by the 07-26 re-runs (not RWY-2, recorded for the backlog):**
+(a) TE "02 Takeoff" runway ground start never deaggregates — StartLoop deagg wait
+expires (`IsAggregate=128, delayCounter=120`) and bails gracefully to the menu
+(same class as the June campaign `g_bSleepAll` race, fixed for campaign in
+`ddd20274` but evidently not effective for the TE ground-start path); repro
+`FF_UI_CLICK="624,745@8;140,128@14;825,750@18;160,343@26;975,750@30;200,595@36"`.
+(b) TE "09 Landing" autopilot route-following engages nondeterministically
+(2/2 route-follow on 07-25, 0/3 on 07-26 with matching scripts; suspect AP
+roll-switch initial state) — makes the approach repro flaky for automation.
+
+**Acceptance remaining:** PO verification flight of the landing TE (visual judgement
+from approach through touchdown is a gameplay call; the capture evidence above is
+the objective proxy).
 
 ### EPIC SP — Screen parity vs Windows-under-Wine gold standard
 
@@ -149,6 +192,9 @@ long-standing impediments before treating them as constraints.
 
 ## Recommended next step
 
-Fly the landing TE to verify the runway fix — it's the single highest-value action,
-and only the PO can do it. Everything the agent can validate autonomously is done.
+PO: fly the landing TE to accept the Sprint-8 runway depth-bias fix (RWY-2 above —
+objective A/B capture evidence is in place; touchdown feel is the remaining
+judgement call). Agent side: Sprint 9 = EPIC SP gold-shot inventory/parity per
+BoB note 13's method (deterministic one-shot capture; state gold provenance —
+note that gold shot 3 is a native capture, not a Wine oracle).
 </content>

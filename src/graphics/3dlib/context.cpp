@@ -36,6 +36,8 @@ extern bool g_bUse_DX_Engine;
 #include "ffviper/ff_linux_debug.h"
 // Global render frame counter for debugging (extern for use by other modules)
 unsigned long g_RenderFrameCount = 0;
+// FF_LINUX: RWY-2 runway decal depth bias (implemented in compat/d3d_gl.cpp)
+extern "C" void FF_SetRunwayDepthBias(int enable);
 #endif
 
 extern bool g_bSlowButSafe;
@@ -2968,6 +2970,11 @@ void ContextMPR::RenderPolyList(SPolygon *&pHead)
                     break;
                 }
                 drawCallCount++;
+                // FF_LINUX: RWY-2 -- draw flat runway/tarmac polys with a
+                // slope-scaled depth bias so the decal reliably beats the
+                // coplanar terrain mesh in the depth test at any distance.
+                // FF_RUNWAY_NOBIAS=1 disables; FF_RUNWAY_BIAS="factor,units" tunes.
+                FF_SetRunwayDepthBias(pCur->ffFlags & 1u);
 #endif
                 ApplyStateBlock(pCur->renderState);
 
@@ -3004,6 +3011,9 @@ void ContextMPR::RenderPolyList(SPolygon *&pHead)
     m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGTABLEMODE, D3DFOG_NONE);
 
 #ifdef FF_LINUX
+    // FF_LINUX: RWY-2 -- make sure the runway depth bias is off for whatever
+    // draws next (other poly lists, DXEngine objects, UI).
+    FF_SetRunwayDepthBias(0);
     // Restore hardware face culling for DXEngine objects
     m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_CW);
 
@@ -3066,6 +3076,15 @@ void ContextMPR::DrawPoly(DWORD opFlag, Poly *poly, int *xyzIdxPtr, int *rgbaIdx
         AllocatePolygon(sPolygon, poly->nVerts);
         sPolygon->renderState = currentState;
         sPolygon->textureID0 = currentTexture1;
+#ifdef FF_LINUX
+        // FF_LINUX: RWY-2 -- tag flat runway/tarmac polys for the depth-bias
+        // draw at flush time (g_ffRunwayDbg is set while DrawablePlatform::Draw
+        // walks its flat surfaces, so submission here is inside that scope).
+        {
+            extern int g_ffRunwayDbg;
+            sPolygon->ffFlags = g_ffRunwayDbg ? 1u : 0u;
+        }
+#endif
         sPolygon->pNext = NULL;
         sVertex = sPolygon->pVertexList;
     }
@@ -4080,6 +4099,13 @@ void ContextMPR::DrawPrimitive(int nPrimType, WORD VtxInfo, WORD nVerts, MPRVtxT
         else
             sPolygon->textureID1 = -1;
 
+#ifdef FF_LINUX
+        // FF_LINUX: RWY-2 -- tag flat runway/tarmac polys (see DrawPoly).
+        {
+            extern int g_ffRunwayDbg;
+            sPolygon->ffFlags = g_ffRunwayDbg ? 1u : 0u;
+        }
+#endif
         sPolygon->pNext = NULL;
         sVertex = sPolygon->pVertexList;
     }

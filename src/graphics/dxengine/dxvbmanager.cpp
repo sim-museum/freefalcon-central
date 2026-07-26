@@ -685,6 +685,14 @@ void CDXVbManager::AddDrawItem(VBufferListType *pVBDesc, DWORD ID, ObjectInstanc
     pDrawPoolPtr->DynamicLited = Lited;
     pDrawPoolPtr->LightID = LightID;
     pDrawPoolPtr->FogLevel = FogLevel;
+#ifdef FF_LINUX
+    // FF_LINUX: RWY-2 -- tag flat runway/tarmac surface draws (queued inside
+    // DrawablePlatform::Draw's flat-surface walk).
+    {
+        extern int g_ffRunwayDbg;
+        pDrawPoolPtr->FFFlags = g_ffRunwayDbg ? 1u : 0u;
+    }
+#endif
 
 
     // check if no more Draw Items in the Draw Items Pool add a new one
@@ -788,6 +796,12 @@ void CDXVbManager::ClearDrawList(void)
 
 
 // This function fill variables of the next Item to draw, returns FALSE if no more Itames to draw
+#ifdef FF_LINUX
+// FF_LINUX: RWY-2 -- flags of the draw item most recently popped by
+// GetDrawItem; read by CDXEngine::FlushObjects to bias runway draws.
+int g_ffDXDrawIsRunway = 0;
+#endif
+
 bool CDXVbManager::GetDrawItem(ObjectInstance **objInst, DWORD *ID, D3DXMATRIX *Transformation, bool *Lited, DWORD *LightID, float *FogLevel)
 {
     bool Traversed = false;
@@ -803,6 +817,9 @@ bool CDXVbManager::GetDrawItem(ObjectInstance **objInst, DWORD *ID, D3DXMATRIX *
             *Lited = PitList.pDrawRoot->DynamicLited;
             *LightID = PitList.pDrawRoot->LightID;
             *FogLevel = PitList.pDrawRoot->FogLevel;
+#ifdef FF_LINUX
+            g_ffDXDrawIsRunway = (int)(PitList.pDrawRoot->FFFlags & 1u);
+#endif
             PitList.pDrawRoot = PitList.pDrawRoot->Next;
             PitList.DrawsCount--;
             TotalDraws--;
@@ -864,6 +881,9 @@ bool CDXVbManager::GetDrawItem(ObjectInstance **objInst, DWORD *ID, D3DXMATRIX *
     *Lited = RootItemToDraw->DynamicLited;
     *LightID = RootItemToDraw->LightID;
     *FogLevel = RootItemToDraw->FogLevel;
+#ifdef FF_LINUX
+    g_ffDXDrawIsRunway = (int)(RootItemToDraw->FFFlags & 1u);
+#endif
 
     // Unlink this Item and assign next if a next available
     if (RootItemToDraw->Next)

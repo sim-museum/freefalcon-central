@@ -136,11 +136,14 @@ void DrawablePlatform::Draw(class RenderOTW *renderer, int LOD)
     obj = flatStaticObjects.GetNextAndAdvance();
 
 #ifdef FF_LINUX
-    // FF_LINUX: NOTE - the runway/tarmac flat surfaces render with the wrong
-    // texture/material (they show as terrain, not asphalt). Confirmed via user
-    // testing that this is NOT a depth/z-fighting issue (a large setGlobalZBias
-    // made no difference), so no depth bias is applied here. The cause is the
-    // flat-surface texture path; FF_DEBUG_RUNWAY traces surface creation/counts.
+    // FF_LINUX: RWY-2 — the flat runway/tarmac surfaces DO z-fight the coplanar
+    // terrain mesh at approach distances (an earlier setGlobalZBias test here was
+    // misleading: these surfaces are drawn through the DEFERRED draw queues, so
+    // an immediate-mode bias had no effect). The fix is applied at flush time:
+    // polys/draw-items queued while g_ffRunwayDbg is set below are tagged and
+    // drawn with a slope-scaled glPolygonOffset (see FF_SetRunwayDepthBias in
+    // compat/d3d_gl.cpp; FF_RUNWAY_NOBIAS=1 disables). FF_DEBUG_RUNWAY traces
+    // surface creation/counts.
     extern int g_ffRunwayDbg;
     int ffFlatCount = 0;
     bool ffDbg = getenv("FF_DEBUG_RUNWAY") != 0;

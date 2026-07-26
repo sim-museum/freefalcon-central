@@ -23,6 +23,8 @@ extern "C" {
     typedef unsigned int GLenum;
     void glDisable(GLenum cap);
     void glEnable(GLenum cap);
+    // FF_LINUX: RWY-2 runway decal depth bias (implemented in compat/d3d_gl.cpp)
+    void FF_SetRunwayDepthBias(int enable);
 }
 #define FF_GL_STENCIL_TEST 0x0B90
 #define FF_GL_DEPTH_TEST   0x0B71
@@ -1908,6 +1910,18 @@ void CDXEngine::FlushObjects(void)
 
         WasInPitMode = m_PitMode;
 
+#ifdef FF_LINUX
+        // FF_LINUX: RWY-2 -- flat runway/tarmac surfaces are drawn as regular
+        // DXEngine objects placed AT the terrain z, so they z-fight the terrain
+        // mesh and vanish at approach distances (a ~3 ft world lift falls below
+        // the depth-buffer LSB beyond ~2 nm). Draw them with a slope-scaled
+        // glPolygonOffset so the decal wins the depth test at any distance.
+        // FF_RUNWAY_NOBIAS=1 disables; FF_RUNWAY_BIAS="factor,units" tunes.
+        {
+            extern int g_ffDXDrawIsRunway;
+            FF_SetRunwayDepthBias(g_ffDXDrawIsRunway);
+        }
+#endif
 
         // The Stack For the State Transformations resetted
         StateStackLevel = 0;
@@ -2001,6 +2015,11 @@ void CDXEngine::FlushObjects(void)
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX: RWY-2 -- leave the depth bias off for whatever draws next
+    // (alpha surfaces, poly lists, UI).
+    FF_SetRunwayDepthBias(0);
+#endif
 
     //TheTextureBank.SetDeferredLoad(false);
 }
