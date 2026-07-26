@@ -78,6 +78,37 @@ to reproduce — only to accept a fix.
 - `AS_DataClass::ASSearch` SIGSEGV — did not reproduce in 2 campaign soaks; rare.
 - chash new[]-string mismatch fully fixed via per-instance `ownsStrings_` (10,519→0).
 
+## Product backlog additions (PO, 2026-07-25)
+
+### RWY-2 — Landing-strip z-fighting REOPENED (top priority — failed acceptance)
+
+The PO reports the defect **persists**: z-fighting at landing strips makes the landing
+strip itself invisible — the terrain covers the runway. This is the acceptance test of
+the Sprint-3 fix (runway decal lift, `FF_RUNWAY_ZLIFT`, commit `8e5db807`) **failing**,
+so the story returns to the sprint backlog as a defect, not a new discovery.
+Investigation starters: (a) is the decal lift actually default-ON in the shipped path,
+or still env-gated? (b) is ~3 ft enough given the far-terrain LOD z error at approach
+distances (the elevation fix refreshes z per frame only for *flat* surfaces — does the
+runway polygon take that path in all LODs)? (c) consider a true depth-bias route now
+that the flat-surface flush path is understood (`glPolygonOffset` on the runway batch),
+since a world-z lift fights the collision height. Cross-port note: BoB fixed its
+external-view z-fighting with default-on scene depth-sorting (S118–S119) — different
+renderer, same defect class; read their notes before re-attempting.
+Acceptance: PO (or `tools/ff_validate.sh` capture on final approach) sees the full
+runway surface rendered over the terrain from approach through touchdown.
+
+### EPIC SP — Screen parity vs Windows-under-Wine gold standard
+
+Gold standard: PO-supplied captures of the Windows build under Wine —
+`/run/media/admin/BEA6-BBCE/free falcon/` (5 PNGs, 2026-06-05/06/09). Native screens
+must match. Method per the cross-port exchange: capture at the present point on the
+context-owning thread, `GL_PACK_ALIGNMENT=1`, objective band statistics + side-by-side.
+- **SP.1** Inventory: map each of the 5 shots to its screen (UI page or sim view) + the
+  native repro recipe (`FF_UI_CLICK`/`FF_VIEW_SCRIPT`/`ff_validate.sh`); parity table in
+  `docs/screen-parity.md` with native captures alongside.
+- **SP.2** Fix deviations per shot until parity within stated tolerance; each deviation
+  fixed or PO-waived in the table.
+
 ## Build & run
 
 ```bash
