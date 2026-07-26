@@ -140,6 +140,26 @@ roll-switch initial state) — makes the approach repro flaky for automation.
 from approach through touchdown is a gameplay call; the capture evidence above is
 the objective proxy).
 
+### TE-02 — TE runway ground start never deaggregates (backlog, found Sprint 8)
+
+TE "02 Takeoff" with a runway ground start: the StartLoop deaggregation wait
+expires (`IsAggregate=128, delayCounter=120`) and bails gracefully to the menu.
+Same class as the June campaign `g_bSleepAll` cross-thread race (fixed for the
+campaign path in `ddd20274` — player-flight exemption + direct throttled
+`DeaggregationCheck` in the deagg wait), evidently not effective for the TE
+ground-start path. Repro:
+`FF_UI_CLICK="624,745@8;140,128@14;825,750@18;160,343@26;975,750@30;200,595@36"`.
+Diagnose with `FF_DEBUG_DEAG=1`. Not scheduled; graceful bail means no crash.
+
+### TE-09 — TE landing autopilot route-following nondeterministic (backlog, found Sprint 8)
+
+TE "09 Landing Final Approach" autopilot (`FF_SIM_KEY="0x1e@5"`) engages
+route-following nondeterministically: 2/2 route-follow on 07-25, 0/3 on 07-26
+with byte-identical scripts (heading hold instead of inbound turn; one variant
+flew into the sea). Suspect AP roll-switch initial state. Makes the approach
+repro flaky for automation (RWY-2 A/B evidence rests on the 07-25 runs).
+Not scheduled.
+
 ### EPIC SP — Screen parity vs Windows-under-Wine gold standard
 
 Gold standard: PO-supplied captures of the Windows build under Wine —
