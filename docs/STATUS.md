@@ -18,7 +18,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 6 Packaging | ✅ done | `install.sh` (ingests user data) + `build-appdir.sh` (relocatable AppDir) |
 | 7 Performance & polish | ⬜ pending | Lower priority (stable ~60 FPS); profiling needs a running sim |
 | 8 RWY-2 defect (reopened) | ✅ done | Runway z-fight root-caused (world-z lift < depth LSB at range); slope-scaled `glPolygonOffset` on tagged runway batch, default ON; 07-25 A/B approach captures decisive + 07-26 engagement/regression re-runs; cross-port note 14 |
-| 9 EPIC SP screen parity | 🔄 in progress | Gold-shot inventory + parity table (`docs/screen-parity.md` prepared; zero Sprint-8 time spent per PO scope) |
+| 9 EPIC SP screen parity | ✅ done (SP.1) | All 5 gold shots captured natively + verdicts logged: 1×parity, 2×partial, 2×major-deviation; 3 deviations registered (DEV-1 main-menu screen, DEV-2 2D-pit brightness, DEV-3 pit bottom sliver) for SP.2 |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -44,6 +44,47 @@ SP.2 unless trivial).
 Handoff check (class-level, from MA/BoB 2026-07-27): FreeFalcon hosts no
 DoPropExchange/CPropExchange persisted-property controls (zero source hits;
 no MFC/ActiveX by design) — the uninitialized-OCX-member class does not apply.
+
+## Sprint 9 Review (2026-07-27) — DONE, 8/8 pts
+
+**Shipped:** SP.1 complete — all 5 PO gold shots have native counterpart
+captures and verdicts in `docs/screen-parity.md` (evidence thumbnails committed
+in `docs/screen-parity/`, full frames in `/tmp/ffval/`, all recipes verified
+and corrected to working parameters).
+
+- **SP.1-U (2 pts, done):** golds 1 & 5 (UI main menu) = **major deviation
+  DEV-1** — native shows the legacy Falcon4 photo menu, Windows shows the
+  FF-themed cobra/aircraft-column menu. Classified as UI selection divergence:
+  missing `mainbg.irc` ruled out by experiment (recreated, no change); themed
+  `MAIN_SCRN` art confirmed present in the data but never displayed natively.
+- **SP.1-S (3 pts, done):** gold 2 (IA 2D pit) = **partial** — HUD/MFD/DED
+  symbology and layout parity; **DEV-2**: native 2D-pit art far brighter than
+  gold (suspected missing TOD/palette shading on the palettized pit bitmap).
+- **SP.1-D (3 pts, done):** gold 3 (dogfight lobby) = **parity** (identical
+  layout/art/options; the gold is native-provenance, so this certifies
+  no-regression-since-June, not Windows parity). Gold 4 (dogfight arena 2D
+  pit, same-scenario pair) = **partial** — confirms DEV-2 decisively, plus
+  minor **DEV-3** (pit bottom sliver/hands not visible).
+
+**Verified/demoed:** every capture run objective (band statistics, all frames
+94–99.9 % non-black with 600–92 000 distinct colours); build baseline green;
+GLX gate re-probed healed (NVIDIA direct rendering: Yes) before planning per
+the MA/BoB handoff. No code changes this sprint — capture/analysis only, so
+no gate regressions possible; game data untouched except restoring the
+documented-in-January `art/resource/mainbg.irc` (no visual effect).
+
+**Carry-over:** none. SP.2 (fix/waive DEV-1..3) is the natural Sprint 10.
+
+**Operational finds (recorded in the parity doc):** sim-mission load now takes
+~80–100 s in this build, so process-relative `FF_SIM_SCREENSHOT` under ~110 s
+captures the load screen (the "white frame" here was timing, not the old
+RTT-readback bug); scripted TAKEOFF clicks that fire before FM_JOIN_SUCCEEDED
+is processed silently no-op (dogfight flow needs the click ≥6 s after COMMIT,
+plus a backup click).
+
+**Retro (one line):** Same-scenario capture pairs (gold 4) turn "looks
+different" into a decisive single-variable verdict — prefer them over
+different-instant pairs (gold 2) when choosing what to capture first.
 
 ## What works (verified)
 
@@ -237,9 +278,12 @@ long-standing impediments before treating them as constraints.
 
 ## Recommended next step
 
-PO: fly the landing TE to accept the Sprint-8 runway depth-bias fix (RWY-2 above —
-objective A/B capture evidence is in place; touchdown feel is the remaining
-judgement call). Agent side: Sprint 9 = EPIC SP gold-shot inventory/parity per
-BoB note 13's method (deterministic one-shot capture; state gold provenance —
-note that gold shot 3 is a native capture, not a Wine oracle).
+PO: (a) fly the landing TE to accept the Sprint-8 runway depth-bias fix (RWY-2
+above — objective A/B capture evidence is in place; touchdown feel is the
+remaining judgement call); (b) eyeball the Sprint-9 parity verdicts in
+`docs/screen-parity.md` — in particular whether DEV-1 (native shows the legacy
+photo main menu, not the FF cobra menu) should be fixed or waived, and whether
+the Wine golds came from this exact game-data install. Agent side: Sprint 10 =
+SP.2, root-cause DEV-2 (2D-pit palette/TOD shading — biggest visual payoff,
+affects both sim screens) then DEV-1.
 </content>
