@@ -31,10 +31,19 @@ Gold standard: `/run/media/admin/BEA6-BBCE/free falcon/` (5 PNGs). Open PO
 question: shot 3 may be a native capture rather than a Wine gold — provenance to
 confirm.
 
-## Current state (2026-07-26)
+## Current state (2026-07-27)
 
 - Sprint 8 closed (`9ed8f3b2`/`c479a0d0`): landing-strip z-fighting fixed
   default-ON (slope-scaled depth bias on tagged runway batches) — **awaiting the
-  PO acceptance flight**.
-- Sprint 9 (gold-shot inventory) was interrupted; its defect write-ups are
-  committed (`42542870`); sprints paused pending PO re-expansion of scope.
+  PO acceptance flight (RWY-2)**.
+- Sprint 9 closed (`e79889c9`/`dd94d06b`): parity verdicts for all 5 PO gold
+  shots — 1 parity (dogfight lobby), 2 partial, 3 classified deviations:
+  **DEV-1** native shows the legacy Falcon4 photo menu instead of the FF
+  cobra/blueprint menu (art present but never selected — PO fix-or-waive call
+  queued); **DEV-2** 2D-pit bitmap far brighter than gold (suspected missing
+  TOD/palette shading); **DEV-3** pit-art bottom sliver/pilot hands missing.
+  Evidence thumbnails in `docs/screen-parity/`.
+- Scope re-expanded 2026-07-26/27: FF is back in the sprint rotation
+  (ma → bob → free-falcon, sequential). Recommended next FF sprint: SP.2
+  starting with DEV-2. Operational: sim-mission load is ~80–100 s — capture
+  sim screens at ≥110 s process-relative (recipes in `docs/screen-parity.md`).
