@@ -18,7 +18,32 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 6 Packaging | ✅ done | `install.sh` (ingests user data) + `build-appdir.sh` (relocatable AppDir) |
 | 7 Performance & polish | ⬜ pending | Lower priority (stable ~60 FPS); profiling needs a running sim |
 | 8 RWY-2 defect (reopened) | ✅ done | Runway z-fight root-caused (world-z lift < depth LSB at range); slope-scaled `glPolygonOffset` on tagged runway batch, default ON; 07-25 A/B approach captures decisive + 07-26 engagement/regression re-runs; cross-port note 14 |
-| 9 EPIC SP screen parity | ⬜ next | Gold-shot inventory + parity table (`docs/screen-parity.md` prepared; zero Sprint-8 time spent per PO scope) |
+| 9 EPIC SP screen parity | 🔄 in progress | Gold-shot inventory + parity table (`docs/screen-parity.md` prepared; zero Sprint-8 time spent per PO scope) |
+
+## Sprint 9 Planning (2026-07-27, re-planned after interruption)
+
+Project re-activated in the rotation after a short pause. Baseline re-verified
+before planning: release build green (`ninja: no work to do`), repo clean on
+`develop`, and the previously wedged GLX gate has healed (NVIDIA direct
+rendering: Yes) — real-GL capture runs are unblocked.
+
+**Goal:** EPIC SP.1 — fill the prepared parity table in `docs/screen-parity.md`
+with native captures and verdicts for all 5 PO gold shots (deterministic
+one-shot captures per the cross-port method; deviations classified
+renderer-bug / authentic-asset / asset-gap / prior-decision, fixes deferred to
+SP.2 unless trivial).
+
+**Selected stories (~8 pts):**
+- **SP.1-U (2 pts):** UI main-menu parity — golds 1 (06-05 16-31-46) and
+  5 (06-09 15-32-20), one native capture serves both.
+- **SP.1-S (3 pts):** Sim 2D-cockpit Instant Action parity — gold 2
+  (06-05 16-32-02), real-GL run under the display lock.
+- **SP.1-D (3 pts):** Dogfight setup screen (gold 3, native-provenance
+  capture, see inventory note) + dogfight arena entry 2D pit (gold 4).
+
+Handoff check (class-level, from MA/BoB 2026-07-27): FreeFalcon hosts no
+DoPropExchange/CPropExchange persisted-property controls (zero source hits;
+no MFC/ActiveX by design) — the uninitialized-OCX-member class does not apply.
 
 ## What works (verified)
 
