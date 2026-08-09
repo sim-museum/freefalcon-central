@@ -28,7 +28,7 @@ below are the ones that actually produced healthy frames.
 | # | Gold file (2026-…) | Screen / view | Native repro recipe (verified 07-27) | Verdict |
 |---|---|---|---|---|
 | 1 | 06-05 16-31-46 | UI main menu (cobra/blueprint splash, aircraft column right) | `tools/ff_validate.sh sp1-main -m ui -t 8 -r 16` | **DEVIATION (major)** — see DEV-1 |
-| 2 | 06-05 16-32-02 | Sim, 2D cockpit (view 1), Instant Action, banking over coastline, HUD + MFDs | `tools/ff_validate.sh sp2-iapit -m sim -t 110 -r 140 -v 1 -e FF_DEBUG_PITSEL=1` | **PARTIAL** (re-verified Sprint 10, view + art set confirmed) — symbology/layout parity; **DEV-2** brightness confirmed, **DEV-4** canopy bow |
+| 2 | 06-05 16-32-02 | Sim, 2D cockpit (view 1), Instant Action, banking over coastline, HUD + MFDs | `tools/ff_validate.sh sp2-iapit -m sim -t 110 -r 140 -v 1 -e FF_DEBUG_PITSEL=1` | **PARITY (Sprint 11)** — symbology/layout parity; DEV-2 and DEV-4 both resolved as non-defects (time-of-day and a player option). PO waiver requested |
 | 3 | 06-05 20-37-29 | Dogfight setup lobby (Furball options, 4 team tiles, roster pane, Korea map) — NATIVE capture, see note | `tools/ff_validate.sh sp3-dfsetup -m ui -t 4 -r 44 -c "870,745@8;130,121@14;884,741@22"` (select saved game *before* COMMIT; COMMIT→lobby load ~5 s) | **PARITY** — layout/art/options identical; roster contents differ by saved-game state only |
 | 4 | 06-06 07-34-04 | Sim, 2D cockpit (view 1), dogfight arena entry, level over ocean | manual run: `FF_UI_CLICK="870,745@8;130,121@14;884,741@22;900,750@36;900,750@44"` + `FF_VIEW_SCRIPT="1@120"` + `FF_SIM_SCREENSHOT="125:…"` (TAKEOFF must fire *after* FM_JOIN_SUCCEEDED is processed — a TAKEOFF click at 30 s raced the join and silently no-op'd) | ⚠️ **RE-CAPTURE PENDING (Sprint 10)** — gold 4's native counterpart predates the view/art-set trace, so DEV-3 stays suspended until it is re-shot with `FF_DEBUG_PITSEL=1`. Gold alt 10 000 vs native 16 000 ft = saved Furball altitude option, not a deviation |
 | 5 | 06-09 15-32-20 | UI main menu (same screen as #1, later Wine build) | same as #1 | **DEVIATION (major)** — same as #1 / DEV-1 |
@@ -227,9 +227,58 @@ worth carrying into the fix:
 
 Instrumented at the choke point (`FF_DEBUG_PITSEL=1` now also prints
 `lightLevel`, `eLight`, the live `TheTimeOfDay.GetLightLevel()`, the flood and
-instrument light states, and the resulting `cLight`/`iLight`). If `cLight`
-comes back ≈1.0 on a mission whose gold counterpart is at ≈0.55, the gap is in
-what feeds `lightLevel`, not in the palette maths.
+instrument light states, and the resulting `cLight`/`iLight`). Measured:
+
+```
+[PITSEL] lightLevel=1.0000 eLight=1.0000 todLight=1.0000 flood=0 inst=0
+         -> cLight=1.0000 iLight=1.0000
+```
+
+`todLight` is **1.0 from real TOD data**, not a fallback — the constructor
+defaults are `Ambient=.3 / Diffuse=.6`, which would sum to 0.9. Windows runs
+identical code against identical theater data, so it computes `cLight=1.0` for
+the same mission instant too. That points away from a port defect.
+
+### ✅ DEV-2 RESOLVED — the panel path is CORRECT; the gap is time of day
+
+Decisive test: force the environment light factor to the value implied by the
+gold (`FF_PIT_LIGHT=0.55`) and re-capture. Prediction stated before the run —
+the panel band is not pure art (MFDs and lit instruments use `lightPlt` at full
+brightness regardless), so a pure 0.55 scale would give 32.3 and the true
+expectation was 32–40 against the gold's 38.0.
+
+| Sample | panel mean | p50 | p95 |
+|---|---|---|---|
+| native `cLight=1.00` | 58.6 | 45.4 | 188.8 |
+| **native `cLight=0.55`** | **35.8** | **25.3** | **106.0** |
+| **gold 2** | **38.0** | **28.7** | **107.0** |
+
+**p95 matches within 1 unit; the mean within 2.2.** Feed the 2D-pit panel path
+the gold's light level and it reproduces the gold's brightness almost exactly.
+
+**Therefore the panel rendering is correct and DEV-2 is not a port defect** — it
+is a **time-of-day difference between the two captures**. The Wine gold was shot
+at an environment light of roughly 0.55; our Instant Action capture runs at 1.0.
+
+**Recommended disposition: WAIVE**, on the same footing as DEV-4. To compare
+panel brightness meaningfully, a future capture must match the gold's mission
+instant (or force `FF_PIT_LIGHT` to the gold's level, which is what makes this
+measurable at all).
+
+**Two real observations survive as backlog items, neither causing DEV-2:**
+- **LIGHT-1:** `CockpitManager::TimeUpdateCallback` is never registered
+  anywhere, so `lightLevel` is set once in `RenderFirstFrame` and the cockpit
+  never re-lights as the sun moves. Invisible in a 2-minute capture; wrong over
+  a long flight or a dawn/dusk mission.
+- **LIGHT-2:** `ComputeLightFactors` assigns `cLight[i] = eLight` with **no
+  upper clamp** — the 1.0 clamp exists only inside the flood-light branch — and
+  `GetLightLevel()` returns `Ambient + Diffuse`, which can exceed 1.0. An
+  over-bright palette is reachable; not hit here because the value was exactly
+  1.0.
+
+_(Capture note: the `FF_PIT_LIGHT` run ended in the documented SIGABRT in the
+SDL2/pipewire audio teardown on harness kill — after the frame was captured, and
+unrelated to the change. See CLAUDE.md.)_
 
 ### Sprint 11 / S11-A — DEV-4 SOLVED: the bow is the canopy-reflection visual cue
 
