@@ -674,6 +674,19 @@ void AircraftClass::GatherInputs(void)
 
 void AircraftClass::ToggleAutopilot(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX: TE-09 -- trace at FUNCTION ENTRY, unconditionally. An earlier
+    // version of this trace sat inside the `autopilotType == APOff` branch, so it
+    // stayed silent whenever the AP was already on -- and "no trace" was wrongly
+    // read as "never called". Entry tracing is the only kind that can answer
+    // "was this reached?".
+    if (getenv("FF_DEBUG_AP"))
+    {
+        fprintf(stderr, "[AP] ToggleAutopilot ENTER (autopilotType=%d, option=%d)\n",
+                (int)autopilotType, PlayerOptions.GetAutopilotMode());
+        fflush(stderr);
+    }
+#endif
     DBrain()->AiSetInPosition();
 
     if (autopilotType == APOff)

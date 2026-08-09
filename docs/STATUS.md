@@ -27,7 +27,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 15 EPIC SP closed | ✅ done (8/8) | **DEV-3 CLOSED — does not reproduce.** Against the video gold's 2D pit (`views` t=20s, matched 1024×768) the native pit art reaches the bottom edge exactly as the gold's; bottom rows track within a few luma units to y=766 and neither shows pilot hands. **At matched daytime TOD the panel means agree (gold 59.9 vs native 58.6)** — independent corroboration of DEV-2's waiver. **EPIC SP is now COMPLETE: all 5 gold shots resolved, DEV-1..4 all closed as non-defects, zero renderer bugs found.** Done entirely offline — no display lock |
 | 16 RWY-2 + ACMI-1 | ⚠️ partial | **ACMI-1 found: our ACMI cannot read Windows tapes.** `ACMITapeHeader` is a packed struct of 17 `long`s — 80 bytes on Win32, 148 here — so every field misparses; proven by parsing a real PO tape both ways (32-bit gives numEntities=1, numFeat=724, totPlayTime=195.9s; 64-bit gives garbage). `src/acmi/` has 48 `long`s, zero `int32_t`, no `FF_LINUX` guards — never swept. RWY-2 **blocked on TE-09** — two attempts diverged (one my own view-mismatch error, one autopilot). Depth bias confirmed engaging (701 activations). TE-09 promoted to the next sprint |
 | 17 ACMI-1 fix | ✅ done (8/8) | **On-disk format restored to 32-bit.** 35 packed-struct fields `long`→`int32_t` (in-memory structs deliberately untouched), plus the callsign count in the `.flt` read, the tape write and `GetCallsignList`'s embedded count/stride. **Five `static_assert`s now pin the layout** (80/36/41/8/16) against sizes derived from a real PO tape's own block offsets — the format contract fails the build instead of failing silently. Playback path still untested (needs display) |
-| 18 TE-09 root-caused | ✅ done (8/8) | **Not nondeterminism — two deterministic causes.** (1) `FF_SIM_KEY` is timed from *leaving the UI*, i.e. the start of the ~80–100 s load, so the long-standing `0x1e@5` recipe fires the AP key ~85 s before the aircraft exists — `ToggleAutopilot` was never called in any run. (2) `Viper.pop` persists `SimAutopilotType=APNormal` → `ThreeAxisAP`, an attitude hold that does not follow the route. The game rewrites that file on exit, so the value drifts between sessions — which is what read as nondeterminism. Shipped `FF_AP_MODE` + `FF_DEBUG_AP`; corrected recipe recorded |
+| 18 TE-09 root-caused | ✅ done (7/8) | **Not nondeterminism — persisted options.** (1) With `SimAvionicsType=ATRealisticAV` and `SimAutopilotType=APNormal` (both from `Viper.pop`), `SimToggleAutopilot` routes the AP key to **`SimRightAPSwitch`** and never calls `ToggleAutopilot` — proven with entry-level tracing after a first, badly-instrumented attempt wrongly blamed key timing. **AP-1 registered:** a duplicated `(not StrgSel) and (not StrgSel)` guard (two sibling sites show `(not StrgSel) and (not HDGSel)`) clobbers HDG Select — the very roll-switch-initial-state TE-09 suspected. Upstream; PO call. (2) `Viper.pop` persists `SimAutopilotType=APNormal` → `ThreeAxisAP`, an attitude hold that does not follow the route. The game rewrites that file on exit, so the value drifts between sessions — which is what read as nondeterminism. Shipped `FF_AP_MODE` + `FF_DEBUG_AP`; corrected recipe recorded |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -452,13 +452,53 @@ acceptance since Sprint 8 and was recorded as "autopilot engages route-following
 nondeterministically (suspect AP roll-switch initial state)". The roll switch is
 not involved.
 
-**Cause 1 — the AP key never fires (automation).** `FF_SIM_KEY` timings are
-relative to *leaving the UI*, which is the **start of the ~80–100 s mission
-load**, not the start of flight. The long-standing recipe uses `0x1e@5`, so the
-autopilot keypress lands roughly 85 s before there is an aircraft to fly.
-Proven: with `FF_DEBUG_AP=1`, `ToggleAutopilot` produced **no trace at all** —
-it was never called. All three of today's runs flew with **no autopilot
-whatsoever**, straight ahead into the sea (~170 s, death dialog at 185 s).
+**Cause 1 (CORRECTED) — the AP key does not reach `ToggleAutopilot` at all,
+because realistic avionics route it to the AP SWITCH instead.**
+
+_The first version of this entry claimed the key fired during the mission load
+and was therefore lost. That was wrong, and the evidence for it was bad: the
+`FF_DEBUG_AP` trace sat inside the `autopilotType == APOff` branch, so it could
+not print when the AP was already on. "No trace" was read as "never called".
+Re-instrumented at function entry, and with the key moved to `@105` (well after
+load), the trace **still** never printed — so the timing hypothesis was not the
+explanation._
+
+The real chain, all from persisted options:
+
+- `Viper.pop` has `SimAvionicsType = 3` = `ATRealisticAV` → **`g_bRealisticAvionics = true`**
+- `Viper.pop` has `SimAutopilotType = 2` = `APNormal`
+- `SimToggleAutopilot` (commands.cpp) therefore takes
+  `case APNormal:` → `g_bRealisticAvionics` → **`SimRightAPSwitch(...)`**,
+  and never calls `AircraftClass::ToggleAutopilot`.
+
+So with realistic avionics the AP key works the F-16's **right AP switch**
+(AltHold ↔ AttHold) rather than engaging a route-following autopilot. Route
+following is the **left** switch's `StrgSel` (steering select) position.
+`0x1E` is correctly bound (`SimToggleAutopilot … 0X1E` in `keystrokes.key`), so
+the binding was never the problem.
+
+**AP-1 (new defect, upstream): a duplicated condition in the AP-switch guard.**
+`SimRightAPSwitch` guards the "jet was entered with the switch off centre" case
+with the same test twice:
+
+```c
+line 8130:  (not StrgSel) and (not StrgSel)   // duplicated
+line 8162:  (not StrgSel) and (not StrgSel)   // duplicated
+line 8209:  (not StrgSel) and (not HDGSel)    // correct
+line 8260:  (not StrgSel) and (not HDGSel)    // correct
+```
+
+Two sibling sites in the same file show the intended form, so this is a
+copy-paste typo, not intent. Effect: when the left switch is in **HDG Select**,
+the guard still passes and force-sets `RollHold`, silently clobbering the
+heading/steering mode — i.e. the autopilot's behaviour depends on the switch
+position the jet spawned with. **That is exactly the "AP roll-switch initial
+state" that TE-09 suspected from the start, and which this sprint initially
+dismissed.** `git log -L` shows the duplication predates the port (only a
+`!`→`not` reformat since), so **Windows has it too** — same
+fix-or-match-the-oracle dilemma as the `theaterdef.cpp` wrong-variable bug,
+except this one is reachable and affects flight behaviour. **Registered, not
+fixed; PO call.**
 
 **Cause 2 — even when it fires, the mode is wrong.** `ToggleAutopilot`
 (aircraftinputs.cpp) selects behaviour from a **player option**:
@@ -486,14 +526,19 @@ wrong screen, now TE-09). The pattern is worth naming: this engine keeps a lot o
 behaviour in a binary options file it rewrites on exit, so anything not pinned
 drifts, and drift reads as nondeterminism.
 
-**Shipped:** `FF_AP_MODE=<0|1|2>` forces the autopilot mode for repeatable
-approach automation, and `FF_DEBUG_AP=1` reports the mode in force — the
-"record the state you depend on" rule applied where it bit us.
+**Shipped:** `FF_DEBUG_AP=1` traces `ToggleAutopilot` at function entry, and
+`FF_AP_MODE=<0|1|2>` forces the mode — but note the override is applied inside
+`AircraftClass::ToggleAutopilot`, one level **below** where the dispatch
+actually happens (`SimToggleAutopilot`), so it does not change which branch is
+taken. To make the approach repeatable, the mode must be forced at the command
+layer, or the persisted options changed. Left as-is and documented rather than
+half-fixed.
 
-**Corrected recipe** for the TE landing approach: press the AP key *after* the
-load completes (`FF_SIM_KEY="0x1e@105"`, not `@5`) and pin the mode
-(`FF_AP_MODE=1`). The old `@5` recipe in the RWY-2 section below is stale and
-should not be reused.
+**Recipe status:** still not repeatable. `0x1e@105` (after load) is the right
+timing and should replace the stale `@5`, but on its own it changes nothing
+while the persisted options send the key to the AP switch. A repeatable approach
+needs either the command-layer override or `SimAutopilotType`/`SimAvionicsType`
+set to a route-following combination.
 
 ## What works (verified)
 
