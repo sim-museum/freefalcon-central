@@ -31,7 +31,29 @@ Gold standard: `/run/media/admin/BEA6-BBCE/free falcon/` (5 PNGs). Open PO
 question: shot 3 may be a native capture rather than a Wine gold — provenance to
 confirm.
 
-## Current state (2026-08-08)
+## Current state (2026-08-08, after Sprint 11)
+
+- **Sprint 11 closed 7/8.** Both of Sprint 9's "major" 2D-pit deviations are
+  **resolved as non-defects**, and gold 2 is upgraded to **PARITY**:
+  - **DEV-4 (canopy bow) = the canopy-reflection visual cue.** A/B-proven:
+    `FF_PIT_VISCUE=0` makes it vanish. It is on because
+    `PlayerOptions.SimVisualCueMode = VCReflection` — a legal setting, not a
+    renderer bug. **Recommend PO waive.**
+  - **DEV-2 (panel too bright) = a time-of-day difference.** Force the gold's
+    light level (`FF_PIT_LIGHT=0.55`) and the native panel reproduces the gold
+    almost exactly (p95 106.0 vs 107.0). The panel path is correct.
+    **Recommend PO waive.**
+  - **Two PO decisions requested**, both waivers. Neither needs code.
+  - New backlog: **LIGHT-1** (cockpit never re-lights —
+    `TimeUpdateCallback` never registered), **LIGHT-2** (`cLight` unclamped).
+  - **DEV-3 still carried** — gold 4 not yet re-shot with the trace.
+- **New diagnostics:** `FF_PIT_VISCUE=<n>` (force visual-cue mode),
+  `FF_PIT_LIGHT=<f>` (force cockpit environment light). Both diagnostic-only.
+- `ff_validate.sh` now uses `timeout -k 5`, and **must be invoked from the repo
+  root** (it resolves `tools/…` relatively — running it from `build/` fails 127
+  after taking the display lock).
+
+## Previous state (2026-08-08, after Sprint 10)
 
 - **Sprint 10 closed 8/8 (EPIC SP.2).** No renderer fix shipped — deliberately.
   The sprint's output is that the Sprint-9 sim-screen verdicts could not be

@@ -20,6 +20,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 8 RWY-2 defect (reopened) | ✅ done | Runway z-fight root-caused (world-z lift < depth LSB at range); slope-scaled `glPolygonOffset` on tagged runway batch, default ON; 07-25 A/B approach captures decisive + 07-26 engagement/regression re-runs; cross-port note 14 |
 | 9 EPIC SP screen parity | ✅ done (SP.1) | All 5 gold shots captured natively + verdicts logged: 1×parity, 2×partial, 2×major-deviation; 3 deviations registered (DEV-1 main-menu screen, DEV-2 2D-pit brightness, DEV-3 pit bottom sliver) for SP.2 |
 | 10 EPIC SP.2 deviations | ✅ done (8/8) | Sprint-9 verdicts re-verified with a new view/art-set trace (`FF_DEBUG_PITSEL=1`). **DEV-2 symptom confirmed, its recorded mechanism disproved** (the 2D pit is lit 3D geometry via `cockpit2d 2358`, not a palettized bitmap — so it is a lighting question, not a palette one). View confirmed `Mode2DCockpit`, art set the deterministic generic `16_ckpit.dat` fallback. **DEV-4 registered** (native draws a canopy bow the gold lacks); DEV-3 suspended pending a gold-4 re-shot. No fix shipped — deliberate |
+| 11 EPIC SP.2 (cont.) | ✅ done (7/8) | **DEV-2 and DEV-4 both RESOLVED as non-defects; gold 2 upgraded to PARITY.** DEV-4 = the canopy-reflection visual cue (`SimVisualCueMode=VCReflection`), A/B-proven by forcing it off — a player option, not a renderer bug. DEV-2 = a time-of-day difference: forcing the gold's light level reproduces the gold's panel almost exactly (p95 106.0 vs 107.0), so the panel path is correct. Both recommended for PO waiver. New backlog: LIGHT-1 (cockpit never re-lights), LIGHT-2 (unclamped `cLight`). DEV-3 carried |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -137,6 +138,56 @@ its default-visible state is the leading candidate and is the port's recurring
 "nothing ever wrote this" class); DEV-2's lighting path (check whether commit
 `3bc96916`'s 3D-pit lighting fixes cover the 2D pit's geometry pass); DEV-3
 re-capture; DEV-1 still untouched.
+
+## Sprint 11 Review (2026-08-08) — DONE, 7/8 pts
+
+**Goal:** EPIC SP.2 — fix DEV-2 and DEV-4 on the 2D pit. **Goal met, with the
+answer being that neither is a port defect.** Both of Sprint 9's "major" sim
+deviations are resolved as non-defects, and gold 2 is upgraded to **PARITY**.
+
+- **S11-A (3 pts, done): DEV-4 SOLVED.** A/B under `gl-lock`, single variable:
+  forcing `SimVisualCueMode=0` makes the canopy bow vanish (clean sky) while the
+  panel is untouched (58.6 → 58.8). The bow is switch 3 of the pit's external
+  geometry — the **canopy-reflection visual cue** — enabled because
+  `SimVisualCueMode=2` (`VCReflection`), a legal in-range value that is both the
+  ctor default and a valid user setting. That the panel didn't move also
+  **proves the bow and the brightness were two independent deviations**, which
+  is exactly why DEV-2's "shading difference only" premise failed.
+  → **Recommend WAIVE** (player option, nothing to fix in the renderer).
+- **S11-B (3 pts, done): DEV-2 RESOLVED — the panel path is CORRECT.** Forcing
+  the environment light to the gold's implied value reproduces the gold almost
+  exactly (p95 106.0 vs 107.0; mean 35.8 vs 38.0), against a prediction of
+  32–40 stated before the run. `todLight=1.0` is genuine theater data (TOD ctor
+  defaults sum to 0.9), so Windows computes 1.0 too. The deviation is a
+  **time-of-day difference between the captures**. → **Recommend WAIVE.**
+- **S11-C (1/2 pts):** two view-confirmed captures plus the A/B and the light
+  test all landed; **gold 4 not re-shot**, so DEV-3 stays suspended. Carried.
+
+**New backlog items — real, but neither caused DEV-2:**
+- **LIGHT-1:** `CockpitManager::TimeUpdateCallback` is never registered, so
+  `lightLevel` is set once in `RenderFirstFrame` and the cockpit never re-lights
+  as the sun moves. Invisible in a 2-min capture; wrong on a long or dawn/dusk
+  flight.
+- **LIGHT-2:** `ComputeLightFactors` assigns `cLight[i] = eLight` with no upper
+  clamp (the 1.0 clamp is only in the flood-light branch) while
+  `GetLightLevel()` returns `Ambient + Diffuse`, which can exceed 1.0.
+
+**Four plausible hypotheses were killed by checking rather than banked** — worth
+reading before trusting a "found it" in this area: the `.pop` backslash path
+(compat does `#define fopen fopen_nocase`, which converts them); the `.pop`
+`fread(this,…)` 32/64-bit hazard (all members are int/float/enum/char, so the
+layout is portable — the 228 vs 240-byte gap is *version*); `CPPanel::SetTOD`'s
+unreachable TOD body (`git log -L` shows it predates the port, so Windows
+short-circuits identically); and the hybrid-pit auto-switch (gated on a flag
+that initialises to 0).
+
+**Retro:** *state the prediction before the run.* S11-B committed to "32–40" in
+advance, so 35.8 confirmed a model instead of being retro-fitted to a story —
+the failure mode that produced DEV-2's wrong mechanism in the first place.
+
+**Tooling:** `FF_PIT_VISCUE=<n>` and `FF_PIT_LIGHT=<f>` diagnostics added;
+`ff_validate.sh` now uses `timeout -k 5` so a run that ignores SIGINT cannot
+outlive its cap holding the display lock.
 
 ## What works (verified)
 
