@@ -231,7 +231,43 @@ instrument light states, and the resulting `cLight`/`iLight`). If `cLight`
 comes back ≈1.0 on a mission whose gold counterpart is at ≈0.55, the gap is in
 what feeds `lightLevel`, not in the palette maths.
 
-**New: DEV-4 — native draws a canopy bow the gold does not.** In a confirmed
+### Sprint 11 / S11-A — DEV-4 SOLVED: the bow is the canopy-reflection visual cue
+
+A/B under `gl-lock`, identical recipe, single variable:
+
+| Run | `SimVisualCueMode` | bow band y40–110 x380–640 (luma) | panel y500–768 |
+|---|---|---|---|
+| `sp11-base` | 2 (`VCReflection`) | 102.4 | 58.6 |
+| `sp11-noref` | 0 (`VCNone`, forced) | 109.7 | 58.8 |
+| gold 2 | — | 149.7 | 38.0 |
+
+With the cue forced off **the canopy bow disappears completely** — the crop is
+clean sky, matching the gold's structure. The panel is untouched (58.6 → 58.8),
+confirming the bow and the brightness are **two independent deviations**, which
+is why DEV-2's "same art, shading only" premise failed.
+
+**Mechanism:** switch 3 of the 2D pit's external geometry (`cockpit2d 2358`,
+"wings and reflection") is the canopy-reflection component. It is enabled
+whenever `PlayerOptions.SimVisualCueMode` is `VCReflection` or `VCBoth`
+(cpmanager.cpp:4518). The native run reports `SimVisualCueMode=2` — an
+**in-range, legal value**, which is both the constructor default
+(`playerop.cpp:97`) and a legitimate user setting.
+
+**Recommended disposition: WAIVE as a player-option difference, not a renderer
+bug.** The port is doing exactly what the option asks. We cannot read the
+Windows user's `.pop`, so we cannot prove the gold ran with the cue off — but
+the native behaviour is correct for its own setting, and there is nothing to
+fix in the renderer. **PO call requested.** If the PO wants the gold matched
+exactly, the change is a settings change (`Setup → visual cues`), not code.
+
+Checked and excluded rather than assumed: `PlayerOptionsClass` is read with a
+raw `fread(this, 1, size, fp)`, which looked like a 32/64-bit layout hazard —
+but every member is `int`/`float`/`enum`/`char` (no `long`, no pointers), so the
+layout is portable. The 228-byte `default.pop` vs 240-byte `Viper.pop`
+difference is **version**, not word size, and `LoadOptions` handles the older
+format deliberately ("dont break compatibility with 1.03 - 1.08 options").
+
+**DEV-4 — native draws a canopy bow the gold does not (original entry).** In a confirmed
 identical view and a deterministically identical art set, the native frame
 renders a canopy bow with mirror geometry arching over the HUD glass; the gold
 shows open sky there. Note the 2D pit sets only **two** switch masks on its

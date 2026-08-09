@@ -5898,6 +5898,18 @@ void CockpitManager::ComputeLightFactors(float *cLight, float *iLight)
     // minimum cockpit lighting, from enviroment
     float eLight = (lightLevel < 0.01f) ? 0.01f : lightLevel;
 
+#ifdef FF_LINUX
+    // FF_LINUX: EPIC SP.2/DEV-2 -- FF_PIT_LIGHT=<f> forces the environment light
+    // factor. The panel palette scales linearly with this, so if the native panel
+    // at FF_PIT_LIGHT=0.55 lands on the gold's measured brightness, the panel path
+    // is CORRECT and DEV-2 is a time-of-day difference between the two captures,
+    // not a port defect. Diagnostic only; never set in normal play.
+    {
+        const char* ov = getenv("FF_PIT_LIGHT");
+        if (ov) eLight = (float)atof(ov);
+    }
+#endif
+
     // use one light for each color
     for (int i = 0; i < 3; i++)
     {
