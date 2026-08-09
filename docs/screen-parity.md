@@ -83,34 +83,51 @@ _Original Sprint-9 text:_ The gold shows the pit art's bottom edge (glove/hand
 shapes) below the standby gauges; the native frame ends at the gauge bottoms.
 Possible small vertical offset/scale difference in the 2D-pit blit.
 
-### ⚠️ DEV-2 / DEV-3 RETRACTION — the two frames are DIFFERENT VIEWS (Sprint 10, SP.2-A)
+### ⚠️ DEV-2 / DEV-3 WITHDRAWN — the frames differ STRUCTURALLY, cause not yet identified (Sprint 10, SP.2-A)
 
-**The native "2D pit" captures are not the 2D pit. They are the 3D virtual
-cockpit.** DEV-2 and DEV-3 therefore compare a lit 3D cockpit *model* against a
-flat 2D pit *bitmap*, which is not a parity comparison at all. Both deviations
-are withdrawn pending a matched-view re-capture; no renderer fix should be
-attempted on either until then.
+**Both verdicts are withdrawn as unsupported.** DEV-2's stated root cause
+(missing TOD/palette shading on a palettized 2D-pit bitmap) rests on the premise
+"same panel art, same instrument layout, a shading difference only". That
+premise is false: the native and gold frames differ **structurally**, so the
+tonal difference cannot be attributed to shading until the structural difference
+is explained. No renderer fix should be attempted on either deviation until a
+matched re-capture exists.
 
-**Evidence (offline, from the committed Sprint-9 thumbnails + the game data —
-no new capture required):**
+**What is established (offline, from the committed Sprint-9 thumbnails + the
+game data — no new capture required):**
 
-1. **The native frames contain a canopy bow with rear-view mirrors**, drawn in
-   perspective with 3D shading, arching over the HUD glass. Visible in *both*
-   `sp2-native-iapit.png` and `sp4-native-dfpit.png`.
-2. **No 2D-pit art set in this install declares a mirror.** The manager's parser
-   token is `MIRROR` (`TYPE_MIRROR_STR`, cpmanager.cpp:646 → `CPMirror`); it has
-   **zero** occurrences in all four candidate pit `.dat`s —
-   `art/ckptart/16_ckpit.dat`, `F-16CG/16_ckpit.dat`,
-   `F-16CJ_MicroProse/10_ckpit.dat`, `F-16CJ_PaulWilson_Widescreen/ws_ckpit.dat`.
-   A 2D pit in this data therefore *cannot* draw the mirrors that are in the
-   native frames.
-3. **Both golds show the bare HUD combiner posts with open sky above** — no bow,
-   no mirrors. The native frames have those same posts **plus** the bow.
-4. **Structure profile** (both normalised to 1024×768, std-dev of luminance in
+1. **The native frames show a canopy bow arching over the HUD glass**, drawn in
+   perspective with 3D shading, with mirror-shaped geometry at its top corners.
+   Present in *both* `sp2-native-iapit.png` and `sp4-native-dfpit.png`.
+2. **Both golds show the bare HUD combiner posts with open sky above** — no bow.
+   The native frames have those same posts **plus** the bow.
+3. **Structure profile** (both normalised to 1024×768, std-dev of luminance in
    the centre band x380–640, 16-px rows): native carries structure at y0–112
    (the bow) where gold is clean sky; gold carries structure at y176–336 (the
-   posts) where native is clear glass. Panel top is the same in both (~y340), so
-   this is not a scale difference.
+   posts) where native is clear glass. Panel top matches in both (~y340), so
+   this is **not** a scale difference.
+
+**What is NOT established — and a correction to an earlier reading in this
+sprint.** The mirror-shaped geometry was first taken as proof that the native
+frames are the *3D virtual cockpit*, on the grounds that no 2D-pit `.dat` in
+this install declares a `MIRROR` object (parser token `TYPE_MIRROR_STR` →
+`CPMirror`, cpmanager.cpp:646; zero hits in `art/ckptart/16_ckpit.dat`,
+`F-16CG/16_ckpit.dat`, `F-16CJ_MicroProse/10_ckpit.dat`,
+`F-16CJ_PaulWilson_Widescreen/ws_ckpit.dat`). **That inference is wrong.** The
+2D pit in this art set is not a flat blit: its MANAGER block carries
+`cockpit2d 2358 2358` (`PROP_DO2DPIT_STR`), which drives
+`CreateCockpitGeometry(&mpGeometry, 2358, 2358)` — the 2D pit is itself rendered
+from a 3D model. Mirror and canopy-bow shapes can therefore belong to the 2D pit
+legitimately, as model geometry rather than as `CPMirror` objects. The view
+actually in force at capture time remains **unknown**.
+
+**Live hypotheses for the structural difference, none yet eliminated:**
+- the two frames are different view modes (native 3D virtual pit vs gold 2D pit);
+- different pit art sets resolved (per-aircraft directory override — the data has
+  `F-16CG/`, `F-16CJ_MicroProse/` with a `10_ckpit.dat`, and a widescreen set —
+  so the aircraft flown changes which pit loads);
+- the bow is drawn natively but should be clipped, culled or chroma-keyed away;
+- vertical placement differs so the bow sits off-screen in gold.
 
 **Measured tonal delta (kept — it is a real measurement, just not of what
 DEV-2 claimed).** Gold 4 client area vs `sp4-native-dfpit`, normalised 512×384:
@@ -144,13 +161,22 @@ Same class as BoB S101, already recorded in `STATUS.md`: *a diagnostic that lies
 is worse than no diagnostic.* Here the diagnostic did not lie so much as stay
 silent about the one variable the whole verdict rested on.
 
-**Open (SP.2-B/C):** confirm the display mode at capture time from the
-`FF_DEBUG_PITSEL` trace; establish why mode 1 did not stick (candidates: the
-request never fired within the run; the 2D `CockpitManager` failed to load and
-`gDoCockpitHack` suppressed the 2D path; hybrid pit auto-switch — gated on
-`GetHybridPitMode()==1`, which initialises to 0, so this is the weakest);
-then re-capture golds 2 and 4 in a *confirmed* `Mode2DCockpit` and re-issue
-verdicts.
+**Open (SP.2-B/C):** read the display mode and the resolved pit `.dat` at capture
+time from the `FF_DEBUG_PITSEL` trace, which discriminates all four hypotheses
+above in a single run. Then re-capture golds 2 and 4 in a *confirmed*
+`Mode2DCockpit` with the resolved art set recorded, and re-issue verdicts.
+
+Notes for whoever picks this up:
+- `SetOTWDisplayMode` (access.cpp:481) does **not** special-case the pit modes —
+  it cannot silently reject `Mode2DCockpit`.
+- `SetGraphicsOwnship` (otwdrive.cpp:1920) sets `Mode2DCockpit` when there is no
+  `curPlatform`, so the 2D pit is the expected default on sim entry.
+- Hybrid pit auto-switch (`RunHybridPitMode`, otwdrive.cpp:1090) *does* flip
+  2D→3D on head movement, but is gated on `GetHybridPitMode() == 1`
+  (otwloop.cpp:327) and `HybridPitModeEnabled` initialises to 0 — so it is the
+  weakest candidate unless the trace shows otherwise.
+- A failed pit-`.dat` open sets `gDoCockpitHack` and suppresses the 2D path
+  (cockpit.cpp:54); the trace reports the open result explicitly.
 
 ### Notes (not deviations)
 
