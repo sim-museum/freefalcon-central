@@ -635,7 +635,43 @@ be compared directly against the Wine gold's. It also makes RWY-3 measurable
 end-to-end instead of inferred from debug prints.
 
 ACMI-1's struct layout is already fixed and pinned with `static_asserts`
-(Sprint 17). **Next step: load `TAPE0006.vhs` end-to-end through playback.**
+(Sprint 17).
+
+### ⭐ Sprint 20 — `tools/acmi_dump.py`: the tape is now a time series
+
+Reads a `.vhs` and emits the flight as numbers — no display, no game needed.
+Validated on two real PO tapes (the 919 KB landing tape and the 7.3 MB
+`TAPE0006`, 150 entities / 45 755 positions); both pass the four-way 32-bit
+layout self-check.
+
+**Gold landing tape decoded — and it gives RWY-3 its oracle.** 716 samples,
+2003 ft → 28 ft:
+
+```
+t(s)      alt(ft)    x(ft)      y(ft)    pitch   roll
+32523.1      812     760942    1313739   0.153   0.004
+32546.7      401     766494    1311961   0.178  -0.010
+32565.9      135     770936    1310336   0.179   0.002
+32574.5       28     772911    1309677   0.233   0.006   <-- TOUCHDOWN
+32595.9       28     776118    1308574   0.229  -0.144
+32612.9       28     776126    1308571   0.229  -0.144   <-- stopped
+```
+
+Smooth descent, wings level (roll ≈ 0 throughout), and — the decisive part —
+**ground altitude pinned at exactly 28 ft for the whole rollout, never varying.**
+
+That is the direct counterpart to RWY-3: on Windows the airfield surface is a
+**stable** elevation, while our runway posts step 0.0 → −22.2 → −26.0 as terrain
+LOD refines. The gold's 28 ft agrees with our converged ~26 ft, so our *final*
+value is right and only the *approach to it* is wrong — which is exactly why the
+touchdown point appears to retract.
+
+**RWY-3 acceptance criterion, now objective:** fly the same mission, dump our
+tape, and require ground altitude to be constant through the rollout as the gold
+is. No screenshots, no judgement calls.
+
+**Next step:** load `TAPE0006.vhs` end-to-end through in-game playback (needs the
+display), and dump our own landing tape for the side-by-side.
 
 ## What works (verified)
 
