@@ -19,6 +19,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 7 Performance & polish | ⬜ pending | Lower priority (stable ~60 FPS); profiling needs a running sim |
 | 8 RWY-2 defect (reopened) | ✅ done | Runway z-fight root-caused (world-z lift < depth LSB at range); slope-scaled `glPolygonOffset` on tagged runway batch, default ON; 07-25 A/B approach captures decisive + 07-26 engagement/regression re-runs; cross-port note 14 |
 | 9 EPIC SP screen parity | ✅ done (SP.1) | All 5 gold shots captured natively + verdicts logged: 1×parity, 2×partial, 2×major-deviation; 3 deviations registered (DEV-1 main-menu screen, DEV-2 2D-pit brightness, DEV-3 pit bottom sliver) for SP.2 |
+| 10 EPIC SP.2 deviations | 🔄 in progress | **DEV-2 and DEV-3 WITHDRAWN — the Sprint-9 native sim captures are the 3D virtual cockpit, not the 2D pit**, so both verdicts compared different views. Proven offline from the committed thumbnails + game data (canopy-bow mirrors that no 2D-pit `.dat` can declare). New `FF_DEBUG_PITSEL=1` trace records the pit art set actually resolved and the live display mode, so a capture can no longer stay silent about the view it claims |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 

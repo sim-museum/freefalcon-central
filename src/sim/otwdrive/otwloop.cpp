@@ -254,6 +254,27 @@ void OTWDriverClass::Cycle(void)
             }
         }
     }
+
+    // FF_LINUX: EPIC SP.2 -- report the display mode actually in force, once a
+    // second. A parity capture is only comparable to a gold shot if both are the
+    // SAME VIEW; "2D pit looks wrong" is meaningless if the frame is really the
+    // 3D virtual pit. Enum: 1=Hud 2=2DCockpit 3=3DCockpit 6=Orbit 7=Chase.
+    if (getenv("FF_DEBUG_PITSEL"))
+    {
+        static OTWDisplayMode s_lastMode = ModeCount;
+        static unsigned long s_lastReport = 0;
+        OTWDisplayMode m = GetOTWDisplayMode();
+        unsigned long now = vuxRealTime;
+        if (m != s_lastMode or now - s_lastReport >= 1000)
+        {
+            fprintf(stderr, "[PITSEL] displayMode=%d%s hybrid=%d\n",
+                    (int)m, (m == s_lastMode) ? "" : " (CHANGED)",
+                    (int)GetHybridPitMode());
+            fflush(stderr);
+            s_lastMode = m;
+            s_lastReport = now;
+        }
+    }
 #endif
 
     frameStart = timeGetTime();

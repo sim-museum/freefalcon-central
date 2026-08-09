@@ -499,9 +499,35 @@ CockpitManager::CockpitManager(
     //m_eCPVisType = (Vis_Types)FindCockpit(pCPFile, eCPVisType, eCPName, eCPNameNCTR, strCPFile);
     m_eCPVisType = (Vis_Types)FindCockpit(pCPFile, eCPVisType, eCPName, eCPNameNCTR, strCPFile, TRUE);
 
+#ifdef FF_LINUX
+    // FF_LINUX: EPIC SP.2 -- which 2D-pit ART SET actually got selected, and at what
+    // scale. The pit art set is chosen by resolution (6/8/10/12/16_ckpit.dat) with a
+    // per-aircraft directory override, so a missing per-aircraft file silently falls
+    // back to a different pit -- which reads as a "brightness"/"layout" deviation
+    // rather than as a selection bug. FF_DEBUG_PITSEL=1 to trace.
+    if (getenv("FF_DEBUG_PITSEL"))
+    {
+        fprintf(stderr, "[PITSEL] requested='%s' resolved='%s' main=%d "
+                        "hScale=%.4f vScale=%.4f visType=%d cpName='%s' nctr='%s'\n",
+                pCPFile ? pCPFile : "(null)", strCPFile, (int)mainCockpit,
+                hScale, vScale, (int)m_eCPVisType,
+                eCPName ? eCPName : "", eCPNameNCTR ? eCPNameNCTR : "");
+        fflush(stderr);
+    }
+#endif
+
     pCPFile = strCPFile;
 
     pcockpitDataFile = CP_OPEN(pCPFile, "r");
+
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_PITSEL"))
+    {
+        fprintf(stderr, "[PITSEL] open '%s' -> %s\n", pCPFile,
+                pcockpitDataFile ? "OK" : "FAILED (falling back to 8x6 + cockpit hack)");
+        fflush(stderr);
+    }
+#endif
 
     if ( not pcockpitDataFile)
     {
