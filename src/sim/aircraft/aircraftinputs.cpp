@@ -678,8 +678,38 @@ void AircraftClass::ToggleAutopilot(void)
 
     if (autopilotType == APOff)
     {
+        int apMode = PlayerOptions.GetAutopilotMode();
 
-        switch (PlayerOptions.GetAutopilotMode())
+#ifdef FF_LINUX
+        // FF_LINUX: TE-09 -- the "nondeterministic approach autopilot" is a PLAYER
+        // OPTION, not a race. SimAutopilotType selects what the AP key does:
+        //   APIntelligent(0) -> CombatAP    (follows the route)
+        //   APEnhanced(1)    -> WaypointAP  (follows the route)
+        //   APNormal(2)      -> ThreeAxisAP (attitude/heading HOLD -- no route)
+        // Viper.pop currently persists APNormal, so the AP holds heading instead of
+        // turning inbound, and the flight never reaches the runway. Runs that DID
+        // route-follow had a different value saved at the time -- and the game
+        // rewrites Viper.pop on exit, which is what made it look nondeterministic.
+        // FF_AP_MODE=<0|1|2> forces the mode for repeatable approach automation.
+        {
+            const char* ov = getenv("FF_AP_MODE");
+
+            if (ov)
+            {
+                apMode = atoi(ov);
+                fprintf(stderr, "[AP] mode forced to %d by FF_AP_MODE\n", apMode);
+                fflush(stderr);
+            }
+            else if (getenv("FF_DEBUG_AP"))
+            {
+                fprintf(stderr, "[AP] PlayerOptions.SimAutopilotType=%d "
+                                "(0=Intelligent/Combat 1=Enhanced/Waypoint 2=Normal/ThreeAxis)\n", apMode);
+                fflush(stderr);
+            }
+        }
+#endif
+
+        switch (apMode)
         {
             case APIntelligent:
                 SetAutopilot(CombatAP);

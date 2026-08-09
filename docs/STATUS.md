@@ -27,6 +27,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 15 EPIC SP closed | ✅ done (8/8) | **DEV-3 CLOSED — does not reproduce.** Against the video gold's 2D pit (`views` t=20s, matched 1024×768) the native pit art reaches the bottom edge exactly as the gold's; bottom rows track within a few luma units to y=766 and neither shows pilot hands. **At matched daytime TOD the panel means agree (gold 59.9 vs native 58.6)** — independent corroboration of DEV-2's waiver. **EPIC SP is now COMPLETE: all 5 gold shots resolved, DEV-1..4 all closed as non-defects, zero renderer bugs found.** Done entirely offline — no display lock |
 | 16 RWY-2 + ACMI-1 | ⚠️ partial | **ACMI-1 found: our ACMI cannot read Windows tapes.** `ACMITapeHeader` is a packed struct of 17 `long`s — 80 bytes on Win32, 148 here — so every field misparses; proven by parsing a real PO tape both ways (32-bit gives numEntities=1, numFeat=724, totPlayTime=195.9s; 64-bit gives garbage). `src/acmi/` has 48 `long`s, zero `int32_t`, no `FF_LINUX` guards — never swept. RWY-2 **blocked on TE-09** — two attempts diverged (one my own view-mismatch error, one autopilot). Depth bias confirmed engaging (701 activations). TE-09 promoted to the next sprint |
 | 17 ACMI-1 fix | ✅ done (8/8) | **On-disk format restored to 32-bit.** 35 packed-struct fields `long`→`int32_t` (in-memory structs deliberately untouched), plus the callsign count in the `.flt` read, the tape write and `GetCallsignList`'s embedded count/stride. **Five `static_assert`s now pin the layout** (80/36/41/8/16) against sizes derived from a real PO tape's own block offsets — the format contract fails the build instead of failing silently. Playback path still untested (needs display) |
+| 18 TE-09 root-caused | ✅ done (8/8) | **Not nondeterminism — two deterministic causes.** (1) `FF_SIM_KEY` is timed from *leaving the UI*, i.e. the start of the ~80–100 s load, so the long-standing `0x1e@5` recipe fires the AP key ~85 s before the aircraft exists — `ToggleAutopilot` was never called in any run. (2) `Viper.pop` persists `SimAutopilotType=APNormal` → `ThreeAxisAP`, an attitude hold that does not follow the route. The game rewrites that file on exit, so the value drifts between sessions — which is what read as nondeterminism. Shipped `FF_AP_MODE` + `FF_DEBUG_AP`; corrected recipe recorded |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -443,6 +444,56 @@ Retrying the flaky path burns a contended display slot per attempt at roughly a
 the enabler for an acceptance that has been open since July, and the suspect
 (AP roll-switch initial state) is diagnosable by reading the autopilot engage
 path rather than by repeated flights.
+
+## Sprint 18 (2026-08-09) — TE-09 root-caused: it was never nondeterminism
+
+**TE-09 has two causes, and neither is a race.** It has blocked the RWY-2
+acceptance since Sprint 8 and was recorded as "autopilot engages route-following
+nondeterministically (suspect AP roll-switch initial state)". The roll switch is
+not involved.
+
+**Cause 1 — the AP key never fires (automation).** `FF_SIM_KEY` timings are
+relative to *leaving the UI*, which is the **start of the ~80–100 s mission
+load**, not the start of flight. The long-standing recipe uses `0x1e@5`, so the
+autopilot keypress lands roughly 85 s before there is an aircraft to fly.
+Proven: with `FF_DEBUG_AP=1`, `ToggleAutopilot` produced **no trace at all** —
+it was never called. All three of today's runs flew with **no autopilot
+whatsoever**, straight ahead into the sea (~170 s, death dialog at 185 s).
+
+**Cause 2 — even when it fires, the mode is wrong.** `ToggleAutopilot`
+(aircraftinputs.cpp) selects behaviour from a **player option**:
+
+| `SimAutopilotType` | engages | follows route? |
+|---|---|---|
+| `APIntelligent` (0) | `CombatAP` | yes |
+| `APEnhanced` (1) | `WaypointAP` | yes |
+| **`APNormal` (2)** | **`ThreeAxisAP`** | **no — attitude/heading hold** |
+
+Decoding `config/Viper.pop` directly gives **`SimAutopilotType = 2` = `APNormal`**,
+so the AP holds heading instead of turning inbound — exactly the recorded
+symptom. The offset mapping was cross-checked before being trusted: the same
+decode yields `SimVisualCueMode=2` and `ObjDetailLevel=2.000`, both matching
+values printed live by `FF_DEBUG_PITSEL` in an earlier run.
+
+**Why it looked nondeterministic.** The game **rewrites `Viper.pop` on exit**, so
+the persisted AP mode can differ between sessions. Runs that route-followed had a
+route-following mode saved at the time; later runs did not. Not a race —
+**persisted state drifting between runs**.
+
+**That is the fourth "port defect" this session that turned out to be captured
+state or a player option** (DEV-2 time-of-day, DEV-4 `VCReflection`, DEV-1 the
+wrong screen, now TE-09). The pattern is worth naming: this engine keeps a lot of
+behaviour in a binary options file it rewrites on exit, so anything not pinned
+drifts, and drift reads as nondeterminism.
+
+**Shipped:** `FF_AP_MODE=<0|1|2>` forces the autopilot mode for repeatable
+approach automation, and `FF_DEBUG_AP=1` reports the mode in force — the
+"record the state you depend on" rule applied where it bit us.
+
+**Corrected recipe** for the TE landing approach: press the AP key *after* the
+load completes (`FF_SIM_KEY="0x1e@105"`, not `@5`) and pin the mode
+(`FF_AP_MODE=1`). The old `@5` recipe in the RWY-2 section below is stale and
+should not be reused.
 
 ## What works (verified)
 
