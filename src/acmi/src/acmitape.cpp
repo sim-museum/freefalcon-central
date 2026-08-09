@@ -951,7 +951,12 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
             case ACMICallsignList:
 
                 // Read the data
-                if ( not fread(&import_count, sizeof(long), 1, flightFile))
+                // ACMI-1: the count is a 32-bit Windows `long` on disk, so read
+                // exactly 4 bytes into the low half of our (64-bit) long. The
+                // whole .vhs/.flt format is little-endian, as is every target.
+                import_count = 0;
+
+                if ( not fread(&import_count, sizeof(int32_t), 1, flightFile))
                 {
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
                     return FALSE;
@@ -4044,7 +4049,9 @@ ACMITape::ImportTextEventList(FILE *fd, ACMITapeHeader *tapeHdr)
     // write callsign list
     if (Import_Callsigns)
     {
-        ret = fwrite(&import_count, sizeof(long), 1, fd);
+        // ACMI-1: write 4 bytes so the tape stays readable on Windows.
+        const int32_t import_count32 = (int32_t)import_count;
+        ret = fwrite(&import_count32, sizeof(int32_t), 1, fd);
 
         if ( not ret)
             goto error_exit;
@@ -4105,8 +4112,9 @@ void *ACMITape::GetCallsignList(long *count)
         return NULL;
     }
 
-    *count = (long)(*(long*)((char*)_tape + _tapeHdr.firstTextEventOffset + _tapeHdr.numTextEvents * sizeof(ACMITextEvent)));
-    return((void *)((char*)_tape + _tapeHdr.firstTextEventOffset + _tapeHdr.numTextEvents * sizeof(ACMITextEvent) + sizeof(long)));
+    // ACMI-1: the count embedded in the tape is a 32-bit Windows `long`.
+    *count = (long)(*(int32_t*)((char*)_tape + _tapeHdr.firstTextEventOffset + _tapeHdr.numTextEvents * sizeof(ACMITextEvent)));
+    return((void *)((char*)_tape + _tapeHdr.firstTextEventOffset + _tapeHdr.numTextEvents * sizeof(ACMITextEvent) + sizeof(int32_t)));
 }
 
 /*

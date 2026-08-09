@@ -5,6 +5,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+#include <cstdint>
 #include "FalcMesg.h"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -124,23 +125,23 @@ typedef struct _ActiveEvent
 #pragma pack (push, pack1, 1)
 typedef struct
 {
-    long fileID;
-    long fileSize;
-    long numEntities;
-    long numFeat;
-    long  entityBlockOffset;
-    long  featBlockOffset;
-    long numEntityPositions;
-    long timelineBlockOffset;
-    long firstEntEventOffset;
-    long firstGeneralEventOffset;
-    long firstEventTrailerOffset;
-    long firstTextEventOffset;
-    long firstFeatEventOffset;
-    long numEvents;
-    long numEntEvents;
-    long numTextEvents;
-    long numFeatEvents;
+    int32_t fileID;
+    int32_t fileSize;
+    int32_t numEntities;
+    int32_t numFeat;
+    int32_t  entityBlockOffset;
+    int32_t  featBlockOffset;
+    int32_t numEntityPositions;
+    int32_t timelineBlockOffset;
+    int32_t firstEntEventOffset;
+    int32_t firstGeneralEventOffset;
+    int32_t firstEventTrailerOffset;
+    int32_t firstTextEventOffset;
+    int32_t firstFeatEventOffset;
+    int32_t numEvents;
+    int32_t numEntEvents;
+    int32_t numTextEvents;
+    int32_t numFeatEvents;
     float startTime;
     float totPlayTime;
     float  todOffset;
@@ -154,10 +155,10 @@ typedef struct
 #pragma pack (push, pack1, 1)
 typedef struct
 {
-    long uniqueID;
-    long type;
-    long count;
-    long flags;
+    int32_t uniqueID;
+    int32_t type;
+    int32_t count;
+    int32_t flags;
 
 #define ENTITY_FLAG_MISSILE 0x00000001
 #define ENTITY_FLAG_FEATURE 0x00000002
@@ -167,14 +168,14 @@ typedef struct
 
     // for features we may need an index to the lead component and
     // the slot # that was in the camp component list (for bridges, bases...)
-    long leadIndex;
+    int32_t leadIndex;
     int slot;
     int specialFlags;
 
 
     // Offset from the start of the file to the start of my positional data.
-    long  firstPositionDataOffset;
-    long  firstEventDataOffset;
+    int32_t  firstPositionDataOffset;
+    int32_t  firstEventDataOffset;
 
 } ACMIEntityData;
 #pragma pack (pop, pack1)
@@ -210,7 +211,7 @@ typedef struct
             float pitch;
             float roll;
             float yaw;
-            long     radarTarget;
+            int32_t     radarTarget;
         } posData;
         // switch change
         struct switchTag
@@ -231,8 +232,8 @@ typedef struct
     // Although position data is a fixed size, we still want
     // this so that we can organize the data to be friendly for
     // paging.
-    long nextPositionUpdateOffset;
-    long prevPositionUpdateOffset;
+    int32_t nextPositionUpdateOffset;
+    int32_t prevPositionUpdateOffset;
 } ACMIEntityPositionData;
 #pragma pack (pop, pack1)
 
@@ -264,16 +265,16 @@ typedef struct
 {
     // type of event this is
     BYTE eventType;
-    long  index;
+    int32_t  index;
 
     // Time stamp for this event.
     float time;
     float timeEnd;
 
     // data specific to type of event
-    long type;
-    long user;
-    long flags;
+    int32_t type;
+    int32_t user;
+    int32_t flags;
     float scale;
     float x, y, z;
     float dx, dy, dz;
@@ -290,7 +291,7 @@ typedef struct
 typedef struct
 {
     float timeEnd;
-    long  index; // into EventHeader
+    int32_t  index; // into EventHeader
 } ACMIEventTrailer;
 #pragma pack (pop, pack1)
 
@@ -305,11 +306,11 @@ typedef struct
     float time;
 
     // index of feature on tape
-    long  index;
+    int32_t  index;
 
     // data specific to type of event
-    long newStatus;
-    long prevStatus;
+    int32_t newStatus;
+    int32_t prevStatus;
 
 } ACMIFeatEvent;
 #pragma pack (pop, pack1)
@@ -322,6 +323,32 @@ typedef struct
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+//
+// ACMI-1 (2026-08-09): the .vhs on-disk layout is 32-bit-Windows.
+//
+// These packed structs are read/written verbatim from the tape file, which is
+// produced by a 32-bit Windows build where `long` is 4 bytes. On 64-bit Linux
+// `long` is 8, so declaring these fields `long` silently doubled every integer
+// and made both directions unreadable: PO-supplied tapes parsed as garbage, and
+// tapes we wrote were not loadable on Windows.
+//
+// The sizes below are not guesses -- they are confirmed against a real
+// PO tape (260808_landing_final_approach.vhs), whose own block offsets are
+// exactly consistent with them:
+//     header 80                       == entityBlockOffset (80)
+//     80 + 1 entity   * 36            == featBlockOffset (116)
+//     116 + 724 feats * 36            == timelineBlockOffset (26180)
+//     26180 + 1440 positions * 41     == firstEntEventOffset (85220)
+//
+// Keep these assertions. They encode the file-format contract, and they are the
+// only thing standing between a stray `long` and another silent format break.
+static_assert(sizeof(ACMITapeHeader) == 80, "ACMI tape header must stay 32-bit-Windows sized");
+static_assert(sizeof(ACMIEntityData) == 36, "ACMI entity record must stay 32-bit-Windows sized");
+static_assert(sizeof(ACMIEntityPositionData) == 41, "ACMI position record must stay 32-bit-Windows sized");
+static_assert(sizeof(ACMIEventTrailer) == 8, "ACMI event trailer must stay 32-bit-Windows sized");
+static_assert(sizeof(ACMIFeatEvent) == 16, "ACMI feature event must stay 32-bit-Windows sized");
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // .vhs file format:

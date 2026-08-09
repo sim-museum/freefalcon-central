@@ -204,7 +204,9 @@ ACMIRecorder::StopRecording(void)
         hdr.time = 0.0f;
         fwrite(&hdr, sizeof(ACMIRecHeader), 1, _fd);
 
-        fwrite(&count, sizeof(long), 1, _fd);
+        // ACMI-1: 4 bytes on disk, so Windows can read what we record.
+        const int32_t count32 = (int32_t)count;
+        fwrite(&count32, sizeof(int32_t), 1, _fd);
 
         i = ACMIIDTable->GetFirst(&rec, &idx);
 
