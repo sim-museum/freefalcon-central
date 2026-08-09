@@ -1,6 +1,6 @@
 # FreeFalcon Linux Port — Current Status
 
-_Last updated: 2026-07-26. Branch `develop`, all commits pushed to origin._
+_Last updated: 2026-08-08. Branch `develop`, all commits pushed to origin._
 
 This is the live status of the Scrum effort to finish the Linux port (plan:
 `docs/COMPLETION_PLAN.md`; per-sprint detail: `docs/SPRINT{1,2,3,5}_*.md`).
@@ -19,7 +19,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 7 Performance & polish | ⬜ pending | Lower priority (stable ~60 FPS); profiling needs a running sim |
 | 8 RWY-2 defect (reopened) | ✅ done | Runway z-fight root-caused (world-z lift < depth LSB at range); slope-scaled `glPolygonOffset` on tagged runway batch, default ON; 07-25 A/B approach captures decisive + 07-26 engagement/regression re-runs; cross-port note 14 |
 | 9 EPIC SP screen parity | ✅ done (SP.1) | All 5 gold shots captured natively + verdicts logged: 1×parity, 2×partial, 2×major-deviation; 3 deviations registered (DEV-1 main-menu screen, DEV-2 2D-pit brightness, DEV-3 pit bottom sliver) for SP.2 |
-| 10 EPIC SP.2 deviations | 🔄 in progress | **DEV-2 and DEV-3 WITHDRAWN as unsupported** — native and gold sim frames differ **structurally** (native draws a canopy bow the gold lacks), so DEV-2 cannot be attributed to TOD/palette shading. Cause not yet identified; four hypotheses live (view mode, per-aircraft pit art set, unclipped bow, vertical placement). New `FF_DEBUG_PITSEL=1` trace records the resolved pit `.dat` and the live display mode, discriminating all four in one run |
+| 10 EPIC SP.2 deviations | ✅ done (8/8) | Sprint-9 verdicts re-verified with a new view/art-set trace (`FF_DEBUG_PITSEL=1`). **DEV-2 symptom confirmed, its recorded mechanism disproved** (the 2D pit is lit 3D geometry via `cockpit2d 2358`, not a palettized bitmap — so it is a lighting question, not a palette one). View confirmed `Mode2DCockpit`, art set the deterministic generic `16_ckpit.dat` fallback. **DEV-4 registered** (native draws a canopy bow the gold lacks); DEV-3 suspended pending a gold-4 re-shot. No fix shipped — deliberate |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -86,6 +86,57 @@ plus a backup click).
 **Retro (one line):** Same-scenario capture pairs (gold 4) turn "looks
 different" into a decisive single-variable verdict — prefer them over
 different-instant pairs (gold 2) when choosing what to capture first.
+
+## Sprint 10 Review (2026-08-08) — DONE, 8/8 pts
+
+**Goal:** EPIC SP.2 — root-cause and fix DEV-2 (2D-pit brightness). **Goal
+partially met and deliberately re-scoped:** DEV-2 is root-*caused* to the extent
+that its recorded mechanism is disproved and the real one localised, but no fix
+shipped — the sprint's main output is that the Sprint-9 verdicts could not be
+trusted as written, and the capture method that produced them is now fixed.
+
+- **SP.2-A (2 pts, done):** objective metric for DEV-2, and the finding that
+  killed the sprint's original plan — native and gold differ **structurally**,
+  not just tonally (native draws a canopy bow the gold lacks; same combiner
+  posts, same panel top ~y340, so not a scale difference). The tell that should
+  have caught this in Sprint 9 was already in the numbers: **the sky moved the
+  opposite way from the panel** (−60.7 vs +38.5 luma), which no single global
+  gamma/TOD error can produce.
+- **SP.2-B (4 pts, done):** new `FF_DEBUG_PITSEL=1` trace (cpmanager.cpp +
+  otwloop.cpp) records the pit art set actually resolved, whether it opened, the
+  scales, and the live display mode. One view-confirmed re-capture then settled
+  it: **view is `Mode2DCockpit` for the whole flight, hybrid off**, art set is
+  the deterministic generic `art/ckptart/16_ckpit.dat` fallback at scale 0.6399
+  (the aircraft is `F-16CJ` and no `F-16CJ/` cockpit directory exists).
+- **SP.2-C (2 pts, done):** re-measured against gold 2 with the view confirmed.
+  **DEV-2's symptom is real and reinstated** (panel median 28.7 gold vs 45.5
+  native; p95 107 vs 189) but **its stated mechanism is wrong** — the 2D pit is
+  not a palettized bitmap, it is lit 3D geometry (`cockpit2d 2358 2358` →
+  `CreateCockpitGeometry`), so this is a pit-geometry *lighting* question, not a
+  palette one. New **DEV-4** registered for the canopy bow. DEV-3 stays
+  suspended until gold 4 is re-shot with the trace.
+
+**Two corrections made inside the sprint, both recorded rather than quietly
+fixed:** (1) an intermediate conclusion that the native captures were the *3D
+virtual cockpit* was wrong — it inferred from "no 2D-pit `.dat` declares a
+`MIRROR`" without noticing the 2D pit is itself model geometry, so mirror shapes
+can belong to it; (2) DEV-2 was briefly withdrawn wholesale when only its
+mechanism was unsupported.
+
+**Retro:** *a parity capture must record the state it claims to be capturing.*
+Sprint 9 pinned the view with `FF_VIEW_SCRIPT="1@<t>"` and wrote verdicts as
+though that had taken effect; nothing in the output recorded the view in force,
+so "unset view" and "render bug" were indistinguishable for a whole sprint.
+Cheap to fix, and it turned a three-hypothesis guess into a one-run answer.
+Same family as BoB S101 — except the diagnostic here did not lie, it stayed
+silent about the one variable the verdict rested on.
+
+**Carry-over into Sprint 11:** DEV-4 (dump model 2358's switch/DOF components;
+the 2D path sets only masks 7 and 3 vs the 3D pit's 263 — a component left at
+its default-visible state is the leading candidate and is the port's recurring
+"nothing ever wrote this" class); DEV-2's lighting path (check whether commit
+`3bc96916`'s 3D-pit lighting fixes cover the 2D pit's geometry pass); DEV-3
+re-capture; DEV-1 still untouched.
 
 ## What works (verified)
 

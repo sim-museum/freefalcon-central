@@ -28,9 +28,9 @@ below are the ones that actually produced healthy frames.
 | # | Gold file (2026-…) | Screen / view | Native repro recipe (verified 07-27) | Verdict |
 |---|---|---|---|---|
 | 1 | 06-05 16-31-46 | UI main menu (cobra/blueprint splash, aircraft column right) | `tools/ff_validate.sh sp1-main -m ui -t 8 -r 16` | **DEVIATION (major)** — see DEV-1 |
-| 2 | 06-05 16-32-02 | Sim, 2D cockpit (view 1), Instant Action, banking over coastline, HUD + MFDs | `tools/ff_validate.sh sp2-iapit -m sim -t 110 -r 140 -v 1 -e FF_DEBUG_PITSEL=1` | ⚠️ **WITHDRAWN (Sprint 10)** — the native frame is the 3D virtual pit, not the 2D pit; verdict void, re-capture pending |
+| 2 | 06-05 16-32-02 | Sim, 2D cockpit (view 1), Instant Action, banking over coastline, HUD + MFDs | `tools/ff_validate.sh sp2-iapit -m sim -t 110 -r 140 -v 1 -e FF_DEBUG_PITSEL=1` | **PARTIAL** (re-verified Sprint 10, view + art set confirmed) — symbology/layout parity; **DEV-2** brightness confirmed, **DEV-4** canopy bow |
 | 3 | 06-05 20-37-29 | Dogfight setup lobby (Furball options, 4 team tiles, roster pane, Korea map) — NATIVE capture, see note | `tools/ff_validate.sh sp3-dfsetup -m ui -t 4 -r 44 -c "870,745@8;130,121@14;884,741@22"` (select saved game *before* COMMIT; COMMIT→lobby load ~5 s) | **PARITY** — layout/art/options identical; roster contents differ by saved-game state only |
-| 4 | 06-06 07-34-04 | Sim, 2D cockpit (view 1), dogfight arena entry, level over ocean | manual run: `FF_UI_CLICK="870,745@8;130,121@14;884,741@22;900,750@36;900,750@44"` + `FF_VIEW_SCRIPT="1@120"` + `FF_SIM_SCREENSHOT="125:…"` (TAKEOFF must fire *after* FM_JOIN_SUCCEEDED is processed — a TAKEOFF click at 30 s raced the join and silently no-op'd) | ⚠️ **WITHDRAWN (Sprint 10)** — native frame is the 3D virtual pit, not the 2D pit; verdict void, re-capture pending. Gold alt 10 000 vs native 16 000 ft = saved Furball altitude option, not a deviation |
+| 4 | 06-06 07-34-04 | Sim, 2D cockpit (view 1), dogfight arena entry, level over ocean | manual run: `FF_UI_CLICK="870,745@8;130,121@14;884,741@22;900,750@36;900,750@44"` + `FF_VIEW_SCRIPT="1@120"` + `FF_SIM_SCREENSHOT="125:…"` (TAKEOFF must fire *after* FM_JOIN_SUCCEEDED is processed — a TAKEOFF click at 30 s raced the join and silently no-op'd) | ⚠️ **RE-CAPTURE PENDING (Sprint 10)** — gold 4's native counterpart predates the view/art-set trace, so DEV-3 stays suspended until it is re-shot with `FF_DEBUG_PITSEL=1`. Gold alt 10 000 vs native 16 000 ft = saved Furball altitude option, not a deviation |
 | 5 | 06-09 15-32-20 | UI main menu (same screen as #1, later Wine build) | same as #1 | **DEVIATION (major)** — same as #1 / DEV-1 |
 
 ## Tolerance statement
@@ -63,7 +63,7 @@ displays (`mainbg.idx/.rsc` image `MAIN_SCRN`, 1024×768 8-bpp, decodes to a
 blueprint/logo composition). Root cause — which window/art set the Windows exe
 selects vs what `MAIN_SCF.LST` gives the native parser — is SP.2 work.
 
-### DEV-2 — 2D-cockpit bitmap renders far brighter than gold (golds 2 & 4) — ⚠️ **INVALID COMPARISON, see DEV-2/3 RETRACTION below** (Sprint 10)
+### DEV-2 — 2D pit renders far brighter than gold (golds 2 & 4) — ✅ symptom CONFIRMED, ⚠️ **stated mechanism WRONG** (Sprint 10)
 
 _Original Sprint-9 text, kept for the record:_ Systematic across both sim shots
 (IA and dogfight arena — the dogfight pair is same-scenario, so this is
@@ -83,15 +83,16 @@ _Original Sprint-9 text:_ The gold shows the pit art's bottom edge (glove/hand
 shapes) below the standby gauges; the native frame ends at the gauge bottoms.
 Possible small vertical offset/scale difference in the 2D-pit blit.
 
-### ⚠️ DEV-2 / DEV-3 WITHDRAWN — the frames differ STRUCTURALLY, cause not yet identified (Sprint 10, SP.2-A)
+### ⚠️ DEV-2 / DEV-3 re-examined — the frames also differ STRUCTURALLY (Sprint 10, SP.2-A)
 
-**Both verdicts are withdrawn as unsupported.** DEV-2's stated root cause
-(missing TOD/palette shading on a palettized 2D-pit bitmap) rests on the premise
-"same panel art, same instrument layout, a shading difference only". That
-premise is false: the native and gold frames differ **structurally**, so the
-tonal difference cannot be attributed to shading until the structural difference
-is explained. No renderer fix should be attempted on either deviation until a
-matched re-capture exists.
+DEV-2's stated root cause (missing TOD/palette shading on a palettized 2D-pit
+bitmap) rests on the premise "same panel art, same instrument layout, a shading
+difference only". **That premise is false**: the native and gold frames differ
+**structurally** as well as tonally. The tonal delta could not be attributed to
+shading until the structural difference was explained, so both verdicts were
+suspended pending a view-confirmed re-capture. SP.2-B (below) supplied it: the
+tonal symptom is confirmed real, the mechanism is not the one recorded, and the
+structural difference is now tracked separately as DEV-4.
 
 **What is established (offline, from the committed Sprint-9 thumbnails + the
 game data — no new capture required):**
@@ -121,13 +122,80 @@ from a 3D model. Mirror and canopy-bow shapes can therefore belong to the 2D pit
 legitimately, as model geometry rather than as `CPMirror` objects. The view
 actually in force at capture time remains **unknown**.
 
-**Live hypotheses for the structural difference, none yet eliminated:**
-- the two frames are different view modes (native 3D virtual pit vs gold 2D pit);
-- different pit art sets resolved (per-aircraft directory override — the data has
-  `F-16CG/`, `F-16CJ_MicroProse/` with a `10_ckpit.dat`, and a widescreen set —
-  so the aircraft flown changes which pit loads);
-- the bow is drawn natively but should be clipped, culled or chroma-keyed away;
-- vertical placement differs so the bow sits off-screen in gold.
+**Live hypotheses for the structural difference:**
+- ~~the two frames are different view modes~~ — **ELIMINATED**, see below;
+- ~~different vertical placement so the bow sits off-screen in gold~~ —
+  **ELIMINATED**: panel top matches (~y340 normalised) in both;
+- the bow is drawn natively but should be culled, switched off or hidden — LIVE;
+- the Windows install resolved a different pit art set — LIVE but weak (same
+  game data; the native fallback is deterministic, see below).
+
+### SP.2-B result — view and art set CONFIRMED; the deviations are real (Sprint 10)
+
+Re-captured with the new trace, `gl-lock`-serialised, `-test-ia`, view pinned:
+`tools/ff_validate.sh sp2-iapit -m sim -t 110 -r 140 -v 1 -e FF_DEBUG_PITSEL=1`
+→ `/tmp/ffval/sp2-iapit.png` (1024×768, 94.4 % non-black, 96 242 distinct
+colours, VERDICT REAL CONTENT).
+
+What the trace establishes:
+
+```
+[PITSEL] requested='16_ckpit.dat'
+         resolved='…/art/ckptart/16_ckpit.dat' main=1
+         hScale=0.6399 vScale=0.6399 visType=1746 cpName='F-16CJ' nctr='F16CJ'
+[PITSEL] open '…/art/ckptart/16_ckpit.dat' -> OK
+[PITSEL] displayMode=2 (CHANGED) hybrid=0      … steady at 2 for the whole flight
+```
+
+- **The view is `Mode2DCockpit` (2) for the entire run, with hybrid pit off.**
+  The native capture *is* the 2D pit. The view-mode hypothesis is dead, and the
+  earlier "these are the 3D virtual cockpit" reading is definitively wrong.
+- **The art set is the generic `art/ckptart/16_ckpit.dat` fallback**, opened OK,
+  at scale 0.6399 (= 1024/1600). The aircraft's cockpit name is `F-16CJ`, and
+  there is **no `art/ckptart/F-16CJ/` directory** in this install (only
+  `F-16CJ.txt`, `F-16CJ_MicroProse/`, `F-16CJ_PaulWilson/`,
+  `F-16CJ_PaulWilson_Widescreen/`), so `FindCockpit` falls through to the
+  theater-standard file. This is deterministic and would resolve identically on
+  Windows against the same data.
+- `gDoCockpitHack` is not involved — the pit `.dat` opened successfully.
+
+**Re-measured, view-confirmed, gold 2 vs the fresh native capture** (gold client
+area cropped and both normalised to 1024×768):
+
+| Region | gold luma | native luma | Δ |
+|---|---|---|---|
+| sky y0–100 | 97.8 | 84.5 | −13.3 |
+| bow band y40–110, x380–640 | 149.7 | 101.8 | **−47.9** |
+| panel y500–768 | 38.0 | 58.7 | **+20.7** |
+| panel left y500–768, x0–200 | 31.0 | 66.3 | +35.3 |
+
+Panel percentiles (p5/p25/p50/p75/p95): gold `5 / 16 / 29 / 49 / 107` vs native
+`0 / 5 / 46 / 88 / 189`.
+
+**So DEV-2's symptom is real and reinstated — but its stated mechanism is
+wrong.** The 2D pit in this art set is **not** a palettized bitmap, so "missing
+TOD/palette shading on the pit bitmap" cannot be the cause. Its MANAGER block
+carries `cockpit2d 2358 2358`, i.e. the pit is drawn from **lit 3D model
+geometry** (`CreateCockpitGeometry`). The brightness question is therefore a
+**pit-geometry lighting question**, and this port has prior form exactly there —
+commit `3bc96916` fixed three compounding lighting bugs for the *3D* pit
+(per-vertex emissive dropped, DXT1 punch-through alpha, light directions baked
+through a stale modelview). Whether those fixes cover the 2D pit's geometry pass
+is the first thing to check. `mFloodLight`/`mInstLight`/`lightLevel` on
+`CockpitManager` (from `floodlight = 0xff666666; instlight = 0xff666600;` in the
+`.dat`) are the other input.
+
+**New: DEV-4 — native draws a canopy bow the gold does not.** In a confirmed
+identical view and a deterministically identical art set, the native frame
+renders a canopy bow with mirror geometry arching over the HUD glass; the gold
+shows open sky there. Note the 2D pit sets only **two** switch masks on its
+geometry — `SetSwitchMask(7, …)` (wing, gated on `ObjectDetailLevel`) and
+`SetSwitchMask(3, …)` (canopy reflection, gated on
+`PlayerOptions.SimVisualCueMode`) at cpmanager.cpp:4509/4520 — whereas the 3D
+pit sets 263 of them in `vcock.cpp`. A switchable component of model 2358 left
+at its default-visible state is the leading candidate, and that is the port's
+recurring "nothing ever wrote this" class. Next step is to dump model 2358's
+switch/DOF components and A/B the two masks the 2D path does set.
 
 **Measured tonal delta (kept — it is a real measurement, just not of what
 DEV-2 claimed).** Gold 4 client area vs `sp4-native-dfpit`, normalised 512×384:
