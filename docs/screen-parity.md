@@ -27,11 +27,11 @@ below are the ones that actually produced healthy frames.
 
 | # | Gold file (2026-…) | Screen / view | Native repro recipe (verified 07-27) | Verdict |
 |---|---|---|---|---|
-| 1 | 06-05 16-31-46 | UI main menu (cobra/blueprint splash, aircraft column right) | `tools/ff_validate.sh sp1-main -m ui -t 8 -r 16` | **DEVIATION (major)** — see DEV-1 |
+| 1 | 06-05 16-31-46 | UI main menu (cobra/blueprint splash, aircraft column right) | `tools/ff_validate.sh sp1-main -m ui -t 8 -r 16` | ⚠️ **GOLD NOT REPRODUCIBLE (Sprint 12)** — native correctly renders `main_win.scf` → `UI_MAIN_BG`; no resource in this install matches the gold background. Provenance question to PO |
 | 2 | 06-05 16-32-02 | Sim, 2D cockpit (view 1), Instant Action, banking over coastline, HUD + MFDs | `tools/ff_validate.sh sp2-iapit -m sim -t 110 -r 140 -v 1 -e FF_DEBUG_PITSEL=1` | **PARITY (Sprint 11)** — symbology/layout parity; DEV-2 and DEV-4 both resolved as non-defects (time-of-day and a player option). PO waiver requested |
 | 3 | 06-05 20-37-29 | Dogfight setup lobby (Furball options, 4 team tiles, roster pane, Korea map) — NATIVE capture, see note | `tools/ff_validate.sh sp3-dfsetup -m ui -t 4 -r 44 -c "870,745@8;130,121@14;884,741@22"` (select saved game *before* COMMIT; COMMIT→lobby load ~5 s) | **PARITY** — layout/art/options identical; roster contents differ by saved-game state only |
 | 4 | 06-06 07-34-04 | Sim, 2D cockpit (view 1), dogfight arena entry, level over ocean | manual run: `FF_UI_CLICK="870,745@8;130,121@14;884,741@22;900,750@36;900,750@44"` + `FF_VIEW_SCRIPT="1@120"` + `FF_SIM_SCREENSHOT="125:…"` (TAKEOFF must fire *after* FM_JOIN_SUCCEEDED is processed — a TAKEOFF click at 30 s raced the join and silently no-op'd) | ⚠️ **RE-CAPTURE PENDING (Sprint 10)** — gold 4's native counterpart predates the view/art-set trace, so DEV-3 stays suspended until it is re-shot with `FF_DEBUG_PITSEL=1`. Gold alt 10 000 vs native 16 000 ft = saved Furball altitude option, not a deviation |
-| 5 | 06-09 15-32-20 | UI main menu (same screen as #1, later Wine build) | same as #1 | **DEVIATION (major)** — same as #1 / DEV-1 |
+| 5 | 06-09 15-32-20 | UI main menu (same screen as #1, later Wine build) | same as #1 | ⚠️ **GOLD NOT REPRODUCIBLE (Sprint 12)** — same as #1 / DEV-1 |
 
 ## Tolerance statement
 
@@ -57,11 +57,61 @@ world-map/blueprint artwork with a right-hand column of gold aircraft
 Classification so far: **UI resource/window-selection divergence** (bug class,
 not asset gap). Ruled out 07-27: the missing `art/resource/mainbg.irc`
 (recreated per the Jan-2026 port notes — byte-identical menu, no change); UI
-resource load failures (only the known-benign `help_res.lst` fails). Ruled in:
-the game data DOES carry FF-themed full-screen menu art the native build never
-displays (`mainbg.idx/.rsc` image `MAIN_SCRN`, 1024×768 8-bpp, decodes to a
-blueprint/logo composition). Root cause — which window/art set the Windows exe
-selects vs what `MAIN_SCF.LST` gives the native parser — is SP.2 work.
+resource load failures (only the known-benign `help_res.lst` fails).
+
+### Sprint 12 — DEV-1 reclassified: the native is CORRECT for this data; the gold is not reproducible from it
+
+**Correction to the Sprint-9 entry above.** It recorded that "the game data DOES
+carry FF-themed full-screen menu art the native build never displays
+(`mainbg.idx/.rsc` image `MAIN_SCRN` … decodes to a blueprint/logo
+composition)". **That is wrong on both halves:**
+
+- `MAIN_SCRN` (in `art/resource/mainbg`) decodes to a **radar-scope / circular
+  dial** image, not a blueprint/logo menu.
+- The image the main window actually asks for is **`UI_MAIN_BG`**, not
+  `MAIN_SCRN`: `art/main/main_win.scf:20` is
+  `[SETUP] NID C_STATE_DOWN UI_MAIN_BG`. That resolves via
+  `art/uiskin/UISkin.irc` → `art/UISkin/ff4/UIMAINBG`, and decoding it shows the
+  **F-16-in-shelter photo the native displays**. So the native renders exactly
+  the resource the script names, and it is displayed, not skipped.
+
+`main_win.scf` also places the buttons at **y=728 — the bottom bar** the native
+draws (`EXIT_CTRL 0 728`, `IA_MAIN_CTRL 724 728`, `DF_MAIN_CTRL 824 728`), with
+`BAR_M` tiled across y=728 and `BAR_O` across y=0. Every `main_win.scf` in the
+install (base + all four theater trees) has that same layout. **There is no
+window script in this data that produces the gold's right-hand aircraft column
+and no bottom bar.**
+
+**Search for the gold's background.** Every `.idx` in the install was walked
+(751 resource indexes), every 1024×768 entry decoded, deduplicated to **69
+unique full-screen images**, and rendered as a contact sheet. They are aircraft
+photos, a few radar scopes, a Balkans title card and a FreeFalcon text page.
+Only two are near-black, and both are **entirely empty** (mean 0.0). None is the
+gold's blue blueprint/cobra composition.
+
+**Conclusion: golds 1 and 5 cannot be reproduced from this game-data install.**
+The native build is behaving correctly for the data it has. This is the same
+class as the Sprint-9 inventory note about gold 3 — **a gold-provenance problem,
+not a renderer bug.**
+
+**PO question:** were golds 1 and 5 captured against a different FreeFalcon
+install, version or UI skin than
+`~/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6`? If so DEV-1 should be withdrawn;
+if not, we need the data that contains that artwork.
+
+**Stated limitation:** the search covered full-screen 1024×768 resources. If the
+gold's menu is *composed* (a smaller or tiled background plus separately placed
+elements) rather than one full-screen image, it would not have been found.
+
+**A method that had to be thrown away — worth reading.** The first pass ranked
+candidates by normalised correlation against the gold using palette indices as
+greyscale. It reported "no match, best 0.447" — which looked like a result. Run
+as a **control against the NATIVE capture, whose correct answer is known**, the
+same metric put `art/uiskin/ff4` `UI_MAIN_BG` **outside the top 6** (best 0.557).
+The metric cannot identify a known-positive, so its negatives are worthless, and
+the conclusion drawn from it was withdrawn and redone by decode + eyeball.
+**Validate a similarity metric on a known-positive control before believing a
+negative result.**
 
 ### DEV-2 — 2D pit renders far brighter than gold (golds 2 & 4) — ✅ symptom CONFIRMED, ⚠️ **stated mechanism WRONG** (Sprint 10)
 

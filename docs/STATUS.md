@@ -21,6 +21,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 9 EPIC SP screen parity | ✅ done (SP.1) | All 5 gold shots captured natively + verdicts logged: 1×parity, 2×partial, 2×major-deviation; 3 deviations registered (DEV-1 main-menu screen, DEV-2 2D-pit brightness, DEV-3 pit bottom sliver) for SP.2 |
 | 10 EPIC SP.2 deviations | ✅ done (8/8) | Sprint-9 verdicts re-verified with a new view/art-set trace (`FF_DEBUG_PITSEL=1`). **DEV-2 symptom confirmed, its recorded mechanism disproved** (the 2D pit is lit 3D geometry via `cockpit2d 2358`, not a palettized bitmap — so it is a lighting question, not a palette one). View confirmed `Mode2DCockpit`, art set the deterministic generic `16_ckpit.dat` fallback. **DEV-4 registered** (native draws a canopy bow the gold lacks); DEV-3 suspended pending a gold-4 re-shot. No fix shipped — deliberate |
 | 11 EPIC SP.2 (cont.) | ✅ done (7/8) | **DEV-2 and DEV-4 both RESOLVED as non-defects; gold 2 upgraded to PARITY.** DEV-4 = the canopy-reflection visual cue (`SimVisualCueMode=VCReflection`), A/B-proven by forcing it off — a player option, not a renderer bug. DEV-2 = a time-of-day difference: forcing the gold's light level reproduces the gold's panel almost exactly (p95 106.0 vs 107.0), so the panel path is correct. Both recommended for PO waiver. New backlog: LIGHT-1 (cockpit never re-lights), LIGHT-2 (unclamped `cLight`). DEV-3 carried |
+| 12 EPIC SP.2 (DEV-1) | ⚠️ partial (5/8) | **DEV-1 reclassified, not fixed.** The native correctly renders `main_win.scf` → `UI_MAIN_BG` (the F-16 photo); a wrong Sprint-9 finding is corrected (`MAIN_SCRN` is a radar scope, and the window never asks for it). Searched all 751 `.idx` files / 69 unique 1024×768 images: **nothing in this install matches the gold's menu**, so golds 1 & 5 look like a **provenance problem**, same class as gold 3. PO question raised. Retro: validate a similarity metric on a known-positive before believing a negative |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -188,6 +189,54 @@ the failure mode that produced DEV-2's wrong mechanism in the first place.
 **Tooling:** `FF_PIT_VISCUE=<n>` and `FF_PIT_LIGHT=<f>` diagnostics added;
 `ff_validate.sh` now uses `timeout -k 5` so a run that ignores SIGINT cannot
 outlive its cap holding the display lock.
+
+## Sprint 12 Review (2026-08-08) — PARTIAL, 5/8 pts
+
+**Goal:** EPIC SP.2 — root-cause and fix DEV-1 (main menu is a different screen).
+**Outcome: DEV-1 reclassified, not fixed.** The native is behaving correctly for
+this game data; the gold appears to come from a different install.
+
+- **S12-A (1/3 pts):** no UI trace shipped — the question was answered by data
+  analysis instead, so the instrumentation story is only partly delivered.
+- **S12-B (3 pts, done):** **corrected a wrong Sprint-9 finding.** Sprint 9
+  recorded that the data carries FF-themed menu art the native never displays
+  (`MAIN_SCRN`, "blueprint/logo composition"). Both halves are wrong:
+  `MAIN_SCRN` is a **radar-scope** image, and the window does not ask for it —
+  `main_win.scf:20` names **`UI_MAIN_BG`**, which resolves to
+  `art/UISkin/ff4/UIMAINBG` and decodes to the **F-16-in-shelter photo the
+  native shows**. The native renders exactly what the script names. Every
+  `main_win.scf` in the install (base + 4 theater trees) puts the buttons on the
+  **bottom bar at y=728**, which is what the native draws; nothing in this data
+  produces the gold's right-hand aircraft column.
+- **S12-C (1/2 pts):** fresh main-menu capture taken under `gl-lock`
+  (`sp12-main`) and both gold verdicts re-issued. Full-install search: 751
+  `.idx` files, every 1024×768 entry decoded, 69 unique full-screen images, none
+  matching the gold; the only two near-black candidates are entirely empty.
+  → **PO question raised:** were golds 1 & 5 shot against a different install /
+  version / UI skin? Same class as the Sprint-9 note on gold 3.
+
+**Stated limitation:** the search covered full-screen 1024×768 resources only.
+A *composed* menu (tiled/smaller background plus placed elements) would evade it.
+
+**Retro — the important one: validate a similarity metric on a known-positive
+control before believing a negative.** The first search ranked resources by
+correlation against the gold and reported "no match, best 0.447", which read
+like a finding. Run against the **native** capture, whose correct answer is
+known, the same metric put the true background **outside the top 6**. The metric
+could not find a known-positive, so its negatives meant nothing; the conclusion
+was withdrawn and redone by decode + contact sheet. A negative result from an
+unvalidated metric is not evidence.
+
+**Also registered (upstream, deliberately NOT fixed):** `theaterdef.cpp:278`
+assigns the **wrong variable** in its else branch —
+`strcpy(FalconUISoundDirectory, …)` where it means `FalconUIArtThrDirectory`
+(copy-paste from the block above). `git log -L` shows it arrived in the original
+import, so **Windows has it too**; fixing it would diverge from the oracle.
+Unreachable in this data anyway (every theater sets a non-empty `artdir`).
+Related: `main_linux.cpp:1280` hardcodes `FalconUIArtThrDirectory` to
+`<data>/art`, which matches Korea's `artdir art` but not `korea_2012`
+(`artkorea2012`), `eurowar` (`artEurowar`) or Balkans — latent for non-Korea
+theaters if the theater loader does not override it in time.
 
 ## What works (verified)
 
