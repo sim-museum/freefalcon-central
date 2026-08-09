@@ -31,7 +31,25 @@ Gold standard: `/run/media/admin/BEA6-BBCE/free falcon/` (5 PNGs). Open PO
 question: shot 3 may be a native capture rather than a Wine gold — provenance to
 confirm.
 
-## Current state (2026-08-08, after Sprint 11)
+## Current state (2026-08-08, after Sprint 12)
+
+- **Sprint 12 PARTIAL 5/8 — DEV-1 reclassified, not fixed.** The native renders
+  the main menu **correctly for this data**: `main_win.scf:20` names
+  `UI_MAIN_BG`, which resolves to `art/UISkin/ff4/UIMAINBG` = the F-16-in-shelter
+  photo you see, and the bottom button bar is `main_win.scf`'s own y=728 layout.
+  A wrong Sprint-9 finding is corrected: `MAIN_SCRN` is a **radar-scope** image
+  and the window never asks for it.
+- **Golds 1 & 5 are probably a provenance problem.** All 751 `.idx` files were
+  searched; of 69 unique 1024×768 images none matches the gold's blue
+  blueprint/cobra menu (the only two near-black candidates are empty).
+  **PO question: were golds 1 & 5 shot against a different install/version/skin?**
+  Same class as the existing note on gold 3.
+- **Three PO decisions now pending**, none needing code: waive DEV-2, waive
+  DEV-4, and confirm gold 1/5 provenance.
+- **DEV-3 still carried** — gold 4 has never been re-shot with the trace. That is
+  the obvious next sprint, and it is a sim run (~2.5 min under the lock).
+
+## Previous state (2026-08-08, after Sprint 11)
 
 - **Sprint 11 closed 7/8.** Both of Sprint 9's "major" 2D-pit deviations are
   **resolved as non-defects**, and gold 2 is upgraded to **PARITY**:
