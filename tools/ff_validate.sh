@@ -87,7 +87,7 @@ fi
 for e in "${EXTRA_ENV[@]:-}"; do [ -n "$e" ] && ENVV+=("$e"); done
 
 echo "=== $TAG: mode=$MODE capture@${AT}s run=${RUN}s ${VIEW:+view=$VIEW }${CLICKS:+clicks=\"$CLICKS\"}"
-( cd "$GAME_DIR" && timeout -s INT "$RUN" env "${ENVV[@]}" "$BIN" "${ARGS[@]}" ) >"$LOG" 2>&1
+( cd "$GAME_DIR" && timeout -k 5 -s INT "$RUN" env "${ENVV[@]}" "$BIN" "${ARGS[@]}" ) >"$LOG" 2>&1
 echo "  game exited ($?; 124=killed by harness timeout, expected)"
 
 if [ "$MODE" = ui ] && [ -s /tmp/ff_ui.bmp ]; then cp /tmp/ff_ui.bmp "$SHOT"; fi
