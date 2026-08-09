@@ -1,6 +1,6 @@
 # FreeFalcon Linux Port — Current Status
 
-_Last updated: 2026-08-08. Branch `develop`. Sprint-10 commits are local — not yet pushed to origin._
+_Last updated: 2026-08-08. Branch `develop`, all commits pushed to origin._
 
 This is the live status of the Scrum effort to finish the Linux port (plan:
 `docs/COMPLETION_PLAN.md`; per-sprint detail: `docs/SPRINT{1,2,3,5}_*.md`).
