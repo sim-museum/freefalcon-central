@@ -25,6 +25,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 13 Video gold standard | ✅ done (8/8) | **DEV-1 CLOSED as PARITY** — the video shows golds 1 & 5 were a *loading screen*, not the main menu; native vs gold main menu correlates **0.9908** at matched 1024×768. Overturns both the Sprint-9 finding and my own Sprint-12 conclusion. ~~LIGHT-1 confirmed~~ — **that claim was WITHDRAWN in Sprint 14: the defect does not exist** (the callback was already registered; a truncated grep hid it). New `tools/gold_video.sh` extracts pixel-exact 1024×768 client frames from the Wine recordings |
 | 14 LIGHT-1 (withdrawn) | ❌ reverted | **LIGHT-1 does not exist.** The claim that `CockpitManager::TimeUpdateCallback` was never registered was wrong — cpmanager.cpp:677–679 has always registered it. A `grep … | head -20` truncated the answer at line 21. The "fix" double-registered the manager (two registers, one release → **use-after-free** on the next TOD tick after a mission) and is reverted. Caught by its own control run: predicted 9-vs-1, measured 9-vs-15 |
 | 15 EPIC SP closed | ✅ done (8/8) | **DEV-3 CLOSED — does not reproduce.** Against the video gold's 2D pit (`views` t=20s, matched 1024×768) the native pit art reaches the bottom edge exactly as the gold's; bottom rows track within a few luma units to y=766 and neither shows pilot hands. **At matched daytime TOD the panel means agree (gold 59.9 vs native 58.6)** — independent corroboration of DEV-2's waiver. **EPIC SP is now COMPLETE: all 5 gold shots resolved, DEV-1..4 all closed as non-defects, zero renderer bugs found.** Done entirely offline — no display lock |
+| 16 RWY-2 + ACMI-1 | 🔄 in progress | **ACMI-1 found: our ACMI cannot read Windows tapes.** `ACMITapeHeader` is a packed struct of 17 `long`s — 80 bytes on Win32, 148 here — so every field misparses; proven by parsing a real PO tape both ways (32-bit gives numEntities=1, numFeat=724, totPlayTime=195.9s; 64-bit gives garbage). `src/acmi/` has 48 `long`s, zero `int32_t`, no `FF_LINUX` guards — never swept. RWY-2 gold reference frames committed; our matching capture queued behind display holds |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -373,6 +374,53 @@ deviations and a fourth was added in Sprint 10; all four were artefacts of the
 comparison method, not of the port.** Every one traced to the same root cause —
 comparing frames without recording the state that produced them (view mode, time
 of day, player options, or even which screen it was).
+
+## Sprint 16 (2026-08-09) — RWY-2 vs the landing gold + ACMI-1
+
+**ACMI-1 (new defect, high confidence, found offline): our ACMI cannot read
+Windows-recorded tapes, and ours are unreadable on Windows.**
+
+`ACMITapeHeader` (acmitape.h:124-148) is a `#pragma pack(1)` struct of 17
+`long`s followed by 3 floats. `long` is **4 bytes on 32-bit Windows, 8 on 64-bit
+Linux**, so the header is 80 bytes there and 148 bytes here, and every field
+after the first misparses. This is the port's signature bug class — the same one
+already fixed in `cresmgr.cpp`, the campaign save path, WAV loading and the
+terrain block offsets — but **`src/acmi/` was never swept: 48 `long` uses, zero
+`int32_t`, and not one `FF_LINUX` guard in the whole directory.**
+
+Verified against a real PO tape (`260808_landing_final_approach.vhs`, 919 525 B)
+by parsing it both ways:
+
+| field | 32-bit layout | 64-bit layout |
+|---|---|---|
+| numEntities | **1** | 498216206416 |
+| numFeat | **724** | 112442243810720 |
+| entityBlockOffset | **80** | 3852847657602276 |
+| numEntityPositions | **1440** | 897061 |
+| totPlayTime | **195.861 s** | 0.000 |
+| startTime | **32417.0 s** (09:00:17) | 0.000 |
+
+The 32-bit reading is entirely self-consistent — ascending in-file offsets, and
+195.9 s of play time matching the 3:44 clip minus its menu and load. The 64-bit
+reading is garbage. The tapes are fine; our reader is not.
+
+Scope beyond the header: `ACMIEntityData`, `ACMIEntityPositionData`,
+`ACMIEventHeader`, `ACMIEventTrailer` and the rest of the packed structs in
+`acmitape.h` have the same problem, so this is a directory-wide sweep
+(`long` → `int32_t` for everything that touches the file format), not a one-line
+fix. It also means **ACMI tapes we write today are not interchangeable with
+Windows** — worth knowing before anyone treats a `.vhs` as a portable artefact.
+
+Cost of *not* fixing: the five PO-supplied tapes (`TAPE0006-0010.vhs` plus the
+landing tape) are unusable as an oracle, and ACMI playback parity cannot be
+tested at all.
+
+**RWY-2:** the landing clip is the acceptance flight that has been outstanding
+since Sprint 8. Gold reference frames at t=130/150/165/180 s are committed
+(`docs/screen-parity/gold-video-landing-t*.png`); they show the runway rendered
+continuously from approach distance through touchdown. Our matching capture is
+queued behind other sessions' display holds; TE-09 (nondeterministic approach
+autopilot) may need several attempts.
 
 ## What works (verified)
 
