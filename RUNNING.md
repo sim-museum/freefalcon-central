@@ -31,7 +31,28 @@ Gold standard: `/run/media/admin/BEA6-BBCE/free falcon/` (5 PNGs). Open PO
 question: shot 3 may be a native capture rather than a Wine gold — provenance to
 confirm.
 
-## Current state (2026-07-27)
+## Current state (2026-08-08)
+
+- **Sprint 10 closed 8/8 (EPIC SP.2).** No renderer fix shipped — deliberately.
+  The sprint's output is that the Sprint-9 sim-screen verdicts could not be
+  trusted as written, plus the diagnostic that makes them trustworthy from now
+  on.
+  - **`FF_DEBUG_PITSEL=1`** (new) prints the cockpit art file requested vs
+    actually resolved, whether it opened, the h/v scales, and the live display
+    mode once a second. **Use it on every sim parity capture** — see the
+    Sprint-10 retro in `docs/STATUS.md` for why.
+  - **DEV-2 (2D pit too bright): symptom confirmed, mechanism disproved.** It is
+    not "missing TOD/palette shading on a palettized bitmap" — the 2D pit is
+    drawn from lit 3D model geometry (`cockpit2d 2358 2358`). It is a
+    pit-geometry *lighting* question. Panel median luma 28.7 gold vs 45.5 native.
+  - **DEV-4 (new): native draws a canopy bow the gold lacks**, in a confirmed
+    identical view and art set. Leading candidate is a switchable component of
+    model 2358 left at its default-visible state (the 2D path sets only switch
+    masks 7 and 3; the 3D pit sets 263).
+  - **DEV-3 suspended** until gold 4 is re-shot with the trace.
+  - Outbound cross-port note 15 (methodology, class-level) delivered to MA + BoB.
+
+## Previous state (2026-07-27)
 
 - Sprint 8 closed (`9ed8f3b2`/`c479a0d0`): landing-strip z-fighting fixed
   default-ON (slope-scaled depth bias on tagged runway batches) — **awaiting the
