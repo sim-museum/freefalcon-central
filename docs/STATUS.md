@@ -28,6 +28,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 16 RWY-2 + ACMI-1 | ⚠️ partial | **ACMI-1 found: our ACMI cannot read Windows tapes.** `ACMITapeHeader` is a packed struct of 17 `long`s — 80 bytes on Win32, 148 here — so every field misparses; proven by parsing a real PO tape both ways (32-bit gives numEntities=1, numFeat=724, totPlayTime=195.9s; 64-bit gives garbage). `src/acmi/` has 48 `long`s, zero `int32_t`, no `FF_LINUX` guards — never swept. RWY-2 **blocked on TE-09** — two attempts diverged (one my own view-mismatch error, one autopilot). Depth bias confirmed engaging (701 activations). TE-09 promoted to the next sprint |
 | 17 ACMI-1 fix | ✅ done (8/8) | **On-disk format restored to 32-bit.** 35 packed-struct fields `long`→`int32_t` (in-memory structs deliberately untouched), plus the callsign count in the `.flt` read, the tape write and `GetCallsignList`'s embedded count/stride. **Five `static_assert`s now pin the layout** (80/36/41/8/16) against sizes derived from a real PO tape's own block offsets — the format contract fails the build instead of failing silently. Playback path still untested (needs display) |
 | 18 TE-09 root-caused | ✅ done (7/8) | **Not nondeterminism — persisted options.** (1) With `SimAvionicsType=ATRealisticAV` and `SimAutopilotType=APNormal` (both from `Viper.pop`), `SimToggleAutopilot` routes the AP key to **`SimRightAPSwitch`** and never calls `ToggleAutopilot` — proven with entry-level tracing after a first, badly-instrumented attempt wrongly blamed key timing. **AP-1 registered:** a duplicated `(not StrgSel) and (not StrgSel)` guard (two sibling sites show `(not StrgSel) and (not HDGSel)`) clobbers HDG Select — the very roll-switch-initial-state TE-09 suspected. Upstream; PO call. (2) `Viper.pop` persists `SimAutopilotType=APNormal` → `ThreeAxisAP`, an attitude hold that does not follow the route. The game rewrites that file on exit, so the value drifts between sessions — which is what read as nondeterminism. Shipped `FF_AP_MODE` + `FF_DEBUG_AP`; corrected recipe recorded |
+| 19 PO smoke test | ✅ done (8/8) | **AUTOSAVE-1 FIXED** — our own `Auto Save.cam` was unreadable: `Encode` wrote 32-byte native event nodes while `Decode` read the 20-byte 32-bit-Windows layout, drifting 12 bytes per event → garbage count → `bad_alloc` → SIGSEGV on **every** campaign mission end. Both encode sites fixed. Five more defects registered from the PO's flight: JOINFAIL-1 (graceful-failure path segfaults), **RWY-3** (12/31 runway posts step through coarse elevations — the retracting airfield, now quantified), TERRAIN-1 (grey untextured dogfight terrain), LOAD-1 (white loading screen regression), PIT-1/GEAR-1. **ACMI promoted to top of backlog per PO** — it is a quantitative performance instrument, not just an oracle |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -539,6 +540,102 @@ timing and should replace the stale `@5`, but on its own it changes nothing
 while the persisted options send the key to the AP switch. A repeatable approach
 needs either the command-layer override or `SimAutopilotType`/`SimAvionicsType`
 set to a route-following combination.
+
+## Sprint 19 (2026-08-09) — PO smoke test: 6 defects found, autosave round-trip FIXED
+
+The PO test-drove the build under gdb. Dogfight flew clean; the campaign crashed;
+TE "09 Landing Final Approach" **loaded and was landed successfully**. Six
+distinct defects, all with evidence attached.
+
+### ⭐ AUTOSAVE-1 — FIXED. Our own autosave could not be read back
+
+**Deterministic crash on every campaign mission end.** Sequence from the gdb log:
+
+```
+FM_START_DOGFIGHT   -> flew fine
+FM_START_CAMPAIGN   -> OCA strike
+EndFlight           -> aircraft destroyed
+OTWDriver.Exit      -> sim cleanup OK
+FM_REVERT_CAMPAIGN  -> return to campaign
+FM_LOAD_CAMPAIGN    -> reload 'Auto Save.cam'
+   Decode: "Reading 15360 standard events (newRem=27327)"  <-- garbage count
+   -> std::bad_alloc -> FM_JOIN_FAILED -> SIGSEGV
+```
+
+The first load read the shipped `save0.cam` and worked; the reload read
+`Auto Save.cam`, written by the game minutes earlier. **Root cause: an exact
+encode/decode mismatch on the UI event queues.**
+
+| | bytes per `uieventnode` |
+|---|---|
+| `Encode` wrote | `sizeof(uieventnode)` = **32** (native; two 8-byte pointers + padding) |
+| `Decode` read | **20** (six real fields, then a 10-byte skip for 32-bit Windows pointers) |
+
+`Decode` had been carefully patched for the 32-bit Windows layout; **`Encode`
+never was.** Every event node drifted the stream 12 bytes, so a later count was
+read as garbage. Fixed at both encode sites (standard *and* priority queues —
+the priority decoder was checked first and uses the identical layout).
+
+Note this is the **inverse** of ACMI-1: there, Windows files were unreadable by
+us; here **our own files were unreadable by us**. Same root cause (a struct with
+pointers serialised raw), differing only in which side got fixed.
+
+### JOINFAIL-1 — the graceful-failure path segfaults (open)
+
+`CampaignJoinFail()` → `C_Handler::RemoveUserCallback()` → SIGSEGV. The try/catch
+added to turn a failed load into a clean return-to-menu **does** catch, and then
+the handler itself crashes. AUTOSAVE-1 removes the main trigger, but the safety
+net still has a hole and any other load failure will hit it.
+
+### RWY-3 — runway posts step through coarse elevations (open, quantified)
+
+The PO's report: *"just before touchdown the airfield retracts into the distance,
+the landing point I had chosen shows up as terrain, with the airfield foreshortened
+in the distance."* Now measured — **12 of 31 runway posts change elevation during
+the approach**, converging on the true ~−26 ft only as terrain LOD refines:
+
+```
+post (780980,1309143):  -14.3 -> -20.2 -> -23.4 -> -24.6
+post (781101,1307747):  -13.7 -> -19.3 -> -22.5 -> -24.1
+post (778593,1311827):    0.0 -> -22.2 -> -26.0      (starts at sea level)
+```
+
+Feature data carries `ORIGINAL z = 0.00` for every post, so elevation comes
+entirely from `GetGroundLevel`, which is coarse at range. The far end of the
+airfield can sit 26 ft below the near end and then step up on final — which is
+exactly the retracting touchdown point. This is the known runway-elevation
+decoupling class, but with a **quantified, reproducible signature** for the first
+time.
+
+**RWY-2's visibility half is effectively accepted:** the PO landed, with 664
+`depth bias ACTIVE` logs. The remaining landing defect is RWY-3, not z-fighting.
+
+### Also open, from the same session
+
+- **TERRAIN-1:** dogfight arena shows a uniformly grey surface below the
+  aircraft, with airfields sitting on flat grey polygons. Untextured terrain.
+- **LOAD-1 (regression):** clicking Fly shows a **white** screen instead of the
+  animated aircraft-icon progress bar. That animation was fixed in June
+  (`cc4e2517`) and `FF_LoadingClear` is supposed to paint black — never white.
+- **PIT-1:** in view 1 the 2D cockpit sits low, peeking up from the bottom of the
+  screen at low resolution. Possibly the 16_ckpit.dat art set scaled 0.64.
+- **GEAR-1:** view 0 shows no landing gear; the aircraft appears to rest on the
+  terrain.
+
+### ⭐ ACMI promoted to TOP of the backlog (PO direction)
+
+> *"make sure acmi is prioritized in the backlog - it's important because it gives
+> a quantitative measure of sim/pilot performance that can be tracked and optimized"*
+
+Re-framed accordingly: ACMI is not merely a parity oracle, it is a
+**measurement instrument**. A readable tape yields position, altitude, attitude
+and events (1440 position samples in the PO's landing tape), which turns
+subjective judgements into tracked numbers — and would let the PO's own landing
+be compared directly against the Wine gold's. It also makes RWY-3 measurable
+end-to-end instead of inferred from debug prints.
+
+ACMI-1's struct layout is already fixed and pinned with `static_asserts`
+(Sprint 17). **Next step: load `TAPE0006.vhs` end-to-end through playback.**
 
 ## What works (verified)
 

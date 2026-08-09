@@ -1897,8 +1897,25 @@ int CampaignClass::Encode(VU_BYTE **stream)
 
     while (event)
     {
-        memcpy(buffer, event, sizeof(uieventnode));
-        buffer += sizeof(uieventnode);
+        // FF_LINUX: write the 32-bit-Windows node layout that Decode reads.
+        // sizeof(uieventnode) is 32 here (two 8-byte pointers + padding) but Decode
+        // consumes 20 bytes per node: the six real fields, then a 10-byte skip for
+        // the padding and the two 4-byte Windows pointers. Writing the native struct
+        // drifted the stream 12 bytes per event, so our own autosave could not be
+        // read back -- the decode desynced, read a garbage event count and threw
+        // bad_alloc, which crashed the campaign on every mission end.
+        memcpy(buffer, &event->x, sizeof(short));
+        buffer += sizeof(short);
+        memcpy(buffer, &event->y, sizeof(short));
+        buffer += sizeof(short);
+        memcpy(buffer, &event->time, sizeof(CampaignTime));
+        buffer += sizeof(CampaignTime);
+        memcpy(buffer, &event->flags, sizeof(uchar));
+        buffer += sizeof(uchar);
+        memcpy(buffer, &event->team, sizeof(uchar));
+        buffer += sizeof(uchar);
+        memset(buffer, 0, 10);   // padding + eventText ptr(4) + next ptr(4)
+        buffer += 10;
         size = _tcslen(event->eventText);
         memcpy(buffer, &size, sizeof(short));
         buffer += sizeof(short);
@@ -1923,8 +1940,25 @@ int CampaignClass::Encode(VU_BYTE **stream)
 
     while (event)
     {
-        memcpy(buffer, event, sizeof(uieventnode));
-        buffer += sizeof(uieventnode);
+        // FF_LINUX: write the 32-bit-Windows node layout that Decode reads.
+        // sizeof(uieventnode) is 32 here (two 8-byte pointers + padding) but Decode
+        // consumes 20 bytes per node: the six real fields, then a 10-byte skip for
+        // the padding and the two 4-byte Windows pointers. Writing the native struct
+        // drifted the stream 12 bytes per event, so our own autosave could not be
+        // read back -- the decode desynced, read a garbage event count and threw
+        // bad_alloc, which crashed the campaign on every mission end.
+        memcpy(buffer, &event->x, sizeof(short));
+        buffer += sizeof(short);
+        memcpy(buffer, &event->y, sizeof(short));
+        buffer += sizeof(short);
+        memcpy(buffer, &event->time, sizeof(CampaignTime));
+        buffer += sizeof(CampaignTime);
+        memcpy(buffer, &event->flags, sizeof(uchar));
+        buffer += sizeof(uchar);
+        memcpy(buffer, &event->team, sizeof(uchar));
+        buffer += sizeof(uchar);
+        memset(buffer, 0, 10);   // padding + eventText ptr(4) + next ptr(4)
+        buffer += 10;
         size = _tcslen(event->eventText);
         memcpy(buffer, &size, sizeof(short));
         buffer += sizeof(short);
