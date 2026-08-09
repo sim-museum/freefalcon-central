@@ -392,10 +392,43 @@ measurable at all).
 
   Pinned to a hundredth across six dawn samples — so the measurement is
   low-noise — then a **monotonic rise** as the sun climbs (+23 % mean, +18 %
-  p50). Our port would hold the entry value for the whole mission.
-  Invisible in a 2-minute capture, which is why it survived this long.
-  **This is now the top FF backlog item: a real defect with a gold oracle and a
-  known cause.**
+  p50). Invisible in a 2-minute capture, which is why it survived this long.
+
+  **⚠️ Sprint 14 correction to the sentence above.** Sprint 13 recorded this as
+  *"Windows re-lights the cockpit, we don't"* and called LIGHT-1 confirmed **by
+  the gold**. The measurement is real, but that attribution over-reached. The
+  freeze is in **shared source**: `RenderFirstFrame` is the *only* caller of
+  `CockpitManager::SetTOD`, and it runs once per mission. If the Windows binary
+  is built from this source its panel palette is frozen too, so the brightening
+  seen in the gold **cannot** be the palette path and must come from something
+  else — most likely scene-light modulation of the pit draw, or the pilot
+  switching the flood/instrument lights during the flight (`ComputeLightFactors`
+  adds those on top of `lightLevel`).
+
+  What the gold does establish: **the cockpit's appearance changes over a
+  mission on Windows.** What it does not establish: *which* mechanism does it.
+
+  **The code defect is nonetheless real, and Sprint 14 proves it from the source
+  rather than from the gold:** `~CockpitManager` has always called
+  `TheTimeManager.ReleaseTimeUpdateCB(TimeUpdateCallback, this)` while **nothing
+  ever called the matching Register**. A release half without a register half is
+  not a design decision. `TimeUpdateCallback()` exists and does exactly the
+  right thing; every other TOD consumer in the engine (`DrawableBSP`,
+  `DrawableTrail`, `RealWeather`, `TMap`, `TLevel`, and `CTimeOfDay` itself)
+  registers here. The port-era warning text added to `ReleaseTimeUpdateCB`
+  — *"callback not found in list (may not have been registered)"* — shows
+  somebody hit this asymmetry and silenced the symptom instead of finding the
+  missing half.
+
+  **Fixed in Sprint 14** by adding the register call, with `FF_NO_PIT_RELIGHT=1`
+  to restore the old frozen behaviour for A/B. Cost is one palette rebuild per
+  ~60 s of game time (`SetTime` dispatches round-robin across 64 slots).
+  Caveat carried forward: **if the Windows binary shares this bug, the fix makes
+  us diverge from the oracle on the palette component** — the same dilemma as
+  the `theaterdef.cpp` wrong-variable bug, which was deliberately left alone.
+  The difference is that a cockpit which keeps dawn lighting at midday is wrong
+  on its own terms, and the escape hatch makes the old behaviour one env var
+  away.
 - **LIGHT-2:** `ComputeLightFactors` assigns `cLight[i] = eLight` with **no
   upper clamp** — the 1.0 clamp exists only inside the flood-light branch — and
   `GetLightLevel()` returns `Ambient + Diffuse`, which can exceed 1.0. An

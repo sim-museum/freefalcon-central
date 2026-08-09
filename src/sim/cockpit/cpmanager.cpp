@@ -722,7 +722,27 @@ CockpitManager::CockpitManager(
         }
     }
 
-
+    // FF_LINUX: LIGHT-1 -- start receiving time-of-day updates.
+    //
+    // The destructor has always called ReleaseTimeUpdateCB(TimeUpdateCallback, this),
+    // and TimeUpdateCallback() exists and does the right thing
+    // (SetTOD(TheTimeOfDay.GetLightLevel())) -- but NOTHING EVER REGISTERED IT. The
+    // release half of the pair was present without the register half, so the cockpit
+    // light level was written exactly once, by RenderFirstFrame(), and then frozen
+    // for the entire mission however far the sun moved. Every other TOD consumer in
+    // the engine registers here: DrawableBSP, DrawableTrail, RealWeather, TMap,
+    // TLevel and CTimeOfDay itself.
+    //
+    // The clock genuinely advances during a mission (otwloop.cpp drives
+    // TheTimeManager.SetTime(vuxGameTime + todOffset) each frame), and SetTime only
+    // dispatches once per CALLBACK_TIME_STEP round-robin across 64 slots, so this
+    // costs one palette rebuild per ~60 s of game time.
+    //
+    // FF_NO_PIT_RELIGHT=1 restores the old frozen-light behaviour for A/B.
+    if (not getenv("FF_NO_PIT_RELIGHT"))
+    {
+        TheTimeManager.RegisterTimeUpdateCB(TimeUpdateCallback, this);
+    }
 }
 
 
@@ -5183,6 +5203,19 @@ void CockpitManager::SetTOD(float newLightLevel)
      (OTWDriver.renderer->GetGreenMode() not_eq inNVGmode)) {
      return;
      }*/
+
+#ifdef FF_LINUX
+    // FF_LINUX: LIGHT-1 -- trace the cockpit re-lighting. Before the fix this fired
+    // exactly once (RenderFirstFrame); after it, once per TOD callback cycle.
+    if (getenv("FF_DEBUG_PITSEL"))
+    {
+        static int calls = 0;
+        fprintf(stderr, "[PITSEL] SetTOD #%d: lightLevel %.4f -> %.4f (tod=%.4f) panel=%s\n",
+                ++calls, lightLevel, newLightLevel, TheTimeOfDay.GetLightLevel(),
+                mpActivePanel ? "yes" : "NULL");
+        fflush(stderr);
+    }
+#endif
 
     lightLevel = newLightLevel;
 
