@@ -25,7 +25,8 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 13 Video gold standard | ✅ done (8/8) | **DEV-1 CLOSED as PARITY** — the video shows golds 1 & 5 were a *loading screen*, not the main menu; native vs gold main menu correlates **0.9908** at matched 1024×768. Overturns both the Sprint-9 finding and my own Sprint-12 conclusion. ~~LIGHT-1 confirmed~~ — **that claim was WITHDRAWN in Sprint 14: the defect does not exist** (the callback was already registered; a truncated grep hid it). New `tools/gold_video.sh` extracts pixel-exact 1024×768 client frames from the Wine recordings |
 | 14 LIGHT-1 (withdrawn) | ❌ reverted | **LIGHT-1 does not exist.** The claim that `CockpitManager::TimeUpdateCallback` was never registered was wrong — cpmanager.cpp:677–679 has always registered it. A `grep … | head -20` truncated the answer at line 21. The "fix" double-registered the manager (two registers, one release → **use-after-free** on the next TOD tick after a mission) and is reverted. Caught by its own control run: predicted 9-vs-1, measured 9-vs-15 |
 | 15 EPIC SP closed | ✅ done (8/8) | **DEV-3 CLOSED — does not reproduce.** Against the video gold's 2D pit (`views` t=20s, matched 1024×768) the native pit art reaches the bottom edge exactly as the gold's; bottom rows track within a few luma units to y=766 and neither shows pilot hands. **At matched daytime TOD the panel means agree (gold 59.9 vs native 58.6)** — independent corroboration of DEV-2's waiver. **EPIC SP is now COMPLETE: all 5 gold shots resolved, DEV-1..4 all closed as non-defects, zero renderer bugs found.** Done entirely offline — no display lock |
-| 16 RWY-2 + ACMI-1 | 🔄 in progress | **ACMI-1 found: our ACMI cannot read Windows tapes.** `ACMITapeHeader` is a packed struct of 17 `long`s — 80 bytes on Win32, 148 here — so every field misparses; proven by parsing a real PO tape both ways (32-bit gives numEntities=1, numFeat=724, totPlayTime=195.9s; 64-bit gives garbage). `src/acmi/` has 48 `long`s, zero `int32_t`, no `FF_LINUX` guards — never swept. RWY-2 gold reference frames committed; our matching capture queued behind display holds |
+| 16 RWY-2 + ACMI-1 | ⚠️ partial | **ACMI-1 found: our ACMI cannot read Windows tapes.** `ACMITapeHeader` is a packed struct of 17 `long`s — 80 bytes on Win32, 148 here — so every field misparses; proven by parsing a real PO tape both ways (32-bit gives numEntities=1, numFeat=724, totPlayTime=195.9s; 64-bit gives garbage). `src/acmi/` has 48 `long`s, zero `int32_t`, no `FF_LINUX` guards — never swept. RWY-2 **blocked on TE-09** — two attempts diverged (one my own view-mismatch error, one autopilot). Depth bias confirmed engaging (701 activations). TE-09 promoted to the next sprint |
+| 17 ACMI-1 fix | ✅ done (8/8) | **On-disk format restored to 32-bit.** 35 packed-struct fields `long`→`int32_t` (in-memory structs deliberately untouched), plus the callsign count in the `.flt` read, the tape write and `GetCallsignList`'s embedded count/stride. **Five `static_assert`s now pin the layout** (80/36/41/8/16) against sizes derived from a real PO tape's own block offsets — the format contract fails the build instead of failing silently. Playback path still untested (needs display) |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -415,12 +416,33 @@ Cost of *not* fixing: the five PO-supplied tapes (`TAPE0006-0010.vhs` plus the
 landing tape) are unusable as an oracle, and ACMI playback parity cannot be
 tested at all.
 
-**RWY-2:** the landing clip is the acceptance flight that has been outstanding
-since Sprint 8. Gold reference frames at t=130/150/165/180 s are committed
-(`docs/screen-parity/gold-video-landing-t*.png`); they show the runway rendered
-continuously from approach distance through touchdown. Our matching capture is
-queued behind other sessions' display holds; TE-09 (nondeterministic approach
-autopilot) may need several attempts.
+**RWY-2: still BLOCKED, now with the blocker pinned to TE-09.** The landing clip
+is the acceptance flight outstanding since Sprint 8, and gold reference frames at
+t=130/150/165/180 s are committed (`docs/screen-parity/gold-video-landing-t*.png`)
+showing the runway rendered continuously from approach distance through touchdown.
+
+Two capture attempts, neither comparable:
+
+1. **My error:** captured in the default 2D pit while the gold pilot flew the
+   approach in the **HUD view**. State not matched to the oracle — the very
+   discipline banked in Sprint 10. Corrected by pinning `FF_VIEW_SCRIPT="0@40"`.
+2. **TE-09:** with the view corrected, the flight path still diverged — out over
+   water, and in the sea by t=170 s. This is the documented nondeterministic
+   approach autopilot (2/2 route-follow 07-25, 0/3 on 07-26, one variant into the
+   sea). Two more attempts today, both diverged.
+
+**What the attempts did establish:** the Sprint-8 depth-bias fix is alive and
+engaging — **701 `[RUNWAY] depth bias ACTIVE` activations** in the corrected run,
+with flat runway/tarmac surfaces being tagged and submitted
+(`InsertStaticSurface … visType=54/53`). So the mechanism works; what is missing
+is a flight that actually reaches the runway.
+
+**Conclusion: RWY-2 cannot be accepted by automation until TE-09 is fixed.**
+Retrying the flaky path burns a contended display slot per attempt at roughly a
+1-in-3 success rate. **TE-09 is therefore promoted to the next sprint** — it is
+the enabler for an acceptance that has been open since July, and the suspect
+(AP roll-switch initial state) is diagnosable by reading the autopilot engage
+path rather than by repeated flights.
 
 ## What works (verified)
 
