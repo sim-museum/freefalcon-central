@@ -30,7 +30,7 @@ below are the ones that actually produced healthy frames.
 | 1 | 06-05 16-31-46 | ~~UI main menu~~ **actually the LOADING screen** (blue blueprint/cobra, aircraft column) | n/a — mislabelled | ✅ **CLOSED (Sprint 13)** — not the main menu. The real menu is at PARITY (0.9908 vs the video gold). Withdrawn as an oracle |
 | 2 | 06-05 16-32-02 | Sim, 2D cockpit (view 1), Instant Action, banking over coastline, HUD + MFDs | `tools/ff_validate.sh sp2-iapit -m sim -t 110 -r 140 -v 1 -e FF_DEBUG_PITSEL=1` | **PARITY (Sprint 11)** — symbology/layout parity; DEV-2 and DEV-4 both resolved as non-defects (time-of-day and a player option). PO waiver requested |
 | 3 | 06-05 20-37-29 | Dogfight setup lobby (Furball options, 4 team tiles, roster pane, Korea map) — NATIVE capture, see note | `tools/ff_validate.sh sp3-dfsetup -m ui -t 4 -r 44 -c "870,745@8;130,121@14;884,741@22"` (select saved game *before* COMMIT; COMMIT→lobby load ~5 s) | **PARITY** — layout/art/options identical; roster contents differ by saved-game state only |
-| 4 | 06-06 07-34-04 | Sim, 2D cockpit (view 1), dogfight arena entry, level over ocean | manual run: `FF_UI_CLICK="870,745@8;130,121@14;884,741@22;900,750@36;900,750@44"` + `FF_VIEW_SCRIPT="1@120"` + `FF_SIM_SCREENSHOT="125:…"` (TAKEOFF must fire *after* FM_JOIN_SUCCEEDED is processed — a TAKEOFF click at 30 s raced the join and silently no-op'd) | ⚠️ **RE-CAPTURE PENDING (Sprint 10)** — gold 4's native counterpart predates the view/art-set trace, so DEV-3 stays suspended until it is re-shot with `FF_DEBUG_PITSEL=1`. Gold alt 10 000 vs native 16 000 ft = saved Furball altitude option, not a deviation |
+| 4 | 06-06 07-34-04 | Sim, 2D cockpit (view 1), dogfight arena entry, level over ocean | superseded by the video gold (`views` clip t=20s) | ✅ **CLOSED (Sprint 15)** — DEV-3 does not reproduce; native pit art reaches the bottom edge exactly as the gold's. At matched TOD the panel means agree (59.9 vs 58.6), corroborating DEV-2's waiver |
 | 5 | 06-09 15-32-20 | ~~UI main menu~~ **actually the LOADING screen**, same as #1 | n/a — mislabelled | ✅ **CLOSED (Sprint 13)** — same as #1 |
 
 ## Tolerance statement
@@ -189,7 +189,44 @@ on native. HUD/MFD/DED symbology is unaffected.
 
 **The premise "same panel art, same instrument layout" is wrong — see below.**
 
-### DEV-3 — Bottom sliver of 2D-pit art (pilot hands) not visible (gold 4) — ⚠️ **INVALID COMPARISON, see below** (Sprint 10)
+### ✅ DEV-3 CLOSED (Sprint 15) — does not reproduce against the video gold
+
+Settled offline, no display run needed. The `views` clip at t=20 s is the 2D
+cockpit at exactly 1024×768; the pit art occupies fixed screen space regardless
+of the world outside, so this is a valid like-for-like comparison against our
+view-confirmed `sp11-base` capture.
+
+Row-mean luminance down the bottom edge — gold vs native:
+
+| y | 700 | 712 | 724 | 736 | 748 | 760 | 766 |
+|---|---|---|---|---|---|---|---|
+| gold | 42.3 | 61.3 | 62.9 | 84.5 | 55.7 | 65.7 | 62.6 |
+| native | 41.8 | 67.3 | 65.3 | 85.5 | 57.4 | 69.1 | 53.5 |
+
+The two track each other to within a few units all the way to y=766. Visually
+the bottom strips are structurally identical — same MFD bezels, same standby
+ASI/altimeter, same button rows, same `MASTER ARM`/`SIMULATE` panel — and
+**neither shows pilot hands**. There is no missing sliver: the native pit art
+reaches the bottom edge exactly as the gold's does.
+
+Region correlations (pit art only; MFD *content* differs because the mission
+state differs, which caps these below 1.0):
+
+| region | gold | native | corr |
+|---|---|---|---|
+| lower panel y500–768 | 59.9 | 58.6 | +0.8712 |
+| bottom strip y740–768 | 60.3 | 61.7 | +0.9164 |
+| left console y560–760 x10–200 | 73.1 | 72.1 | +0.9120 |
+
+**Bonus corroboration for DEV-2:** this clip is daytime, and at matched
+time-of-day the panel means agree — **gold 59.9 vs native 58.6**. That is the
+independent confirmation DEV-2's waiver wanted: with TOD matched, the panel
+brightness matches. The Sprint-9 "far brighter than gold" reading came entirely
+from comparing a noon native against a dimmer-TOD gold.
+
+DEV-3's original text follows for the record.
+
+### DEV-3 — Bottom sliver of 2D-pit art (pilot hands) not visible (gold 4) — ~~open~~ **CLOSED, see above**
 
 _Original Sprint-9 text:_ The gold shows the pit art's bottom edge (glove/hand
 shapes) below the standby gauges; the native frame ends at the gauge bottoms.

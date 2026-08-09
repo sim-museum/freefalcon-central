@@ -23,6 +23,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 11 EPIC SP.2 (cont.) | ✅ done (7/8) | **DEV-2 and DEV-4 both RESOLVED as non-defects; gold 2 upgraded to PARITY.** DEV-4 = the canopy-reflection visual cue (`SimVisualCueMode=VCReflection`), A/B-proven by forcing it off — a player option, not a renderer bug. DEV-2 = a time-of-day difference: forcing the gold's light level reproduces the gold's panel almost exactly (p95 106.0 vs 107.0), so the panel path is correct. Both recommended for PO waiver. New backlog: LIGHT-1 (cockpit never re-lights), LIGHT-2 (unclamped `cLight`). DEV-3 carried |
 | 12 EPIC SP.2 (DEV-1) | ⚠️ partial (5/8) | **DEV-1 reclassified, not fixed.** The native correctly renders `main_win.scf` → `UI_MAIN_BG` (the F-16 photo); a wrong Sprint-9 finding is corrected (`MAIN_SCRN` is a radar scope, and the window never asks for it). Searched all 751 `.idx` files / 69 unique 1024×768 images: **nothing in this install matches the gold's menu**, so golds 1 & 5 look like a **provenance problem**, same class as gold 3. PO question raised. Retro: validate a similarity metric on a known-positive before believing a negative |
 | 13 Video gold standard | ✅ done (8/8) | **DEV-1 CLOSED as PARITY** — the video shows golds 1 & 5 were a *loading screen*, not the main menu; native vs gold main menu correlates **0.9908** at matched 1024×768. Overturns both the Sprint-9 finding and my own Sprint-12 conclusion. **LIGHT-1 CONFIRMED a real defect** with a gold oracle: Windows re-lights the cockpit as the sun rises (glare-free console p50 34.0→40.0, monotonic); our port sets `lightLevel` once. New `tools/gold_video.sh` extracts pixel-exact 1024×768 client frames from the Wine recordings |
+| 15 EPIC SP closed | ✅ done (8/8) | **DEV-3 CLOSED — does not reproduce.** Against the video gold's 2D pit (`views` t=20s, matched 1024×768) the native pit art reaches the bottom edge exactly as the gold's; bottom rows track within a few luma units to y=766 and neither shows pilot hands. **At matched daytime TOD the panel means agree (gold 59.9 vs native 58.6)** — independent corroboration of DEV-2's waiver. **EPIC SP is now COMPLETE: all 5 gold shots resolved, DEV-1..4 all closed as non-defects, zero renderer bugs found.** Done entirely offline — no display lock |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -278,6 +279,43 @@ sprints. A 33-second loading screen and a main menu are indistinguishable as
 PNGs, and that ambiguity alone sustained DEV-1 through three sprints of
 speculation. **The video gold standard is strictly better and should be the
 default oracle from here.**
+
+## Sprint 15 Review (2026-08-09) — DONE, 8/8 pts
+
+**Goal:** close DEV-3, the last open screen-parity deviation. Done — and it
+completes EPIC SP.
+
+- **DEV-3 CLOSED, does not reproduce.** The `views` clip at t=20 s is the 2D
+  cockpit at exactly 1024×768, and pit art is screen-fixed, so it compares
+  like-for-like against our view-confirmed `sp11-base`. Bottom-edge row means
+  track within a few luma units all the way to y=766; the bottom strips are
+  structurally identical (same MFD bezels, standby ASI/altimeter, button rows,
+  `MASTER ARM`/`SIMULATE` panel) and **neither shows pilot hands**. There is no
+  missing sliver.
+- **DEV-2 independently corroborated.** This clip is daytime, and at matched TOD
+  the panel means agree: **gold 59.9 vs native 58.6**. Sprint 9's "far brighter
+  than gold" came entirely from comparing a noon native against a dimmer-TOD
+  gold.
+- **Whole sprint ran offline** — no display lock, while three other sessions
+  held it. The video gold makes most parity work display-free.
+
+### EPIC SP — COMPLETE
+
+All five PO gold shots resolved. **Every one of the four registered deviations
+closed as a non-defect; no renderer bug was ever found.**
+
+| ID | was | outcome |
+|---|---|---|
+| DEV-1 | main menu is a different screen | the golds were a **loading screen**; real menu at 0.9908 parity |
+| DEV-2 | 2D pit far brighter than gold | **time of day**; matched-TOD panels agree |
+| DEV-3 | pit bottom sliver / hands missing | **does not reproduce** |
+| DEV-4 | native draws a canopy bow | the **`VCReflection` player option**; gold shows it too |
+
+The scoreboard is worth stating plainly: **Sprint 9 logged three "major"
+deviations and a fourth was added in Sprint 10; all four were artefacts of the
+comparison method, not of the port.** Every one traced to the same root cause —
+comparing frames without recording the state that produced them (view mode, time
+of day, player options, or even which screen it was).
 
 ## What works (verified)
 
