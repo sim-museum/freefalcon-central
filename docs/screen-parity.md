@@ -27,11 +27,11 @@ below are the ones that actually produced healthy frames.
 
 | # | Gold file (2026-…) | Screen / view | Native repro recipe (verified 07-27) | Verdict |
 |---|---|---|---|---|
-| 1 | 06-05 16-31-46 | UI main menu (cobra/blueprint splash, aircraft column right) | `tools/ff_validate.sh sp1-main -m ui -t 8 -r 16` | ⚠️ **GOLD NOT REPRODUCIBLE (Sprint 12)** — native correctly renders `main_win.scf` → `UI_MAIN_BG`; no resource in this install matches the gold background. Provenance question to PO |
+| 1 | 06-05 16-31-46 | ~~UI main menu~~ **actually the LOADING screen** (blue blueprint/cobra, aircraft column) | n/a — mislabelled | ✅ **CLOSED (Sprint 13)** — not the main menu. The real menu is at PARITY (0.9908 vs the video gold). Withdrawn as an oracle |
 | 2 | 06-05 16-32-02 | Sim, 2D cockpit (view 1), Instant Action, banking over coastline, HUD + MFDs | `tools/ff_validate.sh sp2-iapit -m sim -t 110 -r 140 -v 1 -e FF_DEBUG_PITSEL=1` | **PARITY (Sprint 11)** — symbology/layout parity; DEV-2 and DEV-4 both resolved as non-defects (time-of-day and a player option). PO waiver requested |
 | 3 | 06-05 20-37-29 | Dogfight setup lobby (Furball options, 4 team tiles, roster pane, Korea map) — NATIVE capture, see note | `tools/ff_validate.sh sp3-dfsetup -m ui -t 4 -r 44 -c "870,745@8;130,121@14;884,741@22"` (select saved game *before* COMMIT; COMMIT→lobby load ~5 s) | **PARITY** — layout/art/options identical; roster contents differ by saved-game state only |
 | 4 | 06-06 07-34-04 | Sim, 2D cockpit (view 1), dogfight arena entry, level over ocean | manual run: `FF_UI_CLICK="870,745@8;130,121@14;884,741@22;900,750@36;900,750@44"` + `FF_VIEW_SCRIPT="1@120"` + `FF_SIM_SCREENSHOT="125:…"` (TAKEOFF must fire *after* FM_JOIN_SUCCEEDED is processed — a TAKEOFF click at 30 s raced the join and silently no-op'd) | ⚠️ **RE-CAPTURE PENDING (Sprint 10)** — gold 4's native counterpart predates the view/art-set trace, so DEV-3 stays suspended until it is re-shot with `FF_DEBUG_PITSEL=1`. Gold alt 10 000 vs native 16 000 ft = saved Furball altitude option, not a deviation |
-| 5 | 06-09 15-32-20 | UI main menu (same screen as #1, later Wine build) | same as #1 | ⚠️ **GOLD NOT REPRODUCIBLE (Sprint 12)** — same as #1 / DEV-1 |
+| 5 | 06-09 15-32-20 | ~~UI main menu~~ **actually the LOADING screen**, same as #1 | n/a — mislabelled | ✅ **CLOSED (Sprint 13)** — same as #1 |
 
 ## Tolerance statement
 
@@ -46,7 +46,69 @@ weather state are not required to match (different mission instant).
 Each deviation gets fixed (SP.2) or PO-waived here. Classification per the
 julia-racer method: renderer-bug / authentic-asset / asset-gap / prior-decision.
 
-### DEV-1 — Main menu is a different screen entirely (golds 1 & 5) — MAJOR, open (SP.2)
+## ⭐ VIDEO GOLD STANDARD (2026-08-08) — supersedes the PNG golds
+
+PO-supplied Wine screen recordings in
+`~/gold standard/free falcon/260808/`, 1920×1080 @ 60 fps, with FreeFalcon
+running **windowed at 1024×768** — the same resolution our captures use, so
+frames crop out **pixel-for-pixel with no rescaling**. That removes the single
+biggest weakness of the PNG golds (1011×771 client → every comparison needed a
+resize, and no size-based verdict was safe).
+
+Build shown in the title bar: **FreeFalcon 6.0 · FFViper 2.3.3.44**.
+
+Extract frames with **`tools/gold_video.sh <clip> <timestamp> <out.png>`**
+(`--list` for the inventory, `--probe` to re-derive the crop for a new
+recording). The window sits at a different desktop offset per clip, so the crop
+origin is per-video: `views`/`landing` (100,114), `ia` (233,226).
+
+| clip | len | contents |
+|---|---|---|
+| `views` | 1:33 | view-mode cycling |
+| `landing` | 3:44 | TE "09 Landing Final Approach" — the RWY-2 acceptance flight |
+| `ia` | 10:25 | Instant Action from 05:04 dawn, ending at 16× time accel with a visible sunrise |
+
+`ia` timeline: 0–6 s main menu · 9–27 s IA setup · **33 s loading screen** ·
+36 s+ 2D pit at dawn · ~520–550 s HUD view · 560–595 s pit with the sun up ·
+610 s "prepare to debrief". ACMI tapes `TAPE0006–0010.vhs` and
+`260808_landing_final_approach.vhs` accompany them.
+
+### ✅ DEV-1 CLOSED — PARITY. Golds 1 and 5 were a LOADING SCREEN, not the main menu
+
+The video settles it outright, and **overturns both the Sprint-9 finding and the
+Sprint-12 conclusion above.**
+
+At `ia` t=0–6 s the Windows main menu is the **legacy F-16-in-shelter photo with
+the bottom button bar** — exactly what the native renders. At **t=33 s**, during
+the transition into the sim, Windows shows the **blue blueprint/cobra screen
+with the right-hand aircraft column**: that is the artwork of golds 1 and 5. It
+is a **transient loading screen**, and the still golds captured it and labelled
+it "main menu".
+
+Native `sp12-main` vs gold `ia` t=3 s, both 1024×768, no rescaling:
+
+| region | gold luma | native luma | correlation |
+|---|---|---|---|
+| full frame | — | — | **0.9908** |
+| logo area y40–190 x60–260 | 160.6 | 162.4 | +0.9990 |
+| photo centre y250–600 | 154.1 | 155.6 | +0.9992 |
+| bottom bar y728–768 | 36.6 | 36.8 | +0.9998 |
+
+**The main menu is at parity.** DEV-1 is closed as a non-defect; golds 1 and 5
+are withdrawn as main-menu oracles (mislabelled screen, same family as gold 3's
+provenance note). My Sprint-12 conclusion — "the gold's menu is not reproducible
+from this install, likely a different install" — was **wrong**: the artwork is
+produced by this very build, just on a screen I never thought to look for.
+
+The lesson repeats for the third time in four sprints: **a still cannot tell you
+what state produced it.** A 33-second-long loading screen and a main menu are
+indistinguishable as PNGs, and cost three sprints of DEV-1 speculation.
+
+_(Sidebar on the Sprint-12 method warning: normalised correlation is fine here —
+0.9908 on a known-positive. Its failure in Sprint 12 was specific to comparing
+**palette-index** data as if it were luminance, not to the metric itself.)_
+
+### DEV-1 — Main menu is a different screen entirely (golds 1 & 5) — ~~MAJOR, open~~ **CLOSED, see above**
 
 Native renders the legacy Falcon4-style main screen: taxiing-F-16 photo
 background, "FREE FALCON 5.0" winged logo, bottom button bar
@@ -316,10 +378,24 @@ instant (or force `FF_PIT_LIGHT` to the gold's level, which is what makes this
 measurable at all).
 
 **Two real observations survive as backlog items, neither causing DEV-2:**
-- **LIGHT-1:** `CockpitManager::TimeUpdateCallback` is never registered
-  anywhere, so `lightLevel` is set once in `RenderFirstFrame` and the cockpit
-  never re-lights as the sun moves. Invisible in a 2-minute capture; wrong over
-  a long flight or a dawn/dusk mission.
+- **LIGHT-1: ✅ CONFIRMED A REAL DEFECT by the 2026-08-08 video gold (Sprint 13).**
+  `CockpitManager::TimeUpdateCallback` is never registered anywhere, so
+  `lightLevel` is set once in `RenderFirstFrame` and the cockpit never re-lights
+  as the sun moves. **Windows does re-light.** Measured on the `ia` clip in a
+  deliberately glare-free region (left console, y560–760 x10–200, away from the
+  canopy so sun flare cannot confound it):
+
+  | phase | mean | p50 |
+  |---|---|---|
+  | t=36–70 s (dawn) | 38.2, 38.2, 38.2, 38.2, 38.1, 38.1 | 34.0 |
+  | t=480–585 s (sun risen) | 43.9 → 47.0 | 38.6 → 40.0 |
+
+  Pinned to a hundredth across six dawn samples — so the measurement is
+  low-noise — then a **monotonic rise** as the sun climbs (+23 % mean, +18 %
+  p50). Our port would hold the entry value for the whole mission.
+  Invisible in a 2-minute capture, which is why it survived this long.
+  **This is now the top FF backlog item: a real defect with a gold oracle and a
+  known cause.**
 - **LIGHT-2:** `ComputeLightFactors` assigns `cLight[i] = eLight` with **no
   upper clamp** — the 1.0 clamp exists only inside the flood-light branch — and
   `GetLightLevel()` returns `Ambient + Diffuse`, which can exceed 1.0. An

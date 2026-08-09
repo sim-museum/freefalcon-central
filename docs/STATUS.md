@@ -22,6 +22,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 10 EPIC SP.2 deviations | ✅ done (8/8) | Sprint-9 verdicts re-verified with a new view/art-set trace (`FF_DEBUG_PITSEL=1`). **DEV-2 symptom confirmed, its recorded mechanism disproved** (the 2D pit is lit 3D geometry via `cockpit2d 2358`, not a palettized bitmap — so it is a lighting question, not a palette one). View confirmed `Mode2DCockpit`, art set the deterministic generic `16_ckpit.dat` fallback. **DEV-4 registered** (native draws a canopy bow the gold lacks); DEV-3 suspended pending a gold-4 re-shot. No fix shipped — deliberate |
 | 11 EPIC SP.2 (cont.) | ✅ done (7/8) | **DEV-2 and DEV-4 both RESOLVED as non-defects; gold 2 upgraded to PARITY.** DEV-4 = the canopy-reflection visual cue (`SimVisualCueMode=VCReflection`), A/B-proven by forcing it off — a player option, not a renderer bug. DEV-2 = a time-of-day difference: forcing the gold's light level reproduces the gold's panel almost exactly (p95 106.0 vs 107.0), so the panel path is correct. Both recommended for PO waiver. New backlog: LIGHT-1 (cockpit never re-lights), LIGHT-2 (unclamped `cLight`). DEV-3 carried |
 | 12 EPIC SP.2 (DEV-1) | ⚠️ partial (5/8) | **DEV-1 reclassified, not fixed.** The native correctly renders `main_win.scf` → `UI_MAIN_BG` (the F-16 photo); a wrong Sprint-9 finding is corrected (`MAIN_SCRN` is a radar scope, and the window never asks for it). Searched all 751 `.idx` files / 69 unique 1024×768 images: **nothing in this install matches the gold's menu**, so golds 1 & 5 look like a **provenance problem**, same class as gold 3. PO question raised. Retro: validate a similarity metric on a known-positive before believing a negative |
+| 13 Video gold standard | ✅ done (8/8) | **DEV-1 CLOSED as PARITY** — the video shows golds 1 & 5 were a *loading screen*, not the main menu; native vs gold main menu correlates **0.9908** at matched 1024×768. Overturns both the Sprint-9 finding and my own Sprint-12 conclusion. **LIGHT-1 CONFIRMED a real defect** with a gold oracle: Windows re-lights the cockpit as the sun rises (glare-free console p50 34.0→40.0, monotonic); our port sets `lightLevel` once. New `tools/gold_video.sh` extracts pixel-exact 1024×768 client frames from the Wine recordings |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -237,6 +238,46 @@ Related: `main_linux.cpp:1280` hardcodes `FalconUIArtThrDirectory` to
 `<data>/art`, which matches Korea's `artdir art` but not `korea_2012`
 (`artkorea2012`), `eurowar` (`artEurowar`) or Balkans — latent for non-Korea
 theaters if the theater loader does not override it in time.
+
+## Sprint 13 Review (2026-08-08) — DONE, 8/8 pts
+
+**Goal:** stand up the new PO **video** gold standard and use it. Both headline
+results landed, and one of them corrects this session's own work.
+
+- **S13-A (3 pts, done):** `tools/gold_video.sh` — pulls a **pixel-exact
+  1024×768 client frame** from the Wine recordings at any timestamp
+  (`--list` inventory, `--probe` to derive the crop for a new clip). The
+  recordings are 1920×1080/60 with the game windowed at 1024×768, i.e. **our own
+  capture resolution**, so no rescaling is needed. That removes the PNG golds'
+  worst flaw (1011×771 client forced a resize, making every size-based verdict
+  unsafe). Window offset differs per clip and is recorded in the tool.
+- **S13-B (3 pts, done): LIGHT-1 CONFIRMED as a real defect, with an oracle.**
+  Windows re-lights the cockpit as the sun rises; we never do. Measured
+  glare-free (left console, away from the canopy): six dawn samples pinned at
+  38.2/34.0, rising monotonically to 47.0/40.0 once the sun is up. Cause is
+  already known — `CockpitManager::TimeUpdateCallback` is never registered, so
+  `lightLevel` is set once in `RenderFirstFrame`. **Top of the FF backlog.**
+- **S13-C (2 pts, done): DEV-1 CLOSED as PARITY, and DEV-2/DEV-4 corroborated.**
+  The `ia` clip shows the Windows main menu at t=0–6 s is the **legacy F-16
+  photo with the bottom bar** — what we render — and the blue blueprint/cobra
+  art of golds 1 & 5 appears at **t=33 s as a transient LOADING screen**.
+  Native vs gold main menu: **0.9908** full-frame, 0.999 per region, mean
+  luminance within 2 units. Separately the dawn cockpit frames show the gold
+  **with the canopy bow present** (DEV-4's reflection cue on) and a **dark
+  panel** (DEV-2 = time of day), so both waiver recommendations now rest on the
+  video rather than on inference alone.
+
+**A correction to my own Sprint-12 conclusion.** Sprint 12 concluded the gold's
+menu artwork "cannot be reproduced from this install" and was probably a
+different install. Wrong — this build produces it, on a screen I never thought
+to look for. The exhaustive resource search was sound; the *hypothesis space*
+was too narrow. Searching harder inside a wrong assumption does not escape it.
+
+**Retro:** *a still cannot tell you what state produced it* — third time in four
+sprints. A 33-second loading screen and a main menu are indistinguishable as
+PNGs, and that ambiguity alone sustained DEV-1 through three sprints of
+speculation. **The video gold standard is strictly better and should be the
+default oracle from here.**
 
 ## What works (verified)
 
