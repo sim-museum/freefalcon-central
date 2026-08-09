@@ -722,27 +722,15 @@ CockpitManager::CockpitManager(
         }
     }
 
-    // FF_LINUX: LIGHT-1 -- start receiving time-of-day updates.
-    //
-    // The destructor has always called ReleaseTimeUpdateCB(TimeUpdateCallback, this),
-    // and TimeUpdateCallback() exists and does the right thing
-    // (SetTOD(TheTimeOfDay.GetLightLevel())) -- but NOTHING EVER REGISTERED IT. The
-    // release half of the pair was present without the register half, so the cockpit
-    // light level was written exactly once, by RenderFirstFrame(), and then frozen
-    // for the entire mission however far the sun moved. Every other TOD consumer in
-    // the engine registers here: DrawableBSP, DrawableTrail, RealWeather, TMap,
-    // TLevel and CTimeOfDay itself.
-    //
-    // The clock genuinely advances during a mission (otwloop.cpp drives
-    // TheTimeManager.SetTime(vuxGameTime + todOffset) each frame), and SetTime only
-    // dispatches once per CALLBACK_TIME_STEP round-robin across 64 slots, so this
-    // costs one palette rebuild per ~60 s of game time.
-    //
-    // FF_NO_PIT_RELIGHT=1 restores the old frozen-light behaviour for A/B.
-    if (not getenv("FF_NO_PIT_RELIGHT"))
-    {
-        TheTimeManager.RegisterTimeUpdateCB(TimeUpdateCallback, this);
-    }
+    // NOTE (2026-08-09): do NOT add a TimeUpdateCallback registration here. The
+    // constructor already registers at the top of this function ("Initialize the
+    // lighting conditions and register for future time of day updates"), paired
+    // with the destructor's ReleaseTimeUpdateCB. A second registration double-
+    // registers the manager: the callback then fires twice per cycle, and because
+    // the destructor releases only ONE entry, the leftover CBlist slot keeps a
+    // pointer to the freed CockpitManager -- a use-after-free on the next TOD tick
+    // after the mission ends. A "LIGHT-1" fix that did exactly that was added and
+    // reverted the same day; see docs/STATUS.md Sprint 14.
 }
 
 

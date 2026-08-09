@@ -22,7 +22,8 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 10 EPIC SP.2 deviations | ✅ done (8/8) | Sprint-9 verdicts re-verified with a new view/art-set trace (`FF_DEBUG_PITSEL=1`). **DEV-2 symptom confirmed, its recorded mechanism disproved** (the 2D pit is lit 3D geometry via `cockpit2d 2358`, not a palettized bitmap — so it is a lighting question, not a palette one). View confirmed `Mode2DCockpit`, art set the deterministic generic `16_ckpit.dat` fallback. **DEV-4 registered** (native draws a canopy bow the gold lacks); DEV-3 suspended pending a gold-4 re-shot. No fix shipped — deliberate |
 | 11 EPIC SP.2 (cont.) | ✅ done (7/8) | **DEV-2 and DEV-4 both RESOLVED as non-defects; gold 2 upgraded to PARITY.** DEV-4 = the canopy-reflection visual cue (`SimVisualCueMode=VCReflection`), A/B-proven by forcing it off — a player option, not a renderer bug. DEV-2 = a time-of-day difference: forcing the gold's light level reproduces the gold's panel almost exactly (p95 106.0 vs 107.0), so the panel path is correct. Both recommended for PO waiver. New backlog: LIGHT-1 (cockpit never re-lights), LIGHT-2 (unclamped `cLight`). DEV-3 carried |
 | 12 EPIC SP.2 (DEV-1) | ⚠️ partial (5/8) | **DEV-1 reclassified, not fixed.** The native correctly renders `main_win.scf` → `UI_MAIN_BG` (the F-16 photo); a wrong Sprint-9 finding is corrected (`MAIN_SCRN` is a radar scope, and the window never asks for it). Searched all 751 `.idx` files / 69 unique 1024×768 images: **nothing in this install matches the gold's menu**, so golds 1 & 5 look like a **provenance problem**, same class as gold 3. PO question raised. Retro: validate a similarity metric on a known-positive before believing a negative |
-| 13 Video gold standard | ✅ done (8/8) | **DEV-1 CLOSED as PARITY** — the video shows golds 1 & 5 were a *loading screen*, not the main menu; native vs gold main menu correlates **0.9908** at matched 1024×768. Overturns both the Sprint-9 finding and my own Sprint-12 conclusion. **LIGHT-1 CONFIRMED a real defect** with a gold oracle: Windows re-lights the cockpit as the sun rises (glare-free console p50 34.0→40.0, monotonic); our port sets `lightLevel` once. New `tools/gold_video.sh` extracts pixel-exact 1024×768 client frames from the Wine recordings |
+| 13 Video gold standard | ✅ done (8/8) | **DEV-1 CLOSED as PARITY** — the video shows golds 1 & 5 were a *loading screen*, not the main menu; native vs gold main menu correlates **0.9908** at matched 1024×768. Overturns both the Sprint-9 finding and my own Sprint-12 conclusion. ~~LIGHT-1 confirmed~~ — **that claim was WITHDRAWN in Sprint 14: the defect does not exist** (the callback was already registered; a truncated grep hid it). New `tools/gold_video.sh` extracts pixel-exact 1024×768 client frames from the Wine recordings |
+| 14 LIGHT-1 (withdrawn) | ❌ reverted | **LIGHT-1 does not exist.** The claim that `CockpitManager::TimeUpdateCallback` was never registered was wrong — cpmanager.cpp:677–679 has always registered it. A `grep … | head -20` truncated the answer at line 21. The "fix" double-registered the manager (two registers, one release → **use-after-free** on the next TOD tick after a mission) and is reverted. Caught by its own control run: predicted 9-vs-1, measured 9-vs-15 |
 | 15 EPIC SP closed | ✅ done (8/8) | **DEV-3 CLOSED — does not reproduce.** Against the video gold's 2D pit (`views` t=20s, matched 1024×768) the native pit art reaches the bottom edge exactly as the gold's; bottom rows track within a few luma units to y=766 and neither shows pilot hands. **At matched daytime TOD the panel means agree (gold 59.9 vs native 58.6)** — independent corroboration of DEV-2's waiver. **EPIC SP is now COMPLETE: all 5 gold shots resolved, DEV-1..4 all closed as non-defects, zero renderer bugs found.** Done entirely offline — no display lock |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
@@ -252,12 +253,14 @@ results landed, and one of them corrects this session's own work.
   capture resolution**, so no rescaling is needed. That removes the PNG golds'
   worst flaw (1011×771 client forced a resize, making every size-based verdict
   unsafe). Window offset differs per clip and is recorded in the tool.
-- **S13-B (3 pts, done): LIGHT-1 CONFIRMED as a real defect, with an oracle.**
+- **S13-B (3 pts, ❌ WITHDRAWN in Sprint 14 — the defect does not exist).**
   Windows re-lights the cockpit as the sun rises; we never do. Measured
   glare-free (left console, away from the canopy): six dawn samples pinned at
   38.2/34.0, rising monotonically to 47.0/40.0 once the sun is up. Cause is
-  already known — `CockpitManager::TimeUpdateCallback` is never registered, so
-  `lightLevel` is set once in `RenderFirstFrame`. **Top of the FF backlog.**
+  attributed to `CockpitManager::TimeUpdateCallback` never being registered.
+  **That attribution was false** — it has always been registered
+  (cpmanager.cpp:677–679). The brightening is normal behaviour on both sides,
+  not a defect. See Sprint 14.
 - **S13-C (2 pts, done): DEV-1 CLOSED as PARITY, and DEV-2/DEV-4 corroborated.**
   The `ia` clip shows the Windows main menu at t=0–6 s is the **legacy F-16
   photo with the bottom bar** — what we render — and the blue blueprint/cobra
@@ -279,6 +282,60 @@ sprints. A 33-second loading screen and a main menu are indistinguishable as
 PNGs, and that ambiguity alone sustained DEV-1 through three sprints of
 speculation. **The video gold standard is strictly better and should be the
 default oracle from here.**
+
+## Sprint 14 Review (2026-08-09) — ❌ WITHDRAWN, work reverted
+
+**Goal:** fix LIGHT-1. **Outcome: there was nothing to fix, and the attempted
+fix was a regression. Reverted the same day.**
+
+**The claim.** That `CockpitManager::TimeUpdateCallback` was never registered,
+leaving `lightLevel` written once by `RenderFirstFrame` and frozen for the whole
+mission — supported by an apparently damning asymmetry: the destructor released
+a callback that nothing registered.
+
+**The reality.** cpmanager.cpp:677–679, in the constructor:
+
+```c
+// Initialize the lighting conditions and register for future time of day updates
+TimeUpdateCallback(this);
+TheTimeManager.RegisterTimeUpdateCB(TimeUpdateCallback, this);
+```
+
+It has always been there, correctly paired with the destructor's release, using
+the same idiom as every other TOD consumer. **The cockpit re-lights already.**
+
+**Root cause of the error: a truncated grep.** The search for `TheTimeManager`
+was piped through `head -20`; the `cpmanager.cpp` registration was line 21.
+Every downstream conclusion — the missing-half argument, the destructor-proves-
+intent argument, the fix itself — rested on output that had silently dropped the
+answer.
+
+**This is the third time in one session.** The same trap produced a wrong
+"the TOD clock is never advanced" conclusion earlier in this very sprint (a
+`head -10` hid the two `otwloop.cpp` call sites), and the "filter, don't cap"
+lesson was already banked from the MA side before the session began. Reading it
+was not enough; the habit had to change. **Rule adopted: never pipe a grep
+through `head` when the question is "does X exist anywhere" — completeness is
+the whole point of the search. Cap output only when browsing.**
+
+**What the attempted fix actually did.** It added a *second* registration.
+The callback then fired twice per cycle, and since the destructor releases only
+one `CBlist` entry, the leftover slot kept a pointer to the freed
+`CockpitManager` — a **use-after-free on the next TOD tick after a mission
+ends**. Reverted; a comment at the site now warns against re-adding it.
+
+**What saved it: the control run.** The A/B predicted 9 calls with the fix vs
+**1** without. It measured 9 vs **15**. Nine callback-driven re-lights in the
+"disabled" arm is exactly what an already-registered callback looks like. Had I
+run only the treatment arm, "15 calls, works!" would have shipped as verified.
+**The control is not a formality — it is the only thing that tested the premise
+rather than the change.**
+
+**Salvage:** the Sprint-13 measurement that the gold cockpit brightens as the
+sun rises stands as a fact, but it is now expected behaviour on both sides
+rather than evidence of a defect. Whether our port matches that curve is still
+untested and needs a dawn mission — a legitimate future sprint, with no
+presumption of a bug.
 
 ## Sprint 15 Review (2026-08-09) — DONE, 8/8 pts
 

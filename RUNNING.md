@@ -62,8 +62,10 @@ confirm.
     almost exactly (p95 106.0 vs 107.0). The panel path is correct.
     **Recommend PO waive.**
   - **Two PO decisions requested**, both waivers. Neither needs code.
-  - New backlog: **LIGHT-1** (cockpit never re-lights —
-    `TimeUpdateCallback` never registered), **LIGHT-2** (`cLight` unclamped).
+  - New backlog: ~~LIGHT-1~~ **WITHDRAWN 2026-08-09 — the defect does not exist**
+    (the callback has always been registered at cpmanager.cpp:677–679; a
+    truncated grep hid it, and the "fix" double-registered → use-after-free.
+    Reverted). **LIGHT-2** (`cLight` unclamped) is still open.
   - **DEV-3 still carried** — gold 4 not yet re-shot with the trace.
 - **New diagnostics:** `FF_PIT_VISCUE=<n>` (force visual-cue mode),
   `FF_PIT_LIGHT=<f>` (force cockpit environment light). Both diagnostic-only.
