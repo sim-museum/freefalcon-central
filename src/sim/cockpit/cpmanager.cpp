@@ -4515,7 +4515,38 @@ void CockpitManager::GeometryDraw(void)
         }
 
 
-        if (PlayerOptions.SimVisualCueMode == VCReflection or PlayerOptions.SimVisualCueMode == VCBoth)
+        // FF_LINUX: EPIC SP.2/DEV-4 -- switch 3 is the canopy reflection component of
+        // the 2D pit's external geometry ("wings and reflection", model from
+        // `cockpit2d`). It is the leading suspect for the canopy bow the native draws
+        // and the Wine gold does not. FF_PIT_VISCUE=<n> forces the cue mode for an A/B
+        // (0=VCNone 1=VCLiftLine 2=VCReflection 3=VCBoth); FF_DEBUG_PITSEL=1 reports
+        // the value in force and whether it is even a legal enum value -- PlayerOptions
+        // is fread() wholesale from a .pop written with a 32-bit Windows layout, so an
+        // out-of-range value here is itself the finding.
+        int visCue = (int)PlayerOptions.SimVisualCueMode;
+#ifdef FF_LINUX
+        {
+            const char* ov = getenv("FF_PIT_VISCUE");
+            if (ov) visCue = atoi(ov);
+            static int reported = 0;
+            if (getenv("FF_DEBUG_PITSEL") and not reported)
+            {
+                reported = 1;
+                fprintf(stderr, "[PITSEL] SimVisualCueMode=%d%s%s "
+                                "-> reflection(switch3)=%d ; ObjectDetailLevel=%.2f "
+                                "-> wing(switch7)=%d\n",
+                        visCue,
+                        (visCue < VCNone or visCue > VCBoth) ? " OUT-OF-RANGE!" : "",
+                        ov ? " (forced by FF_PIT_VISCUE)" : "",
+                        (visCue == VCReflection or visCue == VCBoth) ? 1 : 0,
+                        PlayerOptions.ObjectDetailLevel(),
+                        (mpActivePanel->DoGeometry() and PlayerOptions.ObjectDetailLevel() >= 1.0F) ? 1 : 0);
+                fflush(stderr);
+            }
+        }
+#endif
+
+        if (visCue == VCReflection or visCue == VCBoth)
         {
             mpGeometry->SetSwitchMask(3, 1);
         }
@@ -5919,6 +5950,31 @@ void CockpitManager::ComputeLightFactors(float *cLight, float *iLight)
             }
         }
     }
+
+#ifdef FF_LINUX
+    // FF_LINUX: EPIC SP.2/DEV-2 -- this is the single choke point that decides how
+    // bright the 2D pit's panel palette comes out. Measurement says the native panel
+    // sits at essentially RAW ART brightness (median luma 45.5 vs the art's 49.0)
+    // while the Wine gold sits at ~0.55x it (28.7). If cLight comes out ~1.0 here,
+    // the panel is effectively unlit and that is DEV-2. eLight IS lightLevel, which
+    // is only ever set once (RenderFirstFrame) from TheTimeOfDay.GetLightLevel() --
+    // CockpitManager::TimeUpdateCallback exists but is never registered.
+    if (getenv("FF_DEBUG_PITSEL"))
+    {
+        static int reported = 0;
+        if (not reported)
+        {
+            reported = 1;
+            fprintf(stderr, "[PITSEL] lightLevel=%.4f eLight=%.4f todLight=%.4f "
+                            "flood=%d inst=%d -> cLight=%.4f iLight=%.4f\n",
+                    lightLevel, eLight, TheTimeOfDay.GetLightLevel(),
+                    pAircraft ? pAircraft->GetInteriorLight() : -1,
+                    pAircraft ? pAircraft->GetInstrumentLight() : -1,
+                    cLight[0], iLight[0]);
+            fflush(stderr);
+        }
+    }
+#endif
 }
 
 

@@ -185,6 +185,52 @@ is the first thing to check. `mFloodLight`/`mInstLight`/`lightLevel` on
 `CockpitManager` (from `floodlight = 0xff666666; instlight = 0xff666600;` in the
 `.dat`) are the other input.
 
+### Sprint 11 / S11-B — DEV-2 localised: the native panel is drawn at RAW ART brightness
+
+Measured the pit's own art file against both frames. `16_1200_0.gif`
+(1600×1200, 8-bpp, the main panel surface referenced by `16_ckpit.dat`), taking
+only non-chroma-key pixels (palette index ≠ 0, 25.7 % of the image):
+
+| Sample | p5 | p25 | **p50** | p75 | p95 |
+|---|---|---|---|---|---|
+| **raw pit art** `16_1200_0.gif` | 0.0 | 13.7 | **49.0** | 105.3 | 206.0 |
+| native panel (y500–768) | 0.0 | 5.2 | **45.5** | 87.7 | 188.7 |
+| gold panel (y500–768) | 5.2 | 16.0 | **28.7** | 49.4 | 107.0 |
+
+**The native tracks the raw art almost exactly; the gold sits at ≈0.55× it**
+(28.7/49.0 = 0.59 at the median, 107/206 = 0.52 at p95). So the deviation is not
+that native is "too bright" in some vague sense — **native draws the panel
+essentially unlit, at raw palette brightness, and Windows applies a cockpit
+light factor of roughly 0.55.**
+
+The single choke point that decides this is
+`CockpitManager::ComputeLightFactors`, which feeds `CPPanel::SetPalette`:
+
+```
+eLight = max(lightLevel, 0.01)     // lightLevel IS the environment light
+cLight[i] = eLight                 // then flood/instrument lights are added
+```
+
+so if `lightLevel` is ~1.0 the panel palette comes out unmodified. Two facts
+worth carrying into the fix:
+
+- **`lightLevel` is set exactly once**, in `RenderFirstFrame`
+  (otwloop.cpp:544) from `TheTimeOfDay.GetLightLevel()`.
+  `CockpitManager::TimeUpdateCallback` exists to keep it current but **is never
+  registered anywhere** — only `DrawableTrail`'s and `DrawableBSP`'s
+  same-named callbacks are. So the cockpit never re-lights as the sun moves.
+- **A dead end, checked and excluded:** `CPPanel::SetTOD(float lightLevel)`
+  begins `SetPalette(); return;`, leaving its whole 16.16 fixed-point TOD
+  palette-lighting body unreachable. That looks like the bug but **is not ours**
+  — `git log -L` shows it predates the port (present before the reformat commit
+  `7b8d31a2`), so Windows short-circuits identically.
+
+Instrumented at the choke point (`FF_DEBUG_PITSEL=1` now also prints
+`lightLevel`, `eLight`, the live `TheTimeOfDay.GetLightLevel()`, the flood and
+instrument light states, and the resulting `cLight`/`iLight`). If `cLight`
+comes back ≈1.0 on a mission whose gold counterpart is at ≈0.55, the gap is in
+what feeds `lightLevel`, not in the palette maths.
+
 **New: DEV-4 — native draws a canopy bow the gold does not.** In a confirmed
 identical view and a deterministically identical art set, the native frame
 renders a canopy bow with mirror geometry arching over the HUD glass; the gold
