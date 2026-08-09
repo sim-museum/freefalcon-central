@@ -350,16 +350,29 @@ private:
 
 };
 
+#include <cstdint>
+
 #pragma pack (1)
 struct ACMI_CallRec
 {
     char label[16];
-    long teamColor;
+    // ACMI-1 (2026-08-09): this record is read verbatim out of the .vhs, which is
+    // written by a 32-bit Windows build where `long` is 4 bytes. Declaring it
+    // `long` made the record 24 bytes here instead of 20, so the memcpy stride was
+    // wrong and every callsign after the first was garbage. Same class as the
+    // acmitape.h sweep -- this one lives in a different header and was missed.
+    int32_t teamColor;
 };
 
 #pragma pack()
 
+static_assert(sizeof(ACMI_CallRec) == 20, "ACMI_CallRec must stay 32-bit-Windows sized");
+
 extern ACMI_CallRec *ACMI_Callsigns;
+// ACMI-1: how many entries ACMI_Callsigns actually has. Without this the load
+// path indexed the array by entity uniqueID (which runs to 477 on real tapes)
+// with no bound at all.
+extern int32_t ACMI_NumCallsigns;
 extern ACMIRecorder gACMIRec;
 extern ACMI_Hash    *ACMIIDTable;
 

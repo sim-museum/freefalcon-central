@@ -97,6 +97,7 @@ void DestroyTheList(LIST * list);
 extern float CalcKIAS(float, float);
 
 ACMI_CallRec *ACMI_Callsigns = NULL;
+int32_t ACMI_NumCallsigns = 0;
 ACMI_CallRec *Import_Callsigns = NULL;
 long import_count = 0;
 
@@ -304,6 +305,7 @@ ACMITape::ACMITape(char *name, RenderOTW *renderer, RViewPoint *viewPoint)
         {
             ACMI_Callsigns = new ACMI_CallRec[numcalls];
             memcpy(ACMI_Callsigns, callsigns, sizeof(ACMI_CallRec)*numcalls);
+            ACMI_NumCallsigns = (int32_t)numcalls;   // ACMI-1: retain the bound
         }
 
         numEntities = NumEntities();
@@ -374,8 +376,9 @@ ACMITape::~ACMITape()
     // Delete Callsigns
     if (ACMI_Callsigns)
     {
-        delete ACMI_Callsigns;
+        delete [] ACMI_Callsigns;   // allocated with new[]
         ACMI_Callsigns = NULL;
+        ACMI_NumCallsigns = 0;
     }
 
     Init();
@@ -556,7 +559,7 @@ void CleanupACMIImportPositionData
 
     if (Import_Callsigns)
     {
-        delete Import_Callsigns;
+        delete [] Import_Callsigns;   // allocated with new[]
         Import_Callsigns = NULL;
         import_count = 0;
     }
@@ -2662,14 +2665,20 @@ void ACMITape::SetupSimTapeEntities()
 
             F4Assert(theObject->drawPointer not_eq NULL);
 
-            if (ACMI_Callsigns) // we have callsigns
+            // ACMI-1: uniqueID is a VU id (1..477 on real tapes), NOT an index into
+            // the callsign array -- indexing it unchecked read far out of bounds and
+            // is what crashed SetupSimTapeEntities on a real Windows tape.
+            if (ACMI_Callsigns and e->uniqueID >= 0 and e->uniqueID < ACMI_NumCallsigns)
                 theObject->drawPointer->SetLabel(ACMI_Callsigns[e->uniqueID].label, TeamSimColorList[ACMI_Callsigns[e->uniqueID].teamColor]);
         }
         else
         {
             CreateDrawable(_simTapeEntities[i].objBase, 1.0F);
 
-            if (ACMI_Callsigns)
+            // ACMI-1: same unchecked uniqueID index as above, plus drawPointer can be
+            // NULL here (CreateDrawable does not guarantee one).
+            if (ACMI_Callsigns and e->uniqueID >= 0 and e->uniqueID < ACMI_NumCallsigns
+                and _simTapeEntities[i].objBase->drawPointer)
                 ((DrawableBSP*)_simTapeEntities[i].objBase->drawPointer)->SetLabel(((DrawableBSP*)_simTapeEntities[i].objBase->drawPointer)->Label(), TeamSimColorList[ACMI_Callsigns[e->uniqueID].teamColor]);
         }
 

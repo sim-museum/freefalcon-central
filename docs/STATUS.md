@@ -29,6 +29,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 17 ACMI-1 fix | ✅ done (8/8) | **On-disk format restored to 32-bit.** 35 packed-struct fields `long`→`int32_t` (in-memory structs deliberately untouched), plus the callsign count in the `.flt` read, the tape write and `GetCallsignList`'s embedded count/stride. **Five `static_assert`s now pin the layout** (80/36/41/8/16) against sizes derived from a real PO tape's own block offsets — the format contract fails the build instead of failing silently. Playback path still untested (needs display) |
 | 18 TE-09 root-caused | ✅ done (7/8) | **Not nondeterminism — persisted options.** (1) With `SimAvionicsType=ATRealisticAV` and `SimAutopilotType=APNormal` (both from `Viper.pop`), `SimToggleAutopilot` routes the AP key to **`SimRightAPSwitch`** and never calls `ToggleAutopilot` — proven with entry-level tracing after a first, badly-instrumented attempt wrongly blamed key timing. **AP-1 registered:** a duplicated `(not StrgSel) and (not StrgSel)` guard (two sibling sites show `(not StrgSel) and (not HDGSel)`) clobbers HDG Select — the very roll-switch-initial-state TE-09 suspected. Upstream; PO call. (2) `Viper.pop` persists `SimAutopilotType=APNormal` → `ThreeAxisAP`, an attitude hold that does not follow the route. The game rewrites that file on exit, so the value drifts between sessions — which is what read as nondeterminism. Shipped `FF_AP_MODE` + `FF_DEBUG_AP`; corrected recipe recorded |
 | 19 PO smoke test | ✅ done (8/8) | **AUTOSAVE-1 FIXED** — our own `Auto Save.cam` was unreadable: `Encode` wrote 32-byte native event nodes while `Decode` read the 20-byte 32-bit-Windows layout, drifting 12 bytes per event → garbage count → `bad_alloc` → SIGSEGV on **every** campaign mission end. Both encode sites fixed. Five more defects registered from the PO's flight: JOINFAIL-1 (graceful-failure path segfaults), **RWY-3** (12/31 runway posts step through coarse elevations — the retracting airfield, now quantified), TERRAIN-1 (grey untextured dogfight terrain), LOAD-1 (white loading screen regression), PIT-1/GEAR-1. **ACMI promoted to top of backlog per PO** — it is a quantitative performance instrument, not just an oracle |
+| 20 ACMI end-to-end | ✅ done (8/8) | **A Windows-recorded tape now LOADS in the player.** `tools/acmi_dump.py` turns any tape into a time series (validated on 5 tapes); the gold landing decodes to a textbook approach with **ground altitude pinned at 28 ft through rollout** — the oracle RWY-3 needed. Three further fixes to reach playback: unbounded `ACMI_Callsigns[uniqueID]` index (the SIGSEGV; ids run to 477), `ACMI_CallRec.teamColor` `long`→`int32_t` (24→20 bytes, wrong memcpy stride), and two `delete`/`new[]` mismatches. In-game clock `05:04:03` matches the Python decode exactly |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -670,8 +671,39 @@ touchdown point appears to retract.
 tape, and require ground altitude to be constant through the rollout as the gold
 is. No screenshots, no judgement calls.
 
-**Next step:** load `TAPE0006.vhs` end-to-end through in-game playback (needs the
-display), and dump our own landing tape for the side-by-side.
+### ⭐⭐ ACMI END-TO-END WORKS — a Windows tape loads in the player
+
+`TAPE0006.vhs` (7.3 MB, Windows-recorded, 150 entities) copied into `acmibin/`,
+selected in *LOAD ACMI TAPE*, loaded. The playback UI comes up with transport
+controls, timeline slider and camera/focus readouts, and the clock reads
+**`05:04:03:10`** — matching the `startTime = 18243.1 s = 05:04:03` that
+`tools/acmi_dump.py` decodes independently. **Two separate implementations, one
+in C++ and one in Python, agree on the contents of a 7.3 MB binary.**
+
+Getting there needed three more fixes in `SetupSimTapeEntities`, all the same
+family as ACMI-1 and all found from the crash backtrace:
+
+1. **`ACMI_Callsigns[e->uniqueID]` indexed with no bound.** `uniqueID` is a VU
+   entity id — **1..477** on this tape — used directly as an index into an array
+   sized by the callsign count. That was the SIGSEGV. Two sites.
+2. **`ACMI_CallRec` was another 32-bit on-disk struct declared with `long`**
+   (`teamColor`), making the record 24 bytes instead of 20, so the `memcpy`
+   stride was wrong and every callsign after the first was garbage. Missed by the
+   Sprint-17 sweep because it lives in `acmirec.h`, not `acmitape.h`. Now
+   `int32_t` and `static_assert`-pinned at 20.
+3. **`delete` on `new[]` arrays** at two callsign free sites — the
+   alloc/dealloc-mismatch class this port has been clearing for months.
+
+Fix 2 arguably caused fix 1's severity: with the wrong stride, the label and
+colour read were garbage regardless.
+
+**Crash attribution came straight from the backtrace** (`C_Button::Process` →
+`ACMI_LoadACMICB` → `ACMIView::LoadTape` → `ACMITape::ACMITape` →
+`SetupSimTapeEntities`), which is what running under gdb bought.
+
+**Next:** dump our own landing tape and diff the approach against the gold's —
+RWY-3's acceptance criterion (ground altitude constant through rollout) is then
+measurable end-to-end.
 
 ## What works (verified)
 
