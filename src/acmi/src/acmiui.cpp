@@ -23,6 +23,8 @@
 #include "codelib/tools/lists/lists.h"
 #include "AcmiTape.h"
 #include "AcmiView.h"
+#include "acmirec.h"
+extern ACMIRecorder gACMIRec;   // FF_LINUX: needed by ACMI_ImportFile's stop-first guard
 
 #include "graphics/dxengine/dxvbmanager.h"
 extern bool g_bUse_DX_Engine;
@@ -822,6 +824,15 @@ void ACMItoggleLABELSCB(long, short hittype, C_Base *control)
 
 void ACMI_ImportFile(void)
 {
+    // FF_LINUX: a .flt is only complete once recording STOPS. Importing while the
+    // recorder is still live yields a truncated tape (observed: 15.8 s of a
+    // multi-minute flight). The one live caller of this function, the .dofile chat
+    // handler in ui_comms.cpp, stops first; doing it here makes every caller safe.
+    if (gACMIRec.IsRecording())
+    {
+        gACMIRec.StopRecording();
+    }
+
     FILE *fp;
     int y;
     char fname[100];

@@ -171,5 +171,41 @@ def main():
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Raw .flt support.
+#
+# The recorder writes acmibin/acmi*.flt; ACMITape::Import turns that into a
+# .vhs. That import currently FAILS SILENTLY and deletes the .flt anyway
+# (observed 2026-08-09 -- keep a backup before importing). Reading the .flt
+# directly means a flight is still measurable when the import path is broken.
+#
+# Records are ACMIRecHeader{BYTE type; float time} (5 bytes, packed) followed by
+# a type-specific payload. Aircraft position (type 3) is
+# ACMIGenPositionData{int type; long uniqueID; float x,y,z,yaw,pitch,roll}.
+# NOTE `long` is written NATIVELY: 8 bytes from our 64-bit build, 4 from
+# Windows -- so a .flt is not interchangeable between platforms.
+# Records are located by signature scan rather than sequential parse, because
+# several record types have sizes we do not model.
+# ---------------------------------------------------------------------------
+def read_flt(path, longsize=8, actype=None, tmin=0.0, tmax=1e9):
+    d = open(path, 'rb').read()
+    out = []
+    reclen = 5 + 4 + longsize + 24
+    i = 0
+    while i < len(d) - reclen:
+        if d[i] == 3:
+            t = struct.unpack_from('<f', d, i + 1)[0]
+            typ = struct.unpack_from('<i', d, i + 5)[0]
+            uid = struct.unpack_from('<q' if longsize == 8 else '<i', d, i + 9)[0]
+            if tmin < t < tmax and 0 < typ < 65536 and 0 <= uid < 100000 \
+               and (actype is None or typ == actype):
+                x, y, z, yaw, pitch, roll = struct.unpack_from('<6f', d, i + 9 + longsize)
+                out.append(dict(time=t, x=x, y=y, z=z, yaw=yaw, pitch=pitch, roll=roll))
+                i += reclen
+                continue
+        i += 1
+    return out
+
+
 if __name__ == '__main__':
     sys.exit(main())
