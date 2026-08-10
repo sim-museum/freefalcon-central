@@ -31,6 +31,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 19 PO smoke test | ✅ done (8/8) | **AUTOSAVE-1 FIXED** — our own `Auto Save.cam` was unreadable: `Encode` wrote 32-byte native event nodes while `Decode` read the 20-byte 32-bit-Windows layout, drifting 12 bytes per event → garbage count → `bad_alloc` → SIGSEGV on **every** campaign mission end. Both encode sites fixed. Five more defects registered from the PO's flight: JOINFAIL-1 (graceful-failure path segfaults), **RWY-3** (12/31 runway posts step through coarse elevations — the retracting airfield, now quantified), TERRAIN-1 (grey untextured dogfight terrain), LOAD-1 (white loading screen regression), PIT-1/GEAR-1. **ACMI promoted to top of backlog per PO** — it is a quantitative performance instrument, not just an oracle |
 | 20 ACMI end-to-end | ✅ done (8/8) | **A Windows-recorded tape now LOADS in the player.** `tools/acmi_dump.py` turns any tape into a time series (validated on 5 tapes); the gold landing decodes to a textbook approach with **ground altitude pinned at 28 ft through rollout** — the oracle RWY-3 needed. Three further fixes to reach playback: unbounded `ACMI_Callsigns[uniqueID]` index (the SIGSEGV; ids run to 477), `ACMI_CallRec.teamColor` `long`→`int32_t` (24→20 bytes, wrong memcpy stride), and two `delete`/`new[]` mismatches. In-game clock `05:04:03` matches the Python decode exactly |
 | 21 ACMI capture chain | ✅ done (7/8) | **ACMI-3 found: a recorded flight can never become a loadable tape.** The recorder writes only `acmi*.flt`; `ACMI_ImportFile()` converts it and **nothing calls it** (both `acmiui.cpp` sites commented out; only live caller is a multiplayer chat command). `FindFirstFileA` checked and exonerated. Also: the tape is flushed by **StopRecording**, so any flight cut short leaves nothing on disk — likely why the PO's landing produced no tape. New hooks `FF_AP_MODE` (now at the dispatch site), `FF_ACMI_RECORD`, `FF_ACMI_STOP`, `FF_ACMI_IMPORT`. Sprint 18's diagnosis retro-validated: `ToggleAutopilot ENTER` fired for the first time ever |
+| 22 Landing diff | ✅ done (8/8) | **First quantitative parity result: our landing matches the Windows landing.** Touchdown 36 ft both; rollout minimum 28.3 ft both; spread 8.8 ft gold vs 7.6 ft ours. **Correction:** Sprint 20's "gold pinned at 28 ft" was a subsampling artifact — the gold varies 8.8 ft too, so RWY-3's criterion was built on a contrast that does not exist. **RWY-3 reframed as a RENDERING defect** (12/31 runway posts step elevation mid-approach); ACMI measures the aircraft, not the scenery, so the correct instrument is `FF_DEBUG_RUNWAY` |
 | 22 PO landing vs gold | ✅ done (8/8) | **Our landing is quantitatively equivalent to Windows**: touchdown 36 ft both, rollout min 28.3 ft both, spread 7.6 vs 8.8 ft (ours tighter), touchdown points ~670 ft apart. First hard evidence the port's flight/collision matches the oracle. **CORRECTION:** Sprint 20's "gold pinned at 28 ft" was a subsampling artifact — the gold varies 28.3–37.1 ft too, so RWY-3's criterion was wrong. **RWY-3 still reproduces** (12/31 runway posts step elevation) but **ACMI cannot measure it** — tapes record aircraft state, not rendered scenery. RWY-3 is a rendering defect; its criterion is the runway-post series |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
@@ -822,6 +823,72 @@ Two lessons, both mine: a criterion was built on a subsampled series without
 checking the full data, and an instrument was chosen before establishing that it
 measures the quantity in question. The tape answers "did the aircraft behave?" —
 it never could answer "did the scenery move?".
+
+## Sprint 22 (2026-08-10) — OUR LANDING vs THE GOLD: the first quantitative parity result
+
+The PO hand-flew TE "09 Landing Final Approach" twice under gdb with ACMI
+recording. The second flight captured cleanly: **544 samples, 210.8 s,
+2013 ft → 28 ft**, read straight out of the raw `.flt` (bypassing the broken
+import, ACMI-4).
+
+### ✅ Result: our landing is quantitatively equivalent to the Windows landing
+
+| | GOLD (Wine) | OURS (native) |
+|---|---|---|
+| samples | 716 | 544 |
+| duration | 195.8 s | 210.8 s |
+| touchdown | t+156.6 s, **36 ft** | t+160.9 s, **36 ft** |
+| touchdown position | (772728, 1309737) | (773345, 1309997) |
+| rollout min altitude | **28.3 ft** | **28.3 ft** |
+| rollout spread | 8.8 ft | **7.6 ft** |
+
+Identical touchdown altitude, identical rollout minimum to a tenth of a foot,
+and our spread is marginally *tighter*. Touchdown points are ~670 ft apart,
+which for two independently hand-flown approaches is close.
+
+**This is the first hard evidence that the port's flight and collision
+behaviour matches the oracle** — and it is exactly the kind of tracked,
+optimisable measure the PO asked ACMI for.
+
+### ⚠️ Correction: the "pinned at 28 ft" claim was a sampling artifact
+
+Sprint 20 recorded that the gold's ground altitude was *"pinned at exactly 28 ft
+for the whole rollout, never varying"*, and RWY-3's acceptance criterion was
+built on that contrast. **It is not true.** That reading came from
+`tools/acmi_dump.py --approach`, which prints every *N*th sample
+(`step = len(sel)//40`); the subsample happened to land on 28s. The full series
+shows the gold varying **28.3 → 37.1 ft, a spread of 8.8 ft** — comparable to
+ours. There was no stable-vs-stepping contrast to build on.
+
+Same failure mode as the truncated greps earlier in this run: a display
+convenience silently dropped data, and the conclusion was drawn from what
+survived. **Print the aggregate (min/max/spread/distinct) alongside any
+subsampled series** — the aggregates are what caught it here.
+
+### RWY-3 reframed: a RENDERING defect, and ACMI is the wrong instrument
+
+The PO's report stands — *"the runway pulled away from me, like a carpet being
+pulled out from under me"* — and `FF_DEBUG_RUNWAY` from that very flight
+reproduces it exactly: **12 of 31 runway posts change elevation mid-approach**
+(e.g. `-19.6 → -25.1 → -26.0`), identical to the automated runs.
+
+But the tape shows the aircraft landing normally. Both are true because they
+measure different things:
+
+- **ACMI records aircraft state** — where the jet was. Collision uses the
+  converged elevation, so the landing is correct and matches the gold.
+- **The defect is in the rendered runway surface**, which moves while terrain
+  LOD refines. That is what looked like a carpet being pulled, and why the
+  chosen touchdown point turned into terrain.
+
+So RWY-3 is a **rendering/geometry defect, not a flight-dynamics one**, and the
+earlier acceptance criterion was wrong twice: wrong in its premise (the
+artifact above) and wrong in kind (measuring the aircraft when the defect is in
+the scenery).
+
+**Correct RWY-3 acceptance criterion: no runway post may change elevation
+during an approach.** Currently 12 of 31 do. Instrument: `FF_DEBUG_RUNWAY=1`,
+post-elevation series per position.
 
 ## What works (verified)
 
