@@ -31,6 +31,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 19 PO smoke test | ✅ done (8/8) | **AUTOSAVE-1 FIXED** — our own `Auto Save.cam` was unreadable: `Encode` wrote 32-byte native event nodes while `Decode` read the 20-byte 32-bit-Windows layout, drifting 12 bytes per event → garbage count → `bad_alloc` → SIGSEGV on **every** campaign mission end. Both encode sites fixed. Five more defects registered from the PO's flight: JOINFAIL-1 (graceful-failure path segfaults), **RWY-3** (12/31 runway posts step through coarse elevations — the retracting airfield, now quantified), TERRAIN-1 (grey untextured dogfight terrain), LOAD-1 (white loading screen regression), PIT-1/GEAR-1. **ACMI promoted to top of backlog per PO** — it is a quantitative performance instrument, not just an oracle |
 | 20 ACMI end-to-end | ✅ done (8/8) | **A Windows-recorded tape now LOADS in the player.** `tools/acmi_dump.py` turns any tape into a time series (validated on 5 tapes); the gold landing decodes to a textbook approach with **ground altitude pinned at 28 ft through rollout** — the oracle RWY-3 needed. Three further fixes to reach playback: unbounded `ACMI_Callsigns[uniqueID]` index (the SIGSEGV; ids run to 477), `ACMI_CallRec.teamColor` `long`→`int32_t` (24→20 bytes, wrong memcpy stride), and two `delete`/`new[]` mismatches. In-game clock `05:04:03` matches the Python decode exactly |
 | 21 ACMI capture chain | ✅ done (7/8) | **ACMI-3 found: a recorded flight can never become a loadable tape.** The recorder writes only `acmi*.flt`; `ACMI_ImportFile()` converts it and **nothing calls it** (both `acmiui.cpp` sites commented out; only live caller is a multiplayer chat command). `FindFirstFileA` checked and exonerated. Also: the tape is flushed by **StopRecording**, so any flight cut short leaves nothing on disk — likely why the PO's landing produced no tape. New hooks `FF_AP_MODE` (now at the dispatch site), `FF_ACMI_RECORD`, `FF_ACMI_STOP`, `FF_ACMI_IMPORT`. Sprint 18's diagnosis retro-validated: `ToggleAutopilot ENTER` fired for the first time ever |
+| 22 PO landing vs gold | ✅ done (8/8) | **Our landing is quantitatively equivalent to Windows**: touchdown 36 ft both, rollout min 28.3 ft both, spread 7.6 vs 8.8 ft (ours tighter), touchdown points ~670 ft apart. First hard evidence the port's flight/collision matches the oracle. **CORRECTION:** Sprint 20's "gold pinned at 28 ft" was a subsampling artifact — the gold varies 28.3–37.1 ft too, so RWY-3's criterion was wrong. **RWY-3 still reproduces** (12/31 runway posts step elevation) but **ACMI cannot measure it** — tapes record aircraft state, not rendered scenery. RWY-3 is a rendering defect; its criterion is the runway-post series |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -764,6 +765,63 @@ and that the first override was placed one level too deep.
   `pkill -f` whose pattern matched its own command line, killing the shell and the
   queued run. That is the self-match trap already recorded in the project notes
   (`pgrep -x`, not `pgrep -f "<string in my own argv>"`). Cost: one flight.
+
+## Sprint 22 (2026-08-09) — the PO's landing, measured against the gold
+
+The PO hand-flew TE "09 Landing Final Approach" and landed, with ACMI recording
+armed. **544 samples, 210.8 s, 2013 ft → 28 ft** — a complete approach. Both
+profiles are committed as `docs/acmi/landing_gold.csv` and
+`docs/acmi/landing_ours.csv`.
+
+### ⭐ Our landing is quantitatively equivalent to the Windows landing
+
+| | gold (Wine) | ours (native) |
+|---|---|---|
+| touchdown | t+156.6 s, **36 ft** | t+160.9 s, **36 ft** |
+| touchdown position | (772728, 1309737) | (773345, 1309997) |
+| rollout min altitude | **28.3 ft** | **28.3 ft** |
+| rollout spread | 8.8 ft | **7.6 ft** |
+| rollout samples | 148 | 133 |
+
+Identical touchdown altitude, identical minimum ground altitude to a tenth of a
+foot, touchdown points ~670 ft apart (two hand-flown approaches), and our spread
+is marginally *tighter*. **This is the first hard evidence that the port's flight
+and ground-collision behaviour matches the oracle**, and it is exactly the kind
+of tracked, optimisable measure ACMI was prioritised for.
+
+### ⚠️ CORRECTION: "the gold is pinned at 28 ft" was a sampling artifact
+
+Sprint 20 recorded that the gold's rollout altitude was *"pinned at exactly 28 ft
+for the whole rollout, never varying"*, and RWY-3's acceptance criterion was
+built on that contrast. **It is false.** The dump printed every *N*th sample
+(`step = len(sel)//40`), which happened to land on 28s. The full series shows the
+gold varying **28.3 → 37.1 ft**, a spread of 8.8 ft — slightly *more* than ours.
+
+Both builds vary through rollout by a similar amount. There is no
+stable-vs-stepping contrast, and the criterion derived from it was wrong.
+
+### RWY-3 reproduces — but ACMI is the wrong instrument for it
+
+The same flight's `FF_DEBUG_RUNWAY` log shows **12 of 31 runway posts changing
+elevation mid-approach** (e.g. `-19.6 → -25.1 → -26.0`), identical to the
+automated flights. The PO's description — *"the runway pulled away from me, like
+a carpet being pulled out from under me"* — is real and reproducible.
+
+But the tape does **not** capture it, and cannot: **ACMI records aircraft state,
+not rendered scenery.** The jet lands correctly because collision uses the
+converged elevation; what moves is the *rendered runway surface* while terrain
+LOD refines. That is why the touchdown point became terrain visually while the
+altitude series looks normal.
+
+**So RWY-3 is a rendering/geometry defect, not a flight-dynamics one.** Its
+acceptance criterion is therefore **not** an ACMI measure but the runway-post
+series: *no runway post may change elevation during an approach.* Currently
+**12 of 31 do**.
+
+Two lessons, both mine: a criterion was built on a subsampled series without
+checking the full data, and an instrument was chosen before establishing that it
+measures the quantity in question. The tape answers "did the aircraft behave?" —
+it never could answer "did the scenery move?".
 
 ## What works (verified)
 
