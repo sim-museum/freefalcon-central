@@ -31,7 +31,45 @@ Gold standard: `/run/media/admin/BEA6-BBCE/free falcon/` (5 PNGs). Open PO
 question: shot 3 may be a native capture rather than a Wine gold — provenance to
 confirm.
 
-## Current state (2026-08-08, after Sprint 12)
+## Current state (2026-08-10, after Sprint 22)
+
+**Headline: the port's landing is quantitatively equivalent to the Windows
+landing.** PO hand-flew TE "09 Landing Final Approach" under gdb with ACMI
+recording; the tape decodes to touchdown at **36 ft** (gold: 36 ft), rollout
+minimum **28.3 ft** (gold: 28.3 ft), spread **7.6 ft** (gold: 8.8 ft). First
+hard evidence that flight and collision behaviour match the oracle.
+
+**ACMI is now a working measurement instrument.**
+- `tools/acmi_dump.py <tape.vhs>` — summary, entity list, `--track`,
+  `--approach`, `--csv`. Validated on 5 tapes.
+- `tools/acmi_dump.py` also exposes `read_flt()` for raw `acmibin/acmi*.flt`
+  recordings — needed because the in-game import is broken (ACMI-4).
+- A Windows-recorded tape now **loads in the in-game player** (Sprint 20).
+
+**To record a flight:** launch with `FF_ACMI_RECORD=1`; recording starts at
+mission start. **Do not press `f`** — it toggles ACMI recording
+(`SimAVTRToggle` → `ACMIToggleRecording`) and will stop a recording already
+running. There is no on-screen indicator because `g_bACMIRecordMsgOff` defaults
+true. **Back up `acmibin/acmi0000.flt` before any import** — ACMI-4 deletes it
+and can produce nothing.
+
+### Open defects, priority order
+
+| id | what | note |
+|---|---|---|
+| **ACMI-4** | `ACMI_ImportFile` fails silently **and deletes the `.flt`** | data-destroying; read `.flt` directly meanwhile |
+| **RWY-3** | 12/31 runway posts change elevation mid-approach | the "retracting airfield"; **rendering** defect. Criterion: no post may change elevation during an approach |
+| **JOINFAIL-1** | `CampaignJoinFail` → `RemoveUserCallback` SIGSEGV | the graceful-failure path itself crashes |
+| **TERRAIN-1** | grey untextured surface under the dogfight arena | |
+| **LOAD-1** | white screen instead of the loading animation | regression vs `cc4e2517` |
+| **PIT-1 / GEAR-1** | 2D pit low/small in view 1; no landing gear in view 0 | |
+| **AP-1** | duplicated `(not StrgSel) and (not StrgSel)` guard | upstream; PO call |
+| **ACMI-5** | no automatic `.flt`→`.vhs` on mission end; indicator suppressed | usability |
+
+**AUTOSAVE-1 is fixed but still unverified in flight** — it needs one campaign
+mission flown to completion, returning to the map without crashing.
+
+## Previous state (2026-08-09, after Sprint 12)
 
 - **Sprint 12 PARTIAL 5/8 — DEV-1 reclassified, not fixed.** The native renders
   the main menu **correctly for this data**: `main_win.scf:20` names
