@@ -30,6 +30,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 18 TE-09 root-caused | ✅ done (7/8) | **Not nondeterminism — persisted options.** (1) With `SimAvionicsType=ATRealisticAV` and `SimAutopilotType=APNormal` (both from `Viper.pop`), `SimToggleAutopilot` routes the AP key to **`SimRightAPSwitch`** and never calls `ToggleAutopilot` — proven with entry-level tracing after a first, badly-instrumented attempt wrongly blamed key timing. **AP-1 registered:** a duplicated `(not StrgSel) and (not StrgSel)` guard (two sibling sites show `(not StrgSel) and (not HDGSel)`) clobbers HDG Select — the very roll-switch-initial-state TE-09 suspected. Upstream; PO call. (2) `Viper.pop` persists `SimAutopilotType=APNormal` → `ThreeAxisAP`, an attitude hold that does not follow the route. The game rewrites that file on exit, so the value drifts between sessions — which is what read as nondeterminism. Shipped `FF_AP_MODE` + `FF_DEBUG_AP`; corrected recipe recorded |
 | 19 PO smoke test | ✅ done (8/8) | **AUTOSAVE-1 FIXED** — our own `Auto Save.cam` was unreadable: `Encode` wrote 32-byte native event nodes while `Decode` read the 20-byte 32-bit-Windows layout, drifting 12 bytes per event → garbage count → `bad_alloc` → SIGSEGV on **every** campaign mission end. Both encode sites fixed. Five more defects registered from the PO's flight: JOINFAIL-1 (graceful-failure path segfaults), **RWY-3** (12/31 runway posts step through coarse elevations — the retracting airfield, now quantified), TERRAIN-1 (grey untextured dogfight terrain), LOAD-1 (white loading screen regression), PIT-1/GEAR-1. **ACMI promoted to top of backlog per PO** — it is a quantitative performance instrument, not just an oracle |
 | 20 ACMI end-to-end | ✅ done (8/8) | **A Windows-recorded tape now LOADS in the player.** `tools/acmi_dump.py` turns any tape into a time series (validated on 5 tapes); the gold landing decodes to a textbook approach with **ground altitude pinned at 28 ft through rollout** — the oracle RWY-3 needed. Three further fixes to reach playback: unbounded `ACMI_Callsigns[uniqueID]` index (the SIGSEGV; ids run to 477), `ACMI_CallRec.teamColor` `long`→`int32_t` (24→20 bytes, wrong memcpy stride), and two `delete`/`new[]` mismatches. In-game clock `05:04:03` matches the Python decode exactly |
+| 21 ACMI capture chain | ✅ done (7/8) | **ACMI-3 found: a recorded flight can never become a loadable tape.** The recorder writes only `acmi*.flt`; `ACMI_ImportFile()` converts it and **nothing calls it** (both `acmiui.cpp` sites commented out; only live caller is a multiplayer chat command). `FindFirstFileA` checked and exonerated. Also: the tape is flushed by **StopRecording**, so any flight cut short leaves nothing on disk — likely why the PO's landing produced no tape. New hooks `FF_AP_MODE` (now at the dispatch site), `FF_ACMI_RECORD`, `FF_ACMI_STOP`, `FF_ACMI_IMPORT`. Sprint 18's diagnosis retro-validated: `ToggleAutopilot ENTER` fired for the first time ever |
 
 ## Sprint 9 Planning (2026-07-27, re-planned after interruption)
 
@@ -704,6 +705,65 @@ colour read were garbage regardless.
 **Next:** dump our own landing tape and diff the approach against the gold's —
 RWY-3's acceptance criterion (ground altitude constant through rollout) is then
 measurable end-to-end.
+
+## Sprint 21 (2026-08-09) — ACMI capture chain: hooks + a real gap
+
+Trying to produce our own tape for a gold diff exposed a chain of gaps. The
+gold half of the diff is already done (28 ft pinned through rollout); this is
+about getting *our* half.
+
+### ACMI-3 (defect): a recorded flight can never become a loadable tape
+
+`ACMIRecorder` writes only a raw **`acmibin/acmi*.flt`**. Converting that into a
+loadable `TAPEnnnn.vhs` is `ACMI_ImportFile()` — and **nothing calls it**. Both
+call sites in `acmiui.cpp` (1278, 1381) are commented out, and the only live
+caller is a multiplayer chat command (`ui_comms.cpp:594`, the `.dofile` handler).
+So in normal single-player use a recording is written and then never converted.
+
+That matters more than it looks: per PO direction ACMI is the project's
+**quantitative instrument** for sim/pilot performance. An instrument whose output
+cannot be loaded records nothing usable.
+
+`FindFirstFileA` was checked and is **not** at fault — the Linux compat version
+converts backslashes, resolves the directory case-insensitively and uses
+`fnmatch(FNM_CASEFOLD)`. The enumeration works; it is simply never reached.
+
+### Also learned: the tape is flushed by StopRecording, not by recording
+
+A tape only materialises when recording **stops**. Any flight cut short — crash,
+harness kill, hang — leaves the recording live and **nothing on disk**. That is
+very likely why the PO's hand-flown landing produced no tape despite a clean
+exit.
+
+### New automation hooks
+
+| hook | effect |
+|---|---|
+| `FF_AP_MODE=<0\|1\|2>` | forces the autopilot mode **at the dispatch site** (`SimToggleAutopilot`), which is where the `APNormal` + realistic-avionics branch diverts to `SimRightAPSwitch`. The earlier override inside `AircraftClass::ToggleAutopilot` could never fire. |
+| `FF_DEBUG_AP=1` | reports the mode in force and traces `ToggleAutopilot` at **function entry** |
+| `FF_ACMI_RECORD=1` | starts an ACMI recording as the mission begins |
+| `FF_ACMI_STOP=<sec>` | stops recording N seconds in — this is what **flushes the tape** |
+| `FF_ACMI_IMPORT=1` | runs `ACMI_ImportFile()` at UI start, converting `acmi*.flt` → next free `TAPEnnnn.vhs` |
+
+**Sprint 18's diagnosis is retro-validated.** With `FF_AP_MODE=0` the log shows:
+
+```
+[AP] SimToggleAutopilot: mode forced to 0 (was 2), realisticAvionics=1
+[AP] ToggleAutopilot ENTER (autopilotType=4, option=2)
+```
+
+`ToggleAutopilot` had **never** been entered in any previous run. Forcing the
+mode at the dispatch reaches it, confirming both the `SimRightAPSwitch` diversion
+and that the first override was placed one level too deep.
+
+### Honest notes
+
+- **`SDL_VIDEODRIVER=dummy` does not work for FreeFalcon** — it dies during init;
+  this game needs real GL. Headless ACMI conversion is not an option.
+- **The recorded `.flt` from the test flight was lost to my own mistake:** a
+  `pkill -f` whose pattern matched its own command line, killing the shell and the
+  queued run. That is the self-match trap already recorded in the project notes
+  (`pgrep -x`, not `pgrep -f "<string in my own argv>"`). Cost: one flight.
 
 ## What works (verified)
 

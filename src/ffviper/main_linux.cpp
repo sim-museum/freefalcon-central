@@ -2154,6 +2154,25 @@ bool ProcessGameMessages() {
 
             case FM_START_UI:
                 fprintf(stderr, "[FM] FM_START_UI received\n");
+
+                // FF_LINUX: FF_ACMI_IMPORT=1 converts any recorded acmibin/acmi*.flt
+                // into the next free acmibin/TAPEnnnn.vhs. The recorder only ever
+                // writes the raw .flt; ACMI_ImportFile() does the conversion, and in
+                // this build NOTHING calls it -- both call sites in acmiui.cpp are
+                // commented out and the only live one is a multiplayer chat command.
+                // So a recorded flight never becomes a loadable tape. ACMI is the
+                // project's quantitative instrument (PO), which makes that a real gap,
+                // not just an automation inconvenience.
+                if (getenv("FF_ACMI_IMPORT"))
+                {
+                    extern void ACMI_ImportFile(void);
+                    fprintf(stderr, "[ACMI] FF_ACMI_IMPORT: converting acmibin/acmi*.flt -> TAPEnnnn.vhs\n");
+                    fflush(stderr);
+                    ACMI_ImportFile();
+                    fprintf(stderr, "[ACMI] FF_ACMI_IMPORT: done\n");
+                    fflush(stderr);
+                }
+
                 g_simTakingOverDisplay = 0;  // FF_LINUX: back in UI; UI_Cleanup may tear down the device again
                 // FF_LINUX: Restore OS cursor for UI mode
                 SDL_SetRelativeMouseMode(SDL_FALSE);

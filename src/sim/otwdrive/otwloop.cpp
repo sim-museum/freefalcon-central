@@ -255,6 +255,28 @@ void OTWDriverClass::Cycle(void)
         }
     }
 
+    // FF_LINUX: FF_ACMI_STOP=<sec> stops the ACMI recording N seconds after the
+    // sim starts, which is what FLUSHES THE TAPE TO DISK. Without it a tape only
+    // appears when the mission ends of its own accord, so any run cut short by a
+    // harness timeout leaves nothing -- the recording is live but never written.
+    {
+        const char* stopAt = getenv("FF_ACMI_STOP");
+
+        if (stopAt and gACMIRec.IsRecording())
+        {
+            static unsigned long s_acmiT0 = 0;
+
+            if (not s_acmiT0) s_acmiT0 = vuxRealTime;
+
+            if (vuxRealTime - s_acmiT0 >= (unsigned long)(atof(stopAt) * 1000.0))
+            {
+                fprintf(stderr, "[ACMI] FF_ACMI_STOP: stopping recording -> tape flushed\n");
+                fflush(stderr);
+                gACMIRec.StopRecording();
+            }
+        }
+    }
+
     // FF_LINUX: EPIC SP.2 -- report the display mode actually in force, once a
     // second. A parity capture is only comparable to a gold shot if both are the
     // SAME VIEW; "2D pit looks wrong" is meaningless if the frame is really the
@@ -542,6 +564,19 @@ void OTWDriverClass::RenderFirstFrame(void)
     pCockpitManager->LoadCockpitDefaults();
 #endif
     pCockpitManager->SetTOD(light);
+
+#ifdef FF_LINUX
+    // FF_LINUX: FF_ACMI_RECORD=1 starts an ACMI recording as the mission begins,
+    // so automated flights leave a tape. ACMI is the project's quantitative
+    // instrument (PO, 2026-08-09) -- without this, only manually-toggled flights
+    // produce data and automation can never be measured against a gold tape.
+    if (getenv("FF_ACMI_RECORD") and not gACMIRec.IsRecording())
+    {
+        fprintf(stderr, "[ACMI] FF_ACMI_RECORD: starting recording\n");
+        fflush(stderr);
+        gACMIRec.StartRecording();
+    }
+#endif
 #ifdef FF_LINUX
     fprintf(stderr, "[RenderFirstFrame] Cockpit defaults loaded, calling PreLoadScene...\n"); fflush(stderr);
 #endif

@@ -1528,7 +1528,34 @@ void SimToggleAutopilot(unsigned long, int state, void*)
 {
     if (SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP) and (state bitand KEY_DOWN))
     {
-        switch (PlayerOptions.GetAutopilotMode())
+        int ffApMode = PlayerOptions.GetAutopilotMode();
+
+#ifdef FF_LINUX
+        // FF_LINUX: TE-09 -- the override has to live HERE, at the dispatch, not in
+        // AircraftClass::ToggleAutopilot. With ATRealisticAV + APNormal this switch
+        // routes to SimRightAPSwitch and ToggleAutopilot is never reached, so an
+        // override applied inside it changed nothing. FF_AP_MODE=<0|1|2> forces
+        // 0=Intelligent/Combat, 1=Enhanced/Waypoint (both follow the route),
+        // 2=Normal/ThreeAxis (attitude hold only).
+        {
+            const char* ov = getenv("FF_AP_MODE");
+
+            if (ov)
+            {
+                ffApMode = atoi(ov);
+
+                if (getenv("FF_DEBUG_AP"))
+                {
+                    fprintf(stderr, "[AP] SimToggleAutopilot: mode forced to %d "
+                                    "(was %d), realisticAvionics=%d\n",
+                            ffApMode, PlayerOptions.GetAutopilotMode(), (int)g_bRealisticAvionics);
+                    fflush(stderr);
+                }
+            }
+        }
+#endif
+
+        switch (ffApMode)
         {
             case APIntelligent: // allowed even in realistic.
                 SimDriver.GetPlayerAircraft()->ToggleAutopilot();
