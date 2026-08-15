@@ -1120,15 +1120,71 @@ Confirmed non-accumulating: the decal recomputes from `GetGroundLevel` each
 frame rather than from the stored z, so it never drifted (179 samples all
 `z=-3.0`, never `-6.0`).
 
-**Still to verify:** numerically the drawn surface now coincides with
-`GetGroundLevel` (`decal=0.0 -> z=0.0`). Visual acceptance against the gold —
-gear on the tarmac, runway visible — still needs eyes.
+**Sprint 2 correction — the aircraft is NOT buried, and this is not an elevation
+bug.** Captured our own sim frames (`FF_VIEW_SCRIPT` + ImageMagick; note
+`CLAUDE.md`'s "agent can't capture sim frames" is stale, fixed by `ed3e1274`) and
+extended `FF_DEBUG_GROUND` to sample all three elevation sources at the player:
+
+```
+[GROUND] acZ=-31.99 groundZ=-26.00 aboveGround=5.99 vpAccurate=-26.00 vpApprox=-26.00 onGround=1
+```
+
+All three agree exactly, and the 2D-pit capture matches the gold closely —
+instruments, live HUD, hangars left and tower right on the horizon in the same
+places, **horizon at normal eye height**. The "bogged in terrain" appearance
+comes from the *external* cameras (chase/orbit) sitting low enough that terrain
+occludes the lower fuselage; it is not where the aircraft is.
+
+The decal removal stands on its own merits (drawn surface now coincides with the
+collision surface) but was not the cause.
+
+**Real remaining defect: the runway/tarmac is never rendered at the player's
+airbase.** With `FF_DEBUG_RUNWAY=1` over a full TE 2 run:
+
+- exactly **6** `InsertStaticSurface` calls in the whole run, all belonging to one
+  platform at `(1085660,1362831)` — a base ~19 miles away;
+- all 25 `DrawablePlatform::Draw(OTW)` traces are that same distant platform;
+- our airbase (aircraft at `(1044566,1270503)`) inserts **no** flat surfaces at
+  all, while its buildings clearly render in the capture;
+- **no** `flat surface SKIPPED (prio > BuildingDeaggLevel)` traces, so they are
+  not being priority-filtered — they never reach that code path.
+
+So the question is no longer "what elevation is the runway drawn at" but "why
+does the player's airbase never insert its flat surfaces". Next step: trace
+feature creation for the airbase under the player — visType, displayPriority and
+the `FEAT_FLAT_CONTAINER`/`FEAT_ELEV_CONTAINER` campaign flags — in
+`addobj.cpp:332-355`.
+
+This also re-frames the older `CLAUDE.md` entry "runways/airstrips invisible +
+can't land": that is this defect, and it is about surface *insertion*, not
+elevation.
 
 **This contradicts the RWY-3 reframing above** ("RWY-3 is a rendering defect;
 the collision elevation is correct, proven by Sprint 22's landing parity").
 Sprint 22 measured an *airborne approach*, where the aircraft never touches the
 ground and interpenetration cannot arise, so it could not have caught a
 ground-start placement error. Both records are right about different things.
+
+### TE2-3 — popup MFDs mispositioned (VirtualMFD built for 640x480) (fixed 2026-08-15)
+
+PO report: *"Try 1 view, a small '2' view appears incorrectly at bottom centre."*
+Our HUD-view capture shows the same family of defect from the other end — four
+**oversized** MFD panels pinned to the screen corners.
+
+`VirtualMFD[]` (`otwdrive.cpp:157`) is a static table of pixel rects written for
+a **640x480** screen: 154px squares placed with literal `640 -` and `480 -`
+offsets. `MFDClass` then normalises those rects by
+`DisplayOptions.DispWidth/DispHeight` (`mfd.cpp:182-185`, `:943-946`), which are
+**1024x768** here. Two different pixel spaces, so every popup MFD is placed and
+sized wrongly.
+
+Fixed by rebuilding the table against the real display size in
+`OTWDriver::Enter` before the MFDs are constructed, keeping the original
+proportions (a square 154/640 of the width, one per corner). `FF_DEBUG_MFD=1`
+logs the rebuilt geometry.
+
+Note this is resolution-dependent, which is why it never showed on the original
+640x480 target and why the PO sees it at 1024x768.
 
 ### TE-02 — TE runway ground start never deaggregates (SUPERSEDED by EPIC TE2)
 
