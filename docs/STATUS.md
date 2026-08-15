@@ -618,13 +618,42 @@ time.
 
 - **TERRAIN-1:** dogfight arena shows a uniformly grey surface below the
   aircraft, with airfields sitting on flat grey polygons. Untextured terrain.
+  **2026-08-14: probable root cause found** — the M/L LOD terrain textures are
+  absent from the install (416 unique misses: 300 `L*`, 131 `M*`; the DDS set is
+  `H*`-only, the PCX set is still inside an unextracted 178 MB `texture.zip`), so
+  every medium/low LOD tile ends at `ShiError` with `bits[res] = NULL`. Data fix,
+  PO call. See `docs/STATUS_2026-08-14_session.md`.
 - **LOAD-1 (regression):** clicking Fly shows a **white** screen instead of the
   animated aircraft-icon progress bar. That animation was fixed in June
   (`cc4e2517`) and `FF_LoadingClear` is supposed to paint black — never white.
+  **2026-08-14: quantified** — TE 09 is white to ~31 s and renders the full
+  cockpit by 50 s, so the mission does load; the setup phase simply presents
+  nothing. Note the deagg-wait splash animation runs **zero** iterations on a
+  healthy launch, so the presents must come from `OTWDriver::Enter` itself.
 - **PIT-1:** in view 1 the 2D cockpit sits low, peeking up from the bottom of the
   screen at low resolution. Possibly the 16_ckpit.dat art set scaled 0.64.
 - **GEAR-1:** view 0 shows no landing gear; the aircraft appears to rest on the
   terrain.
+
+### Found 2026-08-14 (PO test drive)
+
+- **CAMP-1 (NEW, top of the backlog):** entering 3D from the campaign **deadlocks
+  permanently** on a white screen. The deagg wait exits after zero iterations
+  (`IsAggregate=128 delayCounter=120`, so `flight->IsDead()` is true), which takes
+  the failed-launch bail path into
+  `WaitForSingleObject(wait_for_sim_cleanup, INFINITE)` (`simloop.cpp:1386`). That
+  event is only ever set from `SimulationDriver::Cycle()` (`simdrive.cpp:857`),
+  which the Loop thread never calls because the launch never reached
+  `RunningGraphics` — every thread parks at 0 % CPU and the last (white) frame
+  stays up. **Third instance of the signal-less-INFINITE-wait class (cf. issues #6,
+  #13).** Fix: bound the wait, fall through to `FM_START_UI`. Distinct from LOAD-1;
+  TE 09 is unaffected (it deaggregates normally and flies).
+- **SETUP-1 (NEW):** clicking **Setup** on the main menu SIGSEGVs in
+  `UpdateKeyMapButton` (`controltab.cpp:2887`) — `strcat(totalDescrip,
+  KeyDescrips[Map.key2])` with a NULL entry, since `KeyDescrips` is a sparse
+  `char*[256]` memset to 0 and the guard only rejects `key2 == -1`. Line 2882 has
+  the same exposure via `_stprintf`; neither bounds-checks `key2 < 256`.
+  Data-dependent on `keystrokes.key`, which is why Setup opened fine before.
 
 ### ⭐ ACMI promoted to TOP of the backlog (PO direction)
 

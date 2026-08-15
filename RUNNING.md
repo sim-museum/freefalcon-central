@@ -57,6 +57,8 @@ and can produce nothing.
 
 | id | what | note |
 |---|---|---|
+| **CAMP-1** | campaign 3D entry **deadlocks forever** on a white screen | `WaitForSingleObject(wait_for_sim_cleanup, INFINITE)` at `simloop.cpp:1386` on the failed-launch bail path, never signalled. TE is unaffected. See `docs/STATUS_2026-08-14_session.md` |
+| **SETUP-1** | clicking **Setup** on the main menu SIGSEGVs | NULL `KeyDescrips[key2]` into `strcat`, `controltab.cpp:2887`. **Avoid the Setup button until fixed** |
 | **ACMI-4** | `ACMI_ImportFile` fails silently **and deletes the `.flt`** | data-destroying; read `.flt` directly meanwhile |
 | **RWY-3** | 12/31 runway posts change elevation mid-approach | the "retracting airfield"; **rendering** defect. Criterion: no post may change elevation during an approach |
 | **JOINFAIL-1** | `CampaignJoinFail` → `RemoveUserCallback` SIGSEGV | the graceful-failure path itself crashes |
