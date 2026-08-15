@@ -209,7 +209,24 @@ BOOL Texture::LoadImage(char *filename, DWORD newFlags, BOOL addDefaultPath)
 
 
     ShiAssert(filename);
-    ShiAssert(imageData == NULL);
+
+    // A live Texture can legitimately be re-loaded: on Linux OTWDriver::Exit()
+    // defers DeviceDependentGraphicsCleanup to the next Enter(), so
+    // DeviceDependentGraphicsSetup runs a second time over Texture objects that
+    // still hold their image. The old ShiAssert(imageData == NULL) reported that
+    // as an error and then fell through to "imageData = texFile.image.image"
+    // below, silently leaking the previous image. Release it instead.
+    // Only the image memory is dropped, not the palette -- the load path below
+    // reuses an existing palette via Reference(), and FreeImage() would release
+    // it out from under that.
+    if (imageData)
+    {
+#if defined(_DEBUG) && !defined(FF_LINUX)
+        InterlockedExchangeAdd((long *)&m_dwTotalBytes, -(dimensions * dimensions));
+#endif
+        glReleaseMemory(imageData);
+        imageData = NULL;
+    }
 
     flags or_eq newFlags;
 
@@ -397,11 +414,11 @@ void Texture::FreeImage()
 // Using image (and optional palette data) already loaded, create an MPR texture.
 bool Texture::CreateTexture(char *strName)
 {
-    ShiAssert(rc not_eq NULL);
-    ShiAssert(imageData);
-    ShiAssert(texHandle == NULL);
-
 #ifdef FF_LINUX
+    // Test the tolerated cases BEFORE the asserts. Each condition below is one
+    // this function deliberately handles, so asserting on it first only logged a
+    // failure for something already dealt with -- that was the recurring
+    // "[Failed: texHandle == NULL] tex.cpp" noise in every session log.
     // Safety check: Don't try to create texture if device isn't set up
     if (rc == NULL || imageData == NULL) {
         return false;
@@ -413,6 +430,10 @@ bool Texture::CreateTexture(char *strName)
         return true;
     }
 #endif
+
+    ShiAssert(rc not_eq NULL);
+    ShiAssert(imageData);
+    ShiAssert(texHandle == NULL);
 
     // JB 010318 CTD
     if (/* not F4IsBadReadPtr(palette,sizeof(Palette)) and */ (flags bitand MPR_TI_PALETTE))
