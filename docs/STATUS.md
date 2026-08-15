@@ -1080,7 +1080,14 @@ keeping its own along-runway distance — still on the runway (what `207de9d7`
 wanted) but preserving the line-astern spacing the TE data already provides,
 which is what the gold orbit shot shows.
 
-### TE2-2 — aircraft buried in terrain, runway not rendered (open)
+**Sprint 1 (2026-08-15) — closed.** TE2-1 fixed and verified numerically; TE2-2
+root-caused and a fix landed, awaiting visual acceptance. Also cleared four
+defects found while instrumenting: the ~30s 3D SIGSEGV (signed 16-bit start
+vertex in `CDXEngine::DrawSurface`), and the `objectiv.cpp` /`unit.cpp` /
+`ctree.cpp` memory defects. Regression: 200s IA ASAN soak clean — 3D at 62 FPS,
+zero ASAN errors, zero `tex.cpp` assertions, `rc=124`.
+
+### TE2-2 — aircraft buried in terrain, runway not rendered (fix landed, needs eyes)
 
 Physics places the aircraft correctly: `[GROUND]` reports `groundZ=-26.00` with
 the aircraft reference at `-31.99`, a gap of exactly `CheckHeight` (5.99) — wheels
@@ -1094,6 +1101,28 @@ collision ground — so the runway is buried under both surfaces.
 Three elevation sources disagree at the same x/y: runway feature (−5.00),
 collision query (−26.00), rendered terrain (higher still). The gold shows all
 three coincident.
+
+**Root cause found and fixed (75bc6056).** `FF_DEBUG_RUNWAY` gave it directly:
+
+```
+[RUNWAY] flat GetGroundLevel=0.0 decal=3.0 -> z=-3.0
+```
+
+Flat runway/tarmac surfaces were drawn at `GetGroundLevel` **minus a 3 ft
+decal** (negative z is up), so the drawn surface floats 3 ft above the surface
+the wheels rest on — every parked aircraft sunk 3 ft into it. The decal existed
+to stop the runway z-fighting the terrain mesh, but that job moved to the
+slope-scaled `glPolygonOffset` applied at flush time to this exact batch
+(`9ed8f3b2`, `FF_SetRunwayDepthBias`). Redundant, and harmful. Defaulted to 0;
+`FF_RUNWAY_ZLIFT=<ft>` restores a lift.
+
+Confirmed non-accumulating: the decal recomputes from `GetGroundLevel` each
+frame rather than from the stored z, so it never drifted (179 samples all
+`z=-3.0`, never `-6.0`).
+
+**Still to verify:** numerically the drawn surface now coincides with
+`GetGroundLevel` (`decal=0.0 -> z=0.0`). Visual acceptance against the gold —
+gear on the tarmac, runway visible — still needs eyes.
 
 **This contradicts the RWY-3 reframing above** ("RWY-3 is a rendering defect;
 the collision elevation is correct, proven by Sprint 22's landing parity").
