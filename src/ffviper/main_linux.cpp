@@ -652,6 +652,21 @@ static void InitSDLJoystick() {
             FF_DEBUG_JOYSTICK("  Axes: %d, Buttons: %d, Hats: %d\n",
                     g_JoystickNumAxes, g_JoystickNumButtons, g_JoystickNumHats);
 
+            // FF_LINUX: ProcessJoyButtonAndPOVHat() dispatches hat movement to the
+            // mapped view functions with `for (i = 0; i < NumberOfPOVs; i++)`, and
+            // NumberOfPOVs is otherwise assigned in ONE place only: the DirectInput
+            // setup path in siloop.cpp, from gpDIDevice->GetCapabilities(). That path
+            // never runs here (DirectInput8Create fails, gDIEnabled = FALSE), so it
+            // stayed 0, the loop never iterated, and the hat did nothing -- we filled
+            // IO.povHatAngle[] every event and nobody ever read it. Same trap as
+            // ReadThrottle/gTotalJoy. Publish the real SDL hat count.
+            {
+                extern unsigned int NumberOfPOVs;
+                NumberOfPOVs = (unsigned int)((g_JoystickNumHats < SIMLIB_MAX_POV)
+                                              ? g_JoystickNumHats : SIMLIB_MAX_POV);
+                FF_DEBUG_JOYSTICK("  NumberOfPOVs set to %u\n", NumberOfPOVs);
+            }
+
             // Enable joystick events
             SDL_JoystickEventState(SDL_ENABLE);
         } else {
