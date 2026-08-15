@@ -228,12 +228,18 @@ void OTWDriverClass::Cleanup2DCockpitMode()
 
     // MfdDisplay[0]->SetImageBuffer(NULL, -1.0F, 1.0F, 1.0F, -1.0F);
     // MfdDisplay[1]->SetImageBuffer(NULL, -1.0F, 1.0F, 1.0F, -1.0F);
-    MfdDisplay[0]->SetImageBuffer(OTWImage, 0.0F, 0.0F, 0.0F, 0.0F);
-    MfdDisplay[1]->SetImageBuffer(OTWImage, 0.0F, 0.0F, 0.0F, 0.0F);
-
     //Wombat778 4-12-04 Cleanup 3 and 4 MFDs too
-    MfdDisplay[2]->SetImageBuffer(OTWImage, 0.0F, 0.0F, 0.0F, 0.0F);
-    MfdDisplay[3]->SetImageBuffer(OTWImage, 0.0F, 0.0F, 0.0F, 0.0F);
+    // The MFDs only exist between OTWDriver::Enter() (which news them) and Exit()
+    // (which deletes and NULLs them). DogfightClass::UpdateDogfight fires the action
+    // camera while there is still no player entity -- i.e. during 3D entry, before
+    // Enter() has created them -- and that lands here via SetOTWDisplayMode ->
+    // CleanupDisplayMode, so these can be NULL. Guard as otwdrive.cpp:1967 does;
+    // pCockpitManager above was already guarded, this array was the gap.
+    for (int i = 0; i < NUM_MFDS; i++)
+    {
+        if (MfdDisplay[i])
+            MfdDisplay[i]->SetImageBuffer(OTWImage, 0.0F, 0.0F, 0.0F, 0.0F);
+    }
 }
 
 ////////////////////////
