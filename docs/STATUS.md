@@ -1039,16 +1039,78 @@ roll-switch initial state) — makes the approach repro flaky for automation.
 from approach through touchdown is a gameplay call; the capture evidence above is
 the objective proxy).
 
-### TE-02 — TE runway ground start never deaggregates (backlog, found Sprint 8)
+## EPIC TE2 — TE "02 Takeoff" playable to rotation (opened 2026-08-15, PO-raised)
 
-TE "02 Takeoff" with a runway ground start: the StartLoop deaggregation wait
-expires (`IsAggregate=128, delayCounter=120`) and bails gracefully to the menu.
-Same class as the June campaign `g_bSleepAll` cross-thread race (fixed for the
-campaign path in `ddd20274` — player-flight exemption + direct throttled
-`DeaggregationCheck` in the deagg wait), evidently not effective for the TE
-ground-start path. Repro:
-`FF_UI_CLICK="624,745@8;140,128@14;825,750@18;160,343@26;975,750@30;200,595@36"`.
-Diagnose with `FF_DEBUG_DEAG=1`. Not scheduled; graceful bail means no crash.
+**PO report (2026-08-15):** flying TE "02 Takeoff", the aircraft sits bogged in
+terrain with no runway visible, the throttle does not move it, and it explodes.
+
+**Gold standard (PO-supplied, Wine, 2026-08-15).** Two shots of the same mission
+start from the Windows build in the same Wine prefix
+(`~/sgl/SAT/freeFalcon/WP`, same game data our build loads):
+- *Cockpit:* runway stretching ahead, taxiway/apron, hangars and tower on the
+  horizon, HUD live.
+- *Orbit camera:* **two F-16s line astern**, both with gear down **on the
+  tarmac**, runway edge markings clear.
+
+**Acceptance:** our TE 2 start matches those two shots — flight staggered on a
+visible runway, gear on the surface, throttle produces a takeoff roll, nothing
+explodes.
+
+### TE2-1 — whole flight spawned on one coordinate (fixed 2026-08-15)
+
+`AircraftClass::FindBestSpawnPoint`'s `START_RUNWAY` branch (added by `207de9d7`
+to stop aircraft spawning ~30 ft off the runway) called
+`TranslatePointData(obj, initData->ptIndex, ...)` for **every** aircraft. Every
+flight member arrives with the *same* `ptIndex`, so the whole flight was moved
+onto a single point — two jets inside each other. Measured with
+`FF_DEBUG_SPAWN=1`: natural positions `(1044551.1,1270545.3)` and
+`(1044692.4,1270449.5)` — ~150 ft apart — both rewritten to
+`(1044660.3,1270538.1)`.
+
+That matches the PO's symptoms exactly: at idle the two coexist; the moment the
+throttle advances they move into each other, and `[DEATH]` shows **six aircraft
+dying on one timestamp** (`t=25114858`) via the `pctStrength <= -1.0` bleed in
+`SimVehicleClass::Exec` → `SetExploding` → `AircraftClass::Exec`
+(`aircraft.cpp:1867`) → `SetDead`.
+
+Unlike the RAMP/TAXI branch this path has no `FindDesiredTaxiPoint` handing out
+distinct points and no `PT_OCCUPIED` reservation, so that mechanism cannot just
+be copied. **Fix:** project each aircraft onto the runway centre line while
+keeping its own along-runway distance — still on the runway (what `207de9d7`
+wanted) but preserving the line-astern spacing the TE data already provides,
+which is what the gold orbit shot shows.
+
+### TE2-2 — aircraft buried in terrain, runway not rendered (open)
+
+Physics places the aircraft correctly: `[GROUND]` reports `groundZ=-26.00` with
+the aircraft reference at `-31.99`, a gap of exactly `CheckHeight` (5.99) — wheels
+on the collision surface. But the PO's screenshot shows the jet sunk to
+mid-fuselage in grass with no runway at all, so the **rendered** terrain sits
+above the collision surface that `GetGroundLevel` reports.
+
+Meanwhile the runway feature carries `initData->z = -5.00`, **21 ft below** the
+collision ground — so the runway is buried under both surfaces.
+
+Three elevation sources disagree at the same x/y: runway feature (−5.00),
+collision query (−26.00), rendered terrain (higher still). The gold shows all
+three coincident.
+
+**This contradicts the RWY-3 reframing above** ("RWY-3 is a rendering defect;
+the collision elevation is correct, proven by Sprint 22's landing parity").
+Sprint 22 measured an *airborne approach*, where the aircraft never touches the
+ground and interpenetration cannot arise, so it could not have caught a
+ground-start placement error. Both records are right about different things.
+
+### TE-02 — TE runway ground start never deaggregates (SUPERSEDED by EPIC TE2)
+
+~~TE "02 Takeoff" with a runway ground start: the StartLoop deaggregation wait
+expires (`IsAggregate=128, delayCounter=120`) and bails gracefully to the menu.~~
+
+**Retired 2026-08-15 — no longer reproduces.** Two runs this session both
+deaggregated cleanly (`IsAggregate=0`, player entity acquired, `RunningGraphics`
+reached) and entered 3D. The failure has moved downstream to ground contact; see
+EPIC TE2. The recorded repro click script is also stale — it no longer reaches
+3D (run ends with `doUI=1`).
 
 ### TE-09 — TE landing autopilot route-following nondeterministic (backlog, found Sprint 8)
 

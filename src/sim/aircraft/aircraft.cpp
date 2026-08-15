@@ -3895,15 +3895,54 @@ int AircraftClass::FindBestSpawnPoint(Objective obj, SimInitDataClass* initData)
         if (obj and initData->ptIndex > 0)
         {
             float ox = af->x, oy = af->y;
-            TranslatePointData(obj, initData->ptIndex, &af->x, &af->y);
+
+            // Every aircraft in the flight arrives here with the SAME
+            // initData->ptIndex, so translating each one ONTO that point stacked the
+            // whole flight on one coordinate -- two jets inside each other, neither
+            // able to roll, both exploding the moment the throttle advanced. Unlike
+            // the RAMP/TAXI branch below, this path has no FindDesiredTaxiPoint to
+            // hand out distinct points and no PT_OCCUPIED reservation, so it cannot
+            // simply be copied.
+            //
+            // Instead, project each aircraft onto the runway centre line while
+            // KEEPING its own distance along the runway. That still puts it on the
+            // runway surface (what this branch was added for), but preserves the
+            // line-astern spacing the campaign/TE data already gives the flight.
+            float px, py;
+            TranslatePointData(obj, initData->ptIndex, &px, &py);
+
             int npt = GetPrevTaxiPt(initData->ptIndex);
+            float dirX, dirY;
+
             if (npt > 0)
             {
+                // Runway direction straight from the point chain when it exists.
                 float nx, ny;
                 TranslatePointData(obj, npt, &nx, &ny);
                 // same convention as the RAMP/TAXI branch below
-                af->initialPsi = af->psi = af->sigma = (float)atan2((ny - af->y), (nx - af->x));
+                af->initialPsi = af->psi = af->sigma = (float)atan2((ny - py), (nx - px));
             }
+
+            // GroundInit runs before this and seeds initialPsi from initData->heading,
+            // so it is the runway heading even when the point chain gives us no npt.
+            dirX = (float)cos(af->initialPsi);
+            dirY = (float)sin(af->initialPsi);
+
+            const float along = (ox - px) * dirX + (oy - py) * dirY;
+
+            if (isfinite(along) and isfinite(dirX) and isfinite(dirY))
+            {
+                af->x = px + along * dirX;
+                af->y = py + along * dirY;
+            }
+            else
+            {
+                // Unusable heading -- fall back to the bare point. That re-stacks the
+                // flight, but a stacked aircraft beats one flung to a NaN position.
+                af->x = px;
+                af->y = py;
+            }
+
             af->initialX = af->groundAnchorX = af->x;
             af->initialY = af->groundAnchorY = af->y;
             // also update initData so the later GroundInit SetPosition (which uses
@@ -3911,8 +3950,9 @@ int AircraftClass::FindBestSpawnPoint(Objective obj, SimInitDataClass* initData)
             initData->x = af->x;
             initData->y = af->y;
             if (getenv("FF_DEBUG_SPAWN"))
-                fprintf(stderr, "[SPAWN] FindBestSpawnPoint RUNWAY: ptIndex=%d objPos=(%.1f,%.1f) preXlate=(%.1f,%.1f) postXlate=(%.1f,%.1f) npt=%d\n",
-                        initData->ptIndex, obj->XPos(), obj->YPos(), ox, oy, af->x, af->y, npt);
+                fprintf(stderr, "[SPAWN] FindBestSpawnPoint RUNWAY: ptIndex=%d objPos=(%.1f,%.1f) preXlate=(%.1f,%.1f) pt=(%.1f,%.1f) along=%.1f postXlate=(%.1f,%.1f) npt=%d psi=%.1f\n",
+                        initData->ptIndex, obj->XPos(), obj->YPos(), ox, oy, px, py,
+                        along, af->x, af->y, npt, af->initialPsi * 57.2958f);
         }
         else if (getenv("FF_DEBUG_SPAWN"))
             fprintf(stderr, "[SPAWN] FindBestSpawnPoint RUNWAY: SKIPPED translate (obj=%p ptIndex=%d)\n",
