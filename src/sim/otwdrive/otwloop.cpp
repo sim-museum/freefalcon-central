@@ -489,6 +489,35 @@ void OTWDriverClass::Cycle(void)
         TheFarTextures.RestoreAll();
     }
 
+#ifdef FF_LINUX
+    // FF_DEBUG_GROUND: sample the terrain elevation under the player against the
+    // aircraft's own z, once a second. z is positive-down, so aboveGround =
+    // groundZ - acZ: positive means the aircraft is above the terrain, NEGATIVE
+    // means it is inside the ground volume. At a runway ground start these should
+    // agree to about CheckHeight; a persistent negative gap is the runway feature
+    // elevation and the terrain surface disagreeing.
+    if (getenv("FF_DEBUG_GROUND"))
+    {
+        static int groundSampleTick = 0;
+
+        if ((groundSampleTick++ % 60) == 0)
+        {
+            AircraftClass *pa = (AircraftClass *)SimDriver.GetPlayerAircraft();
+
+            if (pa)
+            {
+                float gz = GetGroundLevel(pa->XPos(), pa->YPos());
+                fprintf(stderr,
+                        "[GROUND] pos=(%.1f, %.1f) acZ=%.2f groundZ=%.2f "
+                        "aboveGround=%.2f onGround=%d dead=%d\n",
+                        pa->XPos(), pa->YPos(), pa->ZPos(), gz,
+                        gz - pa->ZPos(), pa->OnGround() ? 1 : 0, pa->IsDead() ? 1 : 0);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     //STOP_PROFILE("OTWCYCLE");
     RenderFrame();
 

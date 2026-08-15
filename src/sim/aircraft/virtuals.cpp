@@ -33,6 +33,9 @@
 #include "acdef.h"
 #include "simeject.h"
 #include "fakerand.h"
+#ifdef FF_LINUX
+#include <execinfo.h>   // FF_DEBUG_DEATH backtrace
+#endif
 #include "navsystem.h"
 #include "falcsess.h"
 #include "laserpod.h"
@@ -803,6 +806,31 @@ void AircraftClass::SetDead(int flag)
         else
             MonoPrint("Ownship %d dead at %8ld\n", Id().num_, SimLibElapsedTime);
     }
+
+#ifdef FF_LINUX
+    // FF_DEBUG_DEATH: report what killed an aircraft and where it was standing.
+    // The backtrace is the point of this -- it names the code path that decided
+    // the aircraft should die (ground collision, damage message, campaign
+    // scrub, ...), which no field dump can tell us.
+    if (flag and getenv("FF_DEBUG_DEATH"))
+    {
+        float gz = OTWDriver.GetGroundLevel(XPos(), YPos());
+        fprintf(stderr,
+                "[DEATH] %s id=%d t=%ld pos=(%.1f, %.1f, %.2f) groundZ=%.2f "
+                "agl=%.2f exploding=%d\n",
+                isDigital ? "AI" : "OWNSHIP", (int)Id().num_, (long)SimLibElapsedTime,
+                XPos(), YPos(), ZPos(), gz, gz - ZPos(), IsExploding());
+        fflush(stderr);
+
+        void *bt[32];
+        int n = backtrace(bt, 32);
+        fprintf(stderr, "[DEATH] backtrace (%d frames):\n", n);
+        fflush(stderr);
+        backtrace_symbols_fd(bt, n, fileno(stderr));
+        fprintf(stderr, "[DEATH] end backtrace\n");
+        fflush(stderr);
+    }
+#endif
 
     SimVehicleClass::SetDead(flag);
 }
