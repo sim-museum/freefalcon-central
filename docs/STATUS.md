@@ -1165,7 +1165,26 @@ Sprint 22 measured an *airborne approach*, where the aircraft never touches the
 ground and interpenetration cannot arise, so it could not have caught a
 ground-start placement error. Both records are right about different things.
 
-### TE2-3 — popup MFDs mispositioned (VirtualMFD built for 640x480) (fixed 2026-08-15)
+### TE2-3 — popup MFDs in HUD view (WITHDRAWN as diagnosed, symptom still open)
+
+**The diagnosis below was wrong and the fix has been reverted.** `VirtualMFD[]`
+*is* rebuilt for the real resolution at `otwdrive.cpp:2491-2508` — `MfdSize` is
+rescaled `154 * DispHeight / 480` and all five rects are recomputed from
+`DispWidth`/`DispHeight`. The static 640x480 initializer at `:157` is only a
+placeholder that never survives `OTWDriver::Enter`. A second rebuild added after
+it double-scaled the value (`side=352` where the correct figure is 246) and made
+the panels bigger, not right.
+
+**What stands:** our HUD-view capture does show four large MFD panels in the
+corners, and the PO reports a stray small panel at bottom centre in "1 view".
+The corner panels are the *designed* size (246px squares at 1024x768), so the
+open question is not their geometry but whether popup MFDs should be drawn in
+that view mode at all — which needs a Wine side-by-side in the same view, not
+more code reading.
+
+<details><summary>Original (incorrect) diagnosis, kept for the record</summary>
+
+
 
 PO report: *"Try 1 view, a small '2' view appears incorrectly at bottom centre."*
 Our HUD-view capture shows the same family of defect from the other end — four
@@ -1185,6 +1204,8 @@ logs the rebuilt geometry.
 
 Note this is resolution-dependent, which is why it never showed on the original
 640x480 target and why the PO sees it at 1024x768.
+
+</details>
 
 ### TE-02 — TE runway ground start never deaggregates (SUPERSEDED by EPIC TE2)
 

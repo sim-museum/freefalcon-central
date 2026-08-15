@@ -294,6 +294,16 @@ void CreateDrawable(SimBaseClass* theObject, float objectScale)
                         // lead element.
                         ((SimFeatureClass*)baseObject)->baseObject = new DrawablePlatform(1.0F);
 
+#ifdef FF_LINUX
+                        // FF_LINUX: TE2-2 -- only ONE airbase platform gets built in a
+                        // TE 2 run and it is ~19 miles away, while the base under the
+                        // player never inserts a flat surface. Log every platform we do
+                        // build, with position, so the missing one can be identified.
+                        if (getenv("FF_DEBUG_RUNWAY"))
+                            fprintf(stderr, "[RUNWAY] new DrawablePlatform (FLAT_CONTAINER) at (%.0f,%.0f,%.1f)\n",
+                                    baseObject->XPos(), baseObject->YPos(), baseObject->ZPos());
+#endif
+
                         // Insert only the platform drawable.
                         OTWDriver.InsertObject(((SimFeatureClass*)baseObject)->baseObject);
                     }
