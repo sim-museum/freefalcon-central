@@ -3604,7 +3604,7 @@ int DecodeObjectiveDeltas(VU_BYTE **stream, long *rem, FalconSessionEntity *)
         }
     }
 
-    delete bufhead;
+    delete[] bufhead;  // FF_LINUX: new[] -> delete[] (matches the sibling at :3553)
     return 0;
 }
 

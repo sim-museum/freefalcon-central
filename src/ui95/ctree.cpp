@@ -275,6 +275,22 @@ void C_TreeList::DeleteItem(TREELIST *item)
         item->Next->Prev = item->Prev;
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX: every child holds a Parent back-pointer to this node, and deleting
+    // a node does NOT delete its children. During teardown a parent can go first
+    // (~C_Hash -> C_Hash::Cleanup -> GPS_RemoveCB -> UI_Refresher::RemoveATOItem ->
+    // DeleteItem), and the child's own DeleteItem then reads item->Parent->Child
+    // through freed memory -- ASAN heap-use-after-free at the guard above, which
+    // cannot help: F4IsBadReadPtr can't detect a freed heap block (and is a stub
+    // here). Re-parent the whole child list to the grandparent, which is what the
+    // disabled CTREE_FIX above intended but did only for the first child.
+    for (TREELIST *ffChild = item->Child; ffChild; ffChild = ffChild->Next)
+    {
+        if (ffChild->Parent == item)
+            ffChild->Parent = item->Parent;
+    }
+#endif
+
     if (DelCallback_)
     {
         (*DelCallback_)(item);

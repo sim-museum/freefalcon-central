@@ -6189,10 +6189,19 @@ int DecodeUnitData(VU_BYTE **stream, long *rem, FalconSessionEntity *owner)
 
         cur = NewUnit(type, &buf, rem);
 
-        // FF_LINUX: Debug - show rem after reading unit
+        // FF_LINUX: Debug - show rem after reading unit.
+        // Only peek at the next bytes when they are actually still inside the
+        // decode buffer: when a unit consumes the remainder, buf sits at (or past)
+        // the end and reading buf[0]/buf[1] runs off it -- ASAN heap-buffer-overflow
+        // on the 1833-byte block new[]'d at :6135. Read-only, but a real OOB, and
+        // it fires on the very TE/campaign loads we use this trace to debug.
         if (num < 3) {
-            fprintf(stderr, "[FF_LINUX] DecodeUnitData: Unit %d - after NewUnit, rem=%ld, next bytes: %02x %02x\n",
-                    num, *rem, (unsigned)buf[0], (unsigned)buf[1]);
+            if (*rem >= 2)
+                fprintf(stderr, "[FF_LINUX] DecodeUnitData: Unit %d - after NewUnit, rem=%ld, next bytes: %02x %02x\n",
+                        num, *rem, (unsigned)buf[0], (unsigned)buf[1]);
+            else
+                fprintf(stderr, "[FF_LINUX] DecodeUnitData: Unit %d - after NewUnit, rem=%ld (buffer exhausted, no peek)\n",
+                        num, *rem);
         }
 
         if (load_log)
