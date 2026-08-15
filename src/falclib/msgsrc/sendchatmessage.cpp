@@ -27,8 +27,12 @@ UI_SendChatMessage::UI_SendChatMessage(VU_MSG_TYPE type, VU_ID senderid, VU_ID t
 
 UI_SendChatMessage::~UI_SendChatMessage(void)
 {
+    // FF_LINUX: dataBlock.message is void*, so `delete []` on it is ill-formed and
+    // -fpermissive silently degrades it to a scalar operator delete -- an
+    // alloc-dealloc mismatch, since every assignment site uses new char[]/new
+    // VU_BYTE[]/new _TCHAR[]. Cast to a byte pointer so the array form is emitted.
     if (dataBlock.size > 0)
-        delete []dataBlock.message;
+        delete [] static_cast<VU_BYTE *>(dataBlock.message);
 }
 
 int UI_SendChatMessage::Decode(VU_BYTE **buf, long *rem)
