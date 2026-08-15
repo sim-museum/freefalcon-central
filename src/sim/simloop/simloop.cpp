@@ -977,8 +977,9 @@ void SimulationLoopControl::StartLoop(void)
         // Wait until our flight is deaggregated
         g_bSleepAll = FALSE;//me123 host it's ok to wake again now you are attached
 
-        fprintf(stderr, "[StartLoop] Starting deagg wait: flight=%p IsAggregate=%d\n",
-                (void*)flight, flight ? flight->IsAggregate() : -1);
+        fprintf(stderr, "[StartLoop] Starting deagg wait: flight=%p IsAggregate=%d IsDead=%d\n",
+                (void*)flight, flight ? flight->IsAggregate() : -1,
+                flight ? flight->IsDead() : -1);
 
         // FF_LINUX: Reset deagg loop counter for each mission launch
         int deagLoopCounter = 0;
@@ -1054,8 +1055,9 @@ void SimulationLoopControl::StartLoop(void)
 #endif
         }
 
-        fprintf(stderr, "[StartLoop] Deagg wait done: flight=%p IsAggregate=%d delayCounter=%d\n",
-                (void*)flight, flight ? flight->IsAggregate() : -1, delayCounter);
+        fprintf(stderr, "[StartLoop] Deagg wait done: flight=%p IsAggregate=%d IsDead=%d delayCounter=%d\n",
+                (void*)flight, flight ? flight->IsAggregate() : -1,
+                flight ? flight->IsDead() : -1, delayCounter);
 
         // If we didn't deaggregate ourselves - RH
         if (flight and flight->IsAggregate())

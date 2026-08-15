@@ -1207,16 +1207,56 @@ Note this is resolution-dependent, which is why it never showed on the original
 
 </details>
 
+### TE2-4 — the player's TE 2 flight is killed BY deaggregation (release build)
+
+**This retracts the TE-02 retirement below.** That retirement was based only on
+ASAN runs and the PO's gdb session. On the **release** build — the one actually
+played — TE 2 still fails, and the cause is now identified.
+
+Controlled comparison, identical click script and mission, differing only in
+binary:
+
+| build | at the deagg wait | outcome |
+|---|---|---|
+| `build-asan` | `IsAggregate=0` (already deaggregated) | reaches 3D, 95 `[GROUND]` samples |
+| `build` (release) | `IsAggregate=128 IsDead=1` | never reaches 3D |
+
+The wait exits immediately — `delayCounter` is still 120, untouched — because
+`ddd20274` added `and not flight->IsDead()` to the loop. So this never was a
+deaggregation *race*: the flight is already dead when the wait begins.
+
+A backtrace from `UnitClass::SetDead` (new `FF_DEBUG_DEATH` trace in
+`UnitClass::SetDead`, resolved against the release symbol table) gives the chain:
+
+```
+UnitClass::Deaggregate(FalconSessionEntity*)
+  -> RegroupFlight(FlightClass*)
+     -> UnitClass::KillUnit()
+        -> UnitClass::SetDead(int)
+```
+
+**Deaggregating the flight is what kills it.** `RegroupFlight`
+(`camptask/flight.cpp:4894`) is the *disband* routine — it releases the
+callsign, returns pilots to the squadron with `PILOT_AVAILABLE`, resupplies
+squadron stores and ends with `flight->KillUnit()`. It belongs at mission end,
+not at deaggregation.
+
+Caveat on that backtrace: the release build is `-O3` with no debug info, so
+`Deaggregate` may be an inlined-frame attribution rather than the literal caller
+— there is no `RegroupFlight` call in `UnitClass::Deaggregate`'s own body
+(`unit.cpp:1575-1885`). A `build-relg` variant (Release + `-g`) is being built to
+pin the exact call site before any fix.
+
 ### TE-02 — TE runway ground start never deaggregates (SUPERSEDED by EPIC TE2)
 
 ~~TE "02 Takeoff" with a runway ground start: the StartLoop deaggregation wait
 expires (`IsAggregate=128, delayCounter=120`) and bails gracefully to the menu.~~
 
-**Retired 2026-08-15 — no longer reproduces.** Two runs this session both
-deaggregated cleanly (`IsAggregate=0`, player entity acquired, `RunningGraphics`
-reached) and entered 3D. The failure has moved downstream to ground contact; see
-EPIC TE2. The recorded repro click script is also stale — it no longer reaches
-3D (run ends with `doUI=1`).
+~~**Retired 2026-08-15 — no longer reproduces.**~~ **That retirement was wrong**
+— it generalised from ASAN-build runs only. It does still reproduce on the
+release build; see TE2-4 above for the real cause. What holds from those runs is
+narrower: under `build-asan` the flight deaggregates cleanly and reaches 3D, so
+the failure is build/timing dependent rather than universal.
 
 ### TE-09 — TE landing autopilot route-following nondeterministic (backlog, found Sprint 8)
 

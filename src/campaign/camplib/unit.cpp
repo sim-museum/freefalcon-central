@@ -18,6 +18,9 @@
 #include "ASearch.h"
 #include "Path.h"
 #include "Find.h"
+#ifdef FF_LINUX
+#include <execinfo.h>   // FF_DEBUG_DEATH backtrace
+#endif
 #include "vutypes.h"
 #include "Campaign.h"
 #include "ATM.h"
@@ -2718,6 +2721,24 @@ void UnitClass::KillUnit(void)
 
 void UnitClass::SetDead(int d)
 {
+#ifdef FF_LINUX
+    // FF_DEBUG_DEATH: TE2-4 -- on the RELEASE build the player's TE 2 flight is
+    // already IsDead=1 when StartLoop reaches the deaggregation wait, so the wait
+    // exits at once and the mission bails to the menu. The ASAN build, same click
+    // script, has it alive and deaggregated. Name whoever kills a flight.
+    if (d and not IsDead() and IsFlight() and getenv("FF_DEBUG_DEATH"))
+    {
+        fprintf(stderr, "[UNITDEATH] flight id=%d camp-time=%d\n",
+                (int)Id().num_, (int)TheCampaign.CurrentTime);
+        fflush(stderr);
+        void *bt[24];
+        int n = backtrace(bt, 24);
+        backtrace_symbols_fd(bt, n, fileno(stderr));
+        fprintf(stderr, "[UNITDEATH] end\n");
+        fflush(stderr);
+    }
+#endif
+
     // Start the death timeout clock
     SetLastCheck(TheCampaign.CurrentTime);
 
