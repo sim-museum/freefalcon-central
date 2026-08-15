@@ -50,6 +50,16 @@
 #define NRANDPOS ((float)( (float)rand()/(float)RAND_MAX ))
 #define DTR 0.01745329F
 
+// D3DXVECTOR3 is 12 bytes, so _mm_loadu_ps on one reads 16 and runs 4 bytes past
+// the end of the object (ASAN: stack-buffer-overflow). Load x/y/z and zero the 4th
+// lane instead. The lane was never consumed: the results feed XMMPos, which is only
+// ever read back as (D3DXVECTOR3*)&XMMPos.d3d -- and the divisor Div2's own 4th
+// component is left uninitialised, so that lane was garbage/garbage regardless.
+static inline __m128 PS_LoadVec3(const D3DXVECTOR3 *v)
+{
+    return _mm_setr_ps(v->x, v->y, v->z, 0.0f);
+}
+
 extern int g_nGfxFix;
 extern char FalconDataDirectory[];
 extern char FalconObjectDataDir[];
@@ -4610,7 +4620,7 @@ void DrawableParticleSys::PS_SubTrailRun(TrailSubPartType *Trail, D3DXVECTOR3 &O
             // Get the Trail Lenght
             SegmentSize = RED_Lenght3D(&SVector);
             // Get the middle of present segment extremities, that is the position of the segment
-            XMMPos.Xmm = _mm_div_ps(_mm_add_ps(_mm_loadu_ps((float*)&S0), _mm_loadu_ps((float*)&S1)), _mm_load_ps((float*)&Div2.Xmm));
+            XMMPos.Xmm = _mm_div_ps(_mm_add_ps(PS_LoadVec3(&S0), PS_LoadVec3(&S1)), _mm_load_ps((float*)&Div2.Xmm));
 
             // Skip if the segment is not fully visible
             if ( not TheDXEngine.DX2D_GetVisibility((D3DXVECTOR3*)&XMMPos.d3d, SegmentSize / 2.0f, CAMERA_VERTICES))
@@ -4784,7 +4794,7 @@ void DrawableParticleSys::PS_SubTrailRun(TrailSubPartType *Trail, D3DXVECTOR3 &O
                     }
 
                     // Get the middle of present segment extremities, that is the position of the segment
-                    XMMPos.Xmm = _mm_div_ps(_mm_add_ps(_mm_loadu_ps((float*)&ST), _mm_loadu_ps((float*)&SL)), _mm_load_ps((float*)&Div2.Xmm));
+                    XMMPos.Xmm = _mm_div_ps(_mm_add_ps(PS_LoadVec3(&ST), PS_LoadVec3(&SL)), _mm_load_ps((float*)&Div2.Xmm));
 
                     // if this is the START OF A TAPE, Means, we have no previous node to link to and to get parameters from
                     // so, calculate if from scratch
