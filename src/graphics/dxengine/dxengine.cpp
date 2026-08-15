@@ -1044,7 +1044,13 @@ void CDXEngine::DrawSurface()
     {
         // SelectTexture(NULL);
         // m_LastTexID=-1;
-        hr = m_pD3DD->DrawPrimitiveVB(m_NODE.SURFACE->dwPrimType, m_VB.Vb, (DWORD) * ((Int16*)(m_NODE.BYTE + sizeof(DxSurfaceType))) + m_VB.BaseOffset,
+        // The start vertex is an UNSIGNED 16-bit index: the DrawIndexedPrimitiveVB
+        // call below reads the very same bytes as (LPWORD). Reading them through a
+        // signed Int16* turns any index above 32767 negative, and the (DWORD) cast
+        // then wraps it to ~4.29e9, so the driver walks off the vertex buffer and
+        // segfaults inside libnvidia-glcore. Observed: index 58089 (0xE2E9) ->
+        // -7447 -> dwStartVertex=4294959849.
+        hr = m_pD3DD->DrawPrimitiveVB(m_NODE.SURFACE->dwPrimType, m_VB.Vb, (DWORD) * ((UInt16*)(m_NODE.BYTE + sizeof(DxSurfaceType))) + m_VB.BaseOffset,
                                       m_NODE.SURFACE->dwVCount, 0);
     }
     else
@@ -1055,7 +1061,8 @@ void CDXEngine::DrawSurface()
 
 
 #else
-    CheckHR(m_pD3DD->DrawPrimitiveVB(m_NODE.SURFACE->dwPrimType, m_VB.Vb, (DWORD) * ((Int16*)(m_NODE.BYTE + sizeof(DxSurfaceType))) + m_VB.BaseOffset,
+    // Unsigned 16-bit start vertex -- see the INDEXED_MODE_ENGINE branch above.
+    CheckHR(m_pD3DD->DrawPrimitiveVB(m_NODE.SURFACE->dwPrimType, m_VB.Vb, (DWORD) * ((UInt16*)(m_NODE.BYTE + sizeof(DxSurfaceType))) + m_VB.BaseOffset,
                                      m_NODE.SURFACE->dwVCount, 0));
 #endif
 
