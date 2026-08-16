@@ -5531,7 +5531,19 @@ void ATCBrain::CheckList(runwayQueueStruct *list)
 
         if (list->deleteLine)
 #else
+        // FF_LINUX: this heuristic cannot work here and can only misfire, so it is
+        // disabled. 0xdddddddd is the MSVC debug-CRT "freed memory" poison, which
+        // glibc never writes, so it can never be a TRUE positive on Linux. Meanwhile
+        // (int) truncates a 64-bit pointer to its low 32 bits, so any live node whose
+        // low half happens to equal 0xdddddddd would be a FALSE positive -- and the
+        // handler does not merely assert, it does prev->next = NULL and truncates the
+        // ATC list, discarding live entries. Same pointer-truncation class as the
+        // (int)ent and (unsigned int)ptr bugs already fixed in this port.
+#ifdef FF_LINUX
+        if (false)
+#else
         if ((int)list->next == 0xdddddddd)
+#endif
 #endif
         {
             ShiAssert( not "Tell Dave Power you hit the ATC assert (x4373)");
@@ -5570,7 +5582,19 @@ void ATCBrain::CheckList(runwayQueueStruct *list)
 
         if (list->deleteLine)
 #else
+        // FF_LINUX: this heuristic cannot work here and can only misfire, so it is
+        // disabled. 0xdddddddd is the MSVC debug-CRT "freed memory" poison, which
+        // glibc never writes, so it can never be a TRUE positive on Linux. Meanwhile
+        // (int) truncates a 64-bit pointer to its low 32 bits, so any live node whose
+        // low half happens to equal 0xdddddddd would be a FALSE positive -- and the
+        // handler does not merely assert, it does prev->next = NULL and truncates the
+        // ATC list, discarding live entries. Same pointer-truncation class as the
+        // (int)ent and (unsigned int)ptr bugs already fixed in this port.
+#ifdef FF_LINUX
+        if (false)
+#else
         if ((int)list->next == 0xdddddddd)
+#endif
 #endif
         {
             //for now i'll just fix it
