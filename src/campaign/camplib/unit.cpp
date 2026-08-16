@@ -5926,7 +5926,22 @@ int FindTaxiPt(Flight flight, Objective airbase, int checklist)
     }
 
     if ( not rwindex)
+    {
+#ifdef FF_LINUX
+        // FF_LINUX: this return is not benign -- Deaggregate turns
+        // DPT_ERROR_CANT_PLACE into CancelFlight (unit.cpp:1667), disbanding the
+        // flight. It caused TE 2 to fail on every release-build run until the
+        // out-of-bounds loop condition in ATCBrain::FindBestTakeoffRunway was
+        // fixed. Keep it visible.
+        if (getenv("FF_DEBUG_DEATH"))
+        {
+            fprintf(stderr, "[TAXIPT] CANT_PLACE flight=%d airbase=%p checklist=%d -- flight will be CANCELLED\n",
+                    (int)flight->Id().num_, (void*)airbase, checklist);
+            fflush(stderr);
+        }
+#endif
         return DPT_ERROR_CANT_PLACE; // Error, runway is toast
+    }
 
     if (takeoff_time > SimLibElapsedTime and w->GetWPAction() == WP_TAKEOFF)
         time_til_takeoff = (takeoff_time - SimLibElapsedTime) / (TAKEOFF_TIME_DELTA);

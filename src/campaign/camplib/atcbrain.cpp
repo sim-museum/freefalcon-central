@@ -2375,7 +2375,16 @@ int ATCBrain::FindBestTakeoffRunway(int checklist)
         // FRB - CTDs
         if (runwayStats[i].state < VIS_DAMAGED)
         {
-            for (j = 0; runwayStats[i].rwIndexes[j] and j < 2; j++)
+            // FF_LINUX: bound BEFORE the element read. Written the other way round, this
+            // evaluates rwIndexes[j] first, so at j==2 it reads one past a 2-element
+            // int array (atcbrain.h:145) -- undefined behaviour that -O3 is free to
+            // transform, and does: the scan visited only j==0 for each runway, never
+            // seeing the opposite runway end. With wind at 191 deg that meant only the
+            // 020 ends were considered (delta 171, rejected against best=91) while the
+            // 200 ends (delta 9) were never examined, so no runway was selected.
+            // FindBestTakeoffRunway then returned 0 -> FindTaxiPt DPT_ERROR_CANT_PLACE
+            // -> Deaggregate CancelFlight -> the player's TE 2 flight disbanded.
+            for (j = 0; j < 2 and runwayStats[i].rwIndexes[j]; j++)
             {
                 delta = abs(PtHeaderDataTable[runwayStats[i].rwIndexes[j]].data - windheading);
 
@@ -2958,7 +2967,16 @@ int ATCBrain::FindBestLandingRunway(FalconEntity* landing, int checklist)
     {
         if (runwayStats[i].state < VIS_DAMAGED)
         {
-            for (j = 0; runwayStats[i].rwIndexes[j] and j < 2; j++)
+            // FF_LINUX: bound BEFORE the element read. Written the other way round, this
+            // evaluates rwIndexes[j] first, so at j==2 it reads one past a 2-element
+            // int array (atcbrain.h:145) -- undefined behaviour that -O3 is free to
+            // transform, and does: the scan visited only j==0 for each runway, never
+            // seeing the opposite runway end. With wind at 191 deg that meant only the
+            // 020 ends were considered (delta 171, rejected against best=91) while the
+            // 200 ends (delta 9) were never examined, so no runway was selected.
+            // FindBestTakeoffRunway then returned 0 -> FindTaxiPt DPT_ERROR_CANT_PLACE
+            // -> Deaggregate CancelFlight -> the player's TE 2 flight disbanded.
+            for (j = 0; j < 2 and runwayStats[i].rwIndexes[j]; j++)
             {
                 delta = abs(PtHeaderDataTable[runwayStats[i].rwIndexes[j]].data - windheading);
 

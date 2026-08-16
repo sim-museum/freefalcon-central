@@ -1241,11 +1241,58 @@ callsign, returns pilots to the squadron with `PILOT_AVAILABLE`, resupplies
 squadron stores and ends with `flight->KillUnit()`. It belongs at mission end,
 not at deaggregation.
 
-Caveat on that backtrace: the release build is `-O3` with no debug info, so
-`Deaggregate` may be an inlined-frame attribution rather than the literal caller
-— there is no `RegroupFlight` call in `UnitClass::Deaggregate`'s own body
-(`unit.cpp:1575-1885`). A `build-relg` variant (Release + `-g`) is being built to
-pin the exact call site before any fix.
+**ROOT CAUSE FOUND AND FIXED — an out-of-bounds array read in the runway scan.**
+
+A `build-relg` variant (Release + `-g`, same `-O3` codegen) resolved the call
+site exactly: `unit.cpp:1667`, `CancelFlight((Flight)this)`, reached because
+`GetDeaggregationPoint` returned `DPT_ERROR_CANT_PLACE`. That value has one
+source — `FindTaxiPt`'s `if (not rwindex) return DPT_ERROR_CANT_PLACE; // runway
+is toast` — so `ATCBrain::FindBestTakeoffRunway` was returning 0.
+
+Instrumenting the scan showed the inputs were *fine* — `numRwys=2`, both runways
+`state=0` (usable), indexes `{1,2}` and `{4,5}`, headings 020/200 — yet `best`
+came out still at its initial 91, meaning nothing was ever accepted. Recording
+the loop's own iterations (into arrays, no I/O inside the loop, which perturbs
+the timing) gave it away:
+
+```
+loop iterations=2
+ITER i=0 j=0 idx=1 data=20 delta=171
+ITER i=1 j=0 idx=4 data=20 delta=171
+```
+
+**Only `j==0` ever ran.** The scan never looked at the second runway end. With
+wind at 191°, only the 020 ends were considered (delta 171, rejected against
+`best=91`) while the 200 ends (delta 9, easily accepted) were never examined.
+
+The loop was written
+
+```c
+for (j = 0; runwayStats[i].rwIndexes[j] and j < 2; j++)
+```
+
+which evaluates `rwIndexes[j]` **before** the bound, so at `j==2` it reads one
+past a 2-element `int` array (`atcbrain.h:145`). That is undefined behaviour, and
+`-O3` transformed the loop accordingly. Fixed by testing the bound first,
+`for (j = 0; j < 2 and runwayStats[i].rwIndexes[j]; j++)`, at both sites in
+`atcbrain.cpp` (`:2393`, `:3043`).
+
+Measured on the uninstrumented release build:
+
+| | before | after |
+|---|---|---|
+| runs | 5 | 5 |
+| result | **5/5 failed** (`IsDead=1`, never reached 3D) | **5/5 reached 3D** (79–101 `[GROUND]` samples) |
+
+Two notes worth keeping. This is why the bug looked build-dependent: `-O2` +
+ASAN did not miscompile the UB the same way, so `build-asan` always worked and
+the release build always failed. And it is why the loop-level `fprintf` made it
+disappear — printing inside the loop changed what the optimiser did.
+
+`CLAUDE.md` lists `[Failed: numRwys > 0]` under "Known Issues (Non-blocking)" as
+*"non-fatal assertions that don't crash the game"*. They don't crash it — a
+no-usable-runway answer **cancels the player's flight**, which is exactly how TE
+2 died.
 
 ### TE-02 — TE runway ground start never deaggregates (SUPERSEDED by EPIC TE2)
 
