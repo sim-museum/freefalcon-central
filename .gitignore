@@ -24,3 +24,4 @@ nohup.out
 # AppImage build artifact
 FreeFalcon6.AppDir/
 *.AppImage
+build-relg/

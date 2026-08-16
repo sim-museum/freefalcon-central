@@ -507,11 +507,24 @@ void OTWDriverClass::Cycle(void)
             if (pa)
             {
                 float gz = GetGroundLevel(pa->XPos(), pa->YPos());
+                // Also sample the two viewpoint-level elevation sources. The mesh the
+                // player SEES is built from these; if they disagree with the collision
+                // answer above, the aircraft is placed on one surface and drawn against
+                // another -- which is what "bogged in terrain" looks like.
+                float vpAcc = -99999.0f, vpApprox = -99999.0f;
+
+                if (renderer and renderer->viewpoint)
+                {
+                    vpAcc    = renderer->viewpoint->GetGroundLevel(pa->XPos(), pa->YPos());
+                    vpApprox = renderer->viewpoint->GetGroundLevelApproximation(pa->XPos(), pa->YPos());
+                }
+
                 fprintf(stderr,
                         "[GROUND] pos=(%.1f, %.1f) acZ=%.2f groundZ=%.2f "
-                        "aboveGround=%.2f onGround=%d dead=%d\n",
+                        "aboveGround=%.2f vpAccurate=%.2f vpApprox=%.2f onGround=%d dead=%d\n",
                         pa->XPos(), pa->YPos(), pa->ZPos(), gz,
-                        gz - pa->ZPos(), pa->OnGround() ? 1 : 0, pa->IsDead() ? 1 : 0);
+                        gz - pa->ZPos(), vpAcc, vpApprox,
+                        pa->OnGround() ? 1 : 0, pa->IsDead() ? 1 : 0);
                 fflush(stderr);
             }
         }
