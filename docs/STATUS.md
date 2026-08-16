@@ -1368,6 +1368,40 @@ The header has been corrected so the next reader is not misled the same way.
 Verified: TE 2 reaches 3D with 0 crashes and 0 assertions, and a 200s IA ASAN
 soak is clean (0 errors) — the row copy is memory-safe.
 
+### PIT-1 — the 3-view (virtual pit) renders no tarmac (open, 2026-08-16)
+
+PO report, with shots: taking off and landing, the **2-view shows the runway and
+the 3-view shows grass**. Reproducible headlessly, which makes this cheap to
+iterate on:
+
+```
+FF_VIEW_SCRIPT="1@62;s@70"   ground band avgRGB (90,91,86)  tarmac
+FF_VIEW_SCRIPT="4@62;s@70"   ground band avgRGB (63,82,50)  GRASS
+```
+
+Eliminated by measurement, so they are not retried:
+
+| candidate | result |
+|---|---|
+| runway depth bias too weak in the pit pass | no — `-64,-32768` and even `-256,-131072` change nothing |
+| the bias being applied at all | no — `FF_RUNWAY_NOBIAS=1` changes nothing either |
+| pit stencil masking discarding the surfaces | no — `FF_PIT_NO_STENCIL=1` changes nothing |
+| the geometry not being submitted | no — `FF_DEBUG_FLUSHES` reports **identical** counts in both views, `plain=746 tex=3699` |
+| the bias code not running in the pit pass | no — `FF_DEBUG_RUNWAY` shows it active in both (167 vs 161 traces) |
+
+`FF_PROBE_PIXEL="512,300"` attributes the ground pixel in 3-view: the final
+writer is a large **terrain** batch (`fvf=0x1d2 nVerts=4380 tex=54 light=1
+blend=1`), and the runway atlas never paints that pixel at all. In 2-view the
+runway does. All the probed draws report `pit=0`, i.e. the world is drawn before
+the pit pass, so this is not the pit geometry overdrawing it.
+
+So the surfaces are submitted, the bias is applied, nothing masks them — and the
+terrain still paints over them **in this pass only**. That points at draw order or
+depth state specific to the pit pass rather than anything about the runway. Next:
+compare the depth state and submission order of that terrain batch between the two
+views, rather than continuing to vary runway-side parameters, all of which are now
+ruled out.
+
 ### GEAR-1 — "landing gear is not visible": three causes eliminated (2026-08-16)
 
 The PO reports the jet parked belly-down with no gear at both takeoff and
