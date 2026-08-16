@@ -1036,9 +1036,21 @@ extern "C" void FF_SetRunwayDepthBias(int enable)
     // dissolves into the terrain as it recedes and the pit view shows grass ahead.
     // Sampling the ground band of a 2D-pit capture: -3,-64 grass; -8,-1024 recovers
     // only the far band; -16,-2048 renders the runway continuously and the cockpit
-    // view then matches the PO's Wine gold. FF_RUNWAY_BIAS="factor,units" tunes,
-    // FF_RUNWAY_NOBIAS=1 disables.
-    static float s_factor = -16.0f, s_units = -2048.0f;
+    // view then matches the PO's Wine gold.
+    //
+    // REFINED after the PO's first flight: at -16,-2048 the tarmac immediately around
+    // the aircraft was still missing -- "the runway directly under my jet and a
+    // jet-length fore and aft was a green carpet". Sampling near-field bands of a
+    // 2D-pit capture (screen y as a fraction of height; nearer ground = larger y):
+    //
+    //   -16,-512   0.34 tarmac  0.37 grass   0.40 grass   0.43 grass
+    //   -16,-2048  0.34 tarmac  0.37 tarmac  0.40 grass   0.43 grass
+    //   -32,-8192  0.34 tarmac  0.37 tarmac  0.40 tarmac  0.43 tarmac  0.46 tarmac
+    //
+    // So a bigger offset helps the near field too -- it is not near-plane clipping,
+    // which was the first guess. -32,-8192 closes the gap.
+    // FF_RUNWAY_BIAS="factor,units" tunes, FF_RUNWAY_NOBIAS=1 disables.
+    static float s_factor = -32.0f, s_units = -8192.0f;
     static int s_cur = 0;
     if (s_mode < 0) {
         if (getenv("FF_RUNWAY_NOBIAS")) {
