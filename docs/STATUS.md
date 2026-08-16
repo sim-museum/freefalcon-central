@@ -1110,10 +1110,21 @@ Regression state at sprint close, all on the ASAN build with every fix in:
 
 | check | result |
 |---|---|
-| TE 2 → 3D soak | 65 samples, **0 ASAN errors** |
-| campaign load/save soak | **0 ASAN errors** |
-| campaign **save → reload** round-trip | works end to end; `Decode(size=5886)`, `LZSS_Expand` exact at 5881, `CurrentTime=32410619`, live map |
-| TE 2 / campaign on release build | 0 crashes |
+| TE 2 → 3D soak | 88 samples, **0 ASAN errors** |
+| Instant Action soak | **0 ASAN errors** |
+| campaign flow soak | **0 ASAN errors** |
+| campaign **save → reload** round-trip | works end to end; `LZSS_Expand` exact at 5881, sane `CurrentTime`, live map |
+| TE 2 / campaign / logbook on release build | 0 crashes; pilot roster, callsign and squadron patch all render |
+
+**A false alarm worth recording, because it cost twenty minutes and looked
+exactly like a regression.** After the FMT-1 session-decode change, the campaign
+SAVE flow stopped producing a file — mtime unchanged, no error. The decode change
+was the obvious suspect. It was not the cause: the save name is derived
+deterministically from the campaign clock (`Save-Day 1 09 00 05`), earlier test
+runs had already created that exact file, and the game will not silently
+overwrite an existing save. Clearing the prior test saves made it work first try.
+**When a scripted UI flow stops producing output, check for state the earlier
+runs left behind before suspecting the code.**
 
 Note on running these: the ASAN build is enough slower that `FF_UI_CLICK`
 schedules tuned on the release build drift and later clicks miss their targets.
