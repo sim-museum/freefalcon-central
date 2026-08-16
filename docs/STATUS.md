@@ -1230,6 +1230,39 @@ are sunk ~3ft so the gear is hidden, the tarmac has no runway markings, and the
 2D-pit view still shows grass further ahead, suggesting the flat surfaces are not
 drawn out to the distance the gold shows.
 
+### FARTEX-1 — far textures above id 31128 were never released (16-bit truncation)
+
+`FarTexDB::Release` bounded the texture id with a **`(WORD)`** cast:
+
+```c
+ShiAssert(texID < (WORD) texCount);
+```
+
+`texCount` is an `int` and is **96664** for the Korea theater, so the cast
+truncates the bound to `96664 & 0xFFFF = 31128`. `TextureID` is a `DWORD`, and
+`Request()` correctly compares against `(DWORD) texCount` — so ids above 31128
+are loaded and refCounted on request, while `Release()` judged them out of range
+and returned early. **Their refCount was incremented and never decremented: those
+far textures were never freed.**
+
+Found by instrumenting the long-ignored `[Failed: texID < (WORD) texCount]`
+assertion instead of silencing it. The values gave it away immediately — every
+reported id was *smaller* than texCount, e.g.:
+
+```
+[FARTEX] Release out-of-range texID=33770 texCount=96664 (over by -62894)
+[FARTEX] Release out-of-range texID=42846 texCount=96664 (over by -53818)
+```
+
+A negative overrun is impossible unless the comparison bound is not what it
+appears to be.
+
+This is very likely also the long-recorded *"far texture loading errors (42xxx
+IDs not found) — non-fatal"*: 42xxx sits squarely in the wrongly-rejected range.
+
+Fixed by using `(DWORD)`, matching `Request()`. Verified on a 200s IA ASAN soak:
+assertions 2 → 0, out-of-range rejections 10 → 0, zero ASAN errors, 3D reached.
+
 ### SESS-2 — ctree use-after-free (fixed, exit path now verified)
 
 `C_TreeList::DeleteItem` read `item->Parent->Child` through a freed `TREELIST`

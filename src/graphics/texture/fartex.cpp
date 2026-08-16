@@ -533,8 +533,18 @@ void FarTexDB::Release(TextureID texID)
 
     if (texID == INVALID_TEXID) return;
 
-    ShiAssert(texID >= (WORD) 0);
-    ShiAssert(texID < (WORD) texCount);
+    // FF_LINUX: (DWORD), not (WORD). texCount is an int and is 96664 for the Korea
+    // theater, so a (WORD) cast truncates the bound to 96664 & 0xFFFF = 31128 and
+    // every id above that is wrongly judged out of range. TextureID is a DWORD, so
+    // those ids are perfectly valid -- Request() below already compares against
+    // (DWORD) texCount and loads them. Only Release() was truncating, so far
+    // textures with id > 31128 had their refCount incremented on request and the
+    // decrement skipped: they were never freed. This is also the source of the
+    // "[Failed: texID < (WORD) texCount]" assertion in every session, and of the
+    // long-recorded "far texture loading errors (42xxx ids)" -- 42xxx is exactly the
+    // wrongly-rejected range.
+    ShiAssert(texID >= (DWORD) 0);
+    ShiAssert(texID < (DWORD) texCount);
 
 #ifdef FF_LINUX
     // FF_LINUX: see Request() - out-of-range ids corrupt texArray.
@@ -542,7 +552,7 @@ void FarTexDB::Release(TextureID texID)
     // fires in every session, and nobody has recorded HOW far out of range these ids
     // are or where they come from. That decides whether this is benign noise (like the
     // tex.cpp asserts) or a real id-space bug.
-    if (texID >= (WORD) texCount)
+    if (texID >= (DWORD) texCount)
     {
         static int ffRptd = 0;
 
