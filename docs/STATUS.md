@@ -1098,10 +1098,20 @@ adjacent code the note did not mention — the send buffers for MSG-1, nothing a
 all for STUB-1. A stale to-do list is still a useful pointer at a *class*; it is
 not a work queue.
 
-Regression state: TE 2 reaches 3D with 0 crashes; campaign **save → reload** works
-end to end and is **clean under ASAN** (0 errors) on both halves — writing the
-save (which also fired an autosave) and reloading a Linux-written save
-(`Decode(size=5886)`, `LZSS_Expand` exact at 5881, `CurrentTime=32410619`).
+Regression state at sprint close, all on the ASAN build with every fix in:
+
+| check | result |
+|---|---|
+| TE 2 → 3D soak | 65 samples, **0 ASAN errors** |
+| campaign load/save soak | **0 ASAN errors** |
+| campaign **save → reload** round-trip | works end to end; `Decode(size=5886)`, `LZSS_Expand` exact at 5881, `CurrentTime=32410619`, live map |
+| TE 2 / campaign on release build | 0 crashes |
+
+Note on running these: the ASAN build is enough slower that `FF_UI_CLICK`
+schedules tuned on the release build drift and later clicks miss their targets.
+Budget roughly double the delays, and confirm the flow actually reached the step
+under test rather than trusting a "0 errors" line — a run that never got there
+also reports zero.
 
 ## EPIC TE2 — TE "02 Takeoff" playable to rotation (opened 2026-08-15, PO-raised)
 
