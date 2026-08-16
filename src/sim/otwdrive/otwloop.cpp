@@ -2943,6 +2943,55 @@ void OTWDriverClass::RenderFrame()
 
             for (i = 0; i < NUM_MFDS; i++)
             {
+#ifdef FF_LINUX
+                // FF_LINUX (SESS-4 diagnostic): the 2D-pit path above only draws an
+                // MFD when pCockpitManager->GetViewportBounds() says it exists, but
+                // this 1-view path Execs all NUM_MFDS (4) unconditionally. Wine draws
+                // two. FF_DEBUG_MFD=1 reports which of the four actually carry a
+                // buffer here.
+                {
+                    static int s_dbg = -1;
+                    static int s_once = 0;
+
+                    if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_MFD") ? 1 : 0;
+
+                    if (s_dbg and s_once < NUM_MFDS)
+                    {
+                        ViewportBounds vb;
+                        int hasVp = pCockpitManager->GetViewportBounds(&vb, BOUNDS_MFDLEFT + i) ? 1 : 0;
+                        fprintf(stderr, "[MFD] 1-view i=%d image=%p private=%p hasViewport=%d\n",
+                                i, (void*)MfdDisplay[i]->image,
+                                (void*)MfdDisplay[i]->privateImage, hasVp);
+                        fflush(stderr);
+                        s_once++;
+                    }
+                }
+#endif
+#ifdef FF_LINUX
+
+                // FF_LINUX (SESS-4): only MFD 0 and 1 are real cockpit MFDs. Indices
+                // 2 and 3 are POPUP slots -- VirtualMFD[2] is the TOP-RIGHT corner and
+                // [3] the TOP-LEFT (see the table in otwdrive.cpp) -- and the mechanism
+                // that was meant to gate them, OTWDriverClass::DoPopUps(), has its
+                // compose call commented out, so nothing ever suppressed them here.
+                // Result: four panels in 1-view where the Windows reference shows two,
+                // the extra pair duplicating the real ones in the top corners.
+                // Draw a popup slot only when it has actually been enabled.
+                // FF_MFD_ALL=1 restores the old unconditional behaviour.
+                {
+                    static int s_all = -1;
+
+                    if (s_all < 0) s_all = getenv("FF_MFD_ALL") ? 1 : 0;
+
+                    // popupHas[] cannot gate this: MFDClass::Exec calls
+                    // OTWDriver.SetPopup(id, TRUE) itself, just before drawing, so
+                    // the flag is a side effect of having drawn rather than
+                    // permission to draw. Gate on the index instead -- slots 2 and 3
+                    // have no live consumer now that DoPopUps() is commented out.
+                    if ( not s_all and i >= 2)
+                        continue;
+                }
+#endif
                 MfdDisplay[i]->Exec(TRUE, FALSE);
             }
 
