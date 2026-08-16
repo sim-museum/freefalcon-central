@@ -31,9 +31,41 @@ if(FF_PLATFORM_LINUX)
         -fpermissive
         -fno-strict-aliasing
         -fcommon
-        -w
         $<$<COMPILE_LANGUAGE:CXX>:-Wno-write-strings>
     )
+
+    # FF_WARN=ON turns on a hand-picked set of diagnostics instead of the blanket
+    # -w. Deliberately NOT the default: this is 800k lines of legacy code and a
+    # full -Wall is unreadable noise. Every warning listed here detects a bug
+    # class that has actually bitten this port and had to be found by hand:
+    #
+    #   sizeof-pointer-memaccess  memset(p, 0, sizeof(p)) on a new[] array (BOMB-1)
+    #   mismatched-new-delete     new[] freed with scalar delete   (MSG-1, 21 of them)
+    #   format / format-overflow  sprintf into fixed buffers from file data
+    #   return-type               falling off a non-void function is UB
+    #   uninitialized             the WAVEFORMATEX-from-a-failed-parse shape (SND-1)
+    #   memset-elt-size / alloc-size-larger-than / free-nonheap-object
+    #
+    # Usage:  cmake -DFF_WARN=ON -B build-warn && ninja -C build-warn 2>&1 | tee /tmp/warn.log
+    option(FF_WARN "Enable targeted bug-class diagnostics instead of -w" OFF)
+
+    if(FF_WARN)
+        add_compile_options(
+            -Wsizeof-pointer-memaccess
+            -Wmismatched-new-delete
+            -Wformat=2
+            -Wformat-overflow=2
+            -Wreturn-type
+            -Wuninitialized
+            -Wmemset-elt-size
+            -Walloc-size-larger-than=1073741824
+            -Wfree-nonheap-object
+            -Wno-format-nonliteral
+            -Wno-format-y2k
+        )
+    else()
+        add_compile_options(-w)
+    endif()
 
     # Compat layer provides windows.h, io.h, ddraw.h, etc. for all targets
     include_directories(${FF_SRC_DIR}/compat)
