@@ -635,7 +635,11 @@ void RadioSubTitle::SetChannelColours(char* flight, char* toPackage, char* ToFro
     unsigned long TowerCol = 0;
     unsigned long StandardCol = 0;
 
-    unsigned long temp = 0;
+    // FF_LINUX: %x writes an unsigned INT (4 bytes). Into an 8-byte unsigned
+    // long that leaves the upper half untouched -- it happens to be correct here
+    // only because temp is zero-initialised, the values are 32-bit colours, and
+    // x86-64 is little-endian. Match the type to the conversion.
+    unsigned int temp = 0;
 
     if (flight)
         if (sscanf(flight, "%x", &temp) == 1)
