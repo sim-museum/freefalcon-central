@@ -4339,8 +4339,8 @@ void MissionEvaluationClass::SetupPilots(FlightDataClass *flight_ptr, Flight fli
                 {
                     PilotDataClass *pilot_data = AddNewPilot(flight_ptr, i, i, flight);
                     // AI Pilots named by callsign
-                    _stprintf(pilot_data->pilot_name, "%s%d", flight_ptr->name, i + 1);
-                    _stprintf(pilot_data->pilot_callsign, "%s%d", flight_ptr->name, i + 1);
+                    _sntprintf(pilot_data->pilot_name, sizeof(pilot_data->pilot_name) / sizeof(_TCHAR) - 1, "%s%d", flight_ptr->name, i + 1);
+                    _sntprintf(pilot_data->pilot_callsign, sizeof(pilot_data->pilot_callsign) / sizeof(_TCHAR) - 1, "%s%d", flight_ptr->name, i + 1);
                 }
             }
         }
@@ -4355,7 +4355,7 @@ void MissionEvaluationClass::SetupPilots(FlightDataClass *flight_ptr, Flight fli
                 PilotDataClass *pilot_data = AddNewPilot(flight_ptr, i, i, flight);
                 p = flight->GetPilotID(i);
                 ::GetPilotName(p, pilot_data->pilot_name, 29);
-                _stprintf(pilot_data->pilot_callsign, "%s%d", flight_ptr->name, i + 1);
+                _sntprintf(pilot_data->pilot_callsign, sizeof(pilot_data->pilot_callsign) / sizeof(_TCHAR) - 1, "%s%d", flight_ptr->name, i + 1);
             }
         }
 
@@ -4539,8 +4539,8 @@ void MissionEvaluationClass::RebuildEvaluationData(void)
                                 {
                                     PilotDataClass *pilot_data = AddNewPilot(flight_ptr, i, i, flight);
                                     // AI Pilots named by callsign
-                                    _stprintf(pilot_data->pilot_name, "%s%d", flight_ptr->name, i + 1);
-                                    _stprintf(pilot_data->pilot_callsign, "%s%d", flight_ptr->name, i + 1);
+                                    _sntprintf(pilot_data->pilot_name, sizeof(pilot_data->pilot_name) / sizeof(_TCHAR) - 1, "%s%d", flight_ptr->name, i + 1);
+                                    _sntprintf(pilot_data->pilot_callsign, sizeof(pilot_data->pilot_callsign) / sizeof(_TCHAR) - 1, "%s%d", flight_ptr->name, i + 1);
                                 }
                             }
                         }

@@ -63,6 +63,9 @@ char *ICPWayPtActionTable[NUM_ACTION_TYPES] =
 // ICPClass::FormatTime
 //---------------------------------------------------------
 
+// FF_LINUX: these destinations are char[3], so "%2d" of any three-digit or
+// negative value writes 3 chars plus a nul and runs one byte past the end.
+// snprintf truncates instead (the field is two columns wide by design).
 void ICPClass::FormatTime(long hours, char* timeStr)
 {
     long minutes, secs;
@@ -79,21 +82,21 @@ void ICPClass::FormatTime(long hours, char* timeStr)
     secs = minutes % S_IN_M; // generate secs column
     minutes = minutes / S_IN_M; // generate minutes column
 
-    sprintf(hoursStr, "%2d", hours);
+    snprintf(hoursStr, sizeof(hoursStr), "%2d", hours);
 
     if (hours < 10)
     {
         *hoursStr = 0x30;
     }
 
-    sprintf(minutesStr, "%2d", minutes);
+    snprintf(minutesStr, sizeof(minutesStr), "%2d", minutes);
 
     if (minutes < 10)
     {
         *minutesStr = 0x30;
     }
 
-    sprintf(secsStr, "%2d", secs);
+    snprintf(secsStr, sizeof(secsStr), "%2d", secs);
 
     if (secs < 10)
     {
