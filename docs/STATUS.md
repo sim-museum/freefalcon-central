@@ -1039,6 +1039,33 @@ roll-switch initial state) — makes the approach repro flaky for automation.
 from approach through touchdown is a gameplay call; the capture evidence above is
 the objective proxy).
 
+## Sprint log — overnight 2026-08-15/16 (autonomous)
+
+**EPIC TE2 accepted by the PO:** *"takeoff works ... I took off, turned around and
+landed successfully ... which makes ff playable."*
+
+Closed this session: TE2-1 (coincident spawn), TE2-2 (runway never rendered),
+TE2-4 (flight cancelled by the runway scan), TE2-5 (aircraft drawn 3ft inside the
+tarmac), TE2-6 (runway invisible at distance / near-field gap), SESS-1, SESS-2,
+SESS-3, SESS-5, FARTEX-1, D3DX-1.
+
+Two themes worth carrying forward:
+
+1. **Chasing long-ignored assertions found real bugs.** The `tex.cpp` asserts hid
+   an image leak; `fartex.cpp`'s hid a 16-bit truncation that leaked every far
+   texture above id 31128; `context.cpp:1919`'s hid two unimplemented D3DX stubs
+   that disabled the loading splash and the in-sim cursor. None were noise.
+2. **Measure before believing a mechanism.** Several confident diagnoses this
+   session were wrong and were retracted in-tree rather than left standing:
+   TE2-3 (MFD geometry), the ZBIAS hypothesis for the runway, "shrink the decal",
+   and a premature `decal=0` default. Each is recorded with the measurement that
+   killed it.
+
+Regression state at sprint close: 200s and 300s IA ASAN soaks clean (0 errors),
+TE 2 reaches 3D with 0 crashes and 0 assertions, dogfight reaches 3D clean under
+ASAN, SIGINT mid-flight terminates with no crash and no leftover process, and the
+Exit button still exits `rc=0`.
+
 ## EPIC TE2 — TE "02 Takeoff" playable to rotation (opened 2026-08-15, PO-raised)
 
 **PO report (2026-08-15):** flying TE "02 Takeoff", the aircraft sits bogged in
