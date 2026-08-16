@@ -1422,8 +1422,21 @@ int g_FF_PitModeActive = 0;  // Set by DXEngine FlushObjects when drawing pit ge
 // FF_LINUX: pixel-attribution probe - issue #12 (black pit). FF_PROBE_PIXEL="x,y"
 // (window coords, y from top). After each draw call, read that pixel; when its
 // color changes, log the draw parameters. Identifies which draw paints a pixel.
+// FF_LINUX (TE2-7): optional indexed-draw description so the probe can decode the
+// texture coordinates of the vertices ACTUALLY drawn. Passing the vertex-buffer
+// base plus an index count is not enough -- vertex 0 of the VB is usually not in
+// the draw at all, and reading it yields a constant (this cost one wrong
+// conclusion before a control probe caught it).
+struct FF_ProbeIndexed {
+    const void*  vbBase;
+    const WORD*  indices;
+    DWORD        indexCount;
+    DWORD        startVertex;
+};
+
 static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
-                          const void* firstVert = nullptr) {
+                          const void* firstVert = nullptr,
+                          const FF_ProbeIndexed* indexed = nullptr) {
     static int s_probeX = -1, s_probeY = -1;
     if (s_probeX == -2) return;
     if (s_probeX == -1) {
@@ -1492,6 +1505,46 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                 (int)glIsEnabled(GL_FOG), (unsigned)fogMode, fogDen, fogStart, fogEnd,
                 fogCol[0], fogCol[1], fogCol[2], (unsigned)fogSrc);
         lastColor = c;
+
+        // FF_LINUX (TE2-7): decode the winning draw's texture coordinates. The
+        // near-field runway is bound to a full airfield atlas (edge lines,
+        // threshold bars, taxiway paint) yet renders flat grey, so the question
+        // is which part of that atlas the surface actually samples: a UV span
+        // that collapses to a small uniform patch would magnify plain concrete
+        // over the whole surface and look exactly like "no markings".
+        if (indexed && indexed->vbBase && indexed->indices && indexed->indexCount >= 1 &&
+            indexed->indexCount <= 4096 && !(fvf & 0x004 /*XYZRHW*/)) {
+            // Walk the FVF to find where the first texcoord set starts.
+            int off = 0;                                   // in floats
+            if (fvf & 0x002) off += 3;                     // XYZ
+            if (fvf & 0x010) off += 3;                     // NORMAL
+            if (fvf & 0x020) off += 1;                     // PSIZE
+            if (fvf & 0x040) off += 1;                     // DIFFUSE  (DWORD)
+            if (fvf & 0x080) off += 1;                     // SPECULAR (DWORD)
+            const int nTex = (int)((fvf >> 8) & 0xf);
+            if (nTex >= 1) {
+                const int stride = off + 2 * nTex;         // floats per vertex
+                const float* fv = (const float*)indexed->vbBase;
+                float uMin = 1e30f, uMax = -1e30f, vMin = 1e30f, vMax = -1e30f;
+                float xMin = 1e30f, xMax = -1e30f;
+                for (DWORD i = 0; i < indexed->indexCount; i++) {
+                    const DWORD vi = (DWORD)indexed->indices[i] + indexed->startVertex;
+                    const float* v = fv + (size_t)vi * stride;
+                    float u = v[off], t = v[off + 1];
+                    if (u < uMin) uMin = u;
+                    if (u > uMax) uMax = u;
+                    if (t < vMin) vMin = t;
+                    if (t > vMax) vMax = t;
+                    if (v[0] < xMin) xMin = v[0];
+                    if (v[0] > xMax) xMax = v[0];
+                }
+                fprintf(stderr, "[PIXPROBE-UV] tex=%d idxCount=%lu start=%lu stride=%dfl uvOff=%d "
+                        "u=[%.4f..%.4f] span=%.4f  v=[%.4f..%.4f] span=%.4f  x=[%.1f..%.1f]\n",
+                        (int)tex, (unsigned long)indexed->indexCount,
+                        (unsigned long)indexed->startVertex, stride, off,
+                        uMin, uMax, uMax - uMin, vMin, vMax, vMax - vMin, xMin, xMax);
+            }
+        }
 
         // FF_LINUX: FF_PROBE_BT=1 - print a backtrace per probed change
         {
@@ -2072,7 +2125,10 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glEnable(GL_TEXTURE_2D);
     }
 
-    FF_ProbePixel("DIPVB", fvf, dwIndexCount, vb->data);
+    {
+        FF_ProbeIndexed pi = { vb->data, lpwIndices, dwIndexCount, dwStartVertex };
+        FF_ProbePixel("DIPVB", fvf, dwIndexCount, vb->data, &pi);
+    }
 
     return D3D_OK;
 }

@@ -1382,12 +1382,32 @@ than it — with no fade. A clean distance discontinuity like that is an **LOD /
 representation switch**, not a texture, filtering, binding or depth problem, all
 of which would degrade smoothly or fail everywhere.
 
-Next: identify what changes at that boundary. The likely shape is that the far
-representation paints a baked airfield image (markings included) while the near
-representation draws the airbase's own flat surfaces, and it is the *near* set
-that comes out plain. Note this is the same near-field region as the old
-"green carpet under the jet" (TE2-2) and plausibly the same surfaces the 3ft
-decal in TE2-5 lifts — worth checking whether the decal path drops the texture.
+**What paints the near field (2026-08-16).** `FF_PROBE_PIXEL="512,650"` attributes
+the grey pixel to a single lit indexed draw: `DIPVB fvf=0x1d2 idxCount=12
+tex=604`, drawn over the terrain (`tex=535`). Dumping that GL texture
+(`FF_DUMP_GLTEX=604` → `/tmp/gltex_604.bmp`) shows a **1024² airfield atlas**
+carrying edge lines, threshold bars, yellow taxiway paint and tyre streaks. So
+the near-field surface is bound to marked art, and the "LOD switch" framing above
+is not quite right either — the near field is a textured airfield slab, not a
+plain substitute.
+
+Its texture coordinates span `u=[0.000..0.500] v=[0.000..1.000]` over a slab
+`x=[-1106..593]` — i.e. one atlas cell stretched across ~1700 units. That is a
+large magnification, which matters because magnification is precisely what
+mipmapping does *not* affect (consistent with the `FF_NO_MIPMAP` null result).
+Open question is therefore whether one cell over the whole slab is correct, or
+whether the coordinates should repeat along the runway.
+
+⚠️ **A retracted intermediate result, kept as a warning.** The first UV numbers
+this probe produced were `u=[0..0] v=[0..0]` — an apparently perfect smoking gun
+for "samples one texel, renders flat". It was an instrument bug: the probe was
+handed `vb->data` (the vertex-buffer **base**) plus an index *count*, so it read
+`dwIndexCount` vertices from the head of the buffer, which are not in the draw at
+all. It was caught only because the control probe on a pixel where markings *do*
+render returned byte-identical output — the same draw, the same zeros. A single
+measurement would have shipped a wrong root cause. `FF_ProbePixel` now takes an
+`FF_ProbeIndexed` (base + indices + count + startVertex) and decodes the vertices
+actually drawn. **Always run the control.**
 
 Two dead ends worth not repeating, found while chasing this:
 - `Texture::DumpImageToFile()` cannot be used to inspect texture content here.
