@@ -1368,6 +1368,44 @@ The header has been corrected so the next reader is not misled the same way.
 Verified: TE 2 reaches 3D with 0 crashes and 0 assertions, and a 200s IA ASAN
 soak is clean (0 errors) — the row copy is memory-safe.
 
+### GEAR-1 — "landing gear is not visible": three causes eliminated (2026-08-16)
+
+The PO reports the jet parked belly-down with no gear at both takeoff and
+landing, and appearing to sink further as the view angle rises. Chased it from
+the extended soak's ground trace; three plausible causes are now ruled out by
+measurement, and the diagnostic is left in place.
+
+1. **Aircraft placed at the wrong elevation — no.** The ~10-minute soak shows the
+   engine correcting itself: at spawn `acZ = -2.39` against `groundZ = 0.00`
+   (fine terrain not yet loaded), and once it resolves the aircraft settles to
+   `acZ = -31.99` over `groundZ = -26.00`, holding `aboveGround = 5.99` stably for
+   the whole flight. That is the right standoff for an F-16 on its gear. **Some of
+   the "airfield is flat at z=0" behaviour is a load-time transient, not a
+   permanent state** — worth knowing for the runway-elevation item too.
+
+2. **Gear geometry never enabled — no.** `AircraftClass::Wake()` is the *only*
+   live place that pushes switch state to the drawable (`SetSwitchMask(1..4,
+   14..19)`), and it is gated on `OnGround()`. That looked like a race: nothing
+   consumes `SimMoverClass::switchChange`, so if the aircraft were woken before
+   the ground handler set `ON_GROUND` the gear would never be drawn for the rest
+   of the sortie. Measured with the new `FF_DEBUG_GEAR=1`: **`OnGround=1
+   gearPos=1.00 -> gear masks APPLIED`** for all four aircraft. Hypothesis dead.
+
+3. **The TE2-5 lift not compensating — no.** The 3 ft runway decal and the
+   matching aircraft-drawable lift are both active and both keyed off the same
+   `FF_RunwayDecal()`, so they cancel.
+
+Found on the way, and fixed: **SWITCH-1**, a heap overflow where
+`SimMoverClass`'s `FILE*` constructor sized `switchData` and `switchChange` by
+`numDofs` while reading and writing `numSwitches` elements into them. The stream
+constructor does it correctly, which is what marks the other as a slip.
+
+**Still open, and it needs the PO's eyes.** An `FF_RUNWAY_ZLIFT=0` vs default
+A/B does change how much fuselage is visible, but the orbit-view stills are not
+trustworthy enough to conclude from — the camera distance may also be selecting a
+lower LOD without gear geometry. This wants the Wine side-by-side that TE2-7 is
+already waiting on.
+
 ### TE2-7 — tarmac has no runway markings (open; three causes ruled out)
 
 The PO's Wine gold shows painted runway markings; ours is flat grey. Three

@@ -227,6 +227,27 @@ int AircraftClass::Wake(void)
 
     if (IsComplex())
     {
+#ifdef FF_LINUX
+        // FF_LINUX (GEAR-1 diagnostic): the gear switch masks below are applied
+        // ONLY here, in Wake(), and only when OnGround() is already true --
+        // nothing else pushes SimMover switch state to the drawable, so if the
+        // aircraft is woken before the ground handler sets ON_GROUND the gear is
+        // never drawn, for the rest of the sortie. FF_DEBUG_GEAR=1 reports it.
+        {
+            static int s_dbg = -1;
+
+            if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_GEAR") ? 1 : 0;
+
+            if (s_dbg)
+            {
+                fprintf(stderr, "[GEAR] Wake(): OnGround=%d gearPos=%.2f -> gear masks %s\n",
+                        (int)OnGround(), af ? af->gearPos : -1.0f,
+                        OnGround() ? "APPLIED" : "SKIPPED");
+                fflush(stderr);
+            }
+        }
+#endif
+
         // F16 switches/DOFS
         if (OnGround())
         {
