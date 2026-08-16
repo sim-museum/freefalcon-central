@@ -2908,6 +2908,53 @@ void OTWDriverClass::ObjectSetData(SimBaseClass *obj, Tpoint *simView, Trotation
         {
             extern float FF_RunwayDecal(void);
             simView->z -= FF_RunwayDecal();
+
+            // FF_LINUX (GEAR-1): the decal above aligns the aircraft ORIGIN with the
+            // runway surface, which is correct only if the model's gear reaches
+            // exactly as far below the origin as the physics standoff assumes
+            // (measured: 5.99ft). The PO reports the wheels still sitting below the
+            // tarmac, i.e. the drawn gear is longer than that. FF_GEAR_LIFT=<feet>
+            // adds an extra visual-only lift so the right value can be found by eye
+            // before being baked in. Visual only -- ZPos() is untouched.
+            {
+                static float extra = -9999.f;
+
+                if (extra < -9000.f)
+                {
+                    const char *e = getenv("FF_GEAR_LIFT");
+                    // 2ft chosen by A/B against the runway surface: 0 buries the
+                    // wheels, 4 floats the jet, 2 puts them on it. Empirical because
+                    // the mismatch is between MODEL DATA (how far the drawn gear
+                    // reaches below the origin) and a physics constant (the 5.99ft
+                    // standoff), not something derivable from either alone.
+                    extra = e ? (float)atof(e) : 2.0f;
+                }
+
+                simView->z -= extra;
+            }
+
+            // FF_LINUX (GEAR-1): FF_DEBUG_LIFT=1 reports the applied lift once a
+            // second for the player, so the visual standoff can be compared
+            // against the runway decal without guessing from screenshots.
+            {
+                static int s_dbg = -1;
+                static DWORD s_last = 0;
+
+                if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_LIFT") ? 1 : 0;
+
+                if (s_dbg and obj == (SimBaseClass*)SimDriver.GetPlayerEntity())
+                {
+                    DWORD now = GetTickCount();
+
+                    if (now - s_last > 1000)
+                    {
+                        s_last = now;
+                        fprintf(stderr, "[LIFT] player OnGround=1 decal=%.2f zPos=%.2f drawZ=%.2f\n",
+                                FF_RunwayDecal(), obj->ZPos(), simView->z);
+                        fflush(stderr);
+                    }
+                }
+            }
         }
     }
 #endif
