@@ -1086,7 +1086,15 @@ that was broken serves a *different* set of sounds than the one that was heard.
 **Where a fix is verified matters as much as whether it is verified.** Prefer the
 test that exercises the artefact the change produces.
 
-Also this session: **SND-1** (`LoadRiffFormat` returned 0 for every WAV),
+**The single highest-leverage change of the session was a build flag.** The build
+passed `-w`, so the compiler had been silent for the entire port. `FF_WARN=ON`
+(see the new CMake option) turns on a hand-picked diagnostic set, and the *first*
+run found work that three careful manual sweeps had walked straight past —
+including a live stack buffer overflow. See **WARN-1**. Anything statically
+checkable should go through the compiler before it goes through a regex.
+
+Also this session: **SESS-4** (POV hat edge-vs-level), **CRLF-1** (audit closed,
+two fixes), **SND-1** (`LoadRiffFormat` returned 0 for every WAV),
 **MSG-1** (20 `new[]`/scalar-`delete` mismatches), **STUB-1** (compat stub audit,
 closed clean), and **TE2-7** taken as far as it can go from this side — five
 more candidate causes eliminated by measurement, the symptom restated twice, and
@@ -1572,6 +1580,46 @@ Remaining `sizeof(long)` sites audited and cleared: `vusessn` `domainMask_`
 `cfontres` binary `.scf` path (dead — the `C_Base(FILE*)` ctors have no
 instantiation site; the UI parses text `.scf`), and `src/tools` (not built).
 
+### SESS-4 — POV hat was edge-driven; a held hat panned for one frame (fixed 2026-08-16)
+
+The sim was written against **polled** DirectInput: `IO.povHatAngle` held its
+value for as long as the hat was pressed, and `ProcessJoyButtonAndPOVHat`
+re-fires the mapped view function every cycle off that held value. SDL reports a
+hat only on **change**, so the Linux path wrote `povHatAngle` once per edge and
+`IO.ResetAllInputs()` cleared it again. Holding the hat therefore produced at most
+a single frame of movement — which reads to a player as "the hat does nothing".
+
+Fixed by re-asserting the hat from live SDL state once per main-loop iteration,
+restoring the polled semantics the consumer expects.
+
+Also fixed on the way: `g_JoystickIndex` was the **device index** (0) while SDL
+joystick events carry the **instance id** in `.which`. They coincide for the first
+stick on a fresh run, so it worked — but after any hot-plug the ids diverge and
+every joystick event is silently filtered out.
+
+**New harness — a hat can now be driven with no hardware:**
+
+| env | effect |
+|---|---|
+| `FF_VIRTUAL_JOYSTICK=1` | attaches an SDL virtual joystick (4 axes, 8 buttons, 1 hat) and opens it in preference to a real stick |
+| `FF_SIM_HAT="dir@sec[+holdms];..."` | `c/u/d/l/r/ul/ur/dl/dr`; `sec` from **sim entry** (like `FF_SIM_KEY`), `holdms` default 1000 |
+
+SDL feeds the virtual hat through the ordinary `SDL_JOYHATMOTION` path, so this
+exercises the real code rather than bypassing it. The instrumentation prints
+`hatEvents`/`accepted` counters, which is what made the diagnosis unambiguous:
+
+```
+before:  hatEvents=1 accepted=1   IO.povHatAngle[0]=-1   <- event DID arrive, value gone
+after:   hatEvents=1 accepted=1   IO.povHatAngle[0]=0    <- POV north, still held
+         NumberOfPOVs=1                                  <- dispatch loop iterates
+```
+
+Distinguishing "the event never arrived" from "it arrived and was cleared" was
+the whole diagnosis; a single counter separated them.
+
+**Still open in SESS-4:** HUD-view MFD panel placement, which needs the PO's Wine
+side-by-side.
+
 ### MSG-1 — 20 `new[]` / scalar-`delete` mismatches (fixed 2026-08-16)
 
 `CLAUDE.md` flags this as a class to keep sweeping, naming the msgsrc message
@@ -1622,6 +1670,57 @@ This is the class behind the campaign-exit crash (31cc565e). Scalar `delete` on
 an array allocation is UB that corrupts allocator metadata, so it never fails
 where it is written — it surfaces as a crash somewhere else, much later. Worth
 sweeping statically rather than waiting for ASAN to happen to walk the path.
+
+### WARN-1 — the build had `-w`; turning it off found real bugs (2026-08-16)
+
+`add_compile_options(... -w)` disabled **every** compiler warning, so for the
+whole life of the port GCC has been unable to say anything. That is a large
+missed lever, because several of the diagnostics it offers are precisely the bug
+classes this session had been chasing by hand:
+
+| warning | the bug it is |
+|---|---|
+| `-Wsizeof-pointer-memaccess` | BOMB-1, exactly |
+| `-Wmismatched-new-delete` | MSG-1, all 21 of them |
+| `-Wuninitialized` | the SND-1 "WAVEFORMATEX from a failed parse" shape |
+| `-Wstringop-overflow` | the classic sprintf-into-a-fixed-buffer overflow |
+
+New CMake option, off by default (17k warnings, ~8k of them template-body noise,
+is not a useful default for 800k lines of legacy code):
+
+```
+cmake -DFF_WARN=ON -B build-warn && ninja -C build-warn 2>&1 | tee /tmp/warn.log
+```
+
+**The first run found five defects the manual sweeps had missed:**
+
+1. **Stack buffer overflow** — `drawparticlesys.cpp:5522` wrote `PS_NAMESIZE` (64)
+   bytes into `char FileName[PARTICLE_NAMES_LEN]` (32). Driven by how long a name
+   is in `particlesys.ini`.
+2. `package.cpp:950` — `memset(targetf, 255, 5)` on an `int[5]` set **five bytes**,
+   leaving `targetf[1..4]` uninitialised before `GetFeatureID()` read them.
+3. `cmpclass.cpp:1290` — one more `new[]` freed with scalar `delete`. The
+   repo-wide regex sweep missed it because the allocation is a *chained*
+   assignment (`bufhead = buffer = new uchar[size]`) and the pattern bound only
+   one name. The compiler had no such difficulty.
+4. `ui_lgbk.cpp:686` — `%s` given an `IMAGE_RSC*`, which has no string member at
+   all, making `_stprintf` walk the object hunting for a NUL into a 260-byte stack
+   buffer.
+5. compat `ExitProcess` was not `noreturn` though it is just `exit()`, so every
+   caller ending in it looked like it fell off a non-void function — burying the
+   real `-Wreturn-type` signal under a false positive.
+
+**Triage note, to save the next session the work:** the ~38 int/pointer-cast
+warnings look alarming and are mostly *not* defects. They are misplaced casts like
+`(SimBaseClass*)entity->IsDead()`, where the cast binds to the **call result**
+rather than the object — but `OnGround()` and `IsDead()` are virtual in
+`SimBaseClass`, so dispatch is unaffected and the boolean survives as truthiness.
+Left alone deliberately.
+
+Remaining queues in `/tmp/warn.log`: 95 `-Wmaybe-uninitialized`, 137 `-Wformat`,
+79 `-Wformat-security`, 13 `-Wimplicit-function-declaration` (an undeclared
+function is assumed to return `int`, which truncates a returned pointer on 64-bit
+— worth a look), 7 `-Wnonnull`.
 
 ### STUB-1 — "stub returns default" audit: CLEAN (closed 2026-08-16)
 
