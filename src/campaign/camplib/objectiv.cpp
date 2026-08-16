@@ -3554,17 +3554,23 @@ int EncodeObjectiveDeltas(VU_BYTE **stream, FalconSessionEntity *owner)
     }
 
     // Compress it and return
-    *stream = new VU_BYTE[size + sizeof(short) + sizeof(long) + MAX_POSSIBLE_OVERWRITE];
+    // FF_LINUX: the size prefix is a 4-byte field -- the matching decoder reads it
+    // as int32_t. sizeof(long) is 8 here, so writing it as long desynchronised the
+    // stream by 4 bytes and every field after it. Same class as AUTOSAVE-1 / SAVE-1.
+    *stream = new VU_BYTE[size + sizeof(short) + sizeof(int32_t) + MAX_POSSIBLE_OVERWRITE];
     sptr = *stream;
     memcpy(sptr, &count, sizeof(short));
     sptr += sizeof(short);
-    memcpy(sptr, &size, sizeof(long));
-    sptr += sizeof(long);
+    {
+        int32_t size32 = (int32_t)size;
+        memcpy(sptr, &size32, sizeof(int32_t));
+        sptr += sizeof(int32_t);
+    }
     buf = bufhead;
     newsize = LZSS_Compress(buf, sptr, size);
     delete[] bufhead;  // FF_LINUX: new[] -> delete[]
 
-    return newsize + sizeof(short) + sizeof(long);
+    return newsize + sizeof(short) + sizeof(int32_t);
 }
 
 //int DecodeObjectiveDeltas(VU_BYTE **stream, FalconSessionEntity *owner)

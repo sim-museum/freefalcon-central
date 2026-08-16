@@ -6123,12 +6123,18 @@ int EncodeUnitData(VU_BYTE **stream, FalconSessionEntity *owner)
     CampLeaveCriticalSection();
 
     // Compress it and return
-    *stream = new VU_BYTE[size + sizeof(short) + sizeof(long) + MAX_POSSIBLE_OVERWRITE];
+    // FF_LINUX: the size prefix is a 4-byte field -- the matching decoder reads it
+    // as int32_t. sizeof(long) is 8 here, so writing it as long desynchronised the
+    // stream by 4 bytes and every field after it. Same class as AUTOSAVE-1 / SAVE-1.
+    *stream = new VU_BYTE[size + sizeof(short) + sizeof(int32_t) + MAX_POSSIBLE_OVERWRITE];
     sptr = *stream;
     memcpy(sptr, &count, sizeof(short));
     sptr += sizeof(short);
-    memcpy(sptr, &size, sizeof(long));
-    sptr += sizeof(long);
+    {
+        int32_t size32 = (int32_t)size;
+        memcpy(sptr, &size32, sizeof(int32_t));
+        sptr += sizeof(int32_t);
+    }
 
     MonoPrint("Count=%1d,Size=%1ld\n", count, size);
 
@@ -6144,7 +6150,7 @@ int EncodeUnitData(VU_BYTE **stream, FalconSessionEntity *owner)
         save_log = 0;
     }
 
-    return newsize + sizeof(short) + sizeof(long);
+    return newsize + sizeof(short) + sizeof(int32_t);
 }
 
 int DecodeUnitData(VU_BYTE **stream, long *rem, FalconSessionEntity *owner)
