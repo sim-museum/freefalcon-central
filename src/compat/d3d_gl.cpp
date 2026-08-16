@@ -1538,6 +1538,32 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                     if (v[0] < xMin) xMin = v[0];
                     if (v[0] > xMax) xMax = v[0];
                 }
+                // Wrap mode decides whether an atlas cell can tile along the
+                // slab at all: if the data means to repeat but we CLAMP, one
+                // cell smears over the whole runway and the paint disappears.
+                GLint wrapS = 0, wrapT = 0;
+                glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, &wrapS);
+                glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, &wrapT);
+                fprintf(stderr, "[PIXPROBE-UV] wrapS=0x%x wrapT=0x%x (0x2901=REPEAT "
+                        "0x812F=CLAMP_TO_EDGE 0x2900=CLAMP)\n",
+                        (unsigned)wrapS, (unsigned)wrapT);
+
+                // FF_PROBE_UV_VERTS=1: one-shot per-vertex dump of the winning
+                // draw, so the atlas cell can be matched against the geometry.
+                {
+                    static int s_dumpVerts = -1;
+                    if (s_dumpVerts == -1) s_dumpVerts = getenv("FF_PROBE_UV_VERTS") ? 1 : 0;
+                    if (s_dumpVerts == 1) {
+                        s_dumpVerts = 2;   // once only
+                        for (DWORD i = 0; i < indexed->indexCount; i++) {
+                            const DWORD vi = (DWORD)indexed->indices[i] + indexed->startVertex;
+                            const float* v = fv + (size_t)vi * stride;
+                            fprintf(stderr, "[PIXPROBE-VTX] i=%2lu idx=%5u  xyz=(%9.2f,%9.2f,%9.2f)  uv=(%.4f,%.4f)\n",
+                                    (unsigned long)i, (unsigned)indexed->indices[i],
+                                    v[0], v[1], v[2], v[off], v[off + 1]);
+                        }
+                    }
+                }
                 fprintf(stderr, "[PIXPROBE-UV] tex=%d idxCount=%lu start=%lu stride=%dfl uvOff=%d "
                         "u=[%.4f..%.4f] span=%.4f  v=[%.4f..%.4f] span=%.4f  x=[%.1f..%.1f]\n",
                         (int)tex, (unsigned long)indexed->indexCount,

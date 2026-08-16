@@ -1391,12 +1391,38 @@ the near-field surface is bound to marked art, and the "LOD switch" framing abov
 is not quite right either — the near field is a textured airfield slab, not a
 plain substitute.
 
-Its texture coordinates span `u=[0.000..0.500] v=[0.000..1.000]` over a slab
-`x=[-1106..593]` — i.e. one atlas cell stretched across ~1700 units. That is a
-large magnification, which matters because magnification is precisely what
-mipmapping does *not* affect (consistent with the `FF_NO_MIPMAP` null result).
-Open question is therefore whether one cell over the whole slab is correct, or
-whether the coordinates should repeat along the runway.
+**Full geometry (per-vertex dump, `FF_PROBE_UV_VERTS=1`).** The slab is two quads
+sharing a 270-unit width, and the mapping is clean and deliberate:
+
+| quad | x (length) | u (across width) | v (along length) | atlas cell |
+|---|---|---|---|---|
+| far | −1106 → −606 (500u) | 0.0 → 0.5 | 1.0 → 0.5 | left/bottom |
+| near | −606 → +593 (1199u) | 0.0 → 0.5 | 0.5 → 0.0 | left/top |
+
+`u` runs across the runway width, `v` along its length, and the two quads take
+the two vertical halves of the atlas's left column. The values land exactly on
+`0.0 / 0.5 / 1.0` — cell boundaries of a 2×2 atlas, not drift. Wrap mode is
+`GL_REPEAT` on both axes, so tiling is available and simply not requested.
+
+**And the render matches the art.** Cropping the two sampled cells:
+
+- the **near** cell is a runway that is *itself* mostly grey concrete — faint
+  dashed centreline, tyre streaks, white edge lines — stretched over 1199 units;
+- the **far** cell is the taxiway junction, dense with yellow curves.
+
+That is exactly what the frame shows: white edge lines and streaks near the
+aircraft, the yellow-rich band further out. The "markings stop at a cutoff"
+measurement was reading the boundary between two *different atlas cells*, not a
+rendering failure. Nothing in the near-field pipeline is demonstrably wrong.
+
+**Status: blocked on a Wine side-by-side.** Every mechanism that could be checked
+from this side has been checked and cleared (binding, depth bias, surface
+textures, art presence, mip filtering, UVs, wrap mode, and now the atlas mapping
+itself). The remaining question is whether Wine draws this same airbase with the
+same two cells and simply looks richer, or selects a different/higher-detail
+representation — and that can only be answered against the gold standard. What
+would settle it: the PO's Wine shot **from the TE-02 start position in HUD view**,
+so the same slab is in frame.
 
 ⚠️ **A retracted intermediate result, kept as a warning.** The first UV numbers
 this probe produced were `u=[0..0] v=[0..0]` — an apparently perfect smoking gun
