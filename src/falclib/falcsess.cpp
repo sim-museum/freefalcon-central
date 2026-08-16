@@ -43,11 +43,15 @@ FalconSessionEntity::FalconSessionEntity(ulong domainMask, char *callsign) : VuS
 {
     //name = new _TCHAR[_NAME_LEN_];
     //_stprintf(name,"Kevin");
-    _stprintf(name, LogBook.NameWRank());
+    // FF_LINUX: was _stprintf(name, <string>) -- the pilot name is user-entered,
+    // so a '%' in it made printf consume garbage varargs, and the copy was
+    // unbounded into a 21-byte buffer.
+    _tcsncpy(name, LogBook.NameWRank(), _NAME_LEN_);
     name[_NAME_LEN_] = 0;
     //callSign = new _TCHAR[_CALLSIGN_LEN_];
     //_stprintf(callSign,"DeathPup");
-    _stprintf(callSign, LogBook.Callsign());
+    // FF_LINUX: see the name above -- user-entered, was unbounded and format-parsed.
+    _tcsncpy(callSign, LogBook.Callsign(), _CALLSIGN_LEN_);
     callSign[_CALLSIGN_LEN_] = 0;
     playerSquadron = FalconNullId;
     playerFlight = FalconNullId;
@@ -92,14 +96,39 @@ FalconSessionEntity::FalconSessionEntity(VU_BYTE** stream, long *rem) : VuSessio
 {
     uchar size;
 
+    // FF_LINUX: `size` is a uchar read straight from the stream, so 0..255, but
+    // name[] is _NAME_LEN_+1 = 21 and callSign[] is _CALLSIGN_LEN_+1 = 13.
+    // memcpychk bounds the SOURCE (how much stream is left), not the
+    // destination, so an oversized length here overflows both buffers -- and
+    // then `name[size] = 0` writes up to 234 bytes past the end. Reachable from
+    // any campaign save or multiplayer session update. Clamp to capacity and
+    // still consume the full field so the stream stays in sync.
     memcpychk(&size, stream, sizeof(uchar), rem);
-    //name = new _TCHAR[size+1];
-    memcpychk(name, stream, sizeof(_TCHAR)*size, rem);
-    name[size] = name[_NAME_LEN_] = 0;
+    {
+        uchar keep = (size > _NAME_LEN_) ? (uchar)_NAME_LEN_ : size;
+        memcpychk(name, stream, sizeof(_TCHAR)*keep, rem);
+
+        if (size > keep)
+        {
+            _TCHAR discard[256];
+            memcpychk(discard, stream, sizeof(_TCHAR)*(size - keep), rem);
+        }
+
+        name[keep] = name[_NAME_LEN_] = 0;
+    }
     memcpychk(&size, stream, sizeof(uchar), rem);
-    //callSign = new _TCHAR[size+1];
-    memcpychk(callSign, stream, sizeof(_TCHAR)*size, rem);
-    callSign[size] = 0;
+    {
+        uchar keep = (size > _CALLSIGN_LEN_) ? (uchar)_CALLSIGN_LEN_ : size;
+        memcpychk(callSign, stream, sizeof(_TCHAR)*keep, rem);
+
+        if (size > keep)
+        {
+            _TCHAR discard[256];
+            memcpychk(discard, stream, sizeof(_TCHAR)*(size - keep), rem);
+        }
+
+        callSign[keep] = callSign[_CALLSIGN_LEN_] = 0;
+    }
     memcpychk(&playerSquadron, stream, sizeof(VU_ID), rem);
     memcpychk(&playerFlight, stream, sizeof(VU_ID), rem);
     memcpychk(&playerEntity, stream, sizeof(VU_ID), rem);
@@ -346,7 +375,9 @@ void FalconSessionEntity::SetPlayerName(_TCHAR* pname)
     /*if (name)
       delete name;
       name = new _TCHAR[_tcslen(pname)+1];*/
-    _tcscpy(name, pname);
+    // FF_LINUX: unbounded strcpy into a 21-byte buffer; the truncation on the
+    // next line only ran after the overflow had already happened.
+    _tcsncpy(name, pname, _NAME_LEN_);
     name[_NAME_LEN_] = 0;
 
     if (gUICommsQ and Game())
@@ -363,7 +394,9 @@ void FalconSessionEntity::SetPlayerCallsign(_TCHAR* pcallsign)
     //if (callSign)
     // delete callSign;
     //callSign = new _TCHAR[_tcslen(pcallsign)+1];
-    _tcscpy(callSign, pcallsign);
+    // FF_LINUX: unbounded strcpy into a 13-byte buffer.
+    _tcsncpy(callSign, pcallsign, _CALLSIGN_LEN_);
+    callSign[_CALLSIGN_LEN_] = 0;
     callSign[_CALLSIGN_LEN_] = 0;
 
     if (gUICommsQ and Game())
