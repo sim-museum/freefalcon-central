@@ -1230,6 +1230,29 @@ are sunk ~3ft so the gear is hidden, the tarmac has no runway markings, and the
 2D-pit view still shows grass further ahead, suggesting the flat surfaces are not
 drawn out to the distance the gold shows.
 
+### TE2-7 — tarmac has no runway markings (open; three causes ruled out)
+
+The PO's Wine gold shows painted runway markings; ours is flat grey. Three
+plausible causes have been eliminated by measurement, recorded so they are not
+retried:
+
+1. **Texture binding** — `TextureBankClass::Select` is an empty stub and
+   `FF_TEXFIX=1` implements it. No visible change. (`CLAUDE.md` already recorded
+   "no effect", but that test predates the runway rendering at all, so it was
+   worth repeating under the corrected precondition.)
+2. **Decal depth** — markings painted on a runway would be classic ZBIAS decals,
+   and `dwzBias=16` does occur in the data. Running with a much larger ZBIAS scale
+   (`FF_ZBIAS_SCALE="2,128"`) produced no markings.
+3. **Missing texture on the surfaces** — disproven directly. The flat runway batch
+   carries real, varied textures: `texFlag=1` with `m_TexID` values 1544, 747,
+   5031, 50, 187, 746, 734, 177 across surfaces.
+
+So the surfaces are textured and drawn; what is missing is marking *content*.
+Next candidates: whether the marking texture files resolve at all on a
+case-sensitive filesystem, and whether the texture content itself is being loaded
+correctly (this port has a history of DDS header-size bugs producing valid-looking
+but wrong texture data — see the `sizeof(DDSURFACEDESC2)` fixes).
+
 ### SESS-5 — SIGINT/SIGTERM tore down GL from the signal handler (fixed)
 
 A repro run left a process alive for 9+ minutes after both SIGINT and SIGTERM, 19

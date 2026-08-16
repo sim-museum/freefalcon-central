@@ -948,6 +948,26 @@ void CDXEngine::DrawSurface()
     {
         static int s_dbgSurf = -1;
         if (s_dbgSurf == -1) s_dbgSurf = getenv("FF_DEBUG_PIT_SURF") ? 80 : 0;
+        // FF_LINUX: FF_DEBUG_RWYTEX reuses this trace for the flat runway/tarmac
+        // batch (g_ffDXDrawIsRunway) to answer whether those surfaces carry a real
+        // texture at all -- the tarmac renders as flat grey with none of the runway
+        // markings the Windows gold shows.
+        static int s_dbgRwy = -1;
+        extern int g_ffDXDrawIsRunway;
+
+        if (s_dbgRwy == -1) s_dbgRwy = getenv("FF_DEBUG_RWYTEX") ? 60 : 0;
+
+        if (s_dbgRwy > 0 && g_ffDXDrawIsRunway) {
+            s_dbgRwy--;
+            fprintf(stderr, "[RWYTEX] vCount=%lu texFlag=%d texid0=%ld texid1=%ld m_TexID=%ld vcolor=%d chroma=%d\n",
+                    (unsigned long)m_NODE.SURFACE->dwVCount,
+                    (int)m_NODE.SURFACE->dwFlags.b.Texture,
+                    (long)(int)m_NODE.SURFACE->TexID[0], (long)(int)m_NODE.SURFACE->TexID[1],
+                    (long)(int)m_TexID,
+                    (int)m_NODE.SURFACE->dwFlags.b.VColor,
+                    (int)m_NODE.SURFACE->dwFlags.b.ChromaKey);
+        }
+
         if (s_dbgSurf > 0 && m_PitMode) {
             s_dbgSurf--;
             fprintf(stderr, "[PITSURF] vCount=%lu flags=0x%08lx tex=%d texid0=%ld texid1=%ld "
