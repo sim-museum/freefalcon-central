@@ -2005,13 +2005,20 @@ int CampaignClass::Encode(VU_BYTE **stream)
     // Compress it and return
     *stream = new VU_BYTE[datasize + sizeof(long) + MAX_POSSIBLE_OVERWRITE];
     sptr = *stream;
-    memcpy(sptr, &datasize, sizeof(long));
-    sptr += sizeof(long);
+    // FF_LINUX: the uncompressed-size header is 4 bytes on disk -- Decode reads
+    // it as int32_t. Writing sizeof(long) (8 here) left every Linux-written save
+    // 4 bytes out of phase, so LZSS_Expand started mid-header and produced
+    // garbage. Windows saves load because sizeof(long) is 4 there.
+    {
+        int32_t ds32 = (int32_t)datasize;
+        memcpy(sptr, &ds32, sizeof(int32_t));
+        sptr += sizeof(int32_t);
+    }
     newsize = LZSS_Compress(bufhead, sptr, datasize);
 
     delete[] bufhead;  // FF_LINUX: new[] -> delete[]
 
-    return newsize + sizeof(long);
+    return newsize + sizeof(int32_t);
 }
 
 int CampaignClass::LoadScenarioStats(FalconGameType type, char *savefile)
@@ -2057,7 +2064,36 @@ int CampaignClass::LoadScenarioStats(FalconGameType type, char *savefile)
     long size = cd.dataSize - 4;
     data_ptr += 4;
     fprintf(stderr, "[FF_LINUX] LoadScenarioStats: About to call Decode(size=%ld)\n", size);
+#ifdef FF_LINUX
+    // FF_LINUX: this runs from LoadCampaignFileCB -- i.e. inside the UI event
+    // handler, the moment the user CLICKS a save in the list. A desyncing or
+    // incompatible save throws InvalidBufferException out of Decode; on Windows
+    // SEH swallowed it, here it reached std::terminate and killed the game just
+    // for clicking a list row. Same guard as FM_LOAD_CAMPAIGN: catch it, drain
+    // the recursively-held campCritical the unwind skipped, and fail the preload.
+    try
+    {
+        Decode(&data_ptr, &size);
+    }
+    catch (std::exception &e)
+    {
+        fprintf(stderr, "[FF_LINUX] LoadScenarioStats: Decode threw (%s) -- failing preload\n", e.what());
+        fflush(stderr);
+        delete[] cd.data;
+
+        extern int F4CheckHasCriticalSection(F4CSECTIONHANDLE*);
+
+        while (campCritical && F4CheckHasCriticalSection(campCritical))
+            CampLeaveCriticalSection();
+
+        EndReadCampFile();
+        gCampDataVersion = gCurrentDataVersion;
+        TheCampaign.Resume();
+        return 0;
+    }
+#else
     Decode(&data_ptr, &size);
+#endif
     fprintf(stderr, "[FF_LINUX] LoadScenarioStats: Decode returned, deleting cd.data\n");
     delete[] cd.data;  // FF_LINUX: Match new[] with delete[]
     fprintf(stderr, "[FF_LINUX] LoadScenarioStats: cd.data deleted\n");
