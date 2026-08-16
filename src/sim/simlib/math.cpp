@@ -1486,7 +1486,12 @@ SIM_FLOAT SIMLIB_MATH_CLASS::TwodInterp(SIM_FLOAT x, SIM_FLOAT y,
                                         const SIM_FLOAT *xarray, const SIM_FLOAT *yarray, const SIM_FLOAT *data, SIM_INT numx, SIM_INT numy,
                                         SIM_INT *lastx,  SIM_INT *lasty)
 {
-    float xinpt, yinpt;
+    // FF_LINUX: these are assigned only inside the `numx >= 0 and numy >= 0 and
+    // xarray and yarray` guard below, so an empty table or a null array left
+    // them uninitialised and the interpolation ran on stack garbage -- this is
+    // TwodInterp, used for the aero/engine data tables. Seed with the raw
+    // inputs, which is exactly what the guarded code computes minus the clamp.
+    float xinpt = (float)x, yinpt = (float)y;
     float x1, x2, dx;
     float y1, y2, dy;
     float ddata, ddata1, ddata2, data1, data2;
