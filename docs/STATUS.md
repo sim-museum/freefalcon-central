@@ -1777,10 +1777,66 @@ and **both are false positives** — `CheckIfBlockingRunway`'s `info` and
 as written, so leaving them untouched on an early return is correct. No further
 live defects in this class.
 
+**Second pass over the diagnostics (2026-08-16, later).** After the first round of
+fixes the counts fell: `-Wmaybe-uninitialized` 95 → 71, and
+`mismatched-new-delete`, `memset-elt-size`, `return-type`, `nonnull` and
+`stringop-overflow` all went to **zero**. Working the rest turned up four more,
+two of them memory-safety rather than cosmetic:
+
+| site | finding |
+|---|---|
+| `displays/helpers.cpp` ×3 | bullseye bearing/range assigned only inside `if (theRadar)` with no `else`, then `sprintf`'d into `char str[12]` — a garbage float in `"%03.0f"` smashes the stack. Seeded, and all 11 `sprintf(str, …)` in the file bounded. |
+| `ui95/imagersc.cpp` ×2 | `count` is deliberately carried across loop iterations, so an else-branch on the **first** iteration used it uninitialised — as a `memcpy` **length**. |
+| `simlib/math.cpp` | `TwodInterp` clamps its inputs only inside a guard that can fail, then interpolates on stack garbage. This is the 2-D table interpolator behind the **aero and engine tables**. |
+| `rwr/advancedhts.cpp` | EXP offsets assigned in conditional blocks, subtracted outside them — HTS symbology offset by garbage. |
+
+Plus `setupinp.cpp` (`buttonId`/`mouseSide` from another return-without-writing
+`GetFunction`, used to index the cockpit button table) and `simvudrv.cpp`
+(`sessionD2` gating network sends).
+
+Skipped with reasons, so they are not re-examined: `harmpod`'s `trig` (`mlSinCos`
+writes both fields unconditionally on the non-MSVC path — false positive),
+`radardigi`'s `ret` (`#ifdef SAMDEBUG`, not compiled), and `modes.cpp`'s `elhack`
+(declared and used inside the same guarded block).
+
 Remaining queues in `/tmp/warn.log`: 95 `-Wmaybe-uninitialized`, 137 `-Wformat`,
 79 `-Wformat-security`, 13 `-Wimplicit-function-declaration` (an undeclared
 function is assumed to return `int`, which truncates a returned pointer on 64-bit
 — worth a look), 7 `-Wnonnull`.
+
+### FMT-1 — unbounded / format-parsed string copies (fixed 2026-08-16)
+
+`-Wformat-security` flags 79 calls of the shape `sprintf(dest, src)` — a
+non-literal format with no arguments, i.e. `sprintf` used as `strcpy`. Two
+hazards at once: a `%` anywhere in the source makes printf consume garbage
+varargs, and the copy has no length limit.
+
+**The pilot identity path was the worst of it.** `FalconSessionEntity` holds
+`name[21]` and `callSign[13]`, and five paths wrote them unsafely:
+
+| path | problem |
+|---|---|
+| stream `Decode` | `size` is a **uchar read straight off the wire or out of a save** (0–255), and `memcpychk` bounds the *source*, not the destination — so up to 255 bytes into a 21-byte buffer, then `name[size] = 0` up to 234 bytes past the end |
+| `_stprintf(name, LogBook.NameWRank())` | user-entered pilot name: unbounded **and** format-parsed |
+| `_stprintf(callSign, LogBook.Callsign())` | same |
+| `_tcscpy(name, pname)` | unbounded; the `name[_NAME_LEN_] = 0` truncation on the next line only ran *after* the overflow |
+| `_tcscpy(callSign, pcallsign)` | same |
+
+So a pilot whose callsign contained a `%` could crash the game, and a campaign
+save could overflow the session buffers. All bounded and terminated; the decode
+clamps to capacity while still consuming the full field so the stream stays in
+sync. Verified the logbook still shows callsign *Viper* / pilot *Joe Pilot*.
+
+**Also bounded**, from the 27 definite `-Wformat-overflow` cases (the *"may write
+a terminating nul past the end"* subset — the other 630 are GCC assuming an
+arbitrary-length `%s` and were left alone deliberately):
+
+- `icp/icpstpt.cpp` ×3 — `char hoursStr/minutesStr/secsStr[3]` written with
+  `"%2d"`; two digits plus a nul exactly fills them, so any three-digit or
+  negative value runs one past the end, and `FormatTime` derives minutes from a
+  `long`.
+- `campui/misseval.cpp` ×2 — AI pilot name/callsign built as `"%s%d"` from the
+  flight name into `_TCHAR[30]`, unbounded.
 
 ### STUB-1 — "stub returns default" audit: CLEAN (closed 2026-08-16)
 
