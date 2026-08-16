@@ -1115,6 +1115,20 @@ Regression state at sprint close, all on the ASAN build with every fix in:
 | campaign flow soak | **0 ASAN errors** |
 | campaign **save → reload** round-trip | works end to end; `LZSS_Expand` exact at 5881, sane `CurrentTime`, live map |
 | TE 2 / campaign / logbook on release build | 0 crashes; pilot roster, callsign and squadron patch all render |
+| **extended TE-02 flight soak** (~10 min in 3D) | 211 samples, **0 ASAN errors**, 0 crashes, 0 assertions |
+
+The extended soak matters because the short runs cannot reach the time-dependent
+machinery: the texture bank's 10-second release sweep, the campaign aggregation
+cycle, ATC re-planning, and particle/trail lifetimes. Ten minutes of continuous
+flight with zero findings is a much stronger statement than the 100-second runs.
+
+Incidental observation from its `FF_DEBUG_GROUND` trace, relevant to the
+**runway-elevation decoupling** note: at the start `groundZ = 0.00` under a
+stationary aircraft, and by the end `groundZ = -26.00` with the aircraft settled
+at `acZ = -31.99` — i.e. `aboveGround` stayed sane (2.39 → 5.99) and the terrain
+elevation resolved upward once the fine terrain finished loading. Worth keeping in
+mind: some of the "airfield is flat at z=0" behaviour is a *load-time transient*,
+not a permanent state.
 
 **A false alarm worth recording, because it cost twenty minutes and looked
 exactly like a regression.** After the FMT-1 session-decode change, the campaign
