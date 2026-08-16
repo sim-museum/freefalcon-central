@@ -1230,6 +1230,47 @@ are sunk ~3ft so the gear is hidden, the tarmac has no runway markings, and the
 2D-pit view still shows grass further ahead, suggesting the flat surfaces are not
 drawn out to the distance the gold shows.
 
+### SESS-5 — SIGINT/SIGTERM tore down GL from the signal handler (fixed)
+
+A repro run left a process alive for 9+ minutes after both SIGINT and SIGTERM, 19
+threads parked in `futex_do_wait`. `ptrace_scope` forbids attaching to a running
+process, so it was reproduced with gdb as the *parent*: deliver SIGINT during a
+live TE 2 flight, then interrupt again to capture the state.
+
+The handler was doing this:
+
+```c
+static void signal_handler(int sig) {
+    ...
+    SDL_GL_DeleteContext(g_GLContext);   // sim thread is mid-draw with this
+    SDL_DestroyWindow(g_SDLWindow);
+    SDL_Quit();
+```
+
+It runs on the main thread while the **sim thread is still rendering** with that
+context. gdb caught the consequence directly:
+
+```
+SimulationLoopControl::Loop -> OTWDriverClass::RenderFrame
+  -> ContextMPR::FlushPolyLists -> RenderPolyList
+    -> D3D7Dev_DrawPrimitiveVB -> D3D7Device::DrawVertices
+      -> libnvidia-glcore   <-- SIGSEGV
+```
+
+So the "hang" was really two failure modes from one cause: the context deleted
+under a drawing thread (segfault), and `SDL_Quit()` deadlocking against the
+still-running campaign/sim threads (the futex parking). None of those three SDL
+calls is async-signal-safe in the first place.
+
+Fixed by making the handler `_exit(128 + sig)` — async-signal-safe, and the
+kernel reclaims window, context and threads without racing them. This matches
+what `main()` already does on the normal path (`_exit(0)` after "Goodbye!"), and
+the orderly Exit-button shutdown never reaches this handler.
+
+Verified: two TE 2 runs SIGINT'd mid-flight now give 0 crashes and 0 leftover
+processes (previously SIGSEGV/SIGABRT plus a surviving process); the Exit button
+path still ends `rc=0` with "Goodbye!" and no crash.
+
 ### FARTEX-1 — far textures above id 31128 were never released (16-bit truncation)
 
 `FarTexDB::Release` bounded the texture id with a **`(WORD)`** cast:

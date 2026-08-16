@@ -1157,21 +1157,28 @@ static void signal_handler(int sig) {
     g_signalReceived = sig;
     g_running = false;
 
-    // For immediate cleanup on signal, directly destroy the SDL window
-    // This ensures the window disappears even if the main loop doesn't get to cleanup()
-    if (g_GLContext) {
-        SDL_GL_DeleteContext(g_GLContext);
-        g_GLContext = nullptr;
-    }
-    if (g_SDLWindow) {
-        SDL_DestroyWindow(g_SDLWindow);
-        g_SDLWindow = nullptr;
-    }
-    SDL_Quit();
-
-    // Re-raise the signal with default handler so the process terminates properly
-    signal(sig, SIG_DFL);
-    raise(sig);
+    // FF_LINUX: do NOT tear down SDL/GL from here.
+    //
+    // This handler runs on the main thread while the SIM thread may be mid-draw with
+    // g_GLContext. Deleting the context under it segfaults inside the driver --
+    // captured under gdb on a SIGINT during a TE 2 flight:
+    //
+    //   SimulationLoopControl::Loop -> OTWDriverClass::RenderFrame
+    //     -> ContextMPR::FlushPolyLists -> RenderPolyList
+    //       -> D3D7Dev_DrawPrimitiveVB -> D3D7Device::DrawVertices
+    //         -> libnvidia-glcore  <-- SIGSEGV
+    //
+    // and SDL_Quit() can deadlock against the still-running campaign/sim threads,
+    // which is how a process ended up surviving both SIGINT and SIGTERM for 9+
+    // minutes with 19 threads parked in futex_do_wait. None of
+    // SDL_GL_DeleteContext / SDL_DestroyWindow / SDL_Quit is async-signal-safe in
+    // the first place.
+    //
+    // A signal means "die now". _exit IS async-signal-safe, and the kernel reclaims
+    // the window, the GL context and every thread without racing any of them. This
+    // is what main() already does on the normal path (_exit(0) after "Goodbye!"),
+    // so the orderly Exit-button shutdown is unaffected -- it never comes here.
+    _exit(128 + sig);
 }
 
 // FF_LINUX: SIGSEGV/SIGFPE handler with backtrace for crash diagnosis
