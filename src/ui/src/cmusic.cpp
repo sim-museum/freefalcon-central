@@ -406,6 +406,13 @@ void C_Music::QNext(SOUNDSTREAM *Stream)
                     SetFilePointer(Stream->fp, snd->Sound->Header->offset, NULL, FILE_BEGIN);
                 }
 
+#ifdef FF_LINUX
+                // FF_LINUX: Header is uninitialised stack and the fields below are
+                // read without checking the return, so a parse failure used
+                // garbage. LoadRiffFormat returned 0 for every file until the RIFF
+                // chunk-size width was fixed (SND-1). Zero it up front.
+                memset(&Header, 0, sizeof(Header));
+#endif
                 size = Sound_->LoadRiffFormat(Stream->fp, &Header, &Stream->HeaderOffset, &NumSamples);
 
                 if (snd->Sound and snd->flags bitand SOUND_RES_STREAM)

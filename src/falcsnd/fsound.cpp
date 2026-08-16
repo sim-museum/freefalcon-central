@@ -587,7 +587,19 @@ int F4StartStream(char *filename, long flags)
     if (gSoundDriver)
     {
         // Start KLUDGE
+#ifdef FF_LINUX
+        // FF_LINUX: Header is an uninitialised stack struct and the return value
+        // was discarded, so a parse failure fed CreateStream() garbage. That was
+        // not hypothetical -- LoadRiffFormat returned 0 for EVERY file until the
+        // RIFF chunk-size width was fixed (SND-1). Zero it and bail on failure.
+        memset(&Header, 0, sizeof(Header));
+
+        if ( not gSoundDriver->LoadRiffFormat(filename, &Header, &size, &NumSamples))
+            return SND_NO_HANDLE;
+
+#else
         gSoundDriver->LoadRiffFormat(filename, &Header, &size, &NumSamples);
+#endif
 
         if (Header.wFormatTag == WAVE_FORMAT_IMA_ADPCM)
         {
