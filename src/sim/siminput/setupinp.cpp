@@ -392,7 +392,11 @@ void CallInputFunction(unsigned long val, int state)
 {
     int keyDown = (state bitand KEY_DOWN ? 1 : 0);
     InputFunctionType theFunc;
-    int flags, buttonId, mouseSide;
+    // FF_LINUX: buttonId/mouseSide are filled by GetFunction(), which can return
+    // without writing them, and they are then used to index the cockpit button
+    // table (GetButtonPointer / Dispatch). -1 is the file's own 'no button'
+    // sentinel -- the code below already tests `if (buttonId < 0)`.
+    int flags, buttonId = -1, mouseSide = -1;
 
     // Special String builder
     if (CommandsKeyCombo == -1 and CommandsKeyComboMod == -1)

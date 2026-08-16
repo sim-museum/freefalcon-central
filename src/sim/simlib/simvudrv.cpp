@@ -158,7 +158,9 @@ VuMaster::SEND_SCORE SimVuDriver::SendScore(const VuSessionEntity *vs, VU_TIME t
     BIG_SCALAR fineDistD2 = fineDist * fineDist;
 
     // distance from entity to session squared
-    BIG_SCALAR sessionD2;
+    // FF_LINUX: assigned only on one branch above but compared further down.
+    // A huge default means 'not near' -- the safe answer for a range test.
+    BIG_SCALAR sessionD2 = FLT_MAX;
 
     if (pEntity not_eq NULL)
     {
