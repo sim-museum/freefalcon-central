@@ -1029,7 +1029,16 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_PreLoad(IDirect3DDevice7* This, LPDIREC
 extern "C" void FF_SetRunwayDepthBias(int enable)
 {
     static int s_mode = -1;                 // -1 uninit / 0 disabled / 1 active
-    static float s_factor = -3.0f, s_units = -64.0f;
+    // MEASURED 2026-08-15 (TE 2, player's airbase, EPIC TE2/TE2-6): -3,-64 is far
+    // too weak. The runway surfaces ARE inserted and correctly placed -- a chain
+    // running over a mile ahead of the parked aircraft -- but at that default the
+    // tarmac only wins the depth test within a few hundred feet, so the runway
+    // dissolves into the terrain as it recedes and the pit view shows grass ahead.
+    // Sampling the ground band of a 2D-pit capture: -3,-64 grass; -8,-1024 recovers
+    // only the far band; -16,-2048 renders the runway continuously and the cockpit
+    // view then matches the PO's Wine gold. FF_RUNWAY_BIAS="factor,units" tunes,
+    // FF_RUNWAY_NOBIAS=1 disables.
+    static float s_factor = -16.0f, s_units = -2048.0f;
     static int s_cur = 0;
     if (s_mode < 0) {
         if (getenv("FF_RUNWAY_NOBIAS")) {

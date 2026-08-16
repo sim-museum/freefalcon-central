@@ -1254,7 +1254,7 @@ report (which followed a full TE flight).
 Handy for future automation: **RESCUE (back) and the main-menu Exit are both at
 (49,750)**, and the exit confirmation's OK is at (660,501), CANCEL at (362,500).
 
-### TE2-6 — tarmac renders under the aircraft but not ahead (open)
+### TE2-6 — runway invisible at distance (FIXED: depth bias default too weak)
 
 After the container re-pick, the player's airbase inserts 63 flat surfaces (all
 of them: `flat surface SKIPPED (prio > BuildingDeaggLevel)` count is 0) and the
@@ -1290,11 +1290,21 @@ test against the terrain mesh close up and loses it further out, so the runway
 dissolves into terrain as it recedes. This is the same family as RWY-2/RWY-3 and
 matches the PO's older description of the runway "pulling away like a carpet".
 
-**Next step:** confirm whether `FF_SetRunwayDepthBias` is actually being applied
-to these particular polys at flush time (the `[RUNWAY] depth bias ACTIVE` count
-is low relative to 63 surfaces), and if so why it is insufficient. A
-distance-scaled lift is the fallback, but the bias existing and not working would
-be the real bug.
+**FIXED — the depth bias default was far too weak.** It *is* being applied (746
+`depth bias ACTIVE` activations in a run), just not strongly enough:
+`glPolygonOffset(-3, -64)` only wins the depth test within a few hundred feet.
+Measured by sampling the ground band of a 2D-pit capture:
+
+| `FF_RUNWAY_BIAS` | far band | mid band |
+|---|---|---|
+| `-3,-64` (old default) | grass | grass |
+| `-8,-1024` | tarmac | grass |
+| **`-16,-2048` (new default)** | **tarmac** | **tarmac** |
+
+With the new default the cockpit view shows a continuous runway stretching ahead
+with the aircraft lined up on it, and matches the PO's Wine gold: runway, apron,
+hangars left, tower right. Verified on the default build — pit far, pit mid and
+the orbit view under the aircraft all read tarmac.
 
 ### TE2-5 — runway drawn 3ft above where aircraft stand (open)
 
