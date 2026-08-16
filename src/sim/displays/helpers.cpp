@@ -41,7 +41,7 @@ void DrawBullseyeData(VirtualDisplay* display, float cursorX, float cursorY)
     // Offset for Bullseye symbology
     display->AdjustOriginInViewport(-0.75F, -0.62F); //me123 from .80 to .75 and .65 to .62 to move the data
 
-    sprintf(str, "%03.0f %02.0f", azFrom, range * FT_TO_NM);
+    snprintf(str, sizeof(str), "%03.0f %02.0f", azFrom, range * FT_TO_NM);
     ShiAssert(strlen(str) < sizeof(str));
     display->TextLeft(-0.95F - -0.75f, 0.2F, str); // draw from left - to keep it on the screen
 
@@ -65,12 +65,12 @@ void DrawBullseyeData(VirtualDisplay* display, float cursorX, float cursorY)
     display->Circle(0.0F, 0.0F, 0.1F);
 
     // Add Range
-    sprintf(str, "%.0f", range * FT_TO_NM);
+    snprintf(str, sizeof(str), "%.0f", range * FT_TO_NM);
     ShiAssert(strlen(str) < sizeof(str));
     display->TextCenterVertical(0.0F, 0.0F, str);
 
     // Add bearing from
-    sprintf(str, "%03.0f", azFrom);
+    snprintf(str, sizeof(str), "%03.0f", azFrom);
     ShiAssert(strlen(str) < sizeof(str));
     display->TextCenter(0.0F, -0.15F, str);
 
@@ -85,7 +85,11 @@ void DrawCursorBullseyeData(VirtualDisplay* display, float cursorX, float cursor
 {
     AircraftClass *playerAC = SimDriver.GetPlayerAircraft();
     float bullseyeX, bullseyeY;
-    float azFrom, range;
+    // FF_LINUX: assigned only inside `if (theRadar)`, which has no else, so
+    // with no radar sensor these reached the sprintf below uninitialised.
+    // Not merely a garbage bullseye readout: a large garbage float in
+    // "%03.0f" overruns char str[12] and smashes the stack.
+    float azFrom = 0.0F, range = 0.0F;
     float cursX, cursY;
     float ownYaw = cockpitFlightData.yaw;
     char str[12];
@@ -131,7 +135,7 @@ void DrawCursorBullseyeData(VirtualDisplay* display, float cursorX, float cursor
 
     /*if(range * FT_TO_NM > 99)
      range = 99 * NM_TO_FT;*/
-    sprintf(str, "%03.0f %02.0f", azFrom, range * FT_TO_NM);
+    snprintf(str, sizeof(str), "%03.0f %02.0f", azFrom, range * FT_TO_NM);
     ShiAssert(strlen(str) < sizeof(str));
 
     if (g_bINS)
@@ -154,7 +158,11 @@ void DrawSteerPointCursorData(VirtualDisplay* display, FalconEntity* platform, f
 {
     AircraftClass *playerAC = SimDriver.GetPlayerAircraft();
     float steerpointX, steerpointY, steerpointZ;
-    float azFrom, range;
+    // FF_LINUX: assigned only inside `if (theRadar)`, which has no else, so
+    // with no radar sensor these reached the sprintf below uninitialised.
+    // Not merely a garbage bullseye readout: a large garbage float in
+    // "%03.0f" overruns char str[12] and smashes the stack.
+    float azFrom = 0.0F, range = 0.0F;
     float cursX, cursY;
     float ownYaw = cockpitFlightData.yaw;
     char str[12];
@@ -202,7 +210,7 @@ void DrawSteerPointCursorData(VirtualDisplay* display, FalconEntity* platform, f
 
         /*if(range * FT_TO_NM > 99)
          range = 99 * NM_TO_FT;*/
-        sprintf(str, "%03.0f %02.0f", azFrom, range * FT_TO_NM);
+        snprintf(str, sizeof(str), "%03.0f %02.0f", azFrom, range * FT_TO_NM);
         ShiAssert(strlen(str) < sizeof(str));
 
         if (g_bINS)
@@ -284,15 +292,15 @@ void DrawBullseyeCircle(VirtualDisplay* display, float cursorX, float cursorY)
 
         //Add Range but only if it's less then 99 miles, otherwise we don't see it
         if ((range * FT_TO_NM) > 99)
-            sprintf(str, "");
+            snprintf(str, sizeof(str), "");
         else
-            sprintf(str, "%.0f", range * FT_TO_NM);
+            snprintf(str, sizeof(str), "%.0f", range * FT_TO_NM);
 
         ShiAssert(strlen(str) < sizeof(str));
         display->TextCenterVertical(0.005F, 0.0F, str);
 
         // Add bearing from
-        sprintf(str, "%03.0f", azFrom);
+        snprintf(str, sizeof(str), "%03.0f", azFrom);
         ShiAssert(strlen(str) < sizeof(str));
         display->TextCenter(0.0F, -0.08F, str);
 
@@ -321,15 +329,15 @@ void DrawBullseyeCircle(VirtualDisplay* display, float cursorX, float cursorY)
 
         //Add Range but only if it's less then 99 miles, otherwise we don't see it
         if ((range * FT_TO_NM) > 99)
-            sprintf(str, "");
+            snprintf(str, sizeof(str), "");
         else
-            sprintf(str, "%.0f", range * FT_TO_NM);
+            snprintf(str, sizeof(str), "%.0f", range * FT_TO_NM);
 
         ShiAssert(strlen(str) < sizeof(str));
         display->TextCenterVertical(0.0F, 0.0F, str);
 
         // Add bearing from
-        sprintf(str, "%03.0f", azFrom);
+        snprintf(str, sizeof(str), "%03.0f", azFrom);
         ShiAssert(strlen(str) < sizeof(str));
         display->TextCenter(0.0F, -0.10F, str);
 
@@ -346,7 +354,11 @@ void DrawBullseyeCircle(VirtualDisplay* display, float cursorX, float cursorY)
 void GetBullseyeToOwnship(char *string)
 {
     float bullseyeX, bullseyeY;
-    float azFrom, range;
+    // FF_LINUX: assigned only inside `if (theRadar)`, which has no else, so
+    // with no radar sensor these reached the sprintf below uninitialised.
+    // Not merely a garbage bullseye readout: a large garbage float in
+    // "%03.0f" overruns char str[12] and smashes the stack.
+    float azFrom = 0.0F, range = 0.0F;
 
     TheCampaign.GetBullseyeSimLocation(&bullseyeX, &bullseyeY);
     azFrom = RTD * (float)atan2(cockpitFlightData.y - bullseyeY, cockpitFlightData.x - bullseyeX);
