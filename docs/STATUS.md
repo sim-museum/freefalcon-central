@@ -1066,6 +1066,26 @@ TE 2 reaches 3D with 0 crashes and 0 assertions, dogfight reaches 3D clean under
 ASAN, SIGINT mid-flight terminates with no crash and no leftover process, and the
 Exit button still exits `rc=0`.
 
+## Sprint log — 2026-08-16, "scrum all might" (autonomous, continuing)
+
+Theme: **finish the `sizeof(long)` sweep by testing the round-trip, not the code.**
+
+Closed: SAVE-1 (now including the `Encode` header bug that made every campaign
+save we wrote unloadable — see the entry for the before/after trace), SND-1
+(`LoadRiffFormat` returned 0 for every WAV).
+
+The lesson that generalises: the earlier SAVE-1 field-width fixes were all
+correct and all verified the same way — "TE 2 still reaches 3D, no crashes" —
+which proved only that *loading shipped Windows saves* still worked. None of
+them exercised a file **we** had written. The moment the actual round-trip ran
+(in-game SAVE dialog → reload from the SAVED tab) the real blocker appeared in
+one run, four layers above the fields that had been under inspection. Same shape
+as the SND-1 find: audio "works", so the RIFF reader looked fine, but the reader
+that was broken serves a *different* set of sounds than the one that was heard.
+
+**Where a fix is verified matters as much as whether it is verified.** Prefer the
+test that exercises the artefact the change produces.
+
 ## EPIC TE2 — TE "02 Takeoff" playable to rotation (opened 2026-08-15, PO-raised)
 
 **PO report (2026-08-15):** flying TE "02 Takeoff", the aircraft sits bogged in
@@ -1377,8 +1397,77 @@ is that campaign saves we produce are now readable back.
 Verified: TE 2 reaches 3D (111 samples) and Instant Action reaches 3D, both with
 zero crashes and zero assertions.
 
-**Not yet verified:** an actual save → reload round-trip, which needs a campaign
-mission flown to a save point. Worth doing when a campaign flow is next exercised.
+**Round-trip now verified — and it found the real blocker (2026-08-16).**
+
+Driving the flow the PO would (Campaign → COMMIT → START CAMPAIGN → bottom-bar
+**SAVE** → name → SAVE, then reload it from the **SAVED** tab) showed the save was
+still unloadable, for a bigger reason than any of the field-width fixes above:
+
+`CampaignClass::Encode` prefixes the compressed campaign block with its
+uncompressed size written as `sizeof(long)` — 8 bytes here, 4 on the 32-bit
+Windows the format comes from — and returns `newsize + sizeof(long)`.
+`CampaignClass::Decode` reads that header as `int32_t`. So every save this build
+wrote sat 4 bytes out of phase. Decode still recovered the correct `datasize`
+(it is the low half of the little-endian 8-byte field), which is why the failure
+looked like data corruption rather than a header bug:
+
+| | before | after |
+|---|---|---|
+| `datasize` | 25128 | 25128 |
+| `LZSS_Expand(srcSize)` | 5932 → returned **5950** (over-consumed) | 5882 → returned **5881** (exact) |
+| `CurrentTime` | 1852768256 (garbage) | 32410619 (Day 1 09:00:10) |
+| outcome | `InvalidBufferException: Trying to write 28271 bytes to 27082 buffer` | `NumAvailSquadrons=112 Tempo=255`, live map |
+
+Shipped saves (save0/1/2) always loaded because Windows wrote 4 bytes — which is
+why this survived every previous campaign test. Only a save *we* wrote exposes it.
+
+The `.cam` container is self-describing enough to check without running anything:
+each member's length must equal its 4-byte prefix + 4. Post-fix the `.cmp` member
+is 5889 = 4 + 5885, and its inner Encode header reads 25128.
+
+Also hardened the path that surfaced it: the throw came out of
+`Decode` ← `LoadScenarioStats` ← `LoadCampaignFileCB` — the preview that runs
+**inside the UI event handler the moment the user clicks a save row**, which is
+outside the `try/catch` previously added to `FM_LOAD_CAMPAIGN`. An incompatible
+save therefore killed the game on a list click. Now caught the same way, draining
+the recursively-held `campCritical` the unwind skips, and failing the preload.
+
+Remaining `sizeof(long)` sites audited and cleared: `vusessn` `domainMask_`
+(writer and reader agree; local-only file), the UI95 `ccontrol`/`ooutput`/
+`cfontres` binary `.scf` path (dead — the `C_Base(FILE*)` ctors have no
+instantiation site; the UI parses text `.scf`), and `src/tools` (not built).
+
+### SND-1 — `LoadRiffFormat` returned 0 for every WAV (fixed 2026-08-16)
+
+Found by continuing the SAVE-1 sweep past the campaign code into every other
+`sizeof(long)` binary reader. `CSoundMgr::LoadRiffFormat` reads the RIFF size
+field as `long`. At 8 bytes that single read consumes the size field *and* the
+`"WAVE"` tag, so the `strncmp(buffer, "WAVE", 4)` immediately below it compares
+against `"fmt "` and the function returns 0 — for every file, always.
+
+A/B'd against real game WAVs rather than argued from the code:
+
+| file | old (`long`, 8b) | new (`int32_t`) |
+|---|---|---|
+| `BoomA1.wav` | 0 (WAVE check failed) | 115200 |
+| `biggun1.wav` | 0 | 152320 |
+| `LSpdTone.wav` | 0 | 45072 |
+
+It is live: `F4StartStream` (streamed audio) and `cmusic.cpp` both call it — and
+`F4StartStream` ignores the return value and uses its stack `WAVEFORMATEX`
+regardless, so every streamed sound was configured from an **uninitialized**
+header. That the in-flight engine audio works is not evidence against this; those
+go through `LoadRiff`/`LoadWaveFile`, which were corrected in an earlier session.
+
+Same defect in `FillRiffInfo`'s chunk walk (reads 8 bytes, advances 4) and in
+both `SkipRiffHeader` overloads. The latter two are currently unreferenced, but
+they feed a garbage `size` straight into `fread(buffer, size, 1, fp)` over a
+`char[256]` — a stack smash waiting for a caller, so fixed rather than left.
+
+**Bug class, restated:** `sizeof(long)` against any format defined by 32-bit
+Windows. This session found it in three unrelated subsystems (campaign save
+headers, campaign field widths, RIFF parsing) after it had already been fixed a
+dozen times elsewhere. When a binary reader misbehaves, check the width first.
 
 ### FARTEX-1 — far textures above id 31128 were never released (16-bit truncation)
 
