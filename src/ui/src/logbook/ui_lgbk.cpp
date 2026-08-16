@@ -680,6 +680,8 @@ void LBSetupControls(IMAGE_RSC *Picture, IMAGE_RSC *Patch)
             else
                 button->SetFlagBitOn(C_BIT_ENABLED);
 
+#ifndef FF_LINUX
+
             if (Patch)
             {
                 _TCHAR buf[MAX_PATH];
@@ -687,6 +689,19 @@ void LBSetupControls(IMAGE_RSC *Picture, IMAGE_RSC *Patch)
                 SetImage(PATCH_PIC, buf, CurPatch);
             }
             else if (*(UI_logbk.GetPatch()) not_eq 0)
+#else
+
+            // FF_LINUX: `Patch` is an IMAGE_RSC*, and IMAGE_RSC has no string
+            // member at all (just `long ID`) -- so feeding it to %s made
+            // _stprintf walk the object's bytes hunting for a NUL and write the
+            // result into a 260-byte stack buffer. It cannot ever have produced a
+            // valid path; this is an upstream bug, not a port regression (it was
+            // equally wrong on Win32). Drop the branch and let the two correct
+            // ones below handle it: the logbook's patch NAME, then its resource
+            // id. Previously a non-NULL Patch produced a garbage filename that
+            // simply failed to load, so falling through is strictly better.
+            if (*(UI_logbk.GetPatch()) not_eq 0)
+#endif
             {
                 _TCHAR buf[MAX_PATH];
                 _stprintf(buf, _T("%s\\patches\\%s.tga"), FalconDataDirectory, UI_logbk.GetPatch());
