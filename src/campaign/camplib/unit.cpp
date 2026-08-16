@@ -1160,7 +1160,8 @@ void UnitClass::SendDeaggregateData(VuTargetEntity *target)
 
     if (IsFlight())
     {
-        totalsize += sizeof(long) + sizeof(uchar) +
+        // FF_LINUX: 4-byte burnt-fuel field, matching the write and the reader.
+        totalsize += sizeof(int32_t) + sizeof(uchar) +
                      GetNumberOfLoadouts() * sizeof(short) * HARDPOINT_MAX +
                      GetNumberOfLoadouts() * sizeof(uchar) * HARDPOINT_MAX
                      ;
@@ -1219,9 +1220,14 @@ void UnitClass::SendDeaggregateData(VuTargetEntity *target)
     // Send the loadout array for anything which has it (probably only flights)
     if (IsFlight())
     {
+        // FF_LINUX: the reader takes this as int32_t (see SetBurntFuel below), so
+        // write 4 bytes -- 8 desynchronised the loadout block that follows.
         fuel = GetBurntFuel();
-        memcpy(ddptr, &fuel, sizeof(long));
-        ddptr += sizeof(long);
+        {
+            int32_t fuel32 = (int32_t)fuel;
+            memcpy(ddptr, &fuel32, sizeof(int32_t));
+            ddptr += sizeof(int32_t);
+        }
         value = (uchar) GetNumberOfLoadouts();
         memcpy(ddptr, &value, sizeof(uchar));
         ddptr += sizeof(uchar);
