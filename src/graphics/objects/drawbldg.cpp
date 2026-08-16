@@ -104,8 +104,17 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
             {
                 static long c = 0;
                 if ((c++ % 120) == 0)
-                    fprintf(stderr, "[RUNWAY] flat GetGroundLevel=%.1f decal=%.1f -> z=%.1f pos=(%.0f,%.0f)\n",
-                            gl, decal, gl - decal, position.x, position.y);
+                {
+                    // FF_LINUX: also report the COARSE approximation the original
+                    // (non-FF_LINUX) path uses. The whole Linux workaround -- per-frame
+                    // accurate refetch + 3ft decal + heavy polygon offset -- exists
+                    // because that approximation was returning 0 at airfields. If it now
+                    // agrees with the accurate value, the workaround is obsolete and the
+                    // original path would put runway, terrain and wheels on one plane.
+                    float ap = renderer->viewpoint->GetGroundLevelApproximation(position.x, position.y);
+                    fprintf(stderr, "[RUNWAY] flat GetGroundLevel=%.1f approx=%.1f delta=%.1f decal=%.1f -> z=%.1f pos=(%.0f,%.0f)\n",
+                            gl, ap, gl - ap, decal, gl - decal, position.x, position.y);
+                }
             }
             position.z = gl - decal;
             previousLOD = LOD;

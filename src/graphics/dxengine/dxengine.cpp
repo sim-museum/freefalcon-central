@@ -991,6 +991,24 @@ void CDXEngine::DrawSurface()
     if (m_LastZBias not_eq m_NODE.SURFACE->dwzBias)
     {
         m_LastZBias = m_NODE.SURFACE->dwzBias;
+#ifdef FF_LINUX
+        // FF_LINUX: what z-bias does the DATA actually ask for? The engine carries a
+        // per-surface dwzBias and this is how the original game makes a runway decal
+        // win the depth test while staying coplanar with the terrain. If runway
+        // surfaces carry 0 here, the ZBIAS path cannot be the lever.
+        {
+            extern int g_ffRunwayDbg;
+
+            if (getenv("FF_DEBUG_RUNWAY"))
+            {
+                static long zc = 0;
+
+                if ((zc++ % 60) == 0)
+                    fprintf(stderr, "[ZBIAS] surface dwzBias=%u runwayBatch=%d\n",
+                            (unsigned)m_LastZBias, g_ffRunwayDbg);
+            }
+        }
+#endif
         m_pD3DD->SetRenderState(D3DRENDERSTATE_ZBIAS, m_LastZBias);
     }
 

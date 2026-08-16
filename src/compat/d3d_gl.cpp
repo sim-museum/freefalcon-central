@@ -2916,10 +2916,39 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
             break;
 
         case D3DRENDERSTATE_ZBIAS:
-            // Map to glPolygonOffset to prevent z-fighting
+            // FF_LINUX: D3DRENDERSTATE_ZBIAS is how the engine asks for a DECAL --
+            // CDXEngine::DrawSurface pushes each surface's own dwzBias before drawing
+            // it (dxdefines.h:180), and that is how the original game draws a runway
+            // exactly coplanar with the terrain and still has it win the depth test.
+            //
+            // The old translation, glPolygonOffset(0, -value), made that mechanism
+            // inert: D3D7 ZBIAS is a 0..16 enumeration, NOT GL depth units, so it
+            // produced an offset of at most -16, and with factor 0 there was no slope
+            // term at all -- which is exactly the case that matters for a long flat
+            // surface seen at a glancing angle, i.e. the far end of a runway. Decals
+            // therefore never won, the runway was invisible, and the port compensated
+            // by lifting flat surfaces 3ft in drawbldg.cpp -- which is what left
+            // parked aircraft sitting 3ft inside the tarmac with their gear hidden.
+            //
+            // The defensible fix is the missing SLOPE term. Keep the units at the
+            // original per-step magnitude rather than inventing a scale: the runway
+            // surfaces that motivated this investigation turn out to carry dwzBias=0,
+            // so they never take this path at all, and there is no measurement here to
+            // anchor a larger unit scale on. FF_ZBIAS_SCALE="factor,units" tunes the
+            // per-step values if a reference ever becomes available.
             if (value) {
+                static float zbFactor = -1.0f, zbUnits = -1.0f;
+
+                if (zbFactor < 0.0f) {
+                    zbFactor = 1.0f;
+                    zbUnits = 1.0f;
+                    const char* e = getenv("FF_ZBIAS_SCALE");
+
+                    if (e) sscanf(e, "%f,%f", &zbFactor, &zbUnits);
+                }
+
                 glEnable(GL_POLYGON_OFFSET_FILL);
-                glPolygonOffset(0.0f, -(float)value);
+                glPolygonOffset(-(float)value * zbFactor, -(float)value * zbUnits);
             } else {
                 glDisable(GL_POLYGON_OFFSET_FILL);
             }

@@ -1306,6 +1306,38 @@ with the aircraft lined up on it, and matches the PO's Wine gold: runway, apron,
 hangars left, tower right. Verified on the default build — pit far, pit mid and
 the orbit view under the aircraft all read tarmac.
 
+### ZBIAS-1 — D3DRENDERSTATE_ZBIAS was mistranslated (fixed); it is NOT the runway lever
+
+The engine carries a per-surface `dwzBias` (`dxdefines.h:180`) and
+`CDXEngine::DrawSurface` pushes it as `D3DRENDERSTATE_ZBIAS` before drawing —
+the mechanism by which the original game draws decals that stay coplanar with
+what they sit on. The compat layer translated it as:
+
+```c
+glPolygonOffset(0.0f, -(float)value);
+```
+
+Two things wrong: **factor 0**, so no slope term at all — exactly the case that
+matters for a long flat surface at a glancing angle — and D3D7 `ZBIAS` is a 0..16
+enumeration rather than GL depth units. Fixed by adding the slope term.
+
+**Hypothesis that this explained the runway: DISPROVEN.** Tracing the actual
+values shows the data asks for `dwzBias=1` (34223 draws) and `dwzBias=16` (519),
+but the flat runway/tarmac surfaces carry **0** — they never take this path.
+Confirmed directly: with `FF_RUNWAY_ZLIFT=0 FF_RUNWAY_NOBIAS=1`, relying on the
+repaired ZBIAS alone, the runway does not render (bands read grass). So the
+Windows build must keep the runway visible by some other means, and *why* remains
+open — it is not this render state.
+
+Scale left deliberately conservative (1.0 factor and 1.0 units per step, i.e. the
+original unit magnitude plus the missing slope term). An earlier revision scaled
+units 128x per step, anchored on the -2048 that works for the runway batch — but
+that anchor is invalid precisely because the runway does not use ZBIAS, and it
+would have applied a large speculative offset to 34k surfaces per frame.
+`FF_ZBIAS_SCALE="factor,units"` tunes it if a reference is ever available.
+
+Verified no regression: TE 2 pit bands all read tarmac with defaults.
+
 ### TE2-5 — runway drawn 3ft above where aircraft stand (open)
 
 `drawbldg.cpp` places flat surfaces at `GetGroundLevel - 3ft` so they win the
