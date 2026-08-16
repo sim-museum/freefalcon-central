@@ -25,3 +25,7 @@ nohup.out
 FreeFalcon6.AppDir/
 *.AppImage
 build-relg/
+
+# FF_WARN=ON diagnostics tree (see CMakeLists FF_WARN option):
+#   cmake -DFF_WARN=ON -B build-warn && ninja -C build-warn 2>&1 | tee /tmp/warn.log
+build-warn/
