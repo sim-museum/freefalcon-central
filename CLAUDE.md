@@ -211,6 +211,25 @@ The main menu code is organized as follows:
 
 ## Known Issues
 
+### TOOLING TRAP: the default `grep` cannot see 30 of our source files
+
+`grep` in this environment is a shell function wrapping a ripgrep-style binary,
+and it **silently skips files it decides are binary**. This tree has **117 source
+files (30 unique after symlink dedup) containing non-UTF-8 bytes**, and they are
+invisible to it — no warning, no error, just missing results.
+
+It is not a subtle difference. `grep -rn TargetToXY src/` returns **5** hits;
+`/bin/grep -rn` returns **15**. `grep -c TargetToXY src/sim/radar/bscope.cpp`
+prints nothing at all while GNU grep counts 10.
+
+**When doing any completeness audit, use `/bin/grep` or read files in Python.**
+A "0 callers, therefore dead code" conclusion drawn from the default grep is not
+sound. (The audits done on 2026-08-16 were re-verified against `/bin/grep` and
+Python and all conclusions held — but only because the sweeps were Python-based.)
+
+Files with non-UTF-8 bytes must also be edited with `encoding="latin-1"` or as
+raw bytes; a naive UTF-8 read throws.
+
 ### CRITICAL: `#ifdef DEBUG` is LIVE in this build (found 2026-08-16)
 
 CMake defines `_DEBUG`, and `src/codelib/include/shi/assert.h` has a *"make
