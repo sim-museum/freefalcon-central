@@ -1149,11 +1149,34 @@ airbase.** With `FF_DEBUG_RUNWAY=1` over a full TE 2 run:
 - **no** `flat surface SKIPPED (prio > BuildingDeaggLevel)` traces, so they are
   not being priority-filtered — they never reach that code path.
 
-So the question is no longer "what elevation is the runway drawn at" but "why
-does the player's airbase never insert its flat surfaces". Next step: trace
-feature creation for the airbase under the player — visType, displayPriority and
-the `FEAT_FLAT_CONTAINER`/`FEAT_ELEV_CONTAINER` campaign flags — in
-`addobj.cpp:332-355`.
+**Root cause narrowed to one flag (2026-08-15).** A trace at the container
+dispatch (`addobj.cpp`, `FF_DEBUG_RUNWAY`) logs every feature that reaches it
+with its position and the two flags that decide its fate. Over a full TE 2 run,
+644 checks:
+
+```
+190x  alreadyBuilt=0 ELEV=0 FLAT=0  pos=(1041393,1267712)   <- the PLAYER's airbase
+ 34x  alreadyBuilt=1 ELEV=0 FLAT=1  pos=(1084875,1362831)   <- the distant one, works
+ 59x  alreadyBuilt=1 ELEV=1 FLAT=0  pos=(998784,1369793)    <- a bridge (ELEV)
+```
+
+`(1041393,1267712)` is the player's airbase — it matches the `objPos` in the
+`FindBestSpawnPoint` trace. It reaches the dispatch 190 times and **never has
+`FEAT_FLAT_CONTAINER` set**, so it never becomes a `DrawablePlatform`, never
+gets `InsertStaticSurface` called, and its runway is never drawn. The base 19
+miles away does have the flag and renders its 6 flat surfaces correctly.
+
+So this is not a rendering bug at all — the airbase is never classified as a
+flat container. `campaignFlags` is populated from `initData->flags`
+(`simbase.cpp:310`), which for features comes from the feature class data
+`Flags`. Since the PO's Wine gold shows a runway at this very base, the flag
+should be set and we are failing to derive it.
+
+**Next step:** compare the feature-class `Flags` our loader produces for the
+objective at `(1041393,1267712)` against what the data actually holds — this
+port has a long history of 32/64-bit field-width bugs in exactly this kind of
+decode (`fourbyte`, `unit_flags`, the DIRTY_* decoders), and a shifted flags word
+would present exactly like this.
 
 This also re-frames the older `CLAUDE.md` entry "runways/airstrips invisible +
 can't land": that is this defect, and it is about surface *insertion*, not

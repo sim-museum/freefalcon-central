@@ -273,6 +273,22 @@ void CreateDrawable(SimBaseClass* theObject, float objectScale)
                 else
                     baseObject = NULL;
 
+#ifdef FF_LINUX
+                // FF_LINUX: TE2-2 -- only ONE airbase platform is ever built in a TE 2
+                // run and it is ~19 miles from the player, so the base under the player
+                // never inserts its flat surfaces (no runway drawn). Log every feature
+                // that reaches the container dispatch, with position and the two flags
+                // that decide it, to find where the player's airbase drops out.
+                if (getenv("FF_DEBUG_RUNWAY"))
+                    fprintf(stderr, "[RUNWAY] container-check base=%p alreadyBuilt=%d ELEV=%d FLAT=%d pos=(%.0f,%.0f)\n",
+                            (void*)baseObject,
+                            baseObject ? (((SimFeatureClass*)baseObject)->baseObject ? 1 : 0) : -1,
+                            baseObject ? baseObject->IsSetCampaignFlag(FEAT_ELEV_CONTAINER) : -1,
+                            baseObject ? baseObject->IsSetCampaignFlag(FEAT_FLAT_CONTAINER) : -1,
+                            baseObject ? baseObject->XPos() : 0.0f,
+                            baseObject ? baseObject->YPos() : 0.0f);
+#endif
+
                 // Some things require Base Objects (like bridges and airbases)
                 if (baseObject and not ((SimFeatureClass*)baseObject)->baseObject)
                 {
