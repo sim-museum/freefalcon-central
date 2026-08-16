@@ -404,8 +404,9 @@ void CreateDrawable(SimBaseClass* theObject, float objectScale)
                         {
 #ifdef FF_LINUX
                             if (getenv("FF_DEBUG_RUNWAY"))
-                                fprintf(stderr, "[RUNWAY] InsertStaticSurface (flat runway/tarmac) visType=%d prio=%d\n",
-                                        visType, ((SimFeatureClass*)theObject)->displayPriority);
+                                fprintf(stderr, "[RUNWAY] InsertStaticSurface (flat runway/tarmac) visType=%d prio=%d pos=(%.0f,%.0f)\n",
+                                        visType, ((SimFeatureClass*)theObject)->displayPriority,
+                                        theObject->XPos(), theObject->YPos());
 #endif
                             ((DrawablePlatform*)((SimFeatureClass*)baseObject)->baseObject)->InsertStaticSurface(((DrawableBuilding*)theObject->drawPointer));
                         }

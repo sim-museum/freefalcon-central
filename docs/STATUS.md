@@ -1266,11 +1266,35 @@ Not a heading problem: the ATC data gives runway ends 020/200, and the aircraft
 sits at −159.9° ≡ 200.1°, i.e. correctly lined up with runway 20 — matching the
 TE screen's own SitRep, *"You are lined up on the runway, ready for take off."*
 
-So the surfaces that render appear to cover only the immediate apron/hardstand,
-not the runway ahead. Next step is to check what the 63 inserted surfaces
-actually are (extent and position relative to the aircraft) versus the airbase's
-full flat-surface set — i.e. whether some pieces are still not being inserted, or
-are inserted but culled at distance.
+**Measured — the surfaces ARE there, they are just invisible at distance.**
+Logging each inserted surface's position and transforming into the aircraft's
+frame (along = ahead, cross = right) shows an unmistakable runway chain running
+away from the aircraft:
+
+```
+along=  176  cross= -493
+along=  514  cross=    8
+along= 1038  cross= -498
+along= 2438  cross= -500
+along= 3585  cross=    3
+along= 5458  cross= -505      <- over a mile of runway, dead ahead
+```
+
+24 surfaces lie ahead of the aircraft, 21 within 3000 ft, the nearest 167 ft
+away. So insertion, position and heading are all correct — and the tarmac
+directly under the jet does render (visible in the orbit capture). What fails is
+visibility with **distance**.
+
+That points squarely at depth precision: the 3 ft geometric lift wins the depth
+test against the terrain mesh close up and loses it further out, so the runway
+dissolves into terrain as it recedes. This is the same family as RWY-2/RWY-3 and
+matches the PO's older description of the runway "pulling away like a carpet".
+
+**Next step:** confirm whether `FF_SetRunwayDepthBias` is actually being applied
+to these particular polys at flush time (the `[RUNWAY] depth bias ACTIVE` count
+is low relative to 63 surfaces), and if so why it is insufficient. A
+distance-scaled lift is the fallback, but the bias existing and not working would
+be the real bug.
 
 ### TE2-5 — runway drawn 3ft above where aircraft stand (open)
 
