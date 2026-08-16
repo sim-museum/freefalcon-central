@@ -2280,12 +2280,26 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                 // views show heavy moire/aliasing. Trilinear + anisotropic
                 // for grazing angles. FBO render targets are excluded.
                 if (!surf->fboId && surf->width > 1 && surf->height > 1) {
-                    glGenerateMipmap(GL_TEXTURE_2D);
-                    if (glGetError() == GL_NO_ERROR) {
-                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-                        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
-                    } else {
+                    // FF_LINUX (TE2-7 A/B): FF_NO_MIPMAP=1 pins sampling to mip 0.
+                    // Thin markings on a runway (white lines over grey concrete)
+                    // average to uniform grey within a couple of mip levels, which
+                    // is the leading explanation for the flat-grey tarmac. This is
+                    // a DIAGNOSTIC toggle, not a fix -- disabling mipmaps outright
+                    // brings back the terrain moire that d2836c60 fixed.
+                    static int s_noMip = -1;
+                    if (s_noMip < 0) s_noMip = getenv("FF_NO_MIPMAP") ? 1 : 0;
+
+                    if (s_noMip) {
                         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+                    } else {
+                        glGenerateMipmap(GL_TEXTURE_2D);
+                        if (glGetError() == GL_NO_ERROR) {
+                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+                            glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 8.0f);
+                        } else {
+                            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                        }
                     }
                 }
             }

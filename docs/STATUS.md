@@ -1342,16 +1342,43 @@ So the art exists, resolves, and is bound to the right surfaces. **The markings
 are lost in rendering, not missing from the data** — which retires the whole
 "content" line of enquiry that (3) pointed at.
 
-Strongest remaining candidate: **mip level**. `d2836c60` added
-`glGenerateMipmap` + `GL_LINEAR_MIPMAP_LINEAR` + 8× aniso at upload for every
-non-FBO texture (it fixed real terrain moire). A 512² texture whose markings are
-thin white lines on grey concrete averages to *uniform grey* within two or three
-mip levels, and a runway is the worst case for this — viewed at a grazing angle
-and stretched over a long surface. That predicts exactly the reported symptom
-(flat grey tarmac) and explains why it appeared without anyone touching runway
-code. Test by forcing `GL_LINEAR` (mip 0) for object textures and re-capturing;
-if the markings return, the fix is a proper LOD-bias / aniso correction rather
-than disabling mipmaps (which would bring back the moire).
+5. **Mip-level blur — disproven by measurement, 2026-08-16.** The leading theory
+   was that `d2836c60`'s `glGenerateMipmap` + `LINEAR_MIPMAP_LINEAR` + 8× aniso
+   averaged thin white lines into grey. Added `FF_NO_MIPMAP=1` (d3d_gl.cpp) to
+   pin sampling to mip 0 and captured the identical HUD-view frame both ways:
+
+   | | median lum | stdev | bright pixels (marking proxy) |
+   |---|---|---|---|
+   | mipmaps on | 96.0 | 12.4 | 1644 (0.88%) |
+   | mip 0 only | 96.0 | 12.5 | 1656 (0.88%) |
+
+   No difference. Filtering is not the cause.
+
+**The symptom was mis-stated, and the corrected statement points somewhere else.**
+The tarmac is *not* uniformly unmarked. Capturing the HUD view on the runway
+(`FF_VIEW_SCRIPT="0@62;s@68"`, noting the script clock runs from **program
+start**, so 3D entry is ~60s in for TE 2) shows the dashed centreline and the
+tyre-rubber streaks rendering correctly in the middle distance. Scanning bright
+-pixel fraction down the central runway column gives a **hard cutoff**:
+
+```
+  rows 390-420    4.53%   <- markings render
+  rows 420-450    3.72%   <- markings render
+  rows 450-480    0.00%   <- and stop, abruptly
+  ... every band down to row 780: 0.00%
+```
+
+So markings draw beyond a threshold distance and are *completely* absent nearer
+than it — with no fade. A clean distance discontinuity like that is an **LOD /
+representation switch**, not a texture, filtering, binding or depth problem, all
+of which would degrade smoothly or fail everywhere.
+
+Next: identify what changes at that boundary. The likely shape is that the far
+representation paints a baked airfield image (markings included) while the near
+representation draws the airbase's own flat surfaces, and it is the *near* set
+that comes out plain. Note this is the same near-field region as the old
+"green carpet under the jet" (TE2-2) and plausibly the same surfaces the 3ft
+decal in TE2-5 lifts — worth checking whether the decal path drops the texture.
 
 Two dead ends worth not repeating, found while chasing this:
 - `Texture::DumpImageToFile()` cannot be used to inspect texture content here.
