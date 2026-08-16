@@ -3981,9 +3981,12 @@ build now returns cleanly to the campaign-select screen.
 requestcampaigndata, …) follow the same `new uchar[]`/`delete` pattern and are
 latent — fix as ASAN surfaces them in their flows (mostly multiplayer).
 
-**Left for later (benign):** two pre-existing 1-byte READ over-reads in
-objectiv.cpp `GetFeatureStatus`/`BestTargetFeature` (`fstatus[f/4]` and stack
-`targeted[f]` when feature count exceeds the buffer) — reads only, don't corrupt.
+**~~Left for later (benign)~~ — both FIXED in a later session (verified 2026-08-16):**
+the two 1-byte READ over-reads in objectiv.cpp. `GetFeatureStatus` now bounds the
+byte index against the real `fstatus` allocation `((Features*2)+7)/8` (the old
+`f > 255` guard ran *after* the `f % 4` reduction and never bounded `i` at all),
+and `BestTargetFeature` caps its loop at 128 to match the `uchar targeted[128]`
+both callers pass. Re-check before believing any "left for later" note here.
 
 ---
 

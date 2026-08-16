@@ -1325,11 +1325,46 @@ retried:
    carries real, varied textures: `texFlag=1` with `m_TexID` values 1544, 747,
    5031, 50, 187, 746, 734, 177 across surfaces.
 
-So the surfaces are textured and drawn; what is missing is marking *content*.
-Next candidates: whether the marking texture files resolve at all on a
-case-sensitive filesystem, and whether the texture content itself is being loaded
-correctly (this port has a history of DDS header-size bugs producing valid-looking
-but wrong texture data — see the `sizeof(DDSURFACEDESC2)` fixes).
+4. **Missing / unresolvable marking art — disproven, 2026-08-16.** In DDS mode
+   (`SyncDDSTextures`) every object texture id is a loose file
+   `terrdata/objects/KoreaOBJ/<id>.dds`, so the ids from (3) can be inspected
+   with no instrumentation at all. They resolve, and they contain exactly the
+   markings the PO's Wine shot shows:
+
+   | id | size | content |
+   |---|---|---|
+   | 747 | 131200 (512² DXT1) | runway with **dashed white centreline** |
+   | 50 | 174904 | **yellow threshold chevrons** on tarmac |
+   | 734 | 131200 | runway **number "8"** + threshold bar |
+   | 1544 | 174904 | chain-link perimeter fence (not runway) |
+
+So the art exists, resolves, and is bound to the right surfaces. **The markings
+are lost in rendering, not missing from the data** — which retires the whole
+"content" line of enquiry that (3) pointed at.
+
+Strongest remaining candidate: **mip level**. `d2836c60` added
+`glGenerateMipmap` + `GL_LINEAR_MIPMAP_LINEAR` + 8× aniso at upload for every
+non-FBO texture (it fixed real terrain moire). A 512² texture whose markings are
+thin white lines on grey concrete averages to *uniform grey* within two or three
+mip levels, and a runway is the worst case for this — viewed at a grazing angle
+and stretched over a long surface. That predicts exactly the reported symptom
+(flat grey tarmac) and explains why it appeared without anyone touching runway
+code. Test by forcing `GL_LINEAR` (mip 0) for object textures and re-capturing;
+if the markings return, the fix is a proper LOD-bias / aniso correction rather
+than disabling mipmaps (which would bring back the moire).
+
+Two dead ends worth not repeating, found while chasing this:
+- `Texture::DumpImageToFile()` cannot be used to inspect texture content here.
+  It ends in `Texture::SaveDDS_DXTn()`, whose **entire body** is inside
+  `#if _MSC_VER >= 1300` and which `return true`s unconditionally — on Linux it
+  reports success and writes no file.
+- `TexturePool[id].tex.dimensions` is not a side length at runtime; it read
+  131072 for every id sampled, which is the *byte size* of a 512² DXT1. Do not
+  trust the bank's palettized-path metadata in DDS mode.
+
+`FF_DUMP_OBJTEX="id,id,..."` (texbank.cpp) dumps the palettized-bank content of
+given ids to `/tmp/ff_objtex_<id>.bmp`; it is the right tool if the bank is ever
+run in palette mode, but in DDS mode read the `.dds` files directly as above.
 
 ### SESS-5 — SIGINT/SIGTERM tore down GL from the signal handler (fixed)
 

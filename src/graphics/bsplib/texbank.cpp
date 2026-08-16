@@ -579,6 +579,137 @@ void TextureBankClass::SelectHandle(intptr_t TexHandle)
     TheStateStack.context->SelectTexture1(TexHandle);
 }
 
+#ifdef FF_LINUX
+// FF_LINUX (TE2-7 diagnostic): FF_DUMP_OBJTEX="1544,747,5031,..." dumps the
+// *loaded content* of those object-bank texture ids to /tmp/ff_objtex_<id>.dds,
+// once each, as soon as the id has image data and a palette.
+//
+// Object textures are 8-bit indices into a bank palette, not loose DDS files, so
+// there is nothing on disk to inspect directly -- this is the only way to see
+// what the runway surfaces are actually textured with. It answers whether the
+// tarmac art itself carries painted markings (so we are losing them in
+// rendering) or is plain grey (so the markings live on surfaces we never draw).
+void TextureBankClass::DumpRequestedTextures(void)
+{
+    static int  s_state = -1;      // -1 unparsed, 0 disabled, 1 active
+    static int  s_ids[32];
+    static bool s_done[32];
+    static int  s_n = 0;
+
+    if (s_state < 0)
+    {
+        s_state = 0;
+        const char *spec = getenv("FF_DUMP_OBJTEX");
+
+        if (spec and *spec)
+        {
+            const char *p = spec;
+
+            while (*p and s_n < 32)
+            {
+                char *end = NULL;
+                long v = strtol(p, &end, 10);
+
+                if (end == p) break;
+
+                s_ids[s_n] = (int)v;
+                s_done[s_n] = false;
+                s_n++;
+                p = (*end == ',') ? end + 1 : end;
+            }
+
+            s_state = (s_n > 0) ? 1 : 0;
+            fprintf(stderr, "[OBJTEX] dumping %d texture id(s) on load\n", s_n);
+            fflush(stderr);
+        }
+    }
+
+    if (s_state != 1) return;
+
+    for (int k = 0; k < s_n; k++)
+    {
+        if (s_done[k]) continue;
+
+        int id = s_ids[k];
+
+        if (not IsValidIndex(id)) { s_done[k] = true; continue; }
+
+        Texture *t = &TexturePool[id].tex;
+
+        if (not t->imageData or not t->GetPalette() or not t->GetPalette()->paletteData)
+            continue;   // not loaded yet - try again next frame
+
+        // NB: Texture::DumpImageToFile() is useless here -- it ends in
+        // Texture::SaveDDS_DXTn(), whose entire body sits inside
+        // "#if _MSC_VER >= 1300" and which returns true unconditionally. On
+        // Linux it reports success and writes nothing. Write a BMP directly.
+        const int dim = t->dimensions;
+
+        if (dim <= 0 or dim > 4096)
+        {
+            fprintf(stderr, "[OBJTEX] id=%d implausible dimensions=%d -- not dumping\n", id, dim);
+            fflush(stderr);
+            s_done[k] = true;
+            continue;
+        }
+
+        char path[256];
+        sprintf(path, "/tmp/ff_objtex_%d.bmp", id);
+        FILE *fp = fopen(path, "wb");
+
+        if (not fp) { s_done[k] = true; continue; }
+
+        const BYTE  *src = (const BYTE *)t->imageData;
+        const DWORD *pal = t->GetPalette()->paletteData;
+        const int    rowBytes = dim * 3;
+        const int    pad = (4 - (rowBytes % 4)) % 4;
+        const int    imgBytes = (rowBytes + pad) * dim;
+        unsigned char hdr[54];
+
+        memset(hdr, 0, sizeof(hdr));
+        hdr[0] = 'B'; hdr[1] = 'M';
+        *(int *)(hdr + 2) = 54 + imgBytes;
+        *(int *)(hdr + 10) = 54;
+        *(int *)(hdr + 14) = 40;
+        *(int *)(hdr + 18) = dim;
+        *(int *)(hdr + 22) = dim;
+        *(short *)(hdr + 26) = 1;
+        *(short *)(hdr + 28) = 24;
+        *(int *)(hdr + 34) = imgBytes;
+        fwrite(hdr, 1, sizeof(hdr), fp);
+
+        int distinct = 0;
+        unsigned char seen[256];
+        memset(seen, 0, sizeof(seen));
+
+        for (int y = dim - 1; y >= 0; y--)   // BMP rows are bottom-up
+        {
+            for (int x = 0; x < dim; x++)
+            {
+                BYTE  ix = src[y * dim + x];
+                DWORD c  = pal[ix];
+
+                if (not seen[ix]) { seen[ix] = 1; distinct++; }
+
+                fputc((int)(c bitand 0xff), fp);          // B
+                fputc((int)((c >> 8) bitand 0xff), fp);   // G
+                fputc((int)((c >> 16) bitand 0xff), fp);  // R
+            }
+
+            for (int p = 0; p < pad; p++) fputc(0, fp);
+        }
+
+        fclose(fp);
+        fprintf(stderr, "[OBJTEX] id=%d dim=%d flags=0x%x chroma=0x%x palID=%d "
+                "distinctIndices=%d -> %s\n",
+                id, dim, (unsigned)t->flags, (unsigned)t->chromaKey,
+                (int)TexturePool[id].palID, distinct, path);
+        fflush(stderr);
+        s_done[k] = true;
+    }
+}
+#endif
+
 
 BOOL TextureBankClass::IsValidIndex(int id)
 {

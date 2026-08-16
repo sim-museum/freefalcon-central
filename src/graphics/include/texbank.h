@@ -85,6 +85,10 @@ public:
     static void RestoreTexturePool();
     static void SelectHandle(intptr_t);
     static intptr_t GetHandle(DWORD id);
+#ifdef FF_LINUX
+    // TE2-7 diagnostic, gated on FF_DUMP_OBJTEX (see texbank.cpp).
+    static void DumpRequestedTextures(void);
+#endif
 
 
 protected:

@@ -490,6 +490,12 @@ void OTWDriverClass::Cycle(void)
     }
 
 #ifdef FF_LINUX
+    // TE2-7: FF_DUMP_OBJTEX="id,..." dumps those object textures once loaded.
+    // No-ops (one static read) unless the variable is set.
+    TheTextureBank.DumpRequestedTextures();
+#endif
+
+#ifdef FF_LINUX
     // FF_DEBUG_GROUND: sample the terrain elevation under the player against the
     // aircraft's own z, once a second. z is positive-down, so aboveGround =
     // groundZ - acZ: positive means the aircraft is above the terrain, NEGATIVE
