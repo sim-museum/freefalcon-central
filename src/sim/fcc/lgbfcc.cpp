@@ -866,9 +866,12 @@ void FireControlComputer::CheckFeatures(LaserPodClass* targetingPod)
         if (closestObj)
         {
             Tpoint pos;
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(FF_LINUX)
             //tmpTarget = new SimObjectType(OBJ_TAG, platform, closestObj);
 #else
+            // FF_LINUX: worse than the campweaponfiremsg case -- under DEBUG
+            // (which IS defined here, via _DEBUG) tmpTarget was never assigned
+            // at all, so Reference()/Release() ran on an uninitialised pointer.
             tmpTarget = new SimObjectType(closestObj);
 #endif
             tmpTarget->Reference();

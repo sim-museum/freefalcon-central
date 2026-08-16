@@ -1250,10 +1250,15 @@ FireMissileAtSim(CampEntity shooter, SimBaseClass *simTarg, short weapId)
     theMissile->SetDelta(shooter->XDelta(), shooter->YDelta(), shooter->ZDelta());
 
     // create a target object
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(FF_LINUX)
     //tmpTargetPtr = new SimObjectType( OBJ_TAG, theMissile, simTarg );
     tmpTargetPtr = NULL;
 #else
+    // FF_LINUX: the build defines _DEBUG, and shi/assert.h turns that into
+    // DEBUG -- so the branch above was LIVE and this dereferenced NULL twice
+    // (Reference() here, Release() further down). The 3-arg OBJ_TAG constructor
+    // it was meant to call no longer exists, which is why it was commented out
+    // and replaced with a bare NULL. Use the current 1-arg constructor.
     tmpTargetPtr = new SimObjectType(simTarg);
 #endif
     tmpTargetPtr->Reference();
