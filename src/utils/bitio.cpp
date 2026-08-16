@@ -65,13 +65,13 @@ void CloseOutputBitFile(BIT_FILE *bit_file)
             printf("Fatal error in CloseBitFile");
 
     fclose(bit_file->file);
-    delete [] bit_file;
+    delete bit_file;  // FF_LINUX: allocated with scalar `new BIT_FILE`, not new[]
 }
 
 void CloseInputBitFile(BIT_FILE *bit_file)
 {
     fclose(bit_file->file);
-    delete [] bit_file;
+    delete bit_file;  // FF_LINUX: allocated with scalar `new BIT_FILE`, not new[]
 }
 
 void OutputBit(BIT_FILE *bit_file, int bit)
