@@ -1710,6 +1710,49 @@ cmake -DFF_WARN=ON -B build-warn && ninja -C build-warn 2>&1 | tee /tmp/warn.log
    caller ending in it looked like it fell off a non-void function — burying the
    real `-Wreturn-type` signal under a false positive.
 
+**The biggest find: `#ifdef DEBUG` is LIVE in this build.**
+
+`-Wnonnull` ("'this' pointer is null") pointed at two null dereferences, and the
+warning is itself the proof the branch compiles — GCC only emits it when it can
+see the pointer is provably null at the call. Following that up turned into a
+seven-site class.
+
+CMake defines `_DEBUG`, and `shi/assert.h` contains a *"make defining of DEBUG and
+_DEBUG automagic"* block that promotes either one to both. So **every
+`#ifdef DEBUG` branch in the codebase is the branch that compiles.** They read as
+dead debug-only code; they are not.
+
+The damage follows a single history. `SimObjectType` once took a 3-arg `OBJ_TAG`
+constructor. When that signature disappeared, each call was commented out under
+`#ifdef DEBUG` — but the *dereference below it* was left in place:
+
+```c
+#ifdef DEBUG
+    //airtargetPtr = new SimObjectType( OBJ_TAG, self, (FalconEntity*) airtarget );
+#else
+    airtargetPtr = new SimObjectType((FalconEntity*) airtarget);
+#endif
+    airtargetPtr->Reference();          // <-- NULL in this build
+```
+
+Seven sites, all fixed with `#if defined(DEBUG) && !defined(FF_LINUX)`:
+
+| site | pointer | path |
+|---|---|---|
+| `campweaponfiremsg.cpp:1255` | `tmpTargetPtr` | campaign unit fires a missile (deref'd twice) |
+| `lgbfcc.cpp:869` | `tmpTarget` | LGB fire control — *never assigned at all* |
+| `dlogic.cpp:104` | `airtargetPtr` | AI pilot acquires an air target |
+| `fccmain.cpp:1137` | `retObject` | FCC targets a ground feature |
+| `tankbrn.cpp:1280` | `tankingPtr` | tanker logic |
+| `h_dlogic.cpp:293` | `targetPtr` | helicopter digital pilot |
+| `target.cpp:79` | `newTarget` | missile shared its target instead of copying it |
+
+Found the first two with the compiler; found the remaining five with a structural
+search (the `#else` assigns a pointer, the `DEBUG` branch does not, the pointer is
+dereferenced after `#endif`) over all 195 `#ifdef DEBUG` blocks in the built tree.
+The compiler can only prove the ones it can see locally — worth remembering that
+a warning is a *starting point* for a class sweep, not the end of one.
+
 **Triage note, to save the next session the work:** the ~38 int/pointer-cast
 warnings look alarming and are mostly *not* defects. They are misplaced casts like
 `(SimBaseClass*)entity->IsDead()`, where the cast binds to the **call result**

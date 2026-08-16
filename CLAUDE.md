@@ -211,6 +211,22 @@ The main menu code is organized as follows:
 
 ## Known Issues
 
+### CRITICAL: `#ifdef DEBUG` is LIVE in this build (found 2026-08-16)
+
+CMake defines `_DEBUG`, and `src/codelib/include/shi/assert.h` has a *"make
+defining of DEBUG and _DEBUG automagic"* block that promotes either one to both.
+**So `#ifdef DEBUG` branches are the ones that compile.** They look like dead
+debug-only code and are not.
+
+This produced seven null/wild dereferences: a `SimObjectType` constructor was
+commented out under `#ifdef DEBUG` when its old 3-arg `OBJ_TAG` signature was
+removed, while the `->Reference()` / `->Release()` below it stayed. Fixed with
+`#if defined(DEBUG) && !defined(FF_LINUX)`. Before changing anything guarded by
+`DEBUG`, check which branch actually compiles.
+
+Related: build with `cmake -DFF_WARN=ON` to get diagnostics — the build otherwise
+passes `-w` and the compiler says nothing at all.
+
 ### Diagnostic Code
 Several debug fprintf statements were added during investigation. These should be removed or wrapped in `#ifdef DEBUG` for release builds.
 
