@@ -472,6 +472,13 @@ int FF_PopMouseEvents(DIDEVICEOBJECTDATA* outBuf, int maxEvents) {
 
 // SDL joystick globals
 static SDL_Joystick* g_SDLJoystick = nullptr;
+// FF_LINUX (SESS-4 harness): index of the SDL virtual joystick when
+// FF_VIRTUAL_JOYSTICK is set, else -1. See InitSDLJoystick.
+static int g_VirtualJoyIndex = -1;
+// SESS-4 instrumentation: distinguish "no SDL hat event arrived" from
+// "arrived but was filtered/overwritten".
+static int g_hatEventCount = 0, g_hatAcceptedCount = 0;
+static int g_hatLastWhich = -999, g_hatLastValue = -1;
 static int g_JoystickIndex = -1;
 static int g_JoystickNumAxes = 0;
 static int g_JoystickNumButtons = 0;
@@ -636,14 +643,49 @@ static void InitSDLJoystick() {
         }
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX (SESS-4 test harness): FF_VIRTUAL_JOYSTICK=1 attaches an SDL
+    // virtual joystick (4 axes, 8 buttons, 1 hat) so the POV-hat -> view-pan path
+    // can be exercised with no hardware. SDL feeds it through the ordinary
+    // SDL_JOYHATMOTION/SDL_JOYAXISMOTION event path, so this tests the real code,
+    // not a bypass. Drive it with FF_SIM_HAT (see ServiceVirtualHatScript).
+    // Only attaches when no real stick is present, so it can never shadow one.
+    static int s_virtJoy = -1;
+
+    if (s_virtJoy < 0) s_virtJoy = getenv("FF_VIRTUAL_JOYSTICK") ? 1 : 0;
+
+    if (s_virtJoy == 1)
+    {
+        // Attach even when a real stick is present -- the test needs a device
+        // whose hat we can drive, and SDL_JoystickSetVirtualHat only works on a
+        // virtual one. g_VirtualJoyIndex makes the open below prefer it.
+        int vidx = SDL_JoystickAttachVirtual(SDL_JOYSTICK_TYPE_GAMECONTROLLER, 4, 8, 1);
+
+        if (vidx < 0)
+            FF_ERROR("FF_VIRTUAL_JOYSTICK: attach failed: %s\n", SDL_GetError());
+        else
+        {
+            g_VirtualJoyIndex = vidx;
+            fprintf(stderr, "[VJOY] attached virtual joystick at index %d "
+                    "(4 axes, 8 buttons, 1 hat); real sticks present: %d\n",
+                    vidx, SDL_NumJoysticks() - 1);
+        }
+
+        fflush(stderr);
+        s_virtJoy = 2;   // once
+    }
+
+#endif
+
     int numJoysticks = SDL_NumJoysticks();
     FF_DEBUG_JOYSTICK("Found %d joystick(s)\n", numJoysticks);
 
     if (numJoysticks > 0) {
         // Open the first joystick
-        g_SDLJoystick = SDL_JoystickOpen(0);
+        int openIdx = (g_VirtualJoyIndex >= 0) ? g_VirtualJoyIndex : 0;
+        g_SDLJoystick = SDL_JoystickOpen(openIdx);
         if (g_SDLJoystick) {
-            g_JoystickIndex = 0;
+            g_JoystickIndex = SDL_JoystickInstanceID(g_SDLJoystick);
             g_JoystickNumAxes = SDL_JoystickNumAxes(g_SDLJoystick);
             g_JoystickNumButtons = SDL_JoystickNumButtons(g_SDLJoystick);
             g_JoystickNumHats = SDL_JoystickNumHats(g_SDLJoystick);
@@ -2110,7 +2152,11 @@ static void handle_sdl_events(void) {
                 break;
 
             case SDL_JOYHATMOTION:
+                g_hatEventCount++;
+                g_hatLastWhich = (int)event.jhat.which;
+                g_hatLastValue = (int)event.jhat.value;
                 if (event.jhat.which == g_JoystickIndex && event.jhat.hat < SIMLIB_MAX_POV) {
+                    g_hatAcceptedCount++;
                     IO.povHatAngle[event.jhat.hat] = ConvertSDLHatToPOV(event.jhat.value);
                 }
                 break;
@@ -2946,6 +2992,100 @@ static void main_loop(void) {
                         s_keys[ki].phase = 2;
                         fprintf(stderr, "[FF_SIM_KEY] UP   dik=0x%02x at %ums\n", s_keys[ki].dik, el);
                         FF_PushKeyEvent(s_keys[ki].dik, false);
+                    }
+                }
+            }
+        }
+
+        // FF_LINUX (SESS-4): re-assert the POV hat from live SDL state every
+        // frame. SDL only reports the hat on CHANGE, but DirectInput -- which the
+        // sim was written against -- was polled, so IO.povHatAngle held its value
+        // for as long as the hat was pressed. Here it was written once per edge
+        // and then cleared again (IO.ResetAllInputs zeroes every POV), so a HELD
+        // hat produced at most a single frame of pan instead of continuous
+        // movement. Measured with FF_VIRTUAL_JOYSTICK + FF_SIM_HAT: the event
+        // arrives and is accepted (hatEvents=1 accepted=1) yet povHatAngle reads
+        // -1 again 800ms later. Re-asserting each frame makes it level-driven.
+        if (g_SDLJoystick && g_JoystickNumHats > 0) {
+            for (int h = 0; h < g_JoystickNumHats && h < SIMLIB_MAX_POV; h++) {
+                IO.povHatAngle[h] = ConvertSDLHatToPOV(SDL_JoystickGetHat(g_SDLJoystick, h));
+            }
+        }
+
+        // FF_LINUX debug (SESS-4): scripted POV-hat input via
+        // FF_SIM_HAT="dir@sec[+holdms];..." where dir is one of
+        // c(entre) u d l r ul ur dl dr, sec is seconds after entering sim mode and
+        // holdms defaults to 1000. Requires FF_VIRTUAL_JOYSTICK=1 (or a real
+        // stick's index 0 being virtual). Setting the virtual hat makes SDL emit a
+        // genuine SDL_JOYHATMOTION, so this drives the real
+        // event -> IO.povHatAngle -> ProcessJoyButtonAndPOVHat path.
+        if (!doUI) {
+            static int s_hatInit = 0;
+            static struct { Uint8 val; Uint32 atMs; Uint32 holdMs; int phase; Uint32 downAt; int verified; } s_hats[16];
+            static int s_nHats = 0;
+            static Uint32 s_hatStart = 0;
+
+            if (!s_hatInit) {
+                s_hatInit = 1;
+                const char* e = getenv("FF_SIM_HAT");
+                if (e) {
+                    char buf[256];
+                    strncpy(buf, e, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
+                    for (char* tok = strtok(buf, ";"); tok && s_nHats < 16; tok = strtok(NULL, ";")) {
+                        char dir[8] = {0}; float at = 0; unsigned hold = 1000;
+                        if (sscanf(tok, "%7[a-z]@%f+%u", dir, &at, &hold) >= 2) {
+                            Uint8 v = SDL_HAT_CENTERED;
+                            if (!strcmp(dir, "u"))       v = SDL_HAT_UP;
+                            else if (!strcmp(dir, "d"))  v = SDL_HAT_DOWN;
+                            else if (!strcmp(dir, "l"))  v = SDL_HAT_LEFT;
+                            else if (!strcmp(dir, "r"))  v = SDL_HAT_RIGHT;
+                            else if (!strcmp(dir, "ul")) v = SDL_HAT_LEFTUP;
+                            else if (!strcmp(dir, "ur")) v = SDL_HAT_RIGHTUP;
+                            else if (!strcmp(dir, "dl")) v = SDL_HAT_LEFTDOWN;
+                            else if (!strcmp(dir, "dr")) v = SDL_HAT_RIGHTDOWN;
+                            s_hats[s_nHats].val = v;
+                            s_hats[s_nHats].atMs = (Uint32)(at * 1000.0f);
+                            s_hats[s_nHats].holdMs = hold;
+                            s_hats[s_nHats].phase = 0;
+                            s_hats[s_nHats].verified = 0;
+                            s_nHats++;
+                        }
+                    }
+                    fprintf(stderr, "[FF_SIM_HAT] parsed %d hat events\n", s_nHats);
+                    fflush(stderr);
+                }
+            }
+
+            if (s_nHats && g_SDLJoystick) {
+                if (!s_hatStart) s_hatStart = SDL_GetTicks();
+                Uint32 el = SDL_GetTicks() - s_hatStart;
+                for (int hi = 0; hi < s_nHats; hi++) {
+                    if (s_hats[hi].phase == 0 && el >= s_hats[hi].atMs) {
+                        s_hats[hi].phase = 1;
+                        s_hats[hi].downAt = el;
+                        SDL_JoystickSetVirtualHat(g_SDLJoystick, 0, s_hats[hi].val);
+                        fprintf(stderr, "[FF_SIM_HAT] SET hat=0x%02x at %ums\n", s_hats[hi].val, el);
+                        fflush(stderr);
+                    } else if (s_hats[hi].phase == 1 && el >= s_hats[hi].downAt + 800 &&
+                               !s_hats[hi].verified) {
+                        // Read back the value the SDL event path actually
+                        // deposited, ~800ms after the hat was set. This is the
+                        // thing SESS-4 is about: NumberOfPOVs must be non-zero
+                        // (ProcessJoyButtonAndPOVHat loops over it) and
+                        // IO.povHatAngle[0] must carry the POV angle.
+                        extern unsigned int NumberOfPOVs;
+                        s_hats[hi].verified = 1;
+                        fprintf(stderr, "[FF_SIM_HAT] VERIFY NumberOfPOVs=%u IO.povHatAngle[0]=%d "
+                                "hatEvents=%d accepted=%d lastWhich=%d (g_JoystickIndex=%d) lastVal=0x%02x\n",
+                                NumberOfPOVs, (int)IO.povHatAngle[0],
+                                g_hatEventCount, g_hatAcceptedCount,
+                                g_hatLastWhich, g_JoystickIndex, g_hatLastValue);
+                        fflush(stderr);
+                    } else if (s_hats[hi].phase == 1 && el >= s_hats[hi].downAt + s_hats[hi].holdMs) {
+                        s_hats[hi].phase = 2;
+                        SDL_JoystickSetVirtualHat(g_SDLJoystick, 0, SDL_HAT_CENTERED);
+                        fprintf(stderr, "[FF_SIM_HAT] CENTRE at %ums\n", el);
+                        fflush(stderr);
                     }
                 }
             }
