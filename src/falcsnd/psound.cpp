@@ -344,8 +344,9 @@ long CSoundMgr::FillRiffInfo(char *memory, RIFF_FILE *riff)
 
     ptr += 4;
 
-    datasize = *(long*)ptr;
-    ptr += sizeof(long);
+    // FF_LINUX: the RIFF size field is 4 bytes on disk
+    datasize = *(int32_t*)ptr;
+    ptr += sizeof(int32_t);
 
     memset(riff, 0, sizeof(RIFF_FILE));
 
@@ -359,13 +360,14 @@ long CSoundMgr::FillRiffInfo(char *memory, RIFF_FILE *riff)
         {
             hdr = ptr;
             ptr += 4;
-            size = *(long*)ptr;
+            // FF_LINUX: 4-byte on-disk chunk size (the pointer already advanced by 4)
+            size = *(int32_t*)ptr;
             ptr += 4;
 
             if ( not strncmp(hdr, "fmt ", 4))
                 riff->Format = (WAVEFORMATEX*)ptr;
             else if ( not strncmp(hdr, "fact", 4))
-                riff->NumSamples = *(long*)ptr;
+                riff->NumSamples = *(int32_t*)ptr;
             else if ( not strncmp(hdr, "data", 4))
             {
                 riff->Start = ptr;
@@ -467,7 +469,10 @@ RIFF_FILE *CSoundMgr::LoadRiff(char *filename)
 long CSoundMgr::SkipRiffHeader(FILE *fp)
 {
     char buffer[256];
-    long size, totalsize, bytesread;
+    // FF_LINUX: RIFF chunk sizes are 4 bytes on disk; `long` is 8 here, which
+    // both desynced the parse and fed a garbage `size` to the fread below.
+    int32_t size, totalsize;
+    long bytesread;
 
     fread(buffer, 4, 1, fp);
 
@@ -475,8 +480,8 @@ long CSoundMgr::SkipRiffHeader(FILE *fp)
         return(0);
 
     bytesread = 4;
-    fread(&totalsize, sizeof(long), 1, fp);
-    bytesread += sizeof(long);
+    fread(&totalsize, sizeof(int32_t), 1, fp);
+    bytesread += sizeof(int32_t);
     fread(buffer, 4, 1, fp);
     bytesread += 4;
 
@@ -485,8 +490,8 @@ long CSoundMgr::SkipRiffHeader(FILE *fp)
 
     totalsize -= 4;
     fread(buffer, 4, 1, fp);
-    fread(&size, sizeof(long), 1, fp);
-    bytesread += 4 + sizeof(long);
+    fread(&size, sizeof(int32_t), 1, fp);
+    bytesread += 4 + sizeof(int32_t);
     totalsize -= 8;
 
     while (totalsize > 0 and strncmp(buffer, "data", 4))
@@ -503,8 +508,8 @@ long CSoundMgr::SkipRiffHeader(FILE *fp)
         bytesread += size;
         totalsize -= size;
         fread(buffer, 4, 1, fp);
-        fread(&size, sizeof(long), 1, fp);
-        bytesread += 4 + sizeof(long);
+        fread(&size, sizeof(int32_t), 1, fp);
+        bytesread += 4 + sizeof(int32_t);
         totalsize -= 8;
     }
 
@@ -519,7 +524,9 @@ long CSoundMgr::SkipRiffHeader(FILE *fp)
 long CSoundMgr::SkipRiffHeader(HANDLE fp)
 {
     char buffer[256];
-    long size, totalsize, bytesread;
+    // FF_LINUX: see the FILE* overload -- 4-byte on-disk RIFF chunk sizes.
+    int32_t size, totalsize;
+    long bytesread;
     DWORD br;
 
     ReadFile(fp, buffer, 4, &br, NULL);
@@ -528,8 +535,8 @@ long CSoundMgr::SkipRiffHeader(HANDLE fp)
         return(0);
 
     bytesread = 4;
-    ReadFile(fp, &totalsize, sizeof(long), &br, NULL);
-    bytesread += sizeof(long);
+    ReadFile(fp, &totalsize, sizeof(int32_t), &br, NULL);
+    bytesread += sizeof(int32_t);
     ReadFile(fp, buffer, 4, &br, NULL);
 
     if (strncmp(buffer, "WAVE", 4))
@@ -538,8 +545,8 @@ long CSoundMgr::SkipRiffHeader(HANDLE fp)
     bytesread += 4;
     totalsize -= 4;
     ReadFile(fp, buffer, 4, &br, NULL);
-    ReadFile(fp, &size, sizeof(long), &br, NULL);
-    bytesread += 4 + sizeof(long);
+    ReadFile(fp, &size, sizeof(int32_t), &br, NULL);
+    bytesread += 4 + sizeof(int32_t);
     totalsize -= 8;
 
     while (totalsize > 0 and strncmp(buffer, "data", 4))
@@ -556,8 +563,8 @@ long CSoundMgr::SkipRiffHeader(HANDLE fp)
         bytesread += size;
         totalsize -= size;
         ReadFile(fp, buffer, 4, &br, NULL);
-        ReadFile(fp, &size, sizeof(long), &br, NULL);
-        bytesread += 4 + sizeof(long);
+        ReadFile(fp, &size, sizeof(int32_t), &br, NULL);
+        bytesread += 4 + sizeof(int32_t);
         totalsize -= 8;
     }
 
@@ -589,7 +596,11 @@ long CSoundMgr::LoadRiffFormat(char *filename, WAVEFORMATEX *Format, long *Heade
 long CSoundMgr::LoadRiffFormat(HANDLE fp, WAVEFORMATEX *Format, long *HeaderSize, long *SampleCount)
 {
     char buffer[256];
-    long size, totalsize, bytesread;
+    // FF_LINUX: RIFF chunk sizes are 4 bytes on disk. Reading them as `long`
+    // (8 here) swallowed the "WAVE" tag, so the WAVE check below failed and this
+    // function returned 0 for every file.
+    int32_t size, totalsize;
+    long bytesread;
     DWORD br;
 
     (*SampleCount) = 0;
@@ -599,7 +610,7 @@ long CSoundMgr::LoadRiffFormat(HANDLE fp, WAVEFORMATEX *Format, long *HeaderSize
     if (strncmp(buffer, "RIFF", 4))
         return(0);
 
-    ReadFile(fp, &totalsize, sizeof(long), &br, NULL);
+    ReadFile(fp, &totalsize, sizeof(int32_t), &br, NULL);
     bytesread += br;
 
     ReadFile(fp, buffer, 4, &br, NULL);
@@ -610,7 +621,7 @@ long CSoundMgr::LoadRiffFormat(HANDLE fp, WAVEFORMATEX *Format, long *HeaderSize
 
     ReadFile(fp, buffer, 4, &br, NULL);
     bytesread += br;
-    ReadFile(fp, &size, sizeof(long), &br, NULL);
+    ReadFile(fp, &size, sizeof(int32_t), &br, NULL);
     bytesread += br;
 
     while (bytesread < totalsize and strncmp(buffer, "data", 4))
@@ -624,7 +635,8 @@ long CSoundMgr::LoadRiffFormat(HANDLE fp, WAVEFORMATEX *Format, long *HeaderSize
 
         if ( not strncmp(buffer, "fact", 4))
         {
-            ReadFile(fp, SampleCount, sizeof(long), &br, NULL);
+            // FF_LINUX: 'fact' dwSampleLength is 4 bytes on disk
+            { int32_t sc32 = 0; ReadFile(fp, &sc32, sizeof(int32_t), &br, NULL); *SampleCount = sc32; }
             size -= br;
             bytesread += br;
         }
@@ -644,7 +656,7 @@ long CSoundMgr::LoadRiffFormat(HANDLE fp, WAVEFORMATEX *Format, long *HeaderSize
 
         ReadFile(fp, buffer, 4, &br, NULL);
         bytesread += br;
-        ReadFile(fp, &size, sizeof(long), &br, NULL);
+        ReadFile(fp, &size, sizeof(int32_t), &br, NULL);
         bytesread += br;
     }
 

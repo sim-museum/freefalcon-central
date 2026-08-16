@@ -5410,7 +5410,8 @@ void SaveUnits(char* scenario)
     if ((fp = OpenCampFile(scenario, "uni", "wb")) == NULL)
         return;
 
-    fwrite(&size, sizeof(long), 1, fp);
+    // FF_LINUX: emit 4 bytes (matches the int32_t read in LoadUnits)
+    { int32_t v = (int32_t)size; fwrite(&v, sizeof(int32_t), 1, fp); }
     fwrite(buffer, size, 1, fp);
     CloseCampFile(fp);
     delete[] buffer;  // FF_LINUX: new[] -> delete[]

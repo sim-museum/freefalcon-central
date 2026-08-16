@@ -429,7 +429,7 @@ int ObjectiveClass::SaveSize(void)
 {
     int size = CampBaseClass::SaveSize()
                + sizeof(CampaignTime)
-               + sizeof(ulong)
+               + sizeof(uint32_t)   // FF_LINUX: written as uint32_t
                + sizeof(uchar)
                + sizeof(uchar)
                + sizeof(uchar)
@@ -3102,7 +3102,8 @@ void SaveBaseObjectives(char* scenario)
 
     // Save Number of Objectives and sizes
     fwrite(&num, sizeof(short), 1, fp);
-    fwrite(&size, sizeof(long), 1, fp);
+    // FF_LINUX: emit 4 bytes (matches the int32_t read in LoadBaseObjectives)
+    { int32_t v = (int32_t)size; fwrite(&v, sizeof(int32_t), 1, fp); }
 
     buffer = new uchar[size];
     cbuffer = new uchar[size + MAX_POSSIBLE_OVERWRITE];
@@ -3126,7 +3127,8 @@ void SaveBaseObjectives(char* scenario)
     }
 
     newsize = LZSS_Compress(buffer, cbuffer, size);
-    fwrite(&newsize, sizeof(long), 1, fp);
+    // FF_LINUX: emit 4 bytes (matches the int32_t read in LoadBaseObjectives)
+    { int32_t v = (int32_t)newsize; fwrite(&v, sizeof(int32_t), 1, fp); }
     fwrite(cbuffer, newsize, 1, fp);
     CloseCampFile(fp);
     delete [] buffer;
@@ -3144,7 +3146,8 @@ void SaveObjectiveDeltas(char* savefile)
 
     csize = EncodeObjectiveDeltas(&cbuffer, NULL);
 
-    fwrite(&csize, sizeof(long), 1, fp);
+    // FF_LINUX: emit 4 bytes (matches the int32_t read in LoadObjectiveDeltas)
+    { int32_t v = (int32_t)csize; fwrite(&v, sizeof(int32_t), 1, fp); }
     fwrite(cbuffer, csize, 1, fp);
     delete[] cbuffer;  // FF_LINUX: new[] -> delete[]
     CloseCampFile(fp);

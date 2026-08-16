@@ -220,7 +220,7 @@ int WayPointClass::SaveSize(void)
             + sizeof(uchar)
             + sizeof(uchar)
             + sizeof(uchar)
-            + sizeof(ulong);
+            + sizeof(uint32_t);   // FF_LINUX: Flags is written as uint32_t
     return size;
 }
 

@@ -483,7 +483,7 @@ int PackageClass::SaveSize(void)
                 + sizeof(GridIndex)
                 + sizeof(CampaignTime)
                 + sizeof(CampaignTime)
-                + sizeof(ulong)
+                + sizeof(uint32_t)   // FF_LINUX: package_flags is written as uint32_t
                 + sizeof(short)
                 + sizeof(short)
                 + sizeof(short)

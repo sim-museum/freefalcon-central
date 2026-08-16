@@ -491,7 +491,7 @@ int FlightClass::SaveSize(void)
 
     size = AirUnitClass::SaveSize()
            + sizeof(BIG_SCALAR)
-           + sizeof(long)
+           + sizeof(int32_t)   // FF_LINUX: fuel_burnt is written as int32_t
            + sizeof(CampaignTime)
            + sizeof(CampaignTime)
            + sizeof(CampaignTime)
