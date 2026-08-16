@@ -165,7 +165,11 @@ void AdvancedHarmTargetingPod::HADExpDisplay(VirtualDisplay* activeDisplay)
     float displayX, displayY;
     float x, y;
     float cosAng, sinAng, origCosAng, origSinAng;
-    float EXP1OffsetX, EXP1OffsetY, EXP2OffsetX, EXP2OffsetY;
+    // FF_LINUX: these are assigned inside conditional blocks but subtracted
+    // from displayX/displayY further down OUTSIDE them, so an un-taken branch
+    // left HTS symbology offset by stack garbage. Zero is the correct
+    // 'no expansion applied' default.
+    float EXP1OffsetX = 0.0f, EXP1OffsetY = 0.0f, EXP2OffsetX = 0.0f, EXP2OffsetY = 0.0f;
     float yawOffsetAng;
     float origDisplayX, origDisplayY;
     DWORD tempColor;

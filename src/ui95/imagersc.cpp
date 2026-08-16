@@ -1952,7 +1952,10 @@ void IMAGE_RSC::ScaleDown8(SCREEN *surface, long *Rows, long *Cols, long dx, lon
     unsigned char *sptr, *sline;
     WORD *dptr, *dline;
     WORD *Palette;
-    int i, j, count;
+    // FF_LINUX: `count` is carried across loop iterations (identical rows are
+    // memcpy'd from the line built on a previous pass), so an else-branch taken
+    // on the FIRST iteration used it uninitialised -- as a memcpy LENGTH.
+    int i, j, count = 0;
 
     if ( not Owner)
         return;
@@ -2000,7 +2003,7 @@ void IMAGE_RSC::ScaleDown8Overlay(SCREEN *surface, long *Rows, long *Cols, long 
 {
     unsigned char *sptr, *sline, *oline;
     WORD *dptr, *dline;
-    int i, j, count;
+    int i, j, count = 0;   // FF_LINUX: see the note above
     long palno, overidx;
 
     // Safety check: ensure surface memory is valid
