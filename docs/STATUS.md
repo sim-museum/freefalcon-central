@@ -1554,6 +1554,44 @@ Remaining `sizeof(long)` sites audited and cleared: `vusessn` `domainMask_`
 `cfontres` binary `.scf` path (dead — the `C_Base(FILE*)` ctors have no
 instantiation site; the UI parses text `.scf`), and `src/tools` (not built).
 
+### STUB-1 — "stub returns default" audit: CLEAN (closed 2026-08-16)
+
+`CLAUDE.md` has carried an open action since June — *"audit remaining stubs in
+compat_winbase.h"* — left over from the `GetPrivateProfileInt/String` find, where
+default-returning stubs zeroed every `.ini` tuning value in the game and caused
+the campaign aggregation flap. Closing it, with the method recorded so nobody
+repeats the sweep.
+
+Two passes over `src/compat`:
+
+1. **Constant-returning functions.** Parsed every compat function whose body is
+   nothing but `return <constant>;` (after stripping comments and `(void)x;`
+   discards): **312 matches, 58 unique** once the case-aliased header pairs
+   (`winuser.h` ↔ `compat_winuser.h`, etc.) are collapsed.
+2. **Success with an unfilled out-parameter** — the actually dangerous shape,
+   since the caller gets uninitialised data and no error: **16 matches**.
+
+Then ranked by call sites *outside* `src/compat`. Every candidate that looked
+alarming turned out to be dead:
+
+| candidate | why it is not a live defect |
+|---|---|
+| `OpenCampFile` → FALSE (43 callers!) | different function — `BOOL OpenCampFile(HWND)` is a **camptool dialog**; the live one is `FILE* OpenCampFile(char*,char*,char*)` in campaign.cpp. Name-matching conflated them. |
+| GDI set (`GetDC`, `SelectObject`, `BitBlt`, `CreateCompatibleDC`, …) | all callers in `camptool`, `src/tools`, `src/movie`, `src/dxutil` — **none built** |
+| `ContextMPR::TextOut` (surface `GetDC`) | only caller is `bspview` — not built |
+| `ProcessVertices`, `ProcessVerticesStrided`, `GetClipStatus`, `SetClipStatus`, `GetClipPlane`, `EvaluateMode`, `Optimize` | **0 live callers each** |
+| `MultiplyTransform` (`// TODO: Implement matrix multiplication`) | **0 live callers** |
+| `RegisterClass`, `InvalidateRect`, `TranslateMessage`, `DispatchMessage`, `EndPaint` | their pointer arguments are *inputs*, not out-params |
+
+`camptool` is `if(WIN32)`-gated in `src/campaign/CMakeLists.txt`; `dxutil`,
+`movie` and `src/tools` are absent from the build graph entirely. Checking a
+candidate against `ninja -t targets all` before investigating it is what made
+this quick.
+
+**Result: no remaining live instance of this bug class.** Worth stating plainly
+because a negative result here is genuinely useful — it means a future "silently
+wrong value" symptom should be chased somewhere other than the compat stubs.
+
 ### SND-1 — `LoadRiffFormat` returned 0 for every WAV (fixed 2026-08-16)
 
 Found by continuing the SAVE-1 sweep past the campaign code into every other
