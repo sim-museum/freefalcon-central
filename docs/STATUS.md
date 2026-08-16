@@ -1239,7 +1239,25 @@ is invisible — visible in every external capture, and the origin of the PO's
 "bogged down in terrain" description.
 
 The fix is to make ground contact use the surface that is drawn, not to shrink
-the lift: measurements show 0ft and 1ft both make the runway disappear entirely.
+the lift. Measured by sampling the ground band of an orbit capture (grey =
+tarmac visible, green = terrain only):
+
+| lift | ground band avgRGB | verdict |
+|---|---|---|
+| 0 ft, even with `FF_RUNWAY_BIAS="-8,-512"` | green | invisible |
+| 1 ft | green | invisible |
+| 2 ft | 64,72,54 green | invisible |
+| **3 ft (default)** | **94,94,90 grey** | **visible** |
+
+Note the 0ft row: raising the slope-scaled `glPolygonOffset` far beyond its
+`-3,-64` default does *not* rescue a coplanar surface, so the depth bias is not
+the lever here — these surfaces go through the deferred flush path. The
+geometric lift is load-bearing and 3 ft is the minimum that works.
+
+That rules out the cheap fixes and leaves the real one: ground contact must use
+the drawn surface. Not attempted yet — it means touching aircraft ground physics,
+and the spawn-time placement is re-settled by the physics each frame, so a
+placement-only offset would be undone.
 
 ### TE2-3 — popup MFDs in HUD view (WITHDRAWN as diagnosed, symptom still open)
 
