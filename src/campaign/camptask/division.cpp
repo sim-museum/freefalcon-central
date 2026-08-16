@@ -496,7 +496,12 @@ int DivisionSanityCheck(void)
 
         while (tmp)
         {
-            ShiAssert((int)tmp not_eq 0xdddddddd);
+            // FF_LINUX: intptr_t, not int. (int) truncates a 64-bit pointer to its
+            // low 32 bits, so a live node whose low half happened to equal the MSVC
+            // debug-CRT poison would trip this assert spuriously. Comparing the full
+            // pointer keeps the check exact on Windows and simply never fires here,
+            // which is correct: glibc does not write that poison.
+            ShiAssert((intptr_t)tmp not_eq (intptr_t)0xdddddddd);
             tmp = tmp->next;
         }
     }
