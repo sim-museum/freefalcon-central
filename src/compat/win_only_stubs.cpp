@@ -134,22 +134,11 @@ void InitFontTool() {}
  * D3DX texture helpers - minimal failure stubs.
  * Render2DBitmap falls back gracefully when these fail.
  * ============================================================ */
-extern "C" HRESULT D3DXCreateTexture(struct IDirect3DDevice7 *pd3dDevice, DWORD *pdwWidth, DWORD *pdwHeight,
-                                     DWORD *pdwMipMapCount, D3DX_SURFACEFORMAT *pPixelFormat,
-                                     struct IDirectDrawPalette *pDDPal, struct IDirectDrawSurface7 **ppDDSurf,
-                                     DWORD *pdwNumMips) {
-    (void)pd3dDevice; (void)pdwWidth; (void)pdwHeight; (void)pdwMipMapCount;
-    (void)pPixelFormat; (void)pDDPal; (void)pdwNumMips;
-    if (ppDDSurf) *ppDDSurf = NULL;
-    return E_FAIL;
-}
+// FF_LINUX: D3DXCreateTexture / D3DXLoadTextureFromMemory are now IMPLEMENTED in
+// compat/d3d_gl.cpp against the real D3D7Surface machinery. They used to be stubs
+// here returning E_FAIL with a NULL surface, which silently disabled
+// ContextMPR::Render2DBitmap and with it the loading splash bitmap and the in-sim
+// mouse cursor.
 
-extern "C" HRESULT D3DXLoadTextureFromMemory(struct IDirect3DDevice7 *pd3dDevice, struct IDirectDrawSurface7 *pTexture,
-                                             DWORD dwMipMapLevel, LPVOID pMemory, struct IDirectDrawPalette *pDDPal,
-                                             D3DX_SURFACEFORMAT srcFormat, DWORD dwPitch, RECT *pSrcRect, DWORD dwFilterFlags) {
-    (void)pd3dDevice; (void)pTexture; (void)dwMipMapLevel; (void)pMemory;
-    (void)pDDPal; (void)srcFormat; (void)dwPitch; (void)pSrcRect; (void)dwFilterFlags;
-    return E_FAIL;
-}
 
 #endif /* FF_LINUX */

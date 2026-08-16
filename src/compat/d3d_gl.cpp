@@ -5486,6 +5486,94 @@ DXContext* FF_CreateDXContext(int width, int height, IDirect3D7* d3d, IDirect3DD
     return ctx;
 }
 
+// ============================================================
+// FF_LINUX: D3DX texture helpers used by ContextMPR::Render2DBitmap.
+//
+// These were unimplemented stubs in win_only_stubs.cpp that set the out-param to
+// NULL and returned E_FAIL, so Render2DBitmap threw before drawing anything --
+// silently disabling BOTH of its callers: the loading splash bitmap
+// (otwdrive/splash.cpp) and the in-sim mouse cursor (siminput/sicursor.cpp).
+// The failure was visible only as a recurring assertion,
+// "[Failed: FALSE == F4IsBadReadPtr(pDDSTex, ...)]" (context.cpp:1919), which is
+// just F4IsBadReadPtr's Linux definition of "pointer is NULL".
+//
+// Implemented against the existing D3D7Surface machinery: a plain 32-bit ARGB
+// texture surface plus a row copy into its pixel buffer, marked dirty so the
+// normal SelectTexture/upload path pushes it to GL.
+// ============================================================
+// NOTE ON PARAMETER NAMES: the real D3DX7 signature is
+//   D3DXCreateTexture(device, pdwFlags, pdwWidth, pdwHeight, pPixelFormat,
+//                     pDDPal, ppDDSTexture, pdwNumMipMaps)
+// The declaration in compat/d3dxcore.h names slots 2-4 "pdwWidth, pdwHeight,
+// pdwMipMapCount", which is WRONG and cost a crash on the first attempt here:
+// ContextMPR::Render2DBitmap passes (&dwFlags, &dwActualWidth, &dwActualHeight),
+// so reading slot 2 as the width builds a surface sized from D3DX_TEXTURE_NOMIPMAP
+// and the row copy then runs off the source buffer. Positions are kept as declared;
+// only the interpretation below is correct.
+extern "C" HRESULT D3DXCreateTexture(struct IDirect3DDevice7 *pd3dDevice, DWORD *pdwFlags, DWORD *pdwWidth,
+                                     DWORD *pdwHeight, D3DX_SURFACEFORMAT *pPixelFormat,
+                                     struct IDirectDrawPalette *pDDPal, struct IDirectDrawSurface7 **ppDDSurf,
+                                     DWORD *pdwNumMips) {
+    (void)pd3dDevice; (void)pdwFlags; (void)pPixelFormat; (void)pDDPal;
+
+    if (!ppDDSurf) return DDERR_INVALIDPARAMS;
+
+    *ppDDSurf = NULL;
+
+    const DWORD w = pdwWidth ? *pdwWidth : 0;
+    const DWORD h = pdwHeight ? *pdwHeight : 0;
+
+    if (!w || !h) return DDERR_INVALIDPARAMS;
+
+    D3D7Surface* surf = new D3D7Surface();
+    surf->lpVtbl = const_cast<IDirectDrawSurface7Vtbl*>(&g_DDS7Vtbl);
+    surf->caps = DDSCAPS_TEXTURE;
+    surf->width = (int)w;
+    surf->height = (int)h;
+    surf->pixelFormat.dwSize = sizeof(DDPIXELFORMAT);
+    surf->pixelFormat.dwFlags = DDPF_RGB | DDPF_ALPHAPIXELS;
+    surf->pixelFormat.dwRGBBitCount = 32;
+    surf->pixelFormat.dwRBitMask = 0x00FF0000;
+    surf->pixelFormat.dwGBitMask = 0x0000FF00;
+    surf->pixelFormat.dwBBitMask = 0x000000FF;
+    surf->pixelFormat.dwRGBAlphaBitMask = 0xFF000000;
+    surf->AllocatePixelBuffer();
+
+    if (!surf->pixelData) {
+        delete surf;
+        return E_OUTOFMEMORY;
+    }
+
+    if (pdwNumMips) *pdwNumMips = 1;
+
+    *ppDDSurf = surf;
+    return S_OK;
+}
+
+extern "C" HRESULT D3DXLoadTextureFromMemory(struct IDirect3DDevice7 *pd3dDevice, struct IDirectDrawSurface7 *pTexture,
+                                             DWORD dwMipMapLevel, LPVOID pMemory, struct IDirectDrawPalette *pDDPal,
+                                             D3DX_SURFACEFORMAT srcFormat, DWORD dwPitch, RECT *pSrcRect, DWORD dwFilterFlags) {
+    (void)pd3dDevice; (void)dwMipMapLevel; (void)pDDPal; (void)srcFormat;
+    (void)pSrcRect; (void)dwFilterFlags;
+
+    D3D7Surface* surf = (D3D7Surface*)pTexture;
+
+    if (!surf || !pMemory || !surf->pixelData) return DDERR_INVALIDPARAMS;
+
+    const int srcPitch = dwPitch ? (int)dwPitch : surf->width * 4;
+    const int copyBytes = (srcPitch < surf->pitch) ? srcPitch : surf->pitch;
+    const unsigned char* src = (const unsigned char*)pMemory;
+
+    for (int y = 0; y < surf->height; y++) {
+        memcpy(surf->pixelData + (size_t)y * surf->pitch,
+               src + (size_t)y * srcPitch,
+               (size_t)copyBytes);
+    }
+
+    surf->isDirty = true;
+    return S_OK;
+}
+
 } // extern "C"
 
 #endif // FF_LINUX

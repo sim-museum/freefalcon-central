@@ -46,8 +46,12 @@ HRESULT D3DXInitialize(void);
 HRESULT D3DXUninitialize(void);
 
 /* Texture creation helpers (implemented in linux_stubs.cpp) */
-HRESULT D3DXCreateTexture(struct IDirect3DDevice7 *pd3dDevice, DWORD *pdwWidth, DWORD *pdwHeight,
-                          DWORD *pdwMipMapCount, D3DX_SURFACEFORMAT *pPixelFormat,
+/* NOTE: slots 2-4 are FLAGS, WIDTH, HEIGHT -- matching the real D3DX7 signature
+   and what ContextMPR::Render2DBitmap passes. They were previously named
+   "pdwWidth, pdwHeight, pdwMipMapCount", which is wrong and misled an
+   implementation into sizing a texture from the flags value. */
+HRESULT D3DXCreateTexture(struct IDirect3DDevice7 *pd3dDevice, DWORD *pdwFlags, DWORD *pdwWidth,
+                          DWORD *pdwHeight, D3DX_SURFACEFORMAT *pPixelFormat,
                           struct IDirectDrawPalette *pDDPal, struct IDirectDrawSurface7 **ppDDSurf,
                           DWORD *pdwNumMips);
 HRESULT D3DXLoadTextureFromMemory(struct IDirect3DDevice7 *pd3dDevice, struct IDirectDrawSurface7 *pTexture,

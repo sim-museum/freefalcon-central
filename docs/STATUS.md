@@ -1230,6 +1230,37 @@ are sunk ~3ft so the gear is hidden, the tarmac has no runway markings, and the
 2D-pit view still shows grass further ahead, suggesting the flat surfaces are not
 drawn out to the distance the gold shows.
 
+### D3DX-1 — Render2DBitmap was a no-op: two unimplemented D3DX stubs (fixed)
+
+`ContextMPR::Render2DBitmap` converts a pixel buffer, creates a temp texture with
+`D3DXCreateTexture`, uploads it with `D3DXLoadTextureFromMemory` and draws a quad.
+Both D3DX calls were **unimplemented stubs** in `win_only_stubs.cpp` that set the
+out-param to NULL and returned `E_FAIL`, so the function threw before drawing.
+
+That silently disabled **both** of its callers:
+- the loading splash bitmap (`otwdrive/splash.cpp`), and
+- the in-sim mouse cursor (`siminput/sicursor.cpp`).
+
+The only symptom was a recurring assertion, `[Failed: FALSE ==
+F4IsBadReadPtr(pDDSTex, ...)]` at `context.cpp:1919` — which is merely
+`F4IsBadReadPtr`'s Linux definition of "this pointer is NULL". Exactly the
+"stub returns default" class `CLAUDE.md` warns about.
+
+Implemented against the existing `D3D7Surface` machinery: a 32-bit ARGB texture
+surface plus a row copy into its pixel buffer, marked `isDirty` so the normal
+upload path pushes it to GL.
+
+**Trap worth recording:** the declaration in `compat/d3dxcore.h` named parameters
+2-4 `pdwWidth, pdwHeight, pdwMipMapCount`, but the real D3DX7 signature is
+`(device, pdwFlags, pdwWidth, pdwHeight, ...)` and `Render2DBitmap` passes
+`&dwFlags, &dwActualWidth, &dwActualHeight`. Implementing to the *declared* names
+sized the texture from `D3DX_TEXTURE_NOMIPMAP` and the row copy ran off the
+source buffer — an immediate SIGSEGV in `SplashScreenUpdate` on the first test.
+The header has been corrected so the next reader is not misled the same way.
+
+Verified: TE 2 reaches 3D with 0 crashes and 0 assertions, and a 200s IA ASAN
+soak is clean (0 errors) — the row copy is memory-safe.
+
 ### TE2-7 — tarmac has no runway markings (open; three causes ruled out)
 
 The PO's Wine gold shows painted runway markings; ours is flat grey. Three
