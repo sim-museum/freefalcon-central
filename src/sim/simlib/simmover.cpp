@@ -84,9 +84,13 @@ SimMoverClass::SimMoverClass(FILE* filePtr) : SimBaseClass(filePtr)
     }
 
     fread(&numSwitches, sizeof(int), 1, filePtr);
-    switchData = (int *)MemAllocPtr(graphicsDOFDataPool, sizeof(int) * numDofs, 0);
+    // FF_LINUX: both arrays were sized by numDofs but are read and written to
+    // numSwitches -- a heap overflow for any vehicle with more switches than
+    // DOFs. The stream constructor below gets this right; only this FILE*
+    // overload was wrong. (The F-16 alone drives switch indices up to 19.)
+    switchData = (int *)MemAllocPtr(graphicsDOFDataPool, sizeof(int) * numSwitches, 0);
     fread(switchData, sizeof(int), numSwitches, filePtr);
-    switchChange = (int *)MemAllocPtr(graphicsDOFDataPool, sizeof(int) * numDofs, 0);
+    switchChange = (int *)MemAllocPtr(graphicsDOFDataPool, sizeof(int) * numSwitches, 0);
 
     for (int i = 0; i < numSwitches; i++)
     {
