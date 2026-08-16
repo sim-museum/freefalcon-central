@@ -88,6 +88,34 @@ void SimObjectType::Reference(void)
 
 void SimObjectType::Release(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX: the decrement was locked but the "did it reach zero" TEST was not
+    // -- the scope, and with it the lock, closed before `if (refCount == 0)`. Two
+    // threads releasing the same object can therefore both observe 0 and both
+    // `delete this` (double free), and the unsynchronised read can also race a
+    // concurrent Reference(). Everything that then still holds the pointer --
+    // DigitalBrain::groundTargetPtr, for one -- is left dangling, and the next
+    // Reference() on it dereferences freed memory.
+    //
+    // Reported by the PO as a SIGSEGV in SimObjectType::Reference() from
+    // BombClass::Start <- SMSClass::DropBomb <- AircraftClass::DoWeapons, flying a
+    // campaign OCA strike on autopilot at 8x time compression -- i.e. exactly the
+    // conditions that put the sim and campaign threads through entity churn
+    // concurrently.
+    //
+    // Decide under the lock, act on the captured value.
+    int remaining;
+    {
+        F4ScopeLock l(mutex);
+        remaining = --refCount;
+    }
+
+    if (remaining == 0)
+    {
+        delete this;
+    }
+
+#else
     {
         F4ScopeLock l(mutex);
         --refCount;
@@ -97,6 +125,8 @@ void SimObjectType::Release(void)
     {
         delete this;
     }
+
+#endif
 }
 
 SimObjectType* SimObjectType::Copy(void)
