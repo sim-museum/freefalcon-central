@@ -1254,6 +1254,24 @@ report (which followed a full TE flight).
 Handy for future automation: **RESCUE (back) and the main-menu Exit are both at
 (49,750)**, and the exit confirmation's OK is at (660,501), CANCEL at (362,500).
 
+### TE2-6 — tarmac renders under the aircraft but not ahead (open)
+
+After the container re-pick, the player's airbase inserts 63 flat surfaces (all
+of them: `flat surface SKIPPED (prio > BuildingDeaggLevel)` count is 0) and the
+orbit capture clearly shows the jets standing on grey tarmac. But both the 2D pit
+and the 3D virtual pit still show **grass ahead**, where the PO's gold shows the
+runway stretching away from the aircraft.
+
+Not a heading problem: the ATC data gives runway ends 020/200, and the aircraft
+sits at −159.9° ≡ 200.1°, i.e. correctly lined up with runway 20 — matching the
+TE screen's own SitRep, *"You are lined up on the runway, ready for take off."*
+
+So the surfaces that render appear to cover only the immediate apron/hardstand,
+not the runway ahead. Next step is to check what the 63 inserted surfaces
+actually are (extent and position relative to the aircraft) versus the airbase's
+full flat-surface set — i.e. whether some pieces are still not being inserted, or
+are inserted but culled at distance.
+
 ### TE2-5 — runway drawn 3ft above where aircraft stand (open)
 
 `drawbldg.cpp` places flat surfaces at `GetGroundLevel - 3ft` so they win the
