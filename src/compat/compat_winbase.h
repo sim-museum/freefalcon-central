@@ -1198,7 +1198,10 @@ static inline void GetSystemInfo(LPSYSTEM_INFO lpSystemInfo) {
     }
 }
 
-static inline void ExitProcess(UINT uExitCode) { exit((int)uExitCode); }
+// FF_LINUX: exit() is noreturn but this wrapper was not, so callers that end
+// in ExitProcess() looked like they fell off the end of a non-void function
+// (UB if it could ever happen, and it hid a real -Wreturn-type signal).
+__attribute__((noreturn)) static inline void ExitProcess(UINT uExitCode) { exit((int)uExitCode); }
 static inline BOOL TerminateProcess(HANDLE hProcess, UINT uExitCode) {
     (void)hProcess;
     exit((int)uExitCode);

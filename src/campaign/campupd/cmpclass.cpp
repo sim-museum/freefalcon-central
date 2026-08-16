@@ -1287,7 +1287,7 @@ int CampaignClass::LoadData(FILE *fp)
     bufhead = buffer = new uchar[size];
     fread(buffer, size, 1, fp);
     Decode(&buffer, &size);
-    delete bufhead;
+    delete[] bufhead;  // FF_LINUX: new uchar[size] above (chained assignment)
     return 1;
 }
 

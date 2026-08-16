@@ -947,7 +947,22 @@ int PackageClass::BuildPackage(MissionRequest mis, F4PFList assemblyList)
         if (mis->mission == AMIS_ONCALLCAS)
         {
             targets = ONCALL_CAS_FLIGHTS_PER_REQUEST;
-            memset(targetf, 255, 5);
+
+            // FF_LINUX: `targets` becomes the loop bound over targetf[5] below,
+            // and this comes from Falcon4.AII (OnCallFlightsPerRequest, = 2 in
+            // shipped data). An .ini-driven bound over a fixed array is the same
+            // shape as the .te/.tac hardening; clamp it.
+            if (targets > (int)(sizeof(targetf) / sizeof(targetf[0])))
+                targets = (int)(sizeof(targetf) / sizeof(targetf[0]));
+
+            // FF_LINUX: targetf is int[5]; memset(.., 255, 5) wrote FIVE BYTES,
+            // so only targetf[0] got the 255 "no feature" sentinel used
+            // everywhere else here and targetf[1..4] stayed uninitialised --
+            // then handed to GetFeatureID() below via `for (j = 0; j < targets;`.
+            // Set each element, rather than memset, so the value stays 255 and
+            // does not silently become -1 from an all-bits fill.
+            for (int tf = 0; tf < (int)(sizeof(targetf) / sizeof(targetf[0])); tf++)
+                targetf[tf] = 255;
         }
     }
     else // Location

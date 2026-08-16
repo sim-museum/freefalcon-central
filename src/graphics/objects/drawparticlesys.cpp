@@ -5519,7 +5519,12 @@ bool DrawableParticleSys::PS_LoadParameters(void)
             {
                 ppn->Texture = NULL; // Disables Texture
                 char FileName[PARTICLE_NAMES_LEN];
-                strncpy(FileName, TokenStr(""), PS_NAMESIZE); // Sequence Name
+                // FF_LINUX: was PS_NAMESIZE (64) into a PARTICLE_NAMES_LEN (32)
+                // buffer -- a 32-byte stack overflow driven by the length of a
+                // name in particlesys.ini. strncpy also does not terminate when
+                // it truncates, so reserve the last byte.
+                strncpy(FileName, TokenStr(""), sizeof(FileName) - 1); // Sequence Name
+                FileName[sizeof(FileName) - 1] = '\0';
 
                 if (i > 1)i = 1; // Limit Check
 
@@ -5813,7 +5818,10 @@ bool DrawableParticleSys::PS_LoadParameters(void)
                 // 'frames=n name'
                 pan->NFrames = TokenI(0); // n = Number of Frames
                 char FileName[PARTICLE_NAMES_LEN]; // name = BaseName of frames
-                strncpy(FileName, TokenStr(""), PARTICLE_NAMES_LEN);
+                // FF_LINUX: length was right but strncpy leaves it unterminated
+                // on an exactly-32-char name; the result is used as a string.
+                strncpy(FileName, TokenStr(""), sizeof(FileName) - 1);
+                FileName[sizeof(FileName) - 1] = '\0';
                 pan->Sequence = (void*)GetFramesList(FileName, pan->NFrames);
                 continue;
             }
