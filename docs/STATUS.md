@@ -1760,6 +1760,23 @@ rather than the object — but `OnGround()` and `IsDead()` are virtual in
 `SimBaseClass`, so dispatch is unaffected and the boolean survives as truthiness.
 Left alone deliberately.
 
+**A third pattern, found by fixing the first two:** *a guard path returns a
+failure code without writing its out-parameters, and the caller ignores the
+return.* Three live instances, each fixed at the correct end:
+
+| function | fix | why there |
+|---|---|---|
+| `RadarDopplerClass::TargetToXY` | seeded the **callers'** locals | its early-out is deliberate — the comment is *"cursor position gets messed up"*, so leaving the caller's values alone is the contract |
+| `ObjectiveClass::GetFeatureOffset` | zeroed the outputs **in the function** | pure garbage-checks, no such intent; features were landing at `XPos() + stack garbage`, and one call site is the objective *decode* path where the index comes from the save file |
+| `CSoundMgr::LoadRiffFormat` | checked every read | see SND-1 |
+
+Then swept the class properly: 78 functions in the built tree can return before
+writing an out-param, but the return value is discarded by callers in only two,
+and **both are false positives** — `CheckIfBlockingRunway`'s `info` and
+`SetSeekerPos`'s `az`/`el` are caller-owned in/out structs that are read as well
+as written, so leaving them untouched on an early return is correct. No further
+live defects in this class.
+
 Remaining queues in `/tmp/warn.log`: 95 `-Wmaybe-uninitialized`, 137 `-Wformat`,
 79 `-Wformat-security`, 13 `-Wimplicit-function-declaration` (an undeclared
 function is assumed to return `int`, which truncates a returned pointer on 64-bit
