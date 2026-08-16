@@ -42,7 +42,7 @@ UI_UpdateAIList::UI_UpdateAIList(VU_MSG_TYPE type, VU_ID senderid, VU_ID target)
 UI_UpdateAIList::~UI_UpdateAIList(void)
 {
  if(dataBlock.data)
- delete dataBlock.data;
+ delete[] dataBlock.data;  // FF_LINUX: allocated with new uchar[] (line 66)
 }
 
 int UI_UpdateAIList::Size (void)

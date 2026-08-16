@@ -197,12 +197,12 @@ FalconSessionEntity::~FalconSessionEntity(void)
 
     if (unitDataSendBuffer)
     {
-        delete unitDataSendBuffer;
+        delete[] unitDataSendBuffer;  // FF_LINUX: EncodeUnitData returns new VU_BYTE[]
     }
 
     if (objDataSendBuffer)
     {
-        delete objDataSendBuffer;
+        delete[] objDataSendBuffer;  // FF_LINUX: EncodeObjectiveDeltas returns new VU_BYTE[]
     }
 
     if (unitDataReceiveBuffer)

@@ -220,7 +220,7 @@ void SendCampaignUnitData(FalconSessionEntity *session, VuTargetEntity *target, 
             set++;
 
         if (session->unitDataSendBuffer)
-            delete session->unitDataSendBuffer;
+            delete[] session->unitDataSendBuffer;  // FF_LINUX: EncodeUnitData returns new VU_BYTE[]
 
         // Encode the unit data
         session->unitDataSendSize = EncodeUnitData((VU_BYTE**)&buffer, FalconLocalSession);

@@ -241,7 +241,7 @@ void SendRequestedData(void)
                 else if (requester->objDataSendBuffer)
                 {
                     MonoPrint("Sending Obj Data\n");
-                    delete requester->objDataSendBuffer;
+                    delete[] requester->objDataSendBuffer;  // FF_LINUX: EncodeObjectiveDeltas returns new VU_BYTE[]
                     requester->objDataSendBuffer = NULL;
                     requester->objDataSendSet = 0;
                 }
@@ -259,7 +259,7 @@ void SendRequestedData(void)
                 else if (requester->unitDataSendBuffer)
                 {
                     MonoPrint("Sending Unit Data\n");
-                    delete requester->unitDataSendBuffer;
+                    delete[] requester->unitDataSendBuffer;  // FF_LINUX: EncodeUnitData returns new VU_BYTE[]
                     requester->unitDataSendBuffer = NULL;
                     requester->unitDataSendSet = 0;
                 }
