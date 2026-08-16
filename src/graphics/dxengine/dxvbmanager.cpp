@@ -551,7 +551,10 @@ Failure:
 //  This function just releases a Model and free the memory and VBuffer
 void CDXVbManager::ReleaseModel(DWORD ID)
 {
-    if (ID  >= (WORD) TheObjectLODsCount)
+    // FF_LINUX: (DWORD), not (WORD) -- same truncation class as FARTEX-1, where a
+    // (WORD) cast of a 96664 count silently bounded ids at 31128. Latent here (LOD
+    // counts are currently below 65536) but wrong, and identical when they fit.
+    if (ID  >= (DWORD) TheObjectLODsCount)
         return;
 
     // Exit if not a valid model
@@ -611,7 +614,7 @@ void CDXVbManager::ReleaseModel(DWORD ID)
 // Given a model ID and a Texture Index, returns the Texture ID
 DWORD CDXVbManager::GetTextureID(DWORD ID, DWORD TexIdx)
 {
-    if (ID >= (WORD) TheObjectLODsCount)
+    if (ID >= (DWORD) TheObjectLODsCount)
         return 0;
 
     // Consistency  checking
@@ -634,7 +637,7 @@ void CDXVbManager::GetModelData(VBItemType &vi, DWORD ID)
 // Checks if a Model ID is valid
 bool CDXVbManager::CheckDataID(DWORD ID)
 {
-    if (ID >= (WORD) TheObjectLODsCount)
+    if (ID >= (DWORD) TheObjectLODsCount)
         return false;
 
     return(pVBuffers[ID].Valid);
@@ -707,7 +710,7 @@ void CDXVbManager::AddDrawItem(VBufferListType *pVBDesc, DWORD ID, ObjectInstanc
 // This function appends a Draw request for an Object to the VB the object belongs to
 void CDXVbManager::AddDrawRequest(ObjectInstance *objInst, DWORD ID, D3DXMATRIX *Transformation, bool Lited, DWORD LightID, float FogLevel)
 {
-    if (ID >= (WORD) TheObjectLODsCount)
+    if (ID >= (DWORD) TheObjectLODsCount)
         return;
 
     // Enter the Critical section
