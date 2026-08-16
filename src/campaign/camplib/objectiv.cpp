@@ -786,6 +786,18 @@ int ObjectiveClass::Deaggregate(FalconSessionEntity *session)
             GetFeatureOffset(f, &y, &x, &z);
             simdata.x = XPos() + x;
             simdata.y = YPos() + y;
+#ifdef FF_LINUX
+            // FF_LINUX: TE2-2 -- the player's airbase never gets FEAT_FLAT_CONTAINER
+            // (0x100) so it is never built as a DrawablePlatform and its runway is
+            // never drawn, while a base 19 miles away does. Log each feature at its
+            // OWN position (features are offset from the objective centre) with the
+            // class flags it carries, so the two bases can be compared.
+            if (getenv("FF_DEBUG_RUNWAY"))
+                fprintf(stderr, "[RUNWAY] feat pos=(%.0f,%.0f) obj=(%.0f,%.0f) f=%d classID=%d fcFlags=0x%x FLAT=%d prio=%d\n",
+                        simdata.x, simdata.y, XPos(), YPos(), f, (int)classID,
+                        (unsigned)fc->Flags,
+                        (fc->Flags bitand FEAT_FLAT_CONTAINER) ? 1 : 0, (int)fc->Priority);
+#endif
             simdata.heading = (float)(FeatureEntryDataTable[fid].Facing) * DEG_TO_RADIANS;
             simdata.displayPriority = fc->Priority;
             newObject = AddObjectToSim(&simdata, 0);

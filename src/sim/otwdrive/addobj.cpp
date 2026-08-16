@@ -274,6 +274,42 @@ void CreateDrawable(SimBaseClass* theObject, float objectScale)
                     baseObject = NULL;
 
 #ifdef FF_LINUX
+                // FF_LINUX: TE2-2 -- the container is documented as "stored in the lead
+                // element", but the lead is just components->GetFirst() of a
+                // TailInsertList, i.e. whichever feature happened to be created first,
+                // and at some airbases that is not the container. The player's TE 2 base
+                // has f=0 with flags 0x1 (no FEAT_FLAT_CONTAINER) while f=20, at the very
+                // same position, carries 0x115. With a non-container lead the whole
+                // airbase renders through the non-platform path: buildings appear but no
+                // flat surface is ever inserted, so the runway is simply absent.
+                // If the lead carries neither container flag, find a component that does.
+                if (baseObject and not ((SimFeatureClass*)baseObject)->baseObject and
+                    not baseObject->IsSetCampaignFlag(FEAT_FLAT_CONTAINER bitor FEAT_ELEV_CONTAINER))
+                {
+                    TailInsertList *ffComps = theObject->GetCampaignObject()->GetComponents();
+
+                    if (ffComps)
+                    {
+                        VuListIterator ffIt(ffComps);
+
+                        for (SimBaseClass *ffC = (SimBaseClass*)ffIt.GetFirst(); ffC;
+                             ffC = (SimBaseClass*)ffIt.GetNext())
+                        {
+                            if (ffC->IsSetCampaignFlag(FEAT_FLAT_CONTAINER bitor FEAT_ELEV_CONTAINER))
+                            {
+                                if (getenv("FF_DEBUG_RUNWAY"))
+                                    fprintf(stderr, "[RUNWAY] container re-pick: lead had no container flag, using component at (%.0f,%.0f)\n",
+                                            ffC->XPos(), ffC->YPos());
+
+                                baseObject = ffC;
+                                break;
+                            }
+                        }
+                    }
+                }
+#endif
+
+#ifdef FF_LINUX
                 // FF_LINUX: TE2-2 -- only ONE airbase platform is ever built in a TE 2
                 // run and it is ~19 miles from the player, so the base under the player
                 // never inserts its flat surfaces (no runway drawn). Log every feature
