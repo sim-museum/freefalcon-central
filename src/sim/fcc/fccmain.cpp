@@ -1134,7 +1134,12 @@ SimObjectType* FireControlComputer::TargetStep(SimObjectType* startObject, int c
     if (groundTarget)
     {
         // We're targeting a feature thing - make a new SimObjectType
-#ifdef DEBUG
+// FF_LINUX: DEBUG is defined in this build (CMake sets _DEBUG and
+// shi/assert.h promotes it), so this branch was LIVE -- the constructor
+// call below it is commented out because its old OBJ_TAG signature is
+// gone, leaving the pointer NULL and then dereferenced. Take the working
+// branch on Linux; Windows behaviour unchanged.
+#if defined(DEBUG) && !defined(FF_LINUX)
         //retObject = new SimObjectType(OBJ_TAG, platform, (SimBaseClass*)groundTarget);
 #else
         retObject = new SimObjectType((SimBaseClass*)groundTarget);
