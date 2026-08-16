@@ -537,8 +537,25 @@ void FarTexDB::Release(TextureID texID)
     ShiAssert(texID < (WORD) texCount);
 
 #ifdef FF_LINUX
-    // FF_LINUX: see Request() - out-of-range ids corrupt texArray
-    if (texID >= (WORD) texCount) return;
+    // FF_LINUX: see Request() - out-of-range ids corrupt texArray.
+    // Report the actual values: the guard makes this survivable but the assert above
+    // fires in every session, and nobody has recorded HOW far out of range these ids
+    // are or where they come from. That decides whether this is benign noise (like the
+    // tex.cpp asserts) or a real id-space bug.
+    if (texID >= (WORD) texCount)
+    {
+        static int ffRptd = 0;
+
+        if (ffRptd < 10)
+        {
+            ffRptd++;
+            fprintf(stderr, "[FARTEX] Release out-of-range texID=%u texCount=%d (over by %d)\n",
+                    (unsigned)texID, (int)texCount, (int)texID - (int)texCount);
+            fflush(stderr);
+        }
+
+        return;
+    }
 #endif
 
     EnterCriticalSection(&cs_textureList);
