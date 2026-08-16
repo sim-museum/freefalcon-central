@@ -115,7 +115,11 @@ void ReadAllBombData(void)
 #else
     BombDataset = new BombDataSetClass[numBombDatasets];
 #endif
-    memset(BombDataset, 0, sizeof(BombDataset));
+    // FF_LINUX: sizeof(BombDataset) is the size of the POINTER (8 here, 4 on
+    // Win32), so this zeroed 8 bytes of a numBombDatasets-element array and
+    // left every later element's inputData/auxData pointers as garbage --
+    // which the loaders below test for NULL.
+    memset(BombDataset, 0, sizeof(BombDataSetClass) * numBombDatasets);
 
     for (i = 0; i < numBombDatasets; i++)
     {
