@@ -998,7 +998,12 @@ void RadarDopplerClass::RWSDisplay(void)
     display->SetViewportRelative(DisplayAreaViewLeft, DisplayAreaViewTop, DisplayAreaViewRight, DisplayAreaViewBottom);
 
     //MI
-    float tgtx, tgty;
+    // FF_LINUX: TargetToXY() returns early WITHOUT writing *x/*y when the
+    // target sits at the radar origin (a deliberate early-out -- see its
+    // 'cursor position gets messed up' comment), so these were read
+    // uninitialised. Seed them with the same fallback the else-branch below
+    // already uses for the no-locked-target case.
+    float tgtx = cursorX, tgty = cursorY;
     float brange;
 
     if (IsSet(EXP))
@@ -1585,7 +1590,9 @@ void RadarDopplerClass::TWSDisplay(void)
         DisplayAreaViewLeft, DisplayAreaViewTop, DisplayAreaViewRight, DisplayAreaViewBottom
     );
 
-    float tgtx, tgty;
+    // FF_LINUX: see the note at the first tgtx/tgty declaration -- TargetToXY
+    // can leave both outputs untouched.
+    float tgtx = cursorX, tgty = cursorY;
     float brange;
 
     if (IsSet(EXP))
@@ -2700,7 +2707,10 @@ int RadarDopplerClass::IsUnderCursor(SimObjectType* rdrObj, float heading)
         // for EXP if need be.
         if (IsSet(EXP) and lockedTargetData)
         {
-            float tgtx, tgty;
+            // FF_LINUX: TargetToXY may not write these. Seeding with the
+            // current point makes the EXP zoom a no-op (dx/dy become 0)
+            // instead of expanding around a garbage centre.
+            float tgtx = xPos, tgty = yPos;
 
             // work out where on the display the target is
             TargetToXY(lockedTargetData, 0, tdisplayRange, &tgtx, &tgty);
