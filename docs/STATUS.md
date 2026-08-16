@@ -1086,9 +1086,17 @@ that was broken serves a *different* set of sounds than the one that was heard.
 **Where a fix is verified matters as much as whether it is verified.** Prefer the
 test that exercises the artefact the change produces.
 
-Also this session: TE2-7 advanced from "no markings" to a measured hard distance
-cutoff (see its entry — two more causes ruled out, and the symptom itself
-restated), and the newly-reachable campaign save/reload path was memory-checked.
+Also this session: **SND-1** (`LoadRiffFormat` returned 0 for every WAV),
+**MSG-1** (20 `new[]`/scalar-`delete` mismatches), **STUB-1** (compat stub audit,
+closed clean), and **TE2-7** taken as far as it can go from this side — five
+more candidate causes eliminated by measurement, the symptom restated twice, and
+finally shown to be the boundary between two atlas cells rather than a defect.
+
+Two of those came from working the "keep sweeping" notes left in `CLAUDE.md`.
+Both times the *named* suspects were already fixed and the real defects were
+adjacent code the note did not mention — the send buffers for MSG-1, nothing at
+all for STUB-1. A stale to-do list is still a useful pointer at a *class*; it is
+not a work queue.
 
 Regression state: TE 2 reaches 3D with 0 crashes; campaign **save → reload** works
 end to end and is **clean under ASAN** (0 errors) on both halves — writing the
@@ -1553,6 +1561,57 @@ Remaining `sizeof(long)` sites audited and cleared: `vusessn` `domainMask_`
 (writer and reader agree; local-only file), the UI95 `ccontrol`/`ooutput`/
 `cfontres` binary `.scf` path (dead — the `C_Base(FILE*)` ctors have no
 instantiation site; the UI parses text `.scf`), and `src/tools` (not built).
+
+### MSG-1 — 20 `new[]` / scalar-`delete` mismatches (fixed 2026-08-16)
+
+`CLAUDE.md` flags this as a class to keep sweeping, naming the msgsrc message
+destructors (FlightPlan, SendImage, SendEval, SimDirtyData, sendvc,
+requestcampaigndata) as latent. **Those are all already `delete[]`** — the only
+`delete dataBlock.data` still scalar is `updateailist.cpp`, which is not in the
+build (fixed anyway).
+
+The live defects were elsewhere, and the list above would never have found them.
+
+**The campaign send buffers (6).** `EncodeUnitData` and `EncodeObjectiveDeltas`
+both return `new VU_BYTE[size + 1]` through an out-param, and its consumers freed
+it with scalar `delete`:
+
+    falcsess.cpp:200,205            unitDataSendBuffer / objDataSendBuffer  (session dtor)
+    requestcampaigndata.cpp:244,262
+    sendunitdata.cpp:223
+
+`falcsess.cpp` is the one that matters: it runs on session teardown, so it is
+reached in single-player, not just multiplayer.
+
+**Repo-wide (14).** Then swept the whole built tree with a static pairing check —
+a name assigned from `new T[...]` and later freed by a scalar `delete name;` in
+the same file — verifying each candidate against its real allocation and
+discarding the case-aliased directory symlinks (`src/Falcsnd` vs `src/falcsnd`)
+and unbuilt trees:
+
+| file | buffer |
+|---|---|
+| `falcsnd/voicemapper.cpp` | `voiceflags = new unsigned int[n]` |
+| `falclib/entity.cpp` | `vhc = new uchar[NumVehicleEntries * MOVEMENT_TYPES]` |
+| `campaign/campupd/cmpclass.cpp` | `CampaignSquadronData = new SquadUIInfoClass[NumAvailSquadrons]` |
+| `campaign/camptask/flight.cpp` ×2 | `loadout = new LoadoutStruct[loadouts]` |
+| `graphics/terrain/tlevel.cpp` | `postArray = new Tpost[POSTS_PER_BLOCK]` |
+| `graphics/texture/fartex.cpp` | `pBuf = new BYTE[ddsd.dwLinearSize]` |
+| `vu2/src/vuevent.cpp` | `callsign_ = new char[len + 1]` |
+| `ui/src/campaign/general.cpp` ×3 | `WordWrap = new _TCHAR[len + 1]` |
+| `ui/src/campaign/campaign.cpp` | `filedata = new char[count * sizeof(UnitHistoryType)]` |
+| `ui95_ext/chistory.cpp` | `Data_ = new O_Output[Count_]` |
+| `acmi/src/acmihash.cpp` | `Table_ = new ACMI_HASHROOT[TableSize_]` |
+
+Several are hot, not teardown-only: `FlightClass::RemoveLoadout` runs whenever a
+flight drops stores, the `DIRTY_STORES` decode branch frees and reallocates
+`loadout` every time that dirty bit arrives during campaign play, and
+`postArray` is per terrain block.
+
+This is the class behind the campaign-exit crash (31cc565e). Scalar `delete` on
+an array allocation is UB that corrupts allocator metadata, so it never fails
+where it is written — it surfaces as a crash somewhere else, much later. Worth
+sweeping statically rather than waiting for ASAN to happen to walk the path.
 
 ### STUB-1 — "stub returns default" audit: CLEAN (closed 2026-08-16)
 
