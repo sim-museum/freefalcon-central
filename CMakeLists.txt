@@ -24,7 +24,13 @@ if(FF_PLATFORM_LINUX)
         # The RV "new" particle system: without it PPN[] stores indices that
         # pointer-consuming code dereferences (missile-impact crash).
         USE_NEW_PS
-        stricmp=strcasecmp strnicmp=strncasecmp strcmpi=strcasecmp)
+        stricmp=strcasecmp strnicmp=strncasecmp strcmpi=strcasecmp
+        # _strdup was left undeclared, so C assumed it returns int and the
+        # returned char* would be truncated on 64-bit before being stored.
+        # Currently dormant (the only caller is dead-stripped at -O3, and the
+        # symbol resolves nowhere -- it is not in glibc), but it is a link error
+        # waiting for anyone who enables the profiler display.
+        _strdup=strdup)
 
     # The codebase is legacy 32-bit Windows C++; relax modern strictness
     add_compile_options(
