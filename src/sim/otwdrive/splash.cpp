@@ -211,11 +211,31 @@ void OTWDriverClass::SplashScreenUpdate(int frame)
     if ( not OTWImage) return;
 
     // Validate our parameter
+#ifdef FF_LINUX
+    // FF_LINUX: the loading bar must only ever ADVANCE. The upstream guard below
+    // only catches an exact repeat and special-cases frame 3, so nothing stopped
+    // it going backwards -- and the real call order does exactly that:
+    // OTWDriver::Enter runs 0,1,2,4 and then 0 again, after which StartLoop
+    // restarts at 1 and cycles {0,1,2,4} during the deaggregation wait. The PO saw
+    // the plane icons light 1-2-3, restart at 1-2-3, then finish 4-5.
+    //
+    // Monotonic instead. That deliberately gives up the "cycle to show motion"
+    // animation during a long deagg wait -- a bar that restarts reads as a fault,
+    // whereas one that pauses reads as slow, which is what is actually happening.
+    // lastframe is reset to -1 in SetupSplashScreen, i.e. once per load.
+    if (frame <= lastframe)
+        return;
+
+    lastframe = frame;
+#else
+
     if (frame == lastframe) // kill "go back a frame" bug
         return;
 
     if (frame == 3) // kill "go back a frame" bug
         lastframe = frame;
+
+#endif
 
     //lastframe = frame;
     if (frame >= NUM_SPLASH_FRAMES)
