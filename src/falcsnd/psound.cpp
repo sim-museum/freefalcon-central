@@ -468,10 +468,11 @@ RIFF_FILE *CSoundMgr::LoadRiff(char *filename)
 // a riff file, and returns the size of the header
 long CSoundMgr::SkipRiffHeader(FILE *fp)
 {
-    char buffer[256];
+    char buffer[256] = {0};
     // FF_LINUX: RIFF chunk sizes are 4 bytes on disk; `long` is 8 here, which
     // both desynced the parse and fed a garbage `size` to the fread below.
-    int32_t size, totalsize;
+    // Zero-initialised because the read results are unchecked.
+    int32_t size = 0, totalsize = 0;
     long bytesread;
 
     fread(buffer, 4, 1, fp);
@@ -523,9 +524,10 @@ long CSoundMgr::SkipRiffHeader(FILE *fp)
 // a riff file, and returns the size of the header
 long CSoundMgr::SkipRiffHeader(HANDLE fp)
 {
-    char buffer[256];
+    char buffer[256] = {0};
     // FF_LINUX: see the FILE* overload -- 4-byte on-disk RIFF chunk sizes.
-    int32_t size, totalsize;
+    // Zero-initialised because the read results are unchecked.
+    int32_t size = 0, totalsize = 0;
     long bytesread;
     DWORD br;
 
@@ -603,26 +605,43 @@ long CSoundMgr::LoadRiffFormat(HANDLE fp, WAVEFORMATEX *Format, long *HeaderSize
     long bytesread;
     DWORD br;
 
+    // FF_LINUX: every ReadFile result below was ignored, so a truncated or
+    // non-WAV file left `buffer` and `totalsize` uninitialised and they were then
+    // compared and used as loop bounds. Check the byte counts.
     (*SampleCount) = 0;
+    size = 0;
+    totalsize = 0;
+    memset(buffer, 0, sizeof(buffer));
+
     ReadFile(fp, buffer, 4, &br, NULL);
     bytesread = br;
 
-    if (strncmp(buffer, "RIFF", 4))
+    if (br < 4 or strncmp(buffer, "RIFF", 4))
         return(0);
 
     ReadFile(fp, &totalsize, sizeof(int32_t), &br, NULL);
     bytesread += br;
 
+    if (br < (DWORD)sizeof(int32_t))
+        return(0);
+
     ReadFile(fp, buffer, 4, &br, NULL);
     bytesread += br;
 
-    if (strncmp(buffer, "WAVE", 4))
+    if (br < 4 or strncmp(buffer, "WAVE", 4))
         return(0); // unsupported format
 
     ReadFile(fp, buffer, 4, &br, NULL);
     bytesread += br;
+
+    if (br < 4)
+        return(0);
+
     ReadFile(fp, &size, sizeof(int32_t), &br, NULL);
     bytesread += br;
+
+    if (br < (DWORD)sizeof(int32_t))
+        return(0);
 
     while (bytesread < totalsize and strncmp(buffer, "data", 4))
     {
