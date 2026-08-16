@@ -116,8 +116,21 @@ void CDXEngine::LoadTexture(char *FileName)
             return;
         }
 
+#ifdef FF_LINUX
+        // FF_LINUX: .ITM files are CRLF. Windows text-mode fgets eats the \r,
+        // Linux keeps it, and the strtok below uses "=\n" -- so any token that
+        // runs to end-of-line carries a trailing carriage return and the strcmp
+        // tests against it silently fail. Same idiom as entity.cpp /
+        // drawparticlesys.cpp.
+        {
+            char *e = Buffer + strlen(Buffer);
+
+            while (e > Buffer and (e[-1] == '\r' or e[-1] == '\n')) *--e = '\0';
+        }
+#endif
+
         // Skip if a comment, or a New Line
-        if (Buffer[0] == '#' or Buffer[0] == ';' or Buffer[0] == '\n')
+        if (Buffer[0] == '#' or Buffer[0] == ';' or Buffer[0] == '\n' or Buffer[0] == '\0')
             continue;
 
         // Skip initial Spaces or TABs
@@ -125,6 +138,17 @@ void CDXEngine::LoadTexture(char *FileName)
 
         // Ok, get the Item Name
         Name = strtok(&Buffer[b], "=\n");
+
+#ifdef FF_LINUX
+        // FF_LINUX: a NULL Name leaves Ti pointing at the PREVIOUS item (or
+        // uninitialised) and then strncpy(Ti->Name, NULL, ...) below dereferences
+        // it. Until now a blank CRLF line happened to tokenise to "\r" rather
+        // than NULL, which masked this; stripping the CR above would expose it on
+        // any whitespace-only line. Guard it rather than rely on the accident.
+        if ( not Name)
+            continue;
+
+#endif
 
         // Check if Unit Command
         if ( not strcmp(Name, "Unit"))

@@ -5,6 +5,13 @@
 
 // MLR 12/13/2003 - Simple token parsing
 
+// FF_LINUX: \r must be a delimiter. The game's data files are CRLF; Windows
+// text-mode fgets strips the \r, Linux keeps it. Without \r here the LAST token
+// on every line carries a trailing carriage return, so TokenEnum's
+// stricmp(arg, *enumnames) never matches and silently returns the caller's
+// default, and TokenStr hands back a name with a \r glued on. Same class as the
+// particlesys.ini effect-name bug (5783ca73), but in the SHARED tokenizer.
+
 char *tokenStr = 0;
 
 float TokenF(float def)
@@ -19,7 +26,7 @@ float TokenF(char *str, float def)
 
     tokenStr = 0;
 
-    if (bs = strtok(str, " ,\t\n"))
+    if (bs = strtok(str, " ,\t\n\r"))
     {
         return((float)atof(bs));
     }
@@ -40,7 +47,7 @@ int TokenI(char *str, int def)
 
     tokenStr = 0;
 
-    if (bs = strtok(str, " ,\t\n"))
+    if (bs = strtok(str, " ,\t\n\r"))
     {
         return(atoi(bs));
     }
@@ -62,7 +69,7 @@ int TokenFlags(char *str, int def, char *flagstr)
 
     tokenStr = 0;
 
-    if (arg = strtok(str, " ,\t\n"))
+    if (arg = strtok(str, " ,\t\n\r"))
     {
         while (*arg)
         {
@@ -98,7 +105,7 @@ int TokenEnum(char *str, char **enumnames, int def)
 
     tokenStr = 0;
 
-    if (arg = strtok(str, " ,\t\n"))
+    if (arg = strtok(str, " ,\t\n\r"))
     {
         while (*enumnames)
         {
@@ -133,7 +140,7 @@ char *TokenStr(char *str, char *def)
 
     tokenStr = 0;
 
-    if (bs = strtok(str, " :,\t\n"))
+    if (bs = strtok(str, " :,\t\n\r"))
     {
         return(bs);
     }
