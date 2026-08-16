@@ -1102,6 +1102,11 @@ Three elevation sources disagree at the same x/y: runway feature (−5.00),
 collision query (−26.00), rendered terrain (higher still). The gold shows all
 three coincident.
 
+**SUPERSEDED — see "container re-pick" below.** The decal analysis that follows
+was reasoned about a code path that was not executing at the player's airbase at
+all (no flat surfaces were being inserted there), so its conclusion could not be
+observed and was wrong. Kept for the record.
+
 **Root cause found and fixed (75bc6056).** `FF_DEBUG_RUNWAY` gave it directly:
 
 ```
@@ -1187,6 +1192,54 @@ the collision elevation is correct, proven by Sprint 22's landing parity").
 Sprint 22 measured an *airborne approach*, where the aircraft never touches the
 ground and interpenetration cannot arise, so it could not have caught a
 ground-start placement error. Both records are right about different things.
+
+### TE2-2 RESOLVED — the runway now renders (container re-pick + 3ft decal restored)
+
+Two changes, in this order, and the order matters:
+
+1. **`2101bfa2` — find the real container.** `CreateDrawable` took the objective's
+   container from `GetComponentLead()`, and the comment claims the container is
+   "stored in the lead element". It is not: the lead is just
+   `components->GetFirst()` of a `TailInsertList`, i.e. whichever feature was
+   created first. Per-feature tracing of the player's airbase:
+
+   ```
+   f=0   pos=(1041393,1267712) classID=2370 flags=0x1    FLAT=0   <- picked as lead
+   f=20  pos=(1041393,1267712) classID=1918 flags=0x115  FLAT=1   <- same spot, IS a container
+   ```
+
+   Two features sit at the objective centre and we picked the one without the
+   flag. Across a whole TE 2 run exactly one objective had a container as its
+   `f=0` — and that is precisely the one base whose runway rendered. Now, if the
+   lead carries neither container flag, the components are scanned for one that
+   does. Platforms built 1 -> 2, flat surface inserts **6 -> 63**.
+
+2. **Decal restored to 3ft.** With the surfaces finally being inserted, the decal
+   could be measured for the first time: at 0 the tarmac loses the depth test and
+   vanishes (cockpit view is plain grass), at 1ft it is still gone, at **3ft** it
+   renders. So the slope-scaled `glPolygonOffset` from RWY-2 is *not* sufficient
+   alone and the geometric lift is doing real work. This reverts the default set
+   in `75bc6056`, which had been reasoned about a path that was not executing.
+
+**Verified visually:** orbit capture shows two F-16s line astern on grey tarmac
+with the treeline and tower behind — matching the shape of the PO's Wine gold,
+where before there was only grass.
+
+**Remaining gaps against the gold** (tracked as TE2-5 and below): the parked jets
+are sunk ~3ft so the gear is hidden, the tarmac has no runway markings, and the
+2D-pit view still shows grass further ahead, suggesting the flat surfaces are not
+drawn out to the distance the gold shows.
+
+### TE2-5 — runway drawn 3ft above where aircraft stand (open)
+
+`drawbldg.cpp` places flat surfaces at `GetGroundLevel - 3ft` so they win the
+depth test, but ground aircraft are placed with their wheels *at*
+`GetGroundLevel`. A parked jet is therefore sunk 3ft into the tarmac and its gear
+is invisible — visible in every external capture, and the origin of the PO's
+"bogged down in terrain" description.
+
+The fix is to make ground contact use the surface that is drawn, not to shrink
+the lift: measurements show 0ft and 1ft both make the runway disappear entirely.
 
 ### TE2-3 — popup MFDs in HUD view (WITHDRAWN as diagnosed, symptom still open)
 

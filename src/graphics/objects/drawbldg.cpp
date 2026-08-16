@@ -81,21 +81,25 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
         if (g_ffRunwayDbg && !getenv("FF_RUNWAY_OLD"))
         {
             float gl = renderer->viewpoint->GetGroundLevel(position.x, position.y);
-            // FF_LINUX: this used to lift the runway 3ft ABOVE the terrain (a geometric
-            // decal) to stop it z-fighting the terrain mesh. That is no longer the way we
-            // solve z-fighting: RWY-2 was fixed in 9ed8f3b2 with a slope-scaled
-            // glPolygonOffset applied at flush time to exactly this batch (the surfaces
-            // drawn under g_ffRunwayDbg -- see FF_SetRunwayDepthBias in compat/d3d_gl.cpp,
-            // FF_RUNWAY_NOBIAS=1 disables). With the depth bias carrying that job, the
-            // geometric lift is redundant AND actively harmful: ground aircraft are placed
-            // with their wheels at GetGroundLevel, so a runway drawn 3ft above it leaves
-            // every parked jet sunk 3ft into the surface -- the PO's TE 2 report of an
-            // aircraft bogged in terrain with no runway visible (EPIC TE2 / TE2-2).
-            // Default 0 so the drawn runway coincides with the collision surface the
-            // aircraft stands on. FF_RUNWAY_ZLIFT=<ft> restores a lift if the depth bias
-            // ever proves insufficient at some range.
+            // FF_LINUX: lift the flat runway/tarmac surface slightly ABOVE the terrain
+            // (a decal) so it wins the depth test against the terrain mesh.
+            //
+            // MEASURED 2026-08-15 (TE 2, player's airbase): the slope-scaled
+            // glPolygonOffset from RWY-2 (9ed8f3b2, FF_SetRunwayDepthBias) is NOT
+            // sufficient on its own. At decal 0 the tarmac disappears completely -- the
+            // cockpit view is plain grass; at 1ft it is still gone; at 3ft the runway and
+            // apron render and match the PO's Wine gold. So the geometric lift is doing
+            // real work and 3ft stands. (An earlier change here defaulted it to 0 on the
+            // reasoning that the depth bias made it redundant; that could not be observed
+            // at the time because the player's airbase was not inserting any flat
+            // surfaces at all -- see the container re-pick in addobj.cpp.)
+            //
+            // Known cost: aircraft are placed with their wheels at GetGroundLevel, so a
+            // runway drawn 3ft above that leaves a parked jet sunk by 3ft (gear hidden).
+            // That visual/collision split is TE2-5; fixing it means making ground contact
+            // use the drawn surface, not shrinking this lift.
             static float decal = -9999.f;
-            if (decal < -9000.f) { const char* e = getenv("FF_RUNWAY_ZLIFT"); decal = e ? (float)atof(e) : 0.0f; }
+            if (decal < -9000.f) { const char* e = getenv("FF_RUNWAY_ZLIFT"); decal = e ? (float)atof(e) : 3.0f; }
             if (getenv("FF_DEBUG_RUNWAY"))
             {
                 static long c = 0;
