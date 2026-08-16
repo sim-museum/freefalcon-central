@@ -330,12 +330,17 @@ SquadronClass::~SquadronClass(void)
 
 int SquadronClass::SaveSize(void)
 {
+    // FF_LINUX: fuel and schedule are 4-byte fields in the 32-bit Windows on-disk
+    // format, and the loader above already reads them as int32_t/uint32_t. sizeof(long)
+    // is 8 here, so sizing (and writing) them as long made our OWN saves unreadable by
+    // our OWN loader -- 4 bytes of drift for fuel plus 4 per schedule slot, corrupting
+    // everything after. Same class as AUTOSAVE-1.
     return AirUnitClass::SaveSize()
-           + sizeof(long)
+           + sizeof(int32_t)
            + sizeof(uchar)
            + sizeof(uchar) * MAXIMUM_WEAPTYPES
            + sizeof(PilotClass) * PILOTS_PER_SQUADRON
-           + sizeof(long) * VEHICLE_GROUPS_PER_UNIT
+           + sizeof(uint32_t) * VEHICLE_GROUPS_PER_UNIT
            + sizeof(VU_ID)
            + sizeof(VU_ID)
            + sizeof(uchar) * ARO_OTHER
@@ -360,16 +365,28 @@ int SquadronClass::Save(VU_BYTE **stream)
         fflush(save_log);
     }
 
-    memcpy(*stream, &fuel, sizeof(long));
-    *stream += sizeof(long);
+    // FF_LINUX: write 4 bytes to match the loader and the Windows format.
+    {
+        int32_t fuel32 = (int32_t)fuel;
+        memcpy(*stream, &fuel32, sizeof(int32_t));
+        *stream += sizeof(int32_t);
+    }
     memcpy(*stream, &specialty, sizeof(uchar));
     *stream += sizeof(uchar);
     memcpy(*stream, stores, sizeof(uchar)*MAXIMUM_WEAPTYPES);
     *stream += sizeof(uchar) * MAXIMUM_WEAPTYPES;
     memcpy(*stream, pilot_data, sizeof(PilotClass)*PILOTS_PER_SQUADRON);
     *stream += sizeof(PilotClass) * PILOTS_PER_SQUADRON;
-    memcpy(*stream, schedule, sizeof(long)*VEHICLE_GROUPS_PER_UNIT);
-    *stream += sizeof(long) * VEHICLE_GROUPS_PER_UNIT;
+    // FF_LINUX: 4 bytes per slot, matching the uint32_t read in the loader.
+    {
+        uint32_t schedule32[VEHICLE_GROUPS_PER_UNIT];
+
+        for (int ffS = 0; ffS < VEHICLE_GROUPS_PER_UNIT; ffS++)
+            schedule32[ffS] = (uint32_t)schedule[ffS];
+
+        memcpy(*stream, schedule32, sizeof(uint32_t) * VEHICLE_GROUPS_PER_UNIT);
+        *stream += sizeof(uint32_t) * VEHICLE_GROUPS_PER_UNIT;
+    }
 #ifdef CAMPTOOL
 
     if (gRenameIds)
@@ -1827,8 +1844,10 @@ void SquadronClass::WriteDirty(unsigned char **stream)
 
     if (dirty_squadron bitand DIRTY_FUEL)
     {
-        *(long*)ptr = fuel;
-        ptr += sizeof(long);
+        // FF_LINUX: ReadDirty reads this as int32_t, so write 4 bytes -- writing 8
+        // desynchronised every field after it in the dirty-data stream.
+        *(int32_t*)ptr = (int32_t)fuel;
+        ptr += sizeof(int32_t);
     }
 
     if (dirty_squadron bitand DIRTY_SQUAD_STORES)

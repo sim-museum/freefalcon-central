@@ -1352,6 +1352,34 @@ Verified: two TE 2 runs SIGINT'd mid-flight now give 0 crashes and 0 leftover
 processes (previously SIGSEGV/SIGABRT plus a surviving process); the Exit button
 path still ends `rc=0` with "Goodbye!" and no crash.
 
+### SAVE-1 — squadron saves were written 4 bytes wider than they are read
+
+`SquadronClass` reads `fuel` as `int32_t` and `schedule[]` as `uint32_t` — both
+already corrected for the 32-bit Windows on-disk format — but still **wrote and
+sized** them with `sizeof(long)`, which is 8 here:
+
+| field | write / size | read |
+|---|---|---|
+| `fuel` (file, `Save`/`SaveSize`) | `sizeof(long)` = 8 | `int32_t` = 4 |
+| `schedule[]` (file) | `sizeof(long)` × N = 8N | `uint32_t` × N = 4N |
+| `fuel` (dirty data, `WriteDirty`) | `sizeof(long)` = 8 | `int32_t` = 4 in `ReadDirty` |
+
+So our own writer and our own reader disagreed: 4 bytes of drift for `fuel` plus
+4 per schedule slot, corrupting every field after them. Exactly the AUTOSAVE-1
+class ("Encode wrote 32-byte event nodes while Decode read the 20-byte layout"),
+which `CLAUDE.md` explicitly flagged as still outstanding on the Encode/SaveSize
+side.
+
+Fixed all four write/size sites to match the readers. Only the write path
+changed, so loading existing Windows-format campaigns is unaffected; what changes
+is that campaign saves we produce are now readable back.
+
+Verified: TE 2 reaches 3D (111 samples) and Instant Action reaches 3D, both with
+zero crashes and zero assertions.
+
+**Not yet verified:** an actual save → reload round-trip, which needs a campaign
+mission flown to a save point. Worth doing when a campaign flow is next exercised.
+
 ### FARTEX-1 — far textures above id 31128 were never released (16-bit truncation)
 
 `FarTexDB::Release` bounded the texture id with a **`(WORD)`** cast:
