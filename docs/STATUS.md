@@ -1230,6 +1230,30 @@ are sunk ~3ft so the gear is hidden, the tarmac has no runway markings, and the
 2D-pit view still shows grass further ahead, suggesting the flat surfaces are not
 drawn out to the distance the gold shows.
 
+### SESS-2 — ctree use-after-free (fixed, exit path now verified)
+
+`C_TreeList::DeleteItem` read `item->Parent->Child` through a freed `TREELIST`
+during ATO teardown. Fixed by re-parenting the whole child list to the
+grandparent before the node is deleted (children hold a `Parent` back-pointer and
+deleting a node does not delete its children, so a parent freed first left every
+child dangling; the `F4IsBadReadPtr` guard above cannot detect a freed heap
+block).
+
+Verification needed a *real* in-game exit — the soak's timeout SIGINT never
+reaches `~C_Hash`. Driven with `FF_UI_CLICK`, using a screenshot of the exit
+dialog to find its OK button at (660,501) rather than guessing:
+
+- main menu -> Exit -> OK: `rc=0`, `Goodbye!`, **0 ASAN errors**
+- main menu -> Tactical -> mission 02 -> RESCUE (back) -> Exit -> OK: `rc=0`,
+  `Goodbye!`, **0 ASAN errors**
+
+Caveat: neither run logs ATO-tree activity, so this corroborates the fix on the
+teardown path rather than proving the exact populated-tree case from the original
+report (which followed a full TE flight).
+
+Handy for future automation: **RESCUE (back) and the main-menu Exit are both at
+(49,750)**, and the exit confirmation's OK is at (660,501), CANCEL at (362,500).
+
 ### TE2-5 — runway drawn 3ft above where aircraft stand (open)
 
 `drawbldg.cpp` places flat surfaces at `GetGroundLevel - 3ft` so they win the
