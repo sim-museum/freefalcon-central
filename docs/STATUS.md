@@ -1753,6 +1753,13 @@ dereferenced after `#endif`) over all 195 `#ifdef DEBUG` blocks in the built tre
 The compiler can only prove the ones it can see locally — worth remembering that
 a warning is a *starting point* for a class sweep, not the end of one.
 
+**The sweep is closed.** All 195 `.cpp` blocks plus the 4 in headers (a gap in the
+first pass — it only covered `.cpp`) have been examined. Beyond the seven fixed,
+the remaining candidates were checked individually and are harmless: the two
+`atcbrain` blocks and `team.cpp`'s are DEBUG-gated extra validation, and
+`atm.cpp`'s `airbase = NULL` is deliberate error handling immediately followed by
+`if (airbase) … else …`.
+
 **Triage note, to save the next session the work:** the ~38 int/pointer-cast
 warnings look alarming and are mostly *not* defects. They are misplaced casts like
 `(SimBaseClass*)entity->IsDead()`, where the cast binds to the **call result**
