@@ -1086,6 +1086,15 @@ that was broken serves a *different* set of sounds than the one that was heard.
 **Where a fix is verified matters as much as whether it is verified.** Prefer the
 test that exercises the artefact the change produces.
 
+Also this session: TE2-7 advanced from "no markings" to a measured hard distance
+cutoff (see its entry — two more causes ruled out, and the symptom itself
+restated), and the newly-reachable campaign save/reload path was memory-checked.
+
+Regression state: TE 2 reaches 3D with 0 crashes; campaign **save → reload** works
+end to end and is **clean under ASAN** (0 errors) on both halves — writing the
+save (which also fired an autosave) and reloading a Linux-written save
+(`Decode(size=5886)`, `LZSS_Expand` exact at 5881, `CurrentTime=32410619`).
+
 ## EPIC TE2 — TE "02 Takeoff" playable to rotation (opened 2026-08-15, PO-raised)
 
 **PO report (2026-08-15):** flying TE "02 Takeoff", the aircraft sits bogged in
