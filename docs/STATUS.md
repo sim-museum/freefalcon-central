@@ -1314,8 +1314,33 @@ depth test, but ground aircraft are placed with their wheels *at*
 is invisible — visible in every external capture, and the origin of the PO's
 "bogged down in terrain" description.
 
-The fix is to make ground contact use the surface that is drawn, not to shrink
-the lift. Measured by sampling the ground band of an orbit capture (grey =
+**Mechanism confirmed from the PO's flight (2026-08-15).** Two separate things
+were being conflated, and `FF_DEBUG_CAM` separated them:
+
+1. *The camera is NOT going underground.* The clamp at `otwloop.cpp:2483` runs
+   every frame and pins the camera 5 ft above **terrain** — the trace prints
+   `viewPos` pre-clamp, which is why raw samples look negative. But the tarmac is
+   drawn 3 ft above terrain, so the camera ends up only **2 ft above the visible
+   surface**.
+2. *The "submerging" is depth-bias occlusion.* Pulled hard enough to beat the
+   terrain, the polygon offset also makes the tarmac beat the **aircraft**, so the
+   surface draws over the jet's lower fuselage. Raising the view angle exposes
+   more of that plane, hence "any elevation of the view causes the aircraft to
+   start submerging".
+
+That puts coverage and occlusion in direct tension: a larger bias fixes the near
+tarmac gap and worsens the occlusion. Measured, decal 0 with a very large bias
+(`-128,-65536`) renders every band but still occludes the aircraft, so
+coplanar-plus-bias is not an escape either.
+
+**Therefore the only real fix is the one this item has always named: ground
+contact must use the surface that is drawn.** With the aircraft sitting *on* the
+tarmac rather than 3 ft inside it, the bias can drop back to a modest value that
+beats terrain without beating aircraft. That means touching the per-frame ground
+settle in the airframe, so it is left for explicit PO sign-off rather than done
+opportunistically.
+
+Measured by sampling the ground band of an orbit capture (grey =
 tarmac visible, green = terrain only):
 
 | lift | ground band avgRGB | verdict |

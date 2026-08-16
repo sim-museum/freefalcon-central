@@ -2483,6 +2483,29 @@ void OTWDriverClass::RenderFrame()
     // Keep the viewpoint above ground
     GetAreaFloorAndCeiling(&bottom, &top);
 
+#ifdef FF_LINUX
+    // FF_DEBUG_CAM: the PO reports that tilting an external view with the mouse or
+    // hat switch makes the jet "submerge" -- a sharp horizontal split with magnified
+    // blurry terrain below it, which is what you see when the CAMERA is at or under
+    // the ground plane. This clamp is supposed to prevent exactly that, so report
+    // whether it runs and what it decides. z is positive-DOWN, so "above ground"
+    // means a SMALLER z, and clamped-to = groundZ - 5.
+    if (getenv("FF_DEBUG_CAM"))
+    {
+        static int camTick = 0;
+
+        if ((camTick++ % 30) == 0)
+        {
+            float camGz = GetGroundLevel(viewPos.x, viewPos.y);
+            fprintf(stderr, "[CAM] viewPos=(%.0f,%.0f,%.2f) top=%.2f bottom=%.2f groundZ=%.2f "
+                    "clampRuns=%d wouldClampTo=%.2f aboveGround=%.2f\n",
+                    viewPos.x, viewPos.y, viewPos.z, top, bottom, camGz,
+                    (viewPos.z > top) ? 1 : 0, camGz - 5.0F, camGz - viewPos.z);
+            fflush(stderr);
+        }
+    }
+#endif
+
     if (viewPos.z > top)
     {
         viewPos.z = min(viewPos.z, GetGroundLevel(viewPos.x, viewPos.y) - 5.0F);
