@@ -2861,7 +2861,7 @@ void LoadTroopMovementHistory()
                     }
 
                     hist->SetReady(1);
-                    delete filedata;
+                    delete[] filedata;  // FF_LINUX: filedata = new char[]
                     win->AddControl(hist);
                     recnum++;
                 }

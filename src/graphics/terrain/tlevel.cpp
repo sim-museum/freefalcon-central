@@ -512,7 +512,7 @@ void TLevel::PreProcessBlock(LoaderQ* request)
         // MemFreeFS( postArray );
         MemFreePtr(postArray);
 #else
-        delete postArray;
+        delete[] postArray;  // FF_LINUX: postArray = new Tpost[POSTS_PER_BLOCK]
 #endif
         postArray = NULL;
 

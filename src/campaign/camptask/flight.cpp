@@ -4783,7 +4783,7 @@ void FlightClass::RemoveLoadout(void)
 {
     if (loadout)
     {
-        delete loadout;
+        delete[] loadout;  // FF_LINUX: loadout = new LoadoutStruct[loadouts]
         loadout = NULL;
     }
 
@@ -6010,7 +6010,7 @@ void FlightClass::ReadDirty(VU_BYTE **stream, long *rem)
 
         if (loadout)
         {
-            delete loadout;
+            delete[] loadout;  // FF_LINUX: loadout = new LoadoutStruct[loadouts]
         }
 
         loadout = new LoadoutStruct[loadouts];

@@ -209,7 +209,7 @@ _TCHAR *UI_WordWrap(C_Window *win, _TCHAR *str, long fontid, short width, BOOL *
     if (str)
     {
         if (WordWrap)
-            delete WordWrap;
+            delete[] WordWrap;  // FF_LINUX: WordWrap = new _TCHAR[]
 
         WordWrap = new _TCHAR[_tcslen(str) + 1];
         _tcscpy(WordWrap, str);
@@ -220,7 +220,7 @@ _TCHAR *UI_WordWrap(C_Window *win, _TCHAR *str, long fontid, short width, BOOL *
     {
         if (NextPtr == NULL)
         {
-            delete WordWrap;
+            delete[] WordWrap;  // FF_LINUX: WordWrap = new _TCHAR[]
             WordWrap = NULL;
             WordPtr = NULL;
             NextPtr = NULL;
@@ -233,7 +233,7 @@ _TCHAR *UI_WordWrap(C_Window *win, _TCHAR *str, long fontid, short width, BOOL *
         {
             if ( not _tcslen(WordPtr))
             {
-                delete WordWrap;
+                delete[] WordWrap;  // FF_LINUX: WordWrap = new _TCHAR[]
                 WordWrap = NULL;
                 WordPtr = NULL;
                 NextPtr = NULL;

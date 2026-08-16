@@ -1595,7 +1595,7 @@ void UpdateUnitCombatStatistics(void)
         }
     }
 
-    delete vhc;
+    delete[] vhc;  // FF_LINUX: vhc = new uchar[NumVehicleEntries * MOVEMENT_TYPES]
 }
 
 void UpdateObjectiveCombatStatistics(void)

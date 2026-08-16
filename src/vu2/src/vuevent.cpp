@@ -1965,7 +1965,7 @@ int VuSessionEvent::Decode(VU_BYTE** buf, long *rem)
 
     if (len)
     {
-        delete callsign_;
+        delete[] callsign_;  // FF_LINUX: callsign_ = new char[len + 1]
         callsign_ = new char[len + 1];
         memcpychk(callsign_, buf, len, rem);
         callsign_[len] = '\0';

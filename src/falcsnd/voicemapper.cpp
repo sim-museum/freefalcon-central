@@ -79,7 +79,7 @@ const struct VoiceMapper::namemap {
 VoiceMapper::~VoiceMapper()
 {
     if (voiceflags)
-        delete voiceflags;
+        delete[] voiceflags;  // FF_LINUX: voiceflags = new unsigned int[n]
 }
 
 // read in the camp file definitions

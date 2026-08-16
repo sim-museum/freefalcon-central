@@ -45,7 +45,7 @@ void ACMI_Hash::Cleanup()
             }
         }
 
-        delete Table_;
+        delete[] Table_;  // FF_LINUX: Table_ = new ACMI_HASHROOT[TableSize_]
         Table_ = NULL;
         TableSize_ = 0;
     }

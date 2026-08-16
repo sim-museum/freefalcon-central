@@ -45,7 +45,7 @@ void C_History::Cleanup()
 
     if (Data_)
     {
-        delete Data_;
+        delete[] Data_;  // FF_LINUX: Data_ = new O_Output[Count_]
         Data_ = NULL;
     }
 }

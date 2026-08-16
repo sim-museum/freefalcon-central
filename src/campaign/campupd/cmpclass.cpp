@@ -2569,7 +2569,7 @@ void CampaignClass::VerifySquadrons(int team)
     }
 
     NumAvailSquadrons = squadrons;
-    delete CampaignSquadronData;
+    delete[] CampaignSquadronData;  // FF_LINUX: CampaignSquadronData = new SquadUIInfoClass[]
     CampaignSquadronData = newData;
 }
 
