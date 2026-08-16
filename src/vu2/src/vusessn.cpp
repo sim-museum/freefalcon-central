@@ -1438,7 +1438,10 @@ VuSessionEntity::VuSessionEntity(VU_BYTE** stream, long *rem)
       game_(0),
       action_(VU_NO_GAME_ACTION)
 {
-    VU_BYTE len;
+    // FF_LINUX: the fread that fills this is unchecked, and `len` then sizes
+    // `new char[len + 1]` for the callsign/game name. A truncated session
+    // file left it as stack garbage driving the allocation.
+    VU_BYTE len = 0;
 
     share_.ownerId_ = Id();
 
@@ -2970,7 +2973,10 @@ VuGroupEntity::VuGroupEntity(int type, char *gamename, VuFilter* filter)
 VuGroupEntity::VuGroupEntity(VU_BYTE** stream, long *rem)
     : VuTargetEntity(stream, rem), selfIndex_(-1)
 {
-    VU_BYTE len;
+    // FF_LINUX: the fread that fills this is unchecked, and `len` then sizes
+    // `new char[len + 1]` for the callsign/game name. A truncated session
+    // file left it as stack garbage driving the allocation.
+    VU_BYTE len = 0;
     VU_ID sessionid(0, 0);
     VuSessionFilter filter(Id());
     sessionCollection_ = new VuOrderedList(&filter);
@@ -3067,7 +3073,10 @@ int VuGroupEntity::SaveSize()
 
 int VuGroupEntity::Save(VU_BYTE** stream)
 {
-    VU_BYTE len;
+    // FF_LINUX: the fread that fills this is unchecked, and `len` then sizes
+    // `new char[len + 1]` for the callsign/game name. A truncated session
+    // file left it as stack garbage driving the allocation.
+    VU_BYTE len = 0;
 
     int retval = VuTargetEntity::Save(stream);
 
@@ -3111,7 +3120,10 @@ int VuGroupEntity::Save(VU_BYTE** stream)
 int VuGroupEntity::Save(FILE* file)
 {
     int retval = 0;
-    VU_BYTE len;
+    // FF_LINUX: the fread that fills this is unchecked, and `len` then sizes
+    // `new char[len + 1]` for the callsign/game name. A truncated session
+    // file left it as stack garbage driving the allocation.
+    VU_BYTE len = 0;
 
     if (file)
     {
@@ -3418,7 +3430,10 @@ VuGameEntity::VuGameEntity(int type, ulong domainMask, char* gamename, char* gro
 VuGameEntity::VuGameEntity(VU_BYTE** stream, long *rem):
     VuGroupEntity(stream, rem)
 {
-    VU_BYTE len;
+    // FF_LINUX: the fread that fills this is unchecked, and `len` then sizes
+    // `new char[len + 1]` for the callsign/game name. A truncated session
+    // file left it as stack garbage driving the allocation.
+    VU_BYTE len = 0;
 
     memcpychk(&domainMask_, stream, sizeof(ulong), rem);
     memcpychk(&len, stream, sizeof(VU_BYTE), rem);
@@ -3497,7 +3512,10 @@ VuGameEntity::SaveSize()
 int
 VuGameEntity::Save(VU_BYTE** stream)
 {
-    VU_BYTE len;
+    // FF_LINUX: the fread that fills this is unchecked, and `len` then sizes
+    // `new char[len + 1]` for the callsign/game name. A truncated session
+    // file left it as stack garbage driving the allocation.
+    VU_BYTE len = 0;
 
     int retval = VuGroupEntity::Save(stream);
     memcpy(*stream, &domainMask_, sizeof(ulong));
@@ -3533,7 +3551,10 @@ int
 VuGameEntity::Save(FILE* file)
 {
     int retval = 0;
-    VU_BYTE len;
+    // FF_LINUX: the fread that fills this is unchecked, and `len` then sizes
+    // `new char[len + 1]` for the callsign/game name. A truncated session
+    // file left it as stack garbage driving the allocation.
+    VU_BYTE len = 0;
 
     if (file)
     {
