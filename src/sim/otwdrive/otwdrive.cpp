@@ -2884,6 +2884,34 @@ void OTWDriverClass::ObjectSetData(SimBaseClass *obj, Tpoint *simView, Trotation
     simView->y     = obj->YPos();
     simView->z     = obj->ZPos();
 
+#ifdef FF_LINUX
+    // FF_LINUX (TE2-5): flat runway/tarmac surfaces are DRAWN FF_RunwayDecal() above
+    // the terrain (drawbldg.cpp) so they win the depth test against the terrain mesh,
+    // but aircraft are PLACED with their wheels at GetGroundLevel -- the terrain
+    // height. The gap left every parked jet sunk into the tarmac with its gear hidden,
+    // and made it appear to sink further as the view angle rose (PO report,
+    // 2026-08-15).
+    //
+    // Offset the DRAWABLE by the same amount while the aircraft is on the ground, so
+    // it is drawn standing on the surface it visually rests on. Deliberately visual
+    // only: obj->ZPos() is untouched, so collision, the flight model, ACMI recording
+    // and the Sprint-22 landing parity all see exactly what they saw before. Negative
+    // z is up. FF_NO_GEAR_LIFT=1 disables.
+    if (obj->OnGround() and obj->IsAirplane())
+    {
+        static int ffNoLift = -1;
+
+        if (ffNoLift < 0)
+            ffNoLift = getenv("FF_NO_GEAR_LIFT") ? 1 : 0;
+
+        if ( not ffNoLift)
+        {
+            extern float FF_RunwayDecal(void);
+            simView->z -= FF_RunwayDecal();
+        }
+    }
+#endif
+
     /*
     // Do we want Control surface data?
     if ( not obj->IsSimObjective() and not obj->IsLocal())

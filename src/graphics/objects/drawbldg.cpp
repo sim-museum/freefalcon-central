@@ -18,6 +18,25 @@
 #include "sfx.h"
 */
 
+#ifdef FF_LINUX
+// FF_LINUX (TE2-5): the runway decal, shared with OTWDriverClass::ObjectSetData.
+// Flat runway/tarmac surfaces are DRAWN this far above the terrain so they win the
+// depth test; ground aircraft are PLACED with their wheels at the terrain height, so
+// without the same offset on the drawable a parked jet sits inside the tarmac.
+float FF_RunwayDecal(void)
+{
+    static float decal = -9999.f;
+
+    if (decal < -9000.f)
+    {
+        const char* e = getenv("FF_RUNWAY_ZLIFT");
+        decal = e ? (float)atof(e) : 3.0f;
+    }
+
+    return decal;
+}
+#endif
+
 #ifdef USE_SH_POOLS
 MEM_POOL DrawableBuilding::pool;
 #endif
@@ -98,8 +117,7 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
             // runway drawn 3ft above that leaves a parked jet sunk by 3ft (gear hidden).
             // That visual/collision split is TE2-5; fixing it means making ground contact
             // use the drawn surface, not shrinking this lift.
-            static float decal = -9999.f;
-            if (decal < -9000.f) { const char* e = getenv("FF_RUNWAY_ZLIFT"); decal = e ? (float)atof(e) : 3.0f; }
+            const float decal = FF_RunwayDecal();
             if (getenv("FF_DEBUG_RUNWAY"))
             {
                 static long c = 0;

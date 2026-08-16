@@ -1338,7 +1338,27 @@ would have applied a large speculative offset to 34k surfaces per frame.
 
 Verified no regression: TE 2 pit bands all read tarmac with defaults.
 
-### TE2-5 — runway drawn 3ft above where aircraft stand (open)
+### TE2-5 — runway drawn 3ft above where aircraft stand (FIXED, visual lift)
+
+**Fixed by lifting the DRAWABLE, not by touching physics.** Flat surfaces are
+drawn `FF_RunwayDecal()` (3 ft) above the terrain so they win the depth test;
+aircraft are placed with their wheels at `GetGroundLevel`, i.e. the terrain
+height. `OTWDriverClass::ObjectSetData` now applies the same offset to the
+drawable while the aircraft is on the ground.
+
+Deliberately visual only — `obj->ZPos()` is untouched, so collision, the flight
+model, ACMI recording and the Sprint-22 landing parity all see exactly what they
+saw before. `FF_NO_GEAR_LIFT=1` disables.
+
+Verified: the orbit capture now shows the jet standing on the tarmac with its
+underside and gear visible, where before it was cut off at mid-fuselage.
+
+Two candidate fixes were ruled out by measurement first, and are recorded so they
+are not retried: shrinking the lift (0/1/2 ft all make the runway vanish
+entirely) and the `D3DRENDERSTATE_ZBIAS` path (the runway surfaces carry
+`dwzBias=0` and never use it — see ZBIAS-1).
+
+
 
 `drawbldg.cpp` places flat surfaces at `GetGroundLevel - 3ft` so they win the
 depth test, but ground aircraft are placed with their wheels *at*
