@@ -2494,6 +2494,18 @@ int ObjectiveClass::GetFeatureID(int f)
 
 int ObjectiveClass::GetFeatureOffset(int f, float* x, float* y, float* z)
 {
+    // FF_LINUX: the three guards below returned 0 WITHOUT writing the outputs,
+    // and every caller ignores the return value and uses them anyway --
+    // e.g. `GetFeatureOffset(f, &y, &x, &z); simdata.x = XPos() + x;` places the
+    // feature at the objective's position plus whatever was on the stack.
+    // These are pure garbage-checks with no "leave the caller's value alone"
+    // intent, so define the failure result as a zero offset.
+    if (x) *x = 0.0f;
+
+    if (y) *y = 0.0f;
+
+    if (z) *z = 0.0f;
+
     if (f < 0)
         return 0;
 
