@@ -182,20 +182,28 @@ public:
 
 class TlkFile : public FileMemMap
 {
+    /* FF_LINUX: .tlk is a 32-bit Windows file, so every width here is 4 bytes,
+     * not sizeof(long). Left as long this went wrong three times over:
+     *   - Index2Data strided the index table by 8 instead of 4, so every entry
+     *     after the first was read at the wrong offset;
+     *   - GetFragIndex then read 8 bytes over a 4-byte field, returning two
+     *     concatenated entries as one huge index;
+     *   - TlkBlock put `data` at offset 16 instead of 8.
+     * Same defect as VOICE-1 in voicefilter.h, one file over. */
     long Index2Data(int tlkind)
     {
-        return TLK_HEADER_INFO + sizeof(long) * tlkind;
+        return TLK_HEADER_INFO + sizeof(int32_t) * tlkind;
     };
     long GetFragIndex(int tlkind)
     {
-        BYTE *data = GetData(Index2Data(tlkind), sizeof(long));
+        BYTE *data = GetData(Index2Data(tlkind), sizeof(int32_t));
         ShiAssert(data not_eq NULL);
-        return data ? *(long *)data : 0;
+        return data ? *(int32_t *)data : 0;
     };
     struct TlkBlock
     {
-        unsigned long filelen;
-        unsigned long compressedlen;
+        uint32_t filelen;
+        uint32_t compressedlen;
         char data[1]; // more in practice
     };
 public:
