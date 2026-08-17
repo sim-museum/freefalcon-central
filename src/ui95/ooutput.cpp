@@ -194,23 +194,42 @@ void O_Output::SetText(_TCHAR *txt)
     if (Label_ == NULL)
     {
         if (flags_ bitand C_BIT_FIXEDSIZE and LabelLen_ > 0)
+        {
 #ifdef USE_SH_POOLS
             Label_ = (_TCHAR*)MemAllocPtr(UI_Pools[UI_GENERAL_POOL], sizeof(_TCHAR) * (LabelLen_), FALSE);
 
 #else
             Label_ = new _TCHAR[LabelLen_];
 #endif
+            ffOwnsLabel_ = (Label_ not_eq NULL);   // FF_LINUX: we allocated it
+        }
     }
 
     if (txt)
     {
         if (flags_ bitand C_BIT_FIXEDSIZE)
         {
-            _tcsncpy(Label_, txt, LabelLen_ - 1);
-            Label_[LabelLen_ - 1] = 0;
+            // FF_LINUX: Label_ is still NULL here whenever LabelLen_ <= 0, because
+            // the allocation above is conditional on it -- _tcsncpy(NULL, ...) then
+            // segfaults. Seen from UI_Refresher::UpdateMapItem on the campaign map.
+            if (Label_ and LabelLen_ > 0)
+            {
+                _tcsncpy(Label_, txt, LabelLen_ - 1);
+                Label_[LabelLen_ - 1] = 0;
+            }
         }
         else
+        {
+            // FF_LINUX: borrowed - the caller owns this string, so we must not
+            // free it in Cleanup(). Note we deliberately do NOT free whatever
+            // Label_ held before: Label_ is protected and assigned directly by
+            // other code in this class hierarchy, so ffOwnsLabel_ can be stale
+            // here. Freeing on that produced "free(): invalid pointer" inside
+            // SetText itself. Leaking here is what the original did, and this is
+            // not the place to change that.
             Label_ = txt;
+            ffOwnsLabel_ = false;
+        }
     }
     else if (Label_ and (flags_ bitand C_BIT_FIXEDSIZE))
         memset(Label_, 0, sizeof(_TCHAR) * (LabelLen_));
@@ -405,7 +424,14 @@ void O_Output::Cleanup()
 {
     if (Label_)
     {
-        if (flags_ bitand C_BIT_FIXEDSIZE)
+        // FF_LINUX: free only what we know we allocated. This is deliberately
+        // NARROWER than the original "flags_ & C_BIT_FIXEDSIZE" test, never wider:
+        // the bit can be turned on after SetText() borrowed a caller-owned
+        // pointer, and the original then delete[]'d memory it never allocated
+        // ("free(): invalid pointer" from RefreshEventList -> DeleteGroupList ->
+        // C_Text::Cleanup). Requiring both means this can only ever skip a free
+        // the old code would have made -- it can never introduce a new one.
+        if (ffOwnsLabel_ and (flags_ bitand C_BIT_FIXEDSIZE))
 #ifdef USE_SH_POOLS
             MemFreePtr(Label_);
 
@@ -413,6 +439,7 @@ void O_Output::Cleanup()
             delete[] Label_;  // FF_LINUX: Label_ is new _TCHAR[] (was delete -> alloc-dealloc-mismatch)
 #endif
         Label_ = NULL;
+        ffOwnsLabel_ = false;
         SetReady(0);
     }
 

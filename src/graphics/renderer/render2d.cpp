@@ -1159,8 +1159,36 @@ int FontSet::ReadFontMetrics(int index, char*fileName) // JPO return status
 
         while (str and *str)
         {
+            // FF_LINUX: a whitespace-only tail line is normal (the file ends with
+            // one), so do not treat it as a parse failure -- asserting on it fired
+            // in every session and trained the eye to ignore this assertion.
+            {
+                const char *ffScan = str;
+
+                while (*ffScan == ' ' or *ffScan == '\t' or *ffScan == '\r' or *ffScan == '\n') ffScan++;
+
+                if ( not *ffScan) break;
+            }
+
+            trail = 0;   // FF_LINUX: optional, see below
             int n = sscanf(str, "%d %d %d %d %d %d %d", &idx, &left, &top, &width, &height, &lead, &trail);
-            ShiAssert(n == 7);
+
+            // FF_LINUX: the shipped font metrics genuinely contain a 6-field line
+            //     art\ckptart\autofont\16x12font.rct:  "3 43 234 10 18 1"
+            // whose trailing `trail` value is simply absent. The old code asserted
+            // n == 7 and then wrote the glyph anyway, leaving `trail` holding the
+            // PREVIOUS line's value -- harmless in the end, because `trail` is not
+            // used by any of the writes below.
+            //
+            // So the correct rule is not "n == 7": rejecting that line would drop
+            // glyph 3's metrics entirely and be worse than the bug. Require the six
+            // fields that are actually consumed, and bound idx, which was never
+            // checked against fontData's 256 entries -- a malformed line could
+            // otherwise write outside the array, driven by file content.
+            const bool ffLineOk = (n >= 6 and idx >= 0 and idx < 256);
+
+            if (ffLineOk)
+            {
 
             //JAM 22Dec03 - Not anymore, all modern video cards do automatic biasing.
             //TODO: Add global cfg variable for older cards.
@@ -1196,6 +1224,7 @@ int FontSet::ReadFontMetrics(int index, char*fileName) // JPO return status
                 fontData[index][idx].pixelHeight = (float)height;
                 fontData[index][idx].pixelWidth = (float)(width + lead);
             }
+            }   // FF_LINUX: end of the ffLineOk guard
 
             str = strstr(str, "\n");
 

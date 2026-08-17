@@ -2903,7 +2903,11 @@ void CSoundMgr::StreamStop(SoundStream *Stream)
         }
 
         Stream->Status and_eq compl SND_USE_THREAD;
-        Stream->DSoundBuffer->Stop();
+
+        // FF_LINUX: same as ProcessStream -- the buffer may never have been created.
+        if (Stream->DSoundBuffer)
+            Stream->DSoundBuffer->Stop();
+
         NotifyThread();
     }
 }
@@ -3412,6 +3416,16 @@ void CSoundMgr::ThreadHandler()
 void CSoundMgr::ProcessStream(SoundStream *Stream)
 {
     DWORD Pos, Dummy, bytesread;
+
+    // FF_LINUX: a stream sits on StreamList from the moment it is created, but
+    // DSoundBuffer is NULL if the buffer could not be created -- and this runs on
+    // the streaming thread, which walks the whole list. Dereferencing it then
+    // segfaults inside CSoundMgr::ProcessStream, which is what the sound thread
+    // crash traced to. It only started showing up once VOICE-1/VOICE-2 made voice
+    // streams actually play, so this path had never really been exercised.
+    if ( not Stream or not Stream->DSoundBuffer)
+        return;
+
     // either we are in the 1st or 2nd half of the buffer.
     HRESULT hr = Stream->DSoundBuffer->GetCurrentPosition(&Pos, &Dummy);
 

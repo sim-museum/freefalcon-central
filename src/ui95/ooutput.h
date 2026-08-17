@@ -62,6 +62,13 @@ protected:
     long *Cols_;
     WORDWRAP *Wrap_;
     _TCHAR *Label_;
+    /* FF_LINUX: whether Label_ is ours to free. Ownership used to be inferred
+     * from C_BIT_FIXEDSIZE at Cleanup() time -- but SetText() only allocates
+     * when that bit is set AND LabelLen_ > 0, and in the not-fixed case it
+     * BORROWS the caller's pointer (Label_ = txt). So the bit and the actual
+     * ownership can disagree, and Cleanup() then calls delete[] on a pointer it
+     * never allocated: "free(): invalid pointer". Record it explicitly. */
+    bool ffOwnsLabel_ = false;   /* NSDMI: covers every constructor */
     IMAGE_RSC *Image_;
     ANIM_RES *Anim_;
     C_Base *Owner_; // pointer to creator control
