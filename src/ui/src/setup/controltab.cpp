@@ -2853,6 +2853,22 @@ int AddKeyMapLines(C_Window *win, C_Line *Hline, C_Line *Vline, int count)
     return retval;
 }
 
+#ifdef FF_LINUX
+// FF_LINUX: KeyDescrips is `new char*[256]` memset to all-NULL, and only the
+// scancodes that have a description are ever filled in -- so any key the key file
+// references without one leaves a NULL here. Most call sites in this file already
+// test for it (see the `if (KeyDescrips[DKScanCode])` guards); UpdateKeyMapButton
+// did not, and passed the NULL straight to strcat(), which is a hard SIGSEGV the
+// moment the Setup screen is opened. Bounds-check the index too, since it comes
+// from the key file.
+static const char *FF_KeyDescrip(int code)
+{
+    if (code < 0 or code > 255) return "";
+
+    return KeyDescrips and KeyDescrips[code] ? KeyDescrips[code] : "";
+}
+#endif
+
 void UpdateKeyMapButton(C_Button *button, KeyMap &Map, int count)
 {
     int flags = Map.mod2 + (Map.key1 << SECOND_KEY_SHIFT) + (Map.mod1 << SECOND_KEY_MOD_SHIFT);
@@ -2879,12 +2895,12 @@ void UpdateKeyMapButton(C_Button *button, KeyMap &Map, int count)
             _TCHAR secondMod[MAX_PATH] = {0};
             DoShiftStates(firstMod, Map.mod1);
             DoShiftStates(secondMod, Map.mod2);
-            _stprintf(totalDescrip, "%s%s : %s%s", firstMod, KeyDescrips[Map.key1], secondMod, KeyDescrips[Map.key2]);
+            _stprintf(totalDescrip, "%s%s : %s%s", firstMod, FF_KeyDescrip(Map.key1), secondMod, FF_KeyDescrip(Map.key2));
         }
         else
         {
             DoShiftStates(totalDescrip, Map.mod2);
-            strcat(totalDescrip, KeyDescrips[Map.key2]);
+            strcat(totalDescrip, FF_KeyDescrip(Map.key2));
         }
 
         UserFunctionTable.SetControl(Map.key2, flags, KEYCODES + count); //define this as KEYCODES
