@@ -1307,6 +1307,12 @@ int CampaignClass::SaveData(FILE *fp)
     return size;
 }
 
+// FF_LINUX: the campaign event node as it is written to disk -- x, y, time,
+// flags, team, then 10 bytes of 32-bit-Windows padding and two 4-byte pointers.
+// Encode and Decode both use this layout; SaveSize must agree with them.
+static const size_t FF_CAMP_EVENT_DISK_SIZE =
+    sizeof(short) + sizeof(short) + sizeof(CampaignTime) + sizeof(uchar) + sizeof(uchar) + 10;
+
 long CampaignClass::SaveSize(void)
 {
     CampUIEventElement *event;
@@ -1367,7 +1373,13 @@ long CampaignClass::SaveSize(void)
 
     while (event)
     {
-        size += sizeof(uieventnode);
+        // FF_LINUX: count the ON-DISK node, not sizeof(uieventnode). Encode was
+        // changed (AUTOSAVE-1) to write the 20-byte 32-bit-Windows layout that
+        // Decode reads, but this size calculation was left counting the native
+        // struct -- 32 bytes here, because of the two 8-byte pointers and the
+        // padding. That over-counted 12 bytes per event, which is exactly the
+        // "Encode size mismatch: diff=-120" (10 events) the encoder reports.
+        size += FF_CAMP_EVENT_DISK_SIZE;
         size += sizeof(short);
         size += sizeof(_TCHAR) * _tcslen(event->eventText);
         event = event->next;
@@ -1378,7 +1390,13 @@ long CampaignClass::SaveSize(void)
 
     while (event)
     {
-        size += sizeof(uieventnode);
+        // FF_LINUX: count the ON-DISK node, not sizeof(uieventnode). Encode was
+        // changed (AUTOSAVE-1) to write the 20-byte 32-bit-Windows layout that
+        // Decode reads, but this size calculation was left counting the native
+        // struct -- 32 bytes here, because of the two 8-byte pointers and the
+        // padding. That over-counted 12 bytes per event, which is exactly the
+        // "Encode size mismatch: diff=-120" (10 events) the encoder reports.
+        size += FF_CAMP_EVENT_DISK_SIZE;
         size += sizeof(short);
         size += sizeof(_TCHAR) * _tcslen(event->eventText);
         event = event->next;
@@ -2000,6 +2018,22 @@ int CampaignClass::Encode(VU_BYTE **stream)
         c32 = (int32_t)CreationRand;
         memcpy(buffer, &c32, sizeof(int32_t)); buffer += sizeof(int32_t);
     }
+#ifdef FF_LINUX
+    // FF_LINUX: this assertion fires in every session and ShiAssert does not stop
+    // the build, so the save is written anyway with the wrong length. Report the
+    // actual delta -- which field is short cannot be guessed from "not equal",
+    // and Decode already has the mirror-image diagnostic.
+    {
+        const int written = (int)(buffer - bufhead);
+
+        if (written != (int)datasize)
+        {
+            fprintf(stderr, "[FF_LINUX] Encode size mismatch: wrote %d bytes, SaveSize() said %d (diff=%d)\n",
+                    written, (int)datasize, written - (int)datasize);
+            fflush(stderr);
+        }
+    }
+#endif
     ShiAssert((int)(buffer - bufhead) == datasize);
 
     // Compress it and return
