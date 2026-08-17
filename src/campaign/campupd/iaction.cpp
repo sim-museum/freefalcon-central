@@ -767,7 +767,8 @@ void instant_action::create_player_flight(void)
     *loadout;
 
 
-    loadout = new LoadoutStruct;
+    // FF_LINUX: passed to SetLoadout, whose consumer frees with delete[].
+    loadout = new LoadoutStruct[1];
 
     sprintf(buffer, "%s\\%c.ia", FalconCampUserSaveDirectory, current_mode);
     fp = fopen(buffer, "r");
@@ -1242,7 +1243,8 @@ void instant_action::create_player_flight(void)
      }
 
      // Load some weapons
-     loadout = new LoadoutStruct;
+     // FF_LINUX: passed to SetLoadout, whose consumer frees with delete[].
+    loadout = new LoadoutStruct[1];
 
      if (current_mode == 'm')
      {

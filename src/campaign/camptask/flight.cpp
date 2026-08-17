@@ -3340,7 +3340,10 @@ int FlightClass::LoadWeapons(void *squad, uchar *dam, MoveType mt, int num, int 
 {
     if ( not loadouts)
     {
-        LoadoutStruct *load = new LoadoutStruct;
+        // FF_LINUX: SetLoadout's consumer frees the previous loadout with
+        // delete[] (it is normally new LoadoutStruct[loadouts]), so a scalar
+        // allocation here mismatches. Allocate a 1-element ARRAY.
+        LoadoutStruct *load = new LoadoutStruct[1];
         SetLoadout(load, 1);
     }
 
@@ -4813,7 +4816,11 @@ void FlightClass::SetLoadout(LoadoutStruct *newload, int count)
 
     loadouts = count;
     loadout = newload;
-    delete oldload;
+    // FF_LINUX: oldload is the previous `loadout`, allocated new LoadoutStruct[].
+    // Missed by the static sweep because it is aliased through another variable
+    // rather than assigned from new[] directly; ASAN caught it in
+    // RecordCurrentState -> SetLoadout.
+    delete[] oldload;
 
     // Check for ECM pods. Stop looking if we find even one
     for (i = 0; i < loadouts and not hasECM; i++)
