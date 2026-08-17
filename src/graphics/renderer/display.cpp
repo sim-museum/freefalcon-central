@@ -1374,9 +1374,19 @@ void VirtualDisplay::SetFont(int newfont)
 {
     ShiAssert(newfont >= 0 and newfont < NUM_FONT_RESOLUTIONS);
 
+    // FF_LINUX: the clamp below was dead code. Because the assignment sat in the
+    // "else", an out-of-range request clamped a local and then threw it away,
+    // leaving fontNum at whatever it happened to be -- so SetFont(2) on a font
+    // set that only loaded 2 sizes silently kept the previous font instead of
+    // selecting the largest available one. Clamp and then assign.
+    if (newfont < 0)
+        newfont = 0;
+
     if (newfont >= pFontSet->totalFont)
         newfont = pFontSet->totalFont - 1;
-    else pFontSet->fontNum = newfont;
+
+    if (newfont >= 0 and newfont < NUM_FONT_RESOLUTIONS)
+        pFontSet->fontNum = newfont;
 }
 // ASSO: BEGIN ---------------------------------------------------------------------------------------------
 bool VirtualDisplay::SetupRttTarget(int tXres_, int tYres_, int tBpp_)

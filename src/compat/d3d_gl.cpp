@@ -4404,6 +4404,23 @@ void SaveGLFramebufferAsBMP(const char* filename) {
     // Use full window dimensions, not just current viewport
     extern int g_nWindowWidth, g_nWindowHeight;
     int w = g_nWindowWidth, h = g_nWindowHeight;
+#ifdef FF_LINUX
+    // FF_LINUX: g_nWindowWidth/Height are the dimensions the window was CREATED
+    // with. The window is now resized when the sim enters the player's chosen
+    // resolution, so they go stale and this quietly captured the bottom-left
+    // 1024x768 corner of a 1920x1080 frame -- a capture that looks plausible
+    // while cropping away most of what you meant to inspect. Ask SDL for the
+    // drawable size that is actually being rendered to.
+    {
+        extern SDL_Window *g_SDLWindow;
+        int dw = 0, dh = 0;
+
+        if (g_SDLWindow) SDL_GL_GetDrawableSize(g_SDLWindow, &dw, &dh);
+
+        if (dw > 0 && dh > 0) { w = dw; h = dh; }
+    }
+#endif
+
     if (w <= 0 || h <= 0) {
         // Fallback to viewport
         GLint vp[4];

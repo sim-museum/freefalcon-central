@@ -336,6 +336,35 @@ void TextureBankClass::Reference(int id)
     {
         ShiAssert(TexFileMap.IsReady());
         ShiAssert(CompressedBuffer);
+
+#ifdef FF_LINUX
+        // FF_LINUX: cancel any pending release - we are referenced again.
+        //
+        // This MUST happen before the "we still have the data" early return just
+        // below, which is precisely the case it exists for: refCount had fallen
+        // to 0 and a release was queued, but the imageData has not been reclaimed
+        // yet. Returning there with OnRelease still set let the loader free the
+        // texture out from under this new, live reference -- the surface then
+        // draws blank/white.
+        // Count the rescues. This condition is timing-dependent and did not occur
+        // in any local session, so leave the evidence in the log rather than
+        // assuming either way.
+        if (TexFlags[id].OnRelease and TexturePool[id].tex.imageData not_eq NULL)
+        {
+            static long ffRescued = 0;
+
+            if (++ffRescued == 1 or (ffRescued % 100) == 0)
+            {
+                fprintf(stderr, "[TEXBANK] cancelled pending release on re-reference #%ld (id=%d)\n",
+                        ffRescued, id);
+                fflush(stderr);
+            }
+        }
+
+        TexFlags[id].OnRelease = false;
+        TexturePool[id].zeroSinceMs = 0;
+#endif
+
         if(TexturePool[id].tex.imageData not_eq NULL)
             return;
         ShiAssert(TexturePool[id].tex.TexHandle() == NULL);
@@ -348,14 +377,6 @@ void TextureBankClass::Reference(int id)
         TexturePool[id].tex.SetPalette(&ThePaletteBank.PalettePool[TexturePool[id].palID]);
         ShiAssert(TexturePool[id].tex.GetPalette());
         TexturePool[id].tex.GetPalette()->Reference();
-
-#ifdef FF_LINUX
-        // FF_LINUX: cancel any pending release - we are referenced again.
-        // Without this, GetHandle() returns blank while a stale release-queue
-        // entry has OnRelease set, and the grace timer below keeps running.
-        TexFlags[id].OnRelease = false;
-        TexturePool[id].zeroSinceMs = 0;
-#endif
 
         // Mark for the request if not already marked
         if ( not TexFlags[id].OnOrder)

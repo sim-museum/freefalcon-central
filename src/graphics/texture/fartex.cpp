@@ -511,6 +511,33 @@ void FarTexDB::Request(TextureID texID)
     // If this is the first reference, we need to load the data
     needToLoad = (texArray[texID].refCount == 0);
 
+#ifdef FF_LINUX
+    // FF_LINUX: Release() below deliberately keeps far-textures resident rather
+    // than freeing them at refCount 0 (see the note there), so "refCount == 0"
+    // no longer implies "not loaded". Re-loading one that is still loaded
+    // overwrites texArray[].bits and .handle with a fresh allocation and leaks
+    // both the old buffer and the old GL texture name -- exactly what the
+    // "texArray[texID].bits == NULL" assert just below reports. Repeated across
+    // a mission that leak exhausts texture memory, and surfaces start rendering
+    // white or in the wrong colours.
+    if (needToLoad and texArray[texID].bits)
+    {
+        needToLoad = FALSE;
+
+        // Count what the old code would have leaked, so the size of this is a
+        // measurement rather than an assumption.
+        static long ffRedundant = 0;
+
+        if (++ffRedundant == 1 or (ffRedundant % 1000) == 0)
+        {
+            fprintf(stderr, "[FARTEX] suppressed redundant reload #%ld (texID=%u)\n",
+                    ffRedundant, (unsigned)texID);
+            fflush(stderr);
+        }
+    }
+
+#endif
+
     // Increment our reference count.
     texArray[texID].refCount++;
 

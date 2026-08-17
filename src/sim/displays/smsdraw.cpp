@@ -946,7 +946,13 @@ void SmsDrawable::WpnAGPushButton(int whichButton, int whichMFD)
             break;
 
         case 2:
-            if (Sms->curWeaponType == wtAgm65 and Sms->curWeapon)
+            // FF_LINUX: same assert-then-cast shape as MaverickSetup had -- the
+            // ShiAssert states the precondition but does not stop this build, and
+            // the pointer actually cast is GetCurrentWeapon(), which can be NULL
+            // or a different object from curWeapon. GetDisplay() above already
+            // tests "theMissile and theMissile->IsMissile()"; match it.
+            if (Sms->curWeaponType == wtAgm65 and Sms->curWeapon
+                and Sms->GetCurrentWeapon() and Sms->GetCurrentWeapon()->IsMissile())
             {
                 ShiAssert(Sms->curWeapon->IsMissile());
                 MaverickDisplayClass* mavDisplay =

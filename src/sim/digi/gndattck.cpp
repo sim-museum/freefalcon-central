@@ -4411,7 +4411,25 @@ int DigitalBrain::MaverickSetup(float rx, float ry, float ata, float approxRange
         //    else
         {
             // Has the current weapon locked?
-            if (Sms->curWeapon)
+            // FF_LINUX: everything in this branch is Maverick-specific. It casts
+            // the current weapon to MissileClass twice -- GetRMax() just below
+            // and RunSeeker() further down -- with nothing between the check and
+            // the cast but a ShiAssert, and ShiAssert does not stop this build.
+            // Select bombs in A/G and the cast lands on a non-missile: GetRMax()
+            // reads a MissileClass through a bomb and segfaults.
+            //
+            // Enforce the precondition the two asserts here already state, and
+            // test the pointer that is actually cast -- GetCurrentWeapon()
+            // returns hardPoint[curHardpoint]->weaponPointer, which can be NULL
+            // or a different object from curWeapon.
+            SimWeaponClass *curWpn = Sms->GetCurrentWeapon();
+
+            if (Sms->curWeapon and ( not curWpn or not curWpn->IsMissile() or not Sms->curWeapon->IsMissile()))
+            {
+                // No Maverick solution without a Maverick.
+                retval = FALSE;
+            }
+            else if (Sms->curWeapon)
             {
                 if (Sms->curWeapon->targetPtr)
                 {
@@ -4436,7 +4454,7 @@ int DigitalBrain::MaverickSetup(float rx, float ry, float ata, float approxRange
 
                 az = (float)atan2(ry, rx);
                 ShiAssert(Sms->curWeapon->IsMissile());
-                rMax = ((MissileClass*)Sms->GetCurrentWeapon())->GetRMax(-self->ZPos(), self->GetVt(), az, 0.0f, 0.0f);
+                rMax = ((MissileClass*)curWpn)->GetRMax(-self->ZPos(), self->GetVt(), az, 0.0f, 0.0f);
 
                 // 2001-08-31 REMOVED BY S.G. NOT USED ANYWAY AND I NEED THE FLAG FOR SOMETHING ELSE
                 // if (approxRange < rMax)
@@ -4460,7 +4478,7 @@ int DigitalBrain::MaverickSetup(float rx, float ry, float ata, float approxRange
                     {
                         CalcRelGeom(self, Sms->curWeapon->targetPtr, NULL, 1.0F / SimLibMajorFrameTime);
                         // Then run the seeker if we already have a target
-                        ((MissileClass *)Sms->GetCurrentWeapon())->RunSeeker();
+                        ((MissileClass *)curWpn)->RunSeeker();
                     }
 
                     // If we have no target, don't shoot
