@@ -453,7 +453,11 @@ int g_nATCTaxiOrderFix = 0; // 1 = fixes player (09:36 takeoff) behind AI planes
 bool g_bEmergencyJettisonFix = true; // just check not to drop AA weapons and ECM for all
 float g_fDBS1ScanRateFactor = 0.25f; //JAM 13Oct03
 float g_fDBS2ScanRateFactor = 0.05f; //JAM 13Oct03
-bool g_bACMIRecordMsgOff = true; // JPG 10 Jan 04 Turns off the "RECORDING: +++" stuff when ACMI is on
+// FF_LINUX: defaulted OFF upstream, which means pressing the AVTR key gives no
+// feedback at all -- the PO pressed it, recording did start, and nothing on
+// screen said so. Show it by default; still overridable via the
+// "ACMIRecordMsgOff" config entry below.
+bool g_bACMIRecordMsgOff = false; // JPG 10 Jan 04 Turns off the "RECORDING: +++" stuff when ACMI is on
 bool g_bF4CommsMTU = false ;              // Unz MTU switch activation
 //extern "C" bool g_bF4CommsKillPL = false ; // Booster and Unz switch to Kill packet loss routine
 /* Retro TrackIR stuff.. */
