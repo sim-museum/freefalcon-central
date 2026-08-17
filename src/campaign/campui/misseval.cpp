@@ -378,7 +378,7 @@ void MissionEvaluationClass::PreDogfightEval(void)
     for (int i = 0; i < MAX_RELATED_EVENTS; i++)
     {
         if (related_events[i])
-            delete related_events[i];
+            delete[] related_events[i];  // FF_LINUX: new _TCHAR[] (ASAN alloc-dealloc-mismatch in RegisterEvent)
 
         related_events[i] = NULL;
     }
@@ -476,7 +476,7 @@ int MissionEvaluationClass::PreMissionEval(Flight flight, uchar aircraft_slot)
     for (int i = 0; i < MAX_RELATED_EVENTS; i++)
     {
         if (related_events[i])
-            delete related_events[i];
+            delete[] related_events[i];  // FF_LINUX: new _TCHAR[] (ASAN alloc-dealloc-mismatch in RegisterEvent)
 
         related_events[i] = NULL;
     }
@@ -3984,7 +3984,7 @@ void MissionEvaluationClass::RegisterEvent(GridIndex x, GridIndex y, int eteam, 
         }
 
         if (related_events[last_related_event])
-            delete related_events[last_related_event];
+            delete[] related_events[last_related_event];  // FF_LINUX: new _TCHAR[] (ASAN alloc-dealloc-mismatch in RegisterEvent)
 
 #ifdef USE_SH_POOLS
         related_events[last_related_event] = (_TCHAR *)MemAllocPtr(gTextMemPool, sizeof(_TCHAR) * (_tcslen(event) + 1), FALSE);

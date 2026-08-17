@@ -457,6 +457,16 @@ void ATCBrain::ProcessQueue(int queue)
     runwayQueueStruct *deleteInfo = NULL;
     runwayQueueStruct *nextTakeoff = NULL;
     runwayQueueStruct *nextLand = NULL;
+    // FF_LINUX: nextTakeoff/nextLand are queried ONCE below, but RemoveTraffic()
+    // inside the loop that follows can free the very node they point at. ASAN:
+    // heap-use-after-free, READ of VU_ID in ProcessQueue, freed by RemoveTraffic
+    // two frames earlier in the same call. Capture the only two fields that are
+    // read afterwards, so nothing dereferences a freed node. Semantics are
+    // unchanged -- these values were computed before the loop either way; they
+    // are now simply read from memory that is still valid.
+    VU_ID   ntoId = FalconNullId, nlId = FalconNullId;
+    VU_TIME ntoSched = 0, nlSched = 0;
+    int     haveNTO = 0, haveNL = 0;
     runwayQueueStruct *temp = NULL;
     AircraftClass *pNTOAircraft = NULL;
     AircraftClass *pNLAircraft = NULL;
@@ -469,19 +479,33 @@ void ATCBrain::ProcessQueue(int queue)
     nextTakeoff = NextToTakeoff(queue);
 
     if (nextTakeoff)
-        pNTOAircraft = (AircraftClass*)vuDatabase->Find(nextTakeoff->aircraftID);
+    {
+        haveNTO  = 1;
+        ntoId    = nextTakeoff->aircraftID;
+        ntoSched = nextTakeoff->schedTime;
+    }
+
+    if (haveNTO)
+        pNTOAircraft = (AircraftClass*)vuDatabase->Find(ntoId);
 
     nextLand = NextToLand(queue);
 
     if (nextLand)
-        pNLAircraft = (AircraftClass*)vuDatabase->Find(nextLand->aircraftID);
+    {
+        haveNL  = 1;
+        nlId    = nextLand->aircraftID;
+        nlSched = nextLand->schedTime;
+    }
+
+    if (haveNL)
+        pNLAircraft = (AircraftClass*)vuDatabase->Find(nlId);
 
     // RAS - if within 58 seconds of landing time, hold short
-    if (nextLand and SimLibElapsedTime + LAND_TIME_DELTA - 2 * CampaignSeconds > nextLand->schedTime)
+    if (haveNL and SimLibElapsedTime + LAND_TIME_DELTA - 2 * CampaignSeconds > nlSched)
         waitforlanding = TRUE;
 
     // RAS - if TO scheduled, and TO time has passed, get them off the ground ASAP
-    if (nextTakeoff and nextTakeoff->schedTime < SimLibElapsedTime)
+    if (haveNTO and ntoSched < SimLibElapsedTime)
     {
         if ( not pNTOAircraft or (pNTOAircraft->IsAirplane() and pNTOAircraft->af->vt > 80.0F * KNOTS_TO_FTPSEC))
             accelerateTakeoffs = TRUE;
@@ -517,7 +541,7 @@ void ATCBrain::ProcessQueue(int queue)
                         break;
 
                     case tWait:
-                        if (nextTakeoff->aircraftID == info->aircraftID)
+                        if (ntoId == info->aircraftID)
                         {
                             if (info->prev)
                             {
@@ -590,7 +614,7 @@ void ATCBrain::ProcessQueue(int queue)
                     case tTaxi:
 
                         //RAS - we have aircraft in the queue
-                        if (nextTakeoff->aircraftID == info->aircraftID)
+                        if (ntoId == info->aircraftID)
                         {
                             //RAS - we have someone in the queue in front of us
                             if (info->prev)
@@ -656,12 +680,12 @@ void ATCBrain::ProcessQueue(int queue)
                         //RAS - if next T/O acft and it's an airplane, and scheudle T/O time + ATC patience hasn't been reached
                         //and acft is going less than 5 kts (should that be conferted to ft/sec??), and T/O time has passed
                         //and next acft to T/O is not current obj???, and next acft to T/O is not on rwy, then
-                        else if (pNTOAircraft and pNTOAircraft->IsAirplane() and nextTakeoff->schedTime + FalconLocalGame->rules.AtcPatience < SimLibElapsedTime  and 
+                        else if (pNTOAircraft and pNTOAircraft->IsAirplane() and ntoSched + FalconLocalGame->rules.AtcPatience < SimLibElapsedTime  and 
                                  pNTOAircraft->af->vt < 5.0F * KNOTS_TO_FTPSEC and info->schedTime < SimLibElapsedTime  and 
                                  pNTOAircraft->GetCampaignObject() not_eq aircraft->GetCampaignObject() and not IsOnRunway(pNTOAircraft))
                         {
                             //RAS - no aircraft on final and past T/O time + delta(60sec)
-                            if ( not nextLand or SimLibElapsedTime + LAND_TIME_DELTA > nextLand->schedTime)
+                            if ( not haveNL or SimLibElapsedTime + LAND_TIME_DELTA > nlSched)
                             {
                                 ReorderFlight(queue, (Flight)pNTOAircraft->GetCampaignObject(), tWait);
 
@@ -682,7 +706,7 @@ void ATCBrain::ProcessQueue(int queue)
                         break;
 
                     case tPrepToTakeRunway:
-                        if (nextTakeoff->aircraftID == info->aircraftID)
+                        if (ntoId == info->aircraftID)
                         {
                             //RAS - no aircraft on final
                             if ( not waitforlanding)
@@ -704,7 +728,7 @@ void ATCBrain::ProcessQueue(int queue)
                         break;
 
                     case tHoldShort:
-                        if (nextTakeoff->aircraftID == info->aircraftID)
+                        if (ntoId == info->aircraftID)
                         {
                             //RAS - within 30sec of T/O and not waiting for someone to land
                             if (info->schedTime < SimLibElapsedTime + 30 * CampaignSeconds and not waitforlanding)
@@ -717,11 +741,11 @@ void ATCBrain::ProcessQueue(int queue)
                                     GiveOrderToSection(aircraft, tPrepToTakeRunway, 1);
                             }
                         }
-                        else if (pNTOAircraft and pNTOAircraft->IsAirplane() and nextTakeoff->schedTime + FalconLocalGame->rules.AtcPatience < SimLibElapsedTime  and 
+                        else if (pNTOAircraft and pNTOAircraft->IsAirplane() and ntoSched + FalconLocalGame->rules.AtcPatience < SimLibElapsedTime  and 
                                  pNTOAircraft->af->vt < 5.0F * KNOTS_TO_FTPSEC and info->schedTime < SimLibElapsedTime and 
                                  pNTOAircraft->GetCampaignObject() not_eq aircraft->GetCampaignObject() and not IsOnRunway(pNTOAircraft))
                         {
-                            if ( not nextLand or SimLibElapsedTime + LAND_TIME_DELTA > nextLand->schedTime)
+                            if ( not haveNL or SimLibElapsedTime + LAND_TIME_DELTA > nlSched)
                             {
                                 ReorderFlight(queue, (Flight)pNTOAircraft->GetCampaignObject(), tWait);
 
@@ -758,7 +782,7 @@ void ATCBrain::ProcessQueue(int queue)
 
                             FalconSendMessage(radioMessage, FALSE);
                         }
-                        else if (nextTakeoff->aircraftID == info->aircraftID)
+                        else if (ntoId == info->aircraftID)
                         {
                             //RAS - within 30 seconds of T/O time and not waiting on landing or we're on rwy
                             if (info->schedTime < SimLibElapsedTime + 30 * CampaignSeconds and 
