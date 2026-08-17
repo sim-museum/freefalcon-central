@@ -1368,6 +1368,64 @@ The header has been corrected so the next reader is not misled the same way.
 Verified: TE 2 reaches 3D with 0 crashes and 0 assertions, and a 200s IA ASAN
 soak is clean (0 errors) — the row copy is memory-safe.
 
+### CRASH-1/2 — the PO's SIGSEGV, and what finding it uncovered (fixed 2026-08-16)
+
+PO crash flying a campaign OCA strike on autopilot at 8× time compression:
+
+```
+SimObjectType::Reference()
+BombClass::Start(...)  <- SMSClass::DropBomb  <- AircraftClass::DoWeapons
+```
+
+They had released nothing — `DoWeapons()` runs for every aircraft the sim execs,
+so this was an AI aircraft releasing on the OCA target. `Reference()` only touches
+`mutex` and `refCount`, so crashing inside it means the object was already freed.
+
+**CRASH-1 — `SimObjectType::Release` tested the refcount outside the lock:**
+
+```c
+{ F4ScopeLock l(mutex); --refCount; }   // lock scope ENDS here
+if (refCount == 0) delete this;         // unsynchronised
+```
+
+Two threads releasing the same object can both observe zero and both delete it.
+Fixed by deciding under the lock. A sweep for the same shape (locked decrement,
+unlocked zero-test) across the built tree found **no other instances**.
+
+**CRASH-2 — then ASAN was pointed at the right flow.** TE 2 had been soaking clean
+for hours, but it does not exercise the campaign AI. Driving a *campaign* flight
+into 3D under ASAN immediately produced four `heap-use-after-free`s, all in
+`ATCBrain::ProcessQueue`, all on the sim thread:
+
+```
+READ of VU_ID at ProcessQueue:593 / 659 / 707 / 720
+freed by RemoveTraffic(VU_ID, int) at atcbrain.cpp:4119, two frames earlier
+in the same call
+```
+
+`ProcessQueue` queries `nextTakeoff`/`nextLand` **once** before its loop, and
+`RemoveTraffic` inside that loop can free exactly those nodes — so every later
+`nextTakeoff->aircraftID` reads freed memory. This is the takeoff/landing path.
+Fixed by capturing the two fields actually read afterwards; semantics unchanged,
+since those values were computed before the loop either way.
+
+Clearing those exposed five `alloc-dealloc-mismatch`es underneath, in two places:
+`related_events[]` in `RegisterEvent` (three sites), and the `loadout` chain —
+`SetLoadout` frees the previous loadout with `delete[]`, but three producers
+(`FlightClass::LoadWeapons` and two in `iaction.cpp`) allocated a **scalar**
+`LoadoutStruct` and handed it over. All made 1-element arrays.
+
+**Result: campaign flight into 3D is now 0 ASAN errors**, from 4 use-after-frees
+plus 5 mismatches.
+
+**The lesson is about coverage, not about any one bug.** These had been sitting
+under a suite that reported clean all day, because every soak used TE 2 and
+Instant Action — neither of which runs the campaign ATC queue or the AI weapons
+path. `related_events` and one `loadout` site had even appeared as candidates in
+the earlier static sweep and were not followed through, because that sweep's line
+numbers came from comment-stripped text. **A sanitiser only finds what you
+actually execute; pick the flow that matches the report.**
+
 ### PIT-1 — the 3-view (virtual pit) renders no tarmac (open, 2026-08-16)
 
 PO report, with shots: taking off and landing, the **2-view shows the runway and
