@@ -126,6 +126,18 @@ typedef void* LPDDBLTBATCH;
 // Maximum number of lights
 #define MAX_GL_LIGHTS 8
 
+// PIT-1: world-distance probe helper, defined further down.
+static void FF_NoteWorldMatrices(DWORD nVerts);
+
+// PIT-1 instrument bookkeeping: largest draw batch seen, so a "no matrices"
+// result can be told apart from "the terrain never came through this hook".
+static DWORD s_maxBatch = 0;
+static int   s_maxBatchDepth = 0, s_maxBatchFbo = -1;
+
+static inline void FF_NoteMaxBatch(DWORD nVerts, int depthOn, int fbo) {
+    if (nVerts > s_maxBatch) { s_maxBatch = nVerts; s_maxBatchDepth = depthOn; s_maxBatchFbo = fbo; }
+}
+
 // Maximum texture stages
 #define MAX_TEXTURE_STAGES 8
 
@@ -1367,6 +1379,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
     }
     glEnd();
 
+    // PIT-1: the terrain batches come through this (non-VB) path.
+    FF_NoteWorldMatrices(dwIndexCount);
+
     // FF_LINUX: Restore material emission clobbered by per-vertex emissive
     FF_EndVertexEmissive(&emissiveDIP);
 
@@ -1436,6 +1451,165 @@ struct FF_ProbeIndexed {
     DWORD        startVertex;
 };
 
+// FF_LINUX (PIT-1): world-distance probe.
+//
+// PIT-1 stalled on a measurement problem: "the 3-view shows less runway than the
+// 2-view" was argued from screen rows, and comparing the same row between two
+// views is meaningless because the cameras differ -- a row is a different ground
+// distance in each. This reads the DEPTH buffer down a strip and unprojects each
+// sample, so the runway's visible extent can be stated in feet from the eye and
+// compared across views honestly.
+//
+// The matrices are captured during the world pass (see FF_NoteWorldMatrices)
+// because by capture time the 2D overlay has replaced them.
+static GLfloat s_worldMV[16], s_worldPR[16];
+static bool    s_worldMatsValid = false;
+
+static void FF_NoteWorldMatrices(DWORD nVerts) {
+    static int s_want = -1;
+    if (s_want == -1) s_want = getenv("FF_PROBE_DEPTH") ? 1 : 0;
+    if (!s_want) return;
+
+    // The terrain batches are large, depth-tested and go to the default
+    // framebuffer; that is the pass whose depth we are unprojecting.
+    GLint fb = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fb);
+    const int depthOn = glIsEnabled(GL_DEPTH_TEST) ? 1 : 0;
+
+    // Track the largest batch that reaches this hook. A cap on "first N draws"
+    // is useless here -- it is spent on UI quads long before the terrain draws --
+    // whereas the maximum tells us directly whether the terrain passes through
+    // this path at all.
+    FF_NoteMaxBatch(nVerts, depthOn, (int)fb);
+
+    if (nVerts < 512) return;
+    if (!depthOn) return;
+    if (fb != 0) return;
+
+    glGetFloatv(GL_MODELVIEW_MATRIX, s_worldMV);
+    glGetFloatv(GL_PROJECTION_MATRIX, s_worldPR);
+    s_worldMatsValid = true;
+}
+
+static bool FF_InvertMatrix4(const double m[16], double inv[16]) {
+    // Column-major, as GL hands them over.
+    double a[16];
+    for (int i = 0; i < 16; i++) a[i] = m[i];
+    for (int i = 0; i < 16; i++) inv[i] = (i % 5 == 0) ? 1.0 : 0.0;
+
+    for (int col = 0; col < 4; col++) {
+        int piv = col;
+        for (int r = col + 1; r < 4; r++)
+            if (fabs(a[r + col * 4]) > fabs(a[piv + col * 4])) piv = r;
+
+        if (fabs(a[piv + col * 4]) < 1e-12) return false;
+
+        if (piv != col) {
+            for (int c = 0; c < 4; c++) {
+                double t = a[col + c * 4]; a[col + c * 4] = a[piv + c * 4]; a[piv + c * 4] = t;
+                t = inv[col + c * 4]; inv[col + c * 4] = inv[piv + c * 4]; inv[piv + c * 4] = t;
+            }
+        }
+
+        double d = a[col + col * 4];
+        for (int c = 0; c < 4; c++) { a[col + c * 4] /= d; inv[col + c * 4] /= d; }
+
+        for (int r = 0; r < 4; r++) {
+            if (r == col) continue;
+            double f = a[r + col * 4];
+            if (f == 0.0) continue;
+            for (int c = 0; c < 4; c++) {
+                a[r + c * 4]   -= f * a[col + c * 4];
+                inv[r + c * 4] -= f * inv[col + c * 4];
+            }
+        }
+    }
+
+    return true;
+}
+
+// FF_PROBE_DEPTH="x,y0,y1,step" (window coords, y from TOP).
+void FF_ProbeDepthStrip(int w, int h) {
+    static int s_x = -1, s_y0 = 0, s_y1 = 0, s_step = 0;
+    if (s_x == -2) return;
+    if (s_x == -1) {
+        const char* e = getenv("FF_PROBE_DEPTH");
+        if (!e || sscanf(e, "%d,%d,%d,%d", &s_x, &s_y0, &s_y1, &s_step) != 4 || s_step <= 0) {
+            s_x = -2;
+            return;
+        }
+        fprintf(stderr, "[DEPTHPROBE] strip x=%d y=%d..%d step=%d\n", s_x, s_y0, s_y1, s_step);
+    }
+
+    if (!s_worldMatsValid) {
+        fprintf(stderr, "[DEPTHPROBE] no world matrices captured this frame - largest batch seen was nVerts=%u (depthTest=%d fbo=%d)\n",
+                (unsigned)s_maxBatch, s_maxBatchDepth, s_maxBatchFbo);
+        fflush(stderr);
+        return;
+    }
+
+    double mv[16], pr[16], mvp[16], inv[16];
+    for (int i = 0; i < 16; i++) { mv[i] = s_worldMV[i]; pr[i] = s_worldPR[i]; }
+
+    // mvp = pr * mv (column-major)
+    for (int c = 0; c < 4; c++)
+        for (int r = 0; r < 4; r++) {
+            double s = 0;
+            for (int k = 0; k < 4; k++) s += pr[r + k * 4] * mv[k + c * 4];
+            mvp[r + c * 4] = s;
+        }
+
+    if (!FF_InvertMatrix4(mvp, inv)) {
+        fprintf(stderr, "[DEPTHPROBE] MVP not invertible\n");
+        fflush(stderr);
+        return;
+    }
+
+    // Eye position = inverse(modelview) applied to the origin.
+    double mvInv[16], eye[3] = {0, 0, 0};
+    if (FF_InvertMatrix4(mv, mvInv)) {
+        eye[0] = mvInv[12]; eye[1] = mvInv[13]; eye[2] = mvInv[14];
+    }
+
+    fprintf(stderr, "[DEPTHPROBE] eye=(%.1f, %.1f, %.1f)\n", eye[0], eye[1], eye[2]);
+
+    for (int y = s_y0; y <= s_y1; y += s_step) {
+        int gy = h - 1 - y;   // GL origin is bottom-left
+        if (s_x < 0 || s_x >= w || gy < 0 || gy >= h) continue;
+
+        GLfloat d = 0;
+        unsigned char rgb[4] = {0};
+        glReadPixels(s_x, gy, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &d);
+        glReadPixels(s_x, gy, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, rgb);
+
+        if (d >= 1.0f) {
+            fprintf(stderr, "[DEPTHPROBE] y=%4d depth=far   rgb=(%3d,%3d,%3d) (sky/nothing)\n",
+                    y, rgb[0], rgb[1], rgb[2]);
+            continue;
+        }
+
+        double nx = 2.0 * ((double)s_x + 0.5) / (double)w - 1.0;
+        double ny = 2.0 * ((double)gy + 0.5) / (double)h - 1.0;
+        double nz = 2.0 * (double)d - 1.0;
+        double wx = inv[0] * nx + inv[4] * ny + inv[8]  * nz + inv[12];
+        double wy = inv[1] * nx + inv[5] * ny + inv[9]  * nz + inv[13];
+        double wz = inv[2] * nx + inv[6] * ny + inv[10] * nz + inv[14];
+        double ww = inv[3] * nx + inv[7] * ny + inv[11] * nz + inv[15];
+
+        if (fabs(ww) < 1e-12) continue;
+
+        wx /= ww; wy /= ww; wz /= ww;
+        double dx = wx - eye[0], dy = wy - eye[1], dz = wz - eye[2];
+        double dist = sqrt(dx * dx + dy * dy + dz * dz);
+
+        fprintf(stderr, "[DEPTHPROBE] y=%4d depth=%.6f rgb=(%3d,%3d,%3d) world=(%.1f, %.1f, %.1f) dist=%.1f\n",
+                y, (double)d, rgb[0], rgb[1], rgb[2], wx, wy, wz, dist);
+    }
+
+    fflush(stderr);
+    s_worldMatsValid = false;   // require a fresh capture for the next frame
+}
+
 static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                           const void* firstVert = nullptr,
                           const FF_ProbeIndexed* indexed = nullptr) {
@@ -1454,9 +1628,15 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
     GLint boundFB = 0;
     glGetIntegerv(GL_FRAMEBUFFER_BINDING, &boundFB);
     if (boundFB != 0) return;
+    // FF_LINUX: the flip used to assume a 768-tall framebuffer. The sim now runs
+    // at whatever resolution the player picked, so a hardcoded height probes the
+    // wrong row entirely -- take it from the viewport.
+    GLint vpProbe[4] = {0, 0, 0, 768};
+    glGetIntegerv(GL_VIEWPORT, vpProbe);
+    const int probeFlipY = (vpProbe[3] > 0 ? vpProbe[3] : 768) - 1 - s_probeY;
     unsigned char px[4] = {0};
     // GL origin is bottom-left; probe coords given from top
-    glReadPixels(s_probeX, 768 - 1 - s_probeY, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, px);
+    glReadPixels(s_probeX, probeFlipY, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, px);
     static unsigned lastColor = 0xdeadbeef;
     unsigned c = (px[0] << 16) | (px[1] << 8) | px[2];
     if (c != lastColor) {
@@ -1476,7 +1656,7 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
         GLint stEn = glIsEnabled(GL_STENCIL_TEST), stFn = 0, stRef = 0, stVal = -1;
         glGetIntegerv(GL_STENCIL_FUNC, &stFn);
         glGetIntegerv(GL_STENCIL_REF, &stRef);
-        glReadPixels(s_probeX, 768 - 1 - s_probeY, 1, 1, GL_STENCIL_INDEX, GL_INT, &stVal);
+        glReadPixels(s_probeX, probeFlipY, 1, 1, GL_STENCIL_INDEX, GL_INT, &stVal);
         fprintf(stderr, "[PIXPROBE-ST] stencil en=%d func=0x%x ref=%d bufVal=%d depthTest=%d zwrite=%d\n",
                 (int)stEn, (unsigned)stFn, (int)stRef, (int)stVal,
                 (int)glIsEnabled(GL_DEPTH_TEST), ({GLboolean dm; glGetBooleanv(GL_DEPTH_WRITEMASK,&dm); (int)dm;}));
@@ -2156,6 +2336,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     {
         FF_ProbeIndexed pi = { vb->data, lpwIndices, dwIndexCount, dwStartVertex };
         FF_ProbePixel("DIPVB", fvf, dwIndexCount, vb->data, &pi);
+        FF_NoteWorldMatrices(dwIndexCount);
     }
 
     return D3D_OK;
@@ -3642,6 +3823,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     }
 
     FF_ProbePixel("DrawVerts", fvf, count, vertices);
+    FF_NoteWorldMatrices(count);
 
 #ifdef FF_LINUX_DEBUG_RENDER
     // Check for OpenGL errors after drawing (only in render debug mode)
@@ -4464,6 +4646,12 @@ void SaveGLFramebufferAsBMP(const char* filename) {
     GLint oldAlign;
     glGetIntegerv(GL_PACK_ALIGNMENT, &oldAlign);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
+
+#ifdef FF_LINUX
+    // PIT-1: emit the world-distance strip from the same frame as the capture,
+    // while the default framebuffer is still bound and glFinish has landed.
+    FF_ProbeDepthStrip(w, h);
+#endif
 
     unsigned char* pixels = (unsigned char*)malloc(w * h * 3);
     if (!pixels) { glPixelStorei(GL_PACK_ALIGNMENT, oldAlign); return; }

@@ -1485,6 +1485,34 @@ whether that distance matches the 2D pit's. Until that is measured, "3-view show
 no tarmac" is not established as a rendering defect at all — it may be the same
 draw distance seen through a different camera.
 
+**Attempt at that measurement (2026-08-17): the instrument does not work yet.**
+Added `FF_PROBE_DEPTH="x,y0,y1,step"`, which reads the depth buffer down a strip
+and unprojects each sample with the modelview/projection captured during the
+world pass, to state the runway's extent in feet from the eye instead of screen
+rows. It runs, but its output is not usable and must not be quoted:
+
+* every sample reads `depth=0.999999` (the far plane), i.e. at capture time the
+  depth buffer no longer holds the world pass;
+* the recovered eye is `(-1.0, -5.3, -0.9)` and distances come out ~240,000 —
+  so the matrices captured are a cockpit-local pass, not the world camera.
+
+Two things were learned that the next attempt should start from:
+
+1. The capture point is wrong. `SaveGLFramebufferAsBMP` runs at end of frame,
+   after the cockpit pass; the world depth and matrices have to be grabbed
+   *during* the terrain draw, not at swap.
+2. Batch-size filtering to find "the terrain draw" is unreliable: with the hooks
+   on `DrawIndexedPrimitive`, `DrawIndexedPrimitiveVB` and `DrawVertices`, the
+   largest batch seen for a whole frame was **6 vertices** at the timings first
+   tried, because the mission was still on the loading screen — the campaign
+   click script does not reach a rendered cockpit until ~340 s after sim entry,
+   far later than the 55–70 s the earlier PIT-1 runs used.
+
+The probe is left in (env-gated, off by default) but PIT-1 stays open and
+unmeasured. Its blocking question is unchanged: where does the runway end, in
+ground distance, in each view.
+
+
 ### GEAR-1 — "landing gear is not visible": three causes eliminated (2026-08-16)
 
 The PO reports the jet parked belly-down with no gear at both takeoff and
