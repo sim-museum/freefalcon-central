@@ -44,7 +44,13 @@ AdvancedHarmTargetingPod::AdvancedHarmTargetingPod(int idx, SimMoverClass* self)
 
         if (Sms)
         {
-            curMissile = (MissileClass*)(Sms->GetCurrentWeapon());
+            // FF_LINUX: GetCurrentWeapon() is whatever is selected right now,
+            // which need not be a missile -- with bombs up this stored a bomb as
+            // a MissileClass* and later read curMissile->GetTOF() and
+            // ->launchState off the end of it. Same defect class as
+            // DigitalBrain::MaverickSetup. Only keep it if it really is one.
+            SimWeaponClass *cw = Sms->GetCurrentWeapon();
+            curMissile = (cw and cw->IsMissile()) ? (MissileClass*)cw : NULL;
         }
     }
 }
@@ -645,7 +651,9 @@ void AdvancedHarmTargetingPod::POSDisplay(VirtualDisplay* activeDisplay)
 
     if (Sms and not curMissile)
     {
-        curMissile = (MissileClass*)(Sms->GetCurrentWeapon());
+        // FF_LINUX: see the constructor - only a missile may be stored here.
+        SimWeaponClass *cw = Sms->GetCurrentWeapon();
+        curMissile = (cw and cw->IsMissile()) ? (MissileClass*)cw : NULL;
     }
 
     display = activeDisplay;

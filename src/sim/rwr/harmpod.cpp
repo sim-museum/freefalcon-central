@@ -420,11 +420,20 @@ void HarmTargetingPod::HADDisplay(VirtualDisplay* activeDisplay)
     // Display the missile effective footprint
     ShiAssert(platform->IsAirplane());
 
-    if (((AircraftClass*)platform)->Sms->curWeapon and 
-        ((AircraftClass*)platform)->Sms->curWeaponType == wtAgm88)
+    // FF_LINUX: assert-then-cast again (see DigitalBrain::MaverickSetup). The
+    // pointer handed to DrawWEZ is GetCurrentWeapon(), which can be NULL or a
+    // different object from the curWeapon the assert tests, and ShiAssert does
+    // not stop this build.
     {
-        ShiAssert(((AircraftClass*)platform)->Sms->curWeapon->IsMissile());
-        DrawWEZ((MissileClass*)((AircraftClass*)platform)->Sms->GetCurrentWeapon());
+        SimWeaponClass *cw = ((AircraftClass*)platform)->Sms->GetCurrentWeapon();
+
+        if (((AircraftClass*)platform)->Sms->curWeapon and
+            ((AircraftClass*)platform)->Sms->curWeaponType == wtAgm88 and
+            cw and cw->IsMissile())
+        {
+            ShiAssert(((AircraftClass*)platform)->Sms->curWeapon->IsMissile());
+            DrawWEZ((MissileClass*)cw);
+        }
     }
 
     // Draw the cursors
