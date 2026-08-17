@@ -1804,6 +1804,18 @@ int UI_Startup()
 
     if ( not (LogState bitand LB_LOADED_ONCE))
     {
+#ifdef FF_LINUX
+        // FF_LINUX: this is the "no pilot could be loaded, treat as a first run"
+        // path. It discards the saved logbook, player options and display
+        // options. See LogBookData::Load() -- until the registry substitute
+        // landed, it ran on every single launch.
+        if (getenv("FF_DEBUG_DISPCFG"))
+        {
+            fprintf(stderr, "[dispcfg] UI_Init: no pilot loaded -- resetting logbook/player/display options\n");
+            fflush(stderr);
+        }
+
+#endif
         LogState or_eq LB_LOADED_ONCE;
         LogBook.Initialize();
         UI_logbk.Initialize();

@@ -13,6 +13,8 @@
 #include <cmath>
 #include <vector>
 #include <map>
+#include <algorithm>
+#include <utility>
 
 #include <GL/glew.h>
 #include <GL/gl.h>
@@ -3775,6 +3777,14 @@ static HRESULT STDMETHODCALLTYPE D3D7_EnumDevices(IDirect3D7* This, void* cb, LP
     desc.wMaxTextureBlendStages = 4;
     desc.wMaxSimultaneousTextures = 4;
 
+    // FF_LINUX: leaving these zero is not "no opinion", it is "renders at no
+    // colour depth at all". BuildResolutionList() gates every mode it offers on
+    // (dwDeviceRenderBitDepth & DDBD_32), so a zeroed field silently emptied the
+    // Setup->Graphics resolution list. We render through OpenGL and are happy at
+    // either depth; say so.
+    desc.dwDeviceRenderBitDepth  = DDBD_16 | DDBD_32;
+    desc.dwDeviceZBufferBitDepth = DDBD_16 | DDBD_24 | DDBD_32;
+
     callback((LPSTR)"FreeFalcon OpenGL Device", (LPSTR)"OpenGL", &desc, arg);
 
     return D3D_OK;
@@ -5250,18 +5260,53 @@ static HRESULT STDMETHODCALLTYPE DD7_EnumDisplayModes(IDirectDraw7* This, DWORD 
         DWORD bpp;
     };
 
-    static const DisplayMode modes[] = {
-        { 640, 480, 16 },
-        { 640, 480, 32 },
-        { 800, 600, 16 },
-        { 800, 600, 32 },
-        { 1024, 768, 16 },
-        { 1024, 768, 32 },
-        { 1280, 1024, 16 },
-        { 1280, 1024, 32 },
-        { 1920, 1080, 16 },
-        { 1920, 1080, 32 },
-    };
+    // FF_LINUX: this used to be a hardcoded ten-entry table, which meant the
+    // Setup->Graphics resolution list bore no relation to the monitor actually
+    // attached. Enumerate the real modes from SDL instead.
+    //
+    // The canonical trio is always included even when the display does not
+    // advertise it: DisplayDevice::Setup() looks the configured mode up by exact
+    // (w,h,depth) match and hard-errors if it has gone missing, so dropping a
+    // mode that an existing player config already names would break that config.
+    // Every size is offered at both depths for the same reason.
+    static std::vector<DisplayMode> modes;
+
+    if (modes.empty()) {
+        std::vector<std::pair<DWORD, DWORD> > sizes;
+        sizes.push_back(std::make_pair(640u, 480u));
+        sizes.push_back(std::make_pair(800u, 600u));
+        sizes.push_back(std::make_pair(1024u, 768u));
+
+        if (SDL_WasInit(SDL_INIT_VIDEO)) {
+            const int nModes = SDL_GetNumDisplayModes(0);
+
+            for (int m = 0; m < nModes; m++) {
+                SDL_DisplayMode dm;
+                if (SDL_GetDisplayMode(0, m, &dm) != 0) continue;
+                // Below 640x480 the UI art has nowhere to go.
+                if (dm.w < 640 || dm.h < 480) continue;
+
+                bool dup = false;
+                for (size_t k = 0; k < sizes.size(); k++)
+                    if (sizes[k].first == (DWORD)dm.w && sizes[k].second == (DWORD)dm.h) { dup = true; break; }
+
+                if (!dup) sizes.push_back(std::make_pair((DWORD)dm.w, (DWORD)dm.h));
+            }
+        }
+
+        // Ascending, so the list reads the way a resolution list should.
+        std::sort(sizes.begin(), sizes.end());
+
+        for (size_t k = 0; k < sizes.size(); k++) {
+            DisplayMode m16 = { sizes[k].first, sizes[k].second, 16 };
+            DisplayMode m32 = { sizes[k].first, sizes[k].second, 32 };
+            modes.push_back(m16);
+            modes.push_back(m32);
+        }
+
+        D3DGL_LOG("DD7 EnumDisplayModes: %d modes (%d distinct sizes)",
+                  (int)modes.size(), (int)sizes.size());
+    }
 
     for (const auto& mode : modes) {
         DDSURFACEDESC2 ddsd;

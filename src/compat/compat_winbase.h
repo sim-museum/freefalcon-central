@@ -919,6 +919,8 @@ static inline void SetLastError(DWORD dwErrCode) { errno = (int)dwErrCode; }
 #define ERROR_NOT_ENOUGH_MEMORY 8
 #define ERROR_NO_MORE_FILES    18
 #define ERROR_ALREADY_EXISTS   183
+#define ERROR_MORE_DATA        234
+#define ERROR_INVALID_PARAMETER 87
 #define ERROR_IO_PENDING       997
 #define NO_ERROR               0
 
@@ -1062,10 +1064,21 @@ static inline void GlobalMemoryStatus(LPMEMORYSTATUS lpBuffer) {
 
 typedef DWORD REGSAM;
 
+/* FF_LINUX: backed by config/registry.ini -- see the block comment on the
+ * implementation in linux_stubs.cpp for why these cannot just fail. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+LONG FF_RegOpenKey(HKEY parent, const char *subkey, REGSAM sam, PHKEY out);
+LONG FF_RegQueryValue(HKEY key, const char *name, LPDWORD type, LPBYTE data, LPDWORD size);
+LONG FF_RegSetValue(HKEY key, const char *name, DWORD type, const BYTE *data, DWORD size);
+#ifdef __cplusplus
+}
+#endif
+
 static inline LONG RegOpenKeyExA(HKEY hKey, LPCSTR lpSubKey, DWORD ulOptions, REGSAM samDesired, PHKEY phkResult) {
-    (void)hKey; (void)lpSubKey; (void)ulOptions; (void)samDesired;
-    if (phkResult) *phkResult = NULL;
-    return ERROR_FILE_NOT_FOUND;
+    (void)ulOptions;
+    return FF_RegOpenKey(hKey, lpSubKey, samDesired, phkResult);
 }
 #define RegOpenKeyEx RegOpenKeyExA
 static inline LONG RegOpenKeyA(HKEY hKey, LPCSTR lpSubKey, PHKEY phkResult) {
@@ -1074,19 +1087,18 @@ static inline LONG RegOpenKeyA(HKEY hKey, LPCSTR lpSubKey, PHKEY phkResult) {
 #define RegOpenKey RegOpenKeyA
 static inline LONG RegCreateKeyExA(HKEY hKey, LPCSTR lpSubKey, DWORD r, LPSTR cls, DWORD opt, REGSAM sam,
                                    LPSECURITY_ATTRIBUTES sa, PHKEY phkResult, LPDWORD disp) {
-    (void)hKey; (void)lpSubKey; (void)r; (void)cls; (void)opt; (void)sam; (void)sa; (void)disp;
-    if (phkResult) *phkResult = NULL;
-    return ERROR_ACCESS_DENIED;
+    (void)r; (void)cls; (void)opt; (void)sa; (void)disp;
+    return FF_RegOpenKey(hKey, lpSubKey, sam | KEY_WRITE, phkResult);
 }
 #define RegCreateKeyEx RegCreateKeyExA
 static inline LONG RegQueryValueExA(HKEY hKey, LPCSTR lpValueName, LPDWORD r, LPDWORD lpType, LPBYTE lpData, LPDWORD lpcbData) {
-    (void)hKey; (void)lpValueName; (void)r; (void)lpType; (void)lpData; (void)lpcbData;
-    return ERROR_FILE_NOT_FOUND;
+    (void)r;
+    return FF_RegQueryValue(hKey, lpValueName, lpType, lpData, lpcbData);
 }
 #define RegQueryValueEx RegQueryValueExA
 static inline LONG RegSetValueExA(HKEY hKey, LPCSTR lpValueName, DWORD r, DWORD dwType, const BYTE *lpData, DWORD cbData) {
-    (void)hKey; (void)lpValueName; (void)r; (void)dwType; (void)lpData; (void)cbData;
-    return ERROR_ACCESS_DENIED;
+    (void)r;
+    return FF_RegSetValue(hKey, lpValueName, dwType, lpData, cbData);
 }
 #define RegSetValueEx RegSetValueExA
 static inline LONG RegCloseKey(HKEY hKey) { (void)hKey; return ERROR_SUCCESS; }

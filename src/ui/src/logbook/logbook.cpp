@@ -60,6 +60,25 @@ int LogBookData::Load(void)
 
         if (retval not_eq ERROR_SUCCESS)
         {
+#ifdef FF_LINUX
+            // FF_LINUX: on Windows the installer seeds PilotName/PilotCallsign
+            // under HKLM, so this lookup succeeded on any real install and the
+            // failure path here meant a genuinely unconfigured machine. There is
+            // no installer on this port, so it failed on every launch -- and a
+            // FALSE return from here leaves LB_LOADED_ONCE clear, which makes
+            // UI_Init() treat every start as a first run and reset the logbook,
+            // the player options and the display options to defaults. That is
+            // why no Setup change ever survived a restart.
+            //
+            // Fall back to the default pilot's logbook when one is on disk. Once
+            // a pilot is chosen in the logbook screen, SaveData() records the
+            // callsign in the registry and that takes over.
+            Initialize();
+
+            if (LoadData(Callsign()))
+                return TRUE;
+
+#endif
             MonoPrint(_T("Failed to get registry entries.\n"));
             Initialize();
             return FALSE;

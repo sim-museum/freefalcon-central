@@ -1396,16 +1396,24 @@ static void SaveValues(void)
     {
         // OW
 #if 1
-        UINT nWidth, nHeight, nDepth;
-        FalconDisplay.devmgr.GetMode(DisplayOptions.DispVideoDriver, DisplayOptions.DispVideoCard, lbox->GetTextID(),
-                                     &nWidth, &nHeight, &nDepth);
+        // FF_LINUX: GetMode's return value was ignored and the three outputs were
+        // uninitialised, so a lookup miss (an out-of-range item id, or an empty
+        // list) wrote stack garbage straight into the saved display config.
+        UINT nWidth = 0, nHeight = 0, nDepth = 0;
 
-        DisplayOptions.DispWidth = nWidth;
-        DisplayOptions.DispHeight = nHeight;
-        DisplayOptions.DispDepth = nDepth;
+        if (FalconDisplay.devmgr.GetMode(DisplayOptions.DispVideoDriver, DisplayOptions.DispVideoCard, lbox->GetTextID(),
+                                         &nWidth, &nHeight, &nDepth)
+            and nWidth and nHeight)
+        {
+            DisplayOptions.DispWidth = nWidth;
+            DisplayOptions.DispHeight = nHeight;
+            DisplayOptions.DispDepth = nDepth;
 
-        ShiAssert(DisplayOptions.DispWidth <= 1600);
-        FalconDisplay.SetSimMode(DisplayOptions.DispWidth, DisplayOptions.DispHeight, DisplayOptions.DispDepth); // OW
+            // The old bound was the 1600x1200 ceiling of the 4:3 whitelist; a
+            // 16:9 panel is wider than that. DispWidth is an unsigned short.
+            ShiAssert(DisplayOptions.DispWidth <= 7680);
+            FalconDisplay.SetSimMode(DisplayOptions.DispWidth, DisplayOptions.DispHeight, DisplayOptions.DispDepth); // OW
+        }
 #else
         DisplayOptions.DispWidth = static_cast<short>(lbox->GetTextID());
         DisplayOptions.DispHeight = static_cast<ushort>(FloatToInt32(lbox->GetTextID() * 0.75F));

@@ -3909,6 +3909,7 @@ match the latest commit, check the title first (this resolved repeated
 | FF_NO_CAPTURE_FIX=1 | Revert the screenshot read guards (bind FBO 0 / unbind PBO / GL_BACK / PACK_ALIGNMENT 1 / glFinish). Without the guards a bound cockpit-RTT FBO is what glReadPixels reads = the historical "white frame" |
 | FF_NO_PATHCACHE=1 | Disable the resolve_nocase() result cache in linux_stubs.cpp (revert switch) |
 | FF_TRACE_PATHCACHE=1 | Path-cache hit/miss/stale/flush trace + a summary line every 1000 lookups |
+| FF_DEBUG_DISPCFG=1 | Trace sim-mode resolution: DisplayOptions Initialize/LoadOptions, plus a line when UI_Startup takes the "no pilot loaded" path that resets logbook/player/display options |
 | FF_THROTTLE_AXIS / FF_YAW_AXIS | Joystick axis remap (defaults 3 / 2) |
 | FF_NO_FOG=1 | Disable fog (diagnostic) |
 

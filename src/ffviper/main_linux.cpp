@@ -65,6 +65,7 @@
 #include "ui95/chandler.h"
 #include "ui/include/falcuser.h"
 #include "ui/include/uicomms.h"  // FF_LINUX: For gCommsMgr
+#include "ui/include/logbook.h"  // FF_LINUX: For LogBook / UI_logbk
 
 // Simulation input (for IO structure and joystick data)
 #include "sim/include/simio.h"
@@ -1626,6 +1627,14 @@ static bool init_game_core(void) {
     FalconDisplay.depth[FalconDisplayConfiguration::UI] = 16;  // Use 16-bit for UI mode (matches FreeFalcon convention)
     FalconDisplay.currentMode = FalconDisplayConfiguration::UI;
 
+    // FF_LINUX: load the saved display options. winmain.cpp does this on Windows
+    // (immediately before FalconDisplay.Setup, which is the order kept here), but
+    // that file is not the entry point on this port, so nothing read display.dsp
+    // at all -- the resolution chosen in Setup was written to disk and then never
+    // loaded again.
+    printf("  Loading display options...\n");
+    DisplayOptions.LoadOptions("display");
+
     // Initialize the DeviceManager (enumerates display modes and D3D devices)
     printf("  Initializing DeviceManager...\n");
     FalconDisplay.Setup(0);  // Language number 0 for English
@@ -1749,6 +1758,22 @@ static bool init_game_core(void) {
     gCommsMgr = new UIComms;
     gCommsMgr->Setup(FalconDisplay.appWin);
     fprintf(stderr, "  [main_linux] gCommsMgr->Setup() returned\n");
+
+    // FF_LINUX: load the player's logbook (winmain.cpp does this at the same
+    // point on Windows). Skipping it left LB_LOADED_ONCE clear, and UI_Startup()
+    // reads that as "first ever run" and resets the logbook, the player options
+    // AND the display options to defaults -- on every single launch.
+    fprintf(stderr, "  Loading logbook...\n");
+
+    if (UI_logbk.Load())
+    {
+        LogBook.LoadData(&UI_logbk.Pilot);
+        fprintf(stderr, "  [main_linux] logbook loaded for '%s'\n", LogBook.Callsign());
+    }
+    else
+    {
+        fprintf(stderr, "  [main_linux] no logbook found; defaults will be used\n");
+    }
 
     // FF_LINUX: Load keyboard command bindings from keystrokes.key
     // This populates UserFunctionTable so keyboard commands work in the sim.

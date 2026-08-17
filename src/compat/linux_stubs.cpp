@@ -21,6 +21,8 @@
 #include <sys/stat.h>
 #include <fnmatch.h>
 
+#include <SDL2/SDL.h>
+
 #include "compat_types.h"
 #include "compat_winbase.h"
 #include "ddraw.h"
@@ -858,6 +860,333 @@ extern "C" int FF_IniGetValue(const char *section, const char *key,
 
     fclose(fp);
     return found;
+}
+
+/* ============================================================
+ * A small file-backed registry
+ *
+ * The Reg* entry points used to be stubs that reported failure for
+ * every call. That is not as harmless as it looks: the game stores
+ * the current pilot's callsign under HKLM, and UI_Init() treats "no
+ * pilot could be loaded" as "first ever run", which re-runs
+ * LogBook/PlayerOptions/DisplayOptions Initialize(). Those defaults
+ * were then written back over the player's config on exit, so no
+ * Setup change -- resolution included -- could survive a restart.
+ *
+ * Values live in config/registry.ini, alongside the other config
+ * files. The game chdir()s to FalconDataDirectory during startup, so
+ * a relative path keeps this free of any dependency on falclib.
+ *
+ * Two deliberate departures from the Win32 API:
+ *
+ *  - Opening a key for write access creates it. On Windows the
+ *    installer creates HKLM\Software\MicroProse\Falcon\4.0; there is
+ *    no installer here, and every writer in this codebase opens the
+ *    key and gives up if the open fails, so nothing could ever have
+ *    created it.
+ *
+ *  - REG_SZ values are stored with a terminating NUL even when the
+ *    caller's cbData excludes it (they all pass strlen()). Callers
+ *    such as TheaterList::GetCurrentTheater() read straight into an
+ *    uninitialised stack buffer and would otherwise be left holding an
+ *    unterminated string.
+ * ============================================================ */
+
+#include <map>
+#include <string>
+#include <vector>
+
+namespace {
+
+typedef std::vector<unsigned char> RegBlob;
+
+struct RegValue {
+    DWORD   type;
+    RegBlob data;
+};
+
+typedef std::map<std::string, RegValue> RegValues;   /* value name -> value  */
+typedef std::map<std::string, RegValues> RegStore;   /* key path   -> values */
+
+RegStore  g_regStore;
+bool      g_regLoaded = false;
+
+/* Interned so an HKEY stays valid until exit and RegCloseKey can be a no-op. */
+std::map<std::string, std::string *> g_regHandles;
+
+const char *REG_STORE_PATH = "config/registry.ini";
+
+const char *RegRootName(HKEY h) {
+    switch ((unsigned long)(uintptr_t)h) {
+        case 0x80000000UL: return "HKCR";
+        case 0x80000001UL: return "HKCU";
+        case 0x80000002UL: return "HKLM";
+        case 0x80000003UL: return "HKU";
+        default:           return NULL;
+    }
+}
+
+/* A predefined root, or a handle we previously handed out. */
+bool RegPathOf(HKEY h, std::string &out) {
+    const char *root = RegRootName(h);
+
+    if (root) {
+        out = root;
+        return true;
+    }
+
+    if (!h) return false;
+
+    /* Only trust handles we minted ourselves. */
+    for (std::map<std::string, std::string *>::iterator it = g_regHandles.begin();
+         it != g_regHandles.end(); ++it) {
+        if (it->second == (std::string *)h) {
+            out = *it->second;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+HKEY RegHandleFor(const std::string &path) {
+    std::map<std::string, std::string *>::iterator it = g_regHandles.find(path);
+
+    if (it == g_regHandles.end())
+        it = g_regHandles.insert(std::make_pair(path, new std::string(path))).first;
+
+    return (HKEY)it->second;
+}
+
+int RegHexVal(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+void RegLoadStore() {
+    if (g_regLoaded) return;
+
+    g_regLoaded = true;
+
+    FILE *fp = fopen_nocase(REG_STORE_PATH, "r");
+
+    if (!fp) return;
+
+    char line[8192];
+    std::string section;
+
+    while (fgets(line, sizeof(line), fp)) {
+        char *s = line;
+
+        while (*s == ' ' || *s == '\t') s++;
+
+        size_t n = strlen(s);
+
+        while (n && (s[n - 1] == '\n' || s[n - 1] == '\r' || s[n - 1] == ' ' || s[n - 1] == '\t'))
+            s[--n] = '\0';
+
+        if (!*s || *s == ';' || *s == '#') continue;
+
+        if (*s == '[') {
+            char *end = strchr(s, ']');
+
+            if (end) {
+                *end = '\0';
+                section = s + 1;
+            }
+
+            continue;
+        }
+
+        char *eq = strchr(s, '=');
+
+        if (!eq || section.empty()) continue;
+
+        *eq = '\0';
+        std::string name(s);
+
+        char *v = eq + 1;
+        char *comma = strchr(v, ',');
+
+        if (!comma) continue;
+
+        *comma = '\0';
+        RegValue val;
+        val.type = (DWORD)strtoul(v, NULL, 10);
+
+        for (char *h = comma + 1; h[0] && h[1]; h += 2) {
+            int hi = RegHexVal(h[0]), lo = RegHexVal(h[1]);
+
+            if (hi < 0 || lo < 0) break;
+
+            val.data.push_back((unsigned char)((hi << 4) | lo));
+        }
+
+        g_regStore[section][name] = val;
+    }
+
+    fclose(fp);
+}
+
+void RegSaveStore() {
+    /* Written whole each time: this holds a handful of values. */
+    FILE *fp = fopen_nocase(REG_STORE_PATH, "w");
+
+    if (!fp) return;
+
+    fprintf(fp, "; FreeFalcon Linux port - registry substitute. Generated file.\n");
+
+    for (RegStore::iterator k = g_regStore.begin(); k != g_regStore.end(); ++k) {
+        fprintf(fp, "\n[%s]\n", k->first.c_str());
+
+        for (RegValues::iterator v = k->second.begin(); v != k->second.end(); ++v) {
+            fprintf(fp, "%s=%lu,", v->first.c_str(), (unsigned long)v->second.type);
+
+            for (size_t i = 0; i < v->second.data.size(); i++)
+                fprintf(fp, "%02X", v->second.data[i]);
+
+            fprintf(fp, "\n");
+        }
+    }
+
+    fclose(fp);
+}
+
+} /* namespace */
+
+extern "C" LONG FF_RegOpenKey(HKEY parent, const char *subkey, REGSAM sam, PHKEY out) {
+    if (out) *out = NULL;
+
+    RegLoadStore();
+
+    std::string base;
+
+    if (!RegPathOf(parent, base)) return ERROR_FILE_NOT_FOUND;
+
+    std::string path = base;
+
+    if (subkey && *subkey) {
+        path += "\\";
+        path += subkey;
+    }
+
+    const bool wantWrite = (sam & (KEY_WRITE | KEY_ALL_ACCESS)) != 0;
+
+    if (g_regStore.find(path) == g_regStore.end()) {
+        if (!wantWrite) return ERROR_FILE_NOT_FOUND;
+
+        g_regStore[path];  /* create empty -- see the note above */
+    }
+
+    if (out) *out = RegHandleFor(path);
+
+    return ERROR_SUCCESS;
+}
+
+extern "C" LONG FF_RegQueryValue(HKEY key, const char *name, LPDWORD type,
+                                 LPBYTE data, LPDWORD size) {
+    RegLoadStore();
+
+    std::string path;
+
+    if (!name || !RegPathOf(key, path)) return ERROR_FILE_NOT_FOUND;
+
+    RegStore::iterator k = g_regStore.find(path);
+
+    if (k == g_regStore.end()) return ERROR_FILE_NOT_FOUND;
+
+    RegValues::iterator v = k->second.find(name);
+
+    if (v == k->second.end()) return ERROR_FILE_NOT_FOUND;
+
+    if (type) *type = v->second.type;
+
+    const DWORD stored = (DWORD)v->second.data.size();
+
+    if (!data) {
+        if (size) *size = stored;
+
+        return ERROR_SUCCESS;
+    }
+
+    if (!size) return ERROR_INVALID_PARAMETER;
+
+    if (*size < stored) {
+        *size = stored;
+        return ERROR_MORE_DATA;
+    }
+
+    if (stored) memcpy(data, &v->second.data[0], stored);
+
+    *size = stored;
+    return ERROR_SUCCESS;
+}
+
+/* ------------------------------------------------------------
+ * SetWindowPos
+ *
+ * Another stub that returned TRUE without doing anything. The game
+ * resizes its window when it switches between the UI (1024x768 art)
+ * and the sim (whatever resolution the player chose in Setup), so
+ * with this inert the sim was rendered into a device of the chosen
+ * size while the window stayed at the UI's.
+ *
+ * Only the main SDL window is touched -- the rest of the HWNDs in
+ * this port are opaque non-window handles and must not be passed to
+ * SDL.
+ * ------------------------------------------------------------ */
+/* Desktop size. Returning 0 here is what made the windowed-mode clamp in
+ * FalconDisplayConfiguration::EnterMode compute a negative window size for any
+ * resolution. Only the screen metrics are answered; every other index keeps the
+ * old zero, since nothing in FFViper asks for them. */
+extern "C" int FF_GetSystemMetrics(int nIndex) {
+    if (nIndex == 0 || nIndex == 1 || nIndex == 16 || nIndex == 17) {
+        SDL_DisplayMode dm;
+
+        if (SDL_WasInit(SDL_INIT_VIDEO) && SDL_GetDesktopDisplayMode(0, &dm) == 0)
+            return (nIndex == 0 || nIndex == 16) ? dm.w : dm.h;
+    }
+
+    return 0;
+}
+
+extern "C" BOOL FF_SetWindowPos(HWND hWnd, int X, int Y, int cx, int cy, UINT uFlags) {
+    extern SDL_Window *g_SDLWindow;
+
+    if (!g_SDLWindow || hWnd != (HWND)g_SDLWindow) return TRUE;
+
+    if (!(uFlags & 0x0001 /* SWP_NOSIZE */) && cx > 0 && cy > 0)
+        SDL_SetWindowSize(g_SDLWindow, cx, cy);
+
+    if (!(uFlags & 0x0002 /* SWP_NOMOVE */))
+        SDL_SetWindowPosition(g_SDLWindow, X, Y);
+
+    return TRUE;
+}
+
+extern "C" LONG FF_RegSetValue(HKEY key, const char *name, DWORD type,
+                               const BYTE *data, DWORD size) {
+    RegLoadStore();
+
+    std::string path;
+
+    if (!name || !RegPathOf(key, path)) return ERROR_FILE_NOT_FOUND;
+
+    RegValue val;
+    val.type = type;
+
+    if (data && size) val.data.assign(data, data + size);
+
+    /* See the REG_SZ note above. */
+    if (type == REG_SZ && (val.data.empty() || val.data.back() != 0))
+        val.data.push_back(0);
+
+    g_regStore[path][name] = val;
+    RegSaveStore();
+
+    return ERROR_SUCCESS;
 }
 
 #endif /* FF_LINUX */

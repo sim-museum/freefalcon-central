@@ -1231,14 +1231,25 @@ void BuildResolutionList(C_ListBox *lbox)
 
     while (FalconDisplay.devmgr.GetMode(Driver, Card, i++, &width, &height, &depth))
     {
+        // FF_LINUX: the original list was a whitelist of the five 4:3 sizes a
+        // 1999 card was expected to have. It has no 16:9 entry at all, so a
+        // modern panel's native mode could never be chosen. Offer whatever the
+        // display actually enumerates instead.
+#ifdef FF_LINUX
+        if (width >= 640 and height >= 480)
+#else
         // For now we only allow 640x480, 800x600, 1280x960, 1600x1200
         // (MPR already does the 4:3 aspect ratio check for us)
         if (height > 400 and ((width == 640 or width == 800 or width == 1024 or
                               (width == 1280 and height == 960) or width == 1600 or HighResolutionHackFlag)))
+#endif
         {
             if (depth == 8 or depth == 24)
                 continue;
 
+            // Only 32-bit is listed, and LoadOptions() forces DispDepth to 32
+            // regardless of what was saved, so the 16-bit half of the enumeration
+            // would only ever be a duplicate row per resolution.
             // if(depth == 16 and not (pD3DDI->m_devDesc.dwDeviceRenderBitDepth bitand DDBD_16))
             if (depth == 16)
                 continue;

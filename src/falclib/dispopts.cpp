@@ -44,6 +44,17 @@ void DisplayOptionsClass::Initialize(void)
     bSpecularLighting = true;
     m_texMode = TEX_MODE_DDS;
 
+#ifdef FF_LINUX
+    // FF_LINUX: this resets the player's saved resolution, so it is worth being
+    // able to see when it fires. FF_DEBUG_DISPCFG=1 traces the sim-mode changes.
+    if (getenv("FF_DEBUG_DISPCFG"))
+    {
+        fprintf(stderr, "[dispcfg] DisplayOptions::Initialize -> %dx%dx%d (defaults)\n",
+                DispWidth, DispHeight, DispDepth);
+        fflush(stderr);
+    }
+
+#endif
     FalconDisplay.SetSimMode(DispWidth, DispHeight, DispDepth);
 }
 
@@ -136,6 +147,15 @@ int DisplayOptionsClass::LoadOptions(char *filename)
         DispVideoCard = 0;
     }
 
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_DISPCFG"))
+    {
+        fprintf(stderr, "[dispcfg] DisplayOptions::LoadOptions -> %dx%dx%d\n",
+                DispWidth, DispHeight, DispDepth);
+        fflush(stderr);
+    }
+
+#endif
     FalconDisplay.SetSimMode(DispWidth, DispHeight, DispDepth);
 
     return TRUE;

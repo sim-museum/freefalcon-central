@@ -605,9 +605,18 @@ static inline BOOL GetClientRect(HWND hWnd, LPRECT lpRect) {
 static inline BOOL GetWindowRect(HWND hWnd, LPRECT lpRect) {
     (void)hWnd; if (lpRect) memset(lpRect, 0, sizeof(*lpRect)); return TRUE;
 }
+/* FF_LINUX: implemented against the main SDL window -- see linux_stubs.cpp. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+BOOL FF_SetWindowPos(HWND hWnd, int X, int Y, int cx, int cy, UINT uFlags);
+#ifdef __cplusplus
+}
+#endif
+
 static inline BOOL SetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, UINT uFlags) {
-    (void)hWnd; (void)hWndInsertAfter; (void)X; (void)Y; (void)cx; (void)cy; (void)uFlags;
-    return TRUE;
+    (void)hWndInsertAfter;
+    return FF_SetWindowPos(hWnd, X, Y, cx, cy, uFlags);
 }
 static inline BOOL MoveWindow(HWND hWnd, int X, int Y, int nWidth, int nHeight, BOOL bRepaint) {
     (void)hWnd; (void)X; (void)Y; (void)nWidth; (void)nHeight; (void)bRepaint;
@@ -696,7 +705,15 @@ static inline int MessageBoxA(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT u
 #define MessageBox MessageBoxA
 
 /* Screen info */
-static inline int GetSystemMetrics(int nIndex) { (void)nIndex; return 0; }
+/* FF_LINUX: answers the screen metrics from SDL -- see linux_stubs.cpp. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+int FF_GetSystemMetrics(int nIndex);
+#ifdef __cplusplus
+}
+#endif
+static inline int GetSystemMetrics(int nIndex) { return FF_GetSystemMetrics(nIndex); }
 #define SM_CXSCREEN     0
 #define SM_CYSCREEN     1
 #define SM_CXFULLSCREEN 16

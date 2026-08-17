@@ -114,10 +114,16 @@ const char *DeviceManager::GetModeName(int driverNum, int devNum, int modeNum)
     // Find the nth (legal) display mode
     while (pddsd = DI.GetDisplayMode(i))
     {
+        // FF_LINUX: same 4:3-only whitelist as BuildResolutionList had; see the
+        // note there. Kept in step so the two mode lists agree.
+#ifdef FF_LINUX
+        if (pddsd->ddpfPixelFormat.dwRGBBitCount >= 16 and pddsd->dwWidth >= 640 and pddsd->dwHeight >= 480)
+#else
         // For now we only allow 640x480, 800x600, 1280x960, 1600x1200
         // (MPR already does the 4:3 aspect ratio check for us)
         if (pddsd->ddpfPixelFormat.dwRGBBitCount >= 16 and (pddsd->dwWidth == 640 or pddsd->dwWidth == 800 or pddsd->dwWidth == 1024 or
                 (pddsd->dwWidth == 1280 and pddsd->dwHeight == 960) or pddsd->dwWidth == 1600 or HighResolutionHackFlag))
+#endif
         {
             if (modeNum == 0)
             {
