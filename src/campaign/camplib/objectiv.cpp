@@ -2450,6 +2450,42 @@ int ObjectiveClass::GetFeatureStatus(int f)
     return (obj_data.fstatus[i] >> (f * 2)) bitand 0x03;
 }
 
+// FF_LINUX: the four accessors below index FeatureEntryDataTable at
+// FirstFeature + f, so f has to lie inside THIS objective's feature list. The
+// original "f > 255" garbage-check bounds nothing: an objective with 8 features
+// happily reads entry FirstFeature+200 of a global table and returns whatever
+// was there.
+//
+// It is not a theoretical index either. DigitalBrain::FindSimGroundTarget walks
+// the components of a target GROUP and passes its loop counter straight in as a
+// feature index (winglogic.cpp: `GetFeatureClassData(((Objective)simTarg)->
+// GetFeatureID(i))`), so on any group with more components than the objective
+// has features it reads off the end -- returning a garbage feature Index, which
+// then indexes Falcon4ClassTable and yields the NULL dataPtr that the assert in
+// GetFeatureClassData reports just before the segfault.
+//
+// Same bound SetFeatureStatus already uses.
+static inline bool FF_FeatureInRange(int f, const ObjClassDataType *cd)
+{
+    if (cd and f >= 0 and f < cd->Features)
+        return true;
+
+    // This guard is load-bearing -- it is what stops the read that crashed the
+    // AI ground-attack path -- so report the first few rejections rather than
+    // silently swallowing them.
+    static int reported = 0;
+
+    if (cd and reported < 5)
+    {
+        reported++;
+        fprintf(stderr, "[feature] rejected out-of-range feature index %d (objective has %d features)\n",
+                f, (int)cd->Features);
+        fflush(stderr);
+    }
+
+    return false;
+}
+
 int ObjectiveClass::GetFeatureValue(int f)
 {
     if (f < 0)
@@ -2458,7 +2494,7 @@ int ObjectiveClass::GetFeatureValue(int f)
     if (f > 255) // FRB - garbage check
         return 0;
 
-    if ( not static_data.class_data)
+    if ( not FF_FeatureInRange(f, static_data.class_data))
         return 0;
 
     return FeatureEntryDataTable[static_data.class_data->FirstFeature + f].Value;
@@ -2472,7 +2508,7 @@ int ObjectiveClass::GetFeatureRepairTime(int f)
     if (f > 255) // FRB - garbage check
         return 0;
 
-    if ( not static_data.class_data)
+    if ( not FF_FeatureInRange(f, static_data.class_data))
         return 0;
 
     return ::GetFeatureRepairTime(FeatureEntryDataTable[static_data.class_data->FirstFeature + f].Index);
@@ -2486,7 +2522,7 @@ int ObjectiveClass::GetFeatureID(int f)
     if (f > 255) // FRB - garbage check
         return 0;
 
-    if ( not static_data.class_data)
+    if ( not FF_FeatureInRange(f, static_data.class_data))
         return 0;
 
     return FeatureEntryDataTable[static_data.class_data->FirstFeature + f].Index;
@@ -2512,7 +2548,7 @@ int ObjectiveClass::GetFeatureOffset(int f, float* x, float* y, float* z)
     if (f > 255) // FRB - garbage check
         return 0;
 
-    if ( not static_data.class_data)
+    if ( not FF_FeatureInRange(f, static_data.class_data))
         return 0;
 
     *x = FeatureEntryDataTable[static_data.class_data->FirstFeature + f].Offset.x;

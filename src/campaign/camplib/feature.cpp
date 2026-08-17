@@ -12,6 +12,22 @@
 
 FeatureClassDataType* GetFeatureClassData(int index)
 {
+    // FF_LINUX: index comes from a feature entry's .Index field, i.e. straight
+    // out of a data table, so it has to be bounds-checked before it is used to
+    // subscript the class table -- Falcon4ClassTable[index] was read three times
+    // before anything was validated, including inside the assert itself.
+    //
+    // The existing "CTD sanity check" also validates dataType but then returns
+    // dataPtr, which is exactly the NULL the assert above it just complained
+    // about; callers such as DigitalBrain::FindSimGroundTarget do check for
+    // NULL, so return it explicitly rather than by accident.
+#ifdef FF_LINUX
+
+    if ( not Falcon4ClassTable or index < 0 or index >= NumEntities)
+        return NULL;
+
+#endif
+
     ShiAssert(Falcon4ClassTable[index].dataPtr);
 
     if (Falcon4ClassTable[index].dataType <= DTYPE_MIN or Falcon4ClassTable[index].dataType >= DTYPE_MAX)  // JB 010106 CTD sanity check

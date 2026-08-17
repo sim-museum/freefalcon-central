@@ -253,6 +253,14 @@ SimBaseClass *DigitalBrain::FindSimGroundTarget(CampBaseClass *targetGroup, int 
     SimBaseClass *firstSimTarg = NULL;
     AircraftClass *flightMember[4] =  { 0 }; // Maximum of 4 planes per flight with no target as default
 
+    // FF_LINUX: "maximum of 4" was a comment, not a check. usComponents comes
+    // from the campaign object and indexes flightMember[] directly, so a flight
+    // reporting more than four components wrote past this array. Every loop that
+    // fills or reads flightMember[] bounds on usComponents, so clamping it here
+    // is enough.
+    if (usComponents > 4)
+        usComponents = 4;
+
     // Get the flight aircrafts (once per call instead of once per target querried)
     for (i = 0; i < usComponents; i++)
     {
@@ -468,6 +476,14 @@ SimBaseClass *DigitalBrain::FindSimAirTarget(CampBaseClass *targetGroup, int tar
     SimBaseClass *firstSimTarg = NULL;
     AircraftClass *flightMember[4] =  { 0 }; // Maximum of 4 planes per flight with no target as default
 
+    // FF_LINUX: "maximum of 4" was a comment, not a check. usComponents comes
+    // from the campaign object and indexes flightMember[] directly, so a flight
+    // reporting more than four components wrote past this array. Every loop that
+    // fills or reads flightMember[] bounds on usComponents, so clamping it here
+    // is enough.
+    if (usComponents > 4)
+        usComponents = 4;
+
     // Get the flight aircrafts (once per call instead of once per target querried)
     for (i = 0; i < usComponents; i++)
     {
@@ -552,6 +568,14 @@ SimBaseClass *DigitalBrain::FindJSOWGroundTarget(CampBaseClass *targetGroup, int
     SimBaseClass *simTarg = NULL;
     SimBaseClass *firstSimTarg = NULL;
     AircraftClass *flightMember[4] =  { 0 }; // Maximum of 4 planes per flight with no target as default
+
+    // FF_LINUX: "maximum of 4" was a comment, not a check. usComponents comes
+    // from the campaign object and indexes flightMember[] directly, so a flight
+    // reporting more than four components wrote past this array. Every loop that
+    // fills or reads flightMember[] bounds on usComponents, so clamping it here
+    // is enough.
+    if (usComponents > 4)
+        usComponents = 4;
 
     // Get the flight aircrafts (once per call instead of once per target querried)
     for (int i = 0; i < usComponents; i++)
@@ -673,6 +697,14 @@ int DigitalBrain::FindJDAMGroundTarget(CampBaseClass *targetGroup, int targetNum
     SimBaseClass *simTarg = NULL;
     SimBaseClass *firstSimTarg = NULL;
     AircraftClass *flightMember[4] =  { 0 }; // Maximum of 4 planes per flight with no target as default
+
+    // FF_LINUX: "maximum of 4" was a comment, not a check. usComponents comes
+    // from the campaign object and indexes flightMember[] directly, so a flight
+    // reporting more than four components wrote past this array. Every loop that
+    // fills or reads flightMember[] bounds on usComponents, so clamping it here
+    // is enough.
+    if (usComponents > 4)
+        usComponents = 4;
 
     if (usComponents <= 1)
         return FeatureNumber;
