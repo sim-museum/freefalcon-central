@@ -1119,6 +1119,16 @@ static inline LONG RegEnumKeyA(HKEY hKey, DWORD dwIndex, LPSTR lpName, DWORD cch
 #define DRIVE_CDROM       5
 #define DRIVE_RAMDISK     6
 static inline UINT GetDriveTypeA(LPCSTR lpRootPathName) { (void)lpRootPathName; return DRIVE_FIXED; }
+
+/* FF_LINUX: defined in win_only_stubs.cpp but never declared, so resmgr.c
+ * (compiled as C) assumed an implicit int-returning function. See the matching
+ * note on _getdcwd in direct.h. */
+#ifdef __cplusplus
+extern "C"
+#endif
+BOOL GetVolumeInformation(LPCSTR lpRootPathName, LPSTR lpVolumeNameBuffer, DWORD nVolumeNameSize,
+                          LPDWORD lpVolumeSerialNumber, LPDWORD lpMaximumComponentLength,
+                          LPDWORD lpFileSystemFlags, LPSTR lpFileSystemNameBuffer, DWORD nFileSystemNameSize);
 #define GetDriveType GetDriveTypeA
 static inline DWORD GetLogicalDrives(void) { return 0x4; /* C: */ }
 static inline DWORD GetLogicalDriveStringsA(DWORD nBufferLength, LPSTR lpBuffer) {

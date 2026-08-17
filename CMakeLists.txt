@@ -25,6 +25,13 @@ if(FF_PLATFORM_LINUX)
         # pointer-consuming code dereferences (missile-impact crash).
         USE_NEW_PS
         stricmp=strcasecmp strnicmp=strncasecmp strcmpi=strcasecmp
+        # pthread_timedjoin_np (compat_winbase.h's timed WaitForSingleObject) is
+        # a GNU extension, declared only when _GNU_SOURCE is set BEFORE the first
+        # libc header. g++ defines it for C++ automatically, but the C sources
+        # here (reslib) do not get it, so they were calling it with no prototype
+        # at all. It has to be a compile definition rather than a #define in the
+        # header, which by then is far too late.
+        _GNU_SOURCE
         # _strdup was left undeclared, so C assumed it returns int and the
         # returned char* would be truncated on 64-bit before being stored.
         # Currently dormant (the only caller is dead-stripped at -O3, and the
