@@ -2548,3 +2548,48 @@ the Wine golds came from this exact game-data install. Agent side: Sprint 10 =
 SP.2, root-cause DEV-2 (2D-pit palette/TOD shading — biggest visual payoff,
 affects both sim screens) then DEV-1.
 </content>
+
+### VOICE-1/2/3 — the radio voice chain, and the crash family it was causing (2026-08-17)
+
+Three defects in a chain, each one hiding the next. Recorded together because
+the sequence is the interesting part.
+
+1. **VOICE-1.** `FRAG_FILE_INFO` / `EVAL_FILE_INFO` / `COMM_FILE_INFO` are
+   documented on-disk layouts, written by 32-bit Windows, and declared their
+   offset as `long` — 16/16/18 bytes here against 8/8/14. `GetFragInfo()` strides
+   by `sizeof()`, so every record after index 0 was read at the wrong offset, and
+   `maxfrags = fragOffset / sizeof(*f1)` came out at **half** its true value.
+   Measured: 4 voicefilter assertions per campaign flight → 0.
+
+2. **VOICE-2.** Fixing that let the voice system reach `.tlk`, which had the same
+   defect three ways over (index stride, an 8-byte read of a 4-byte field, and
+   `TlkBlock.data` at offset 16 instead of 8). Twelve *new* assertions appeared
+   the moment VOICE-1 landed, in code that had never been reachable. → 0.
+
+3. **VOICE-3.** With both fixed, voice streams played for the first time on this
+   port — and reached `LHSP::ReadLHSPFile`, whose `PMSIZE`/`CODESIZE` are never
+   initialised because the ST80 codec is stubbed out. Garbage `PMSIZE` was
+   accumulated into the returned decode length, stored as `dataInWaveBuffer`, and
+   `AddNoise()` then **wrote** `*pos = level` across ~81,600 bytes of an
+   80,960-byte buffer.
+
+**What that write did, and the wrong turn it caused.** A stray write past an 80KB
+heap block corrupts whatever allocation follows it. The crashes therefore
+appeared in six unrelated places — `O_Output::Cleanup`, `O_Output::SetText`,
+`C_MapIcon::UpdateInfo`, `UI_Refresher::RemoveMission`, `C_Hash::Find`,
+`CSoundMgr::ProcessStream` — three of them under one callback. I built a
+confident theory from that clustering: `UI_Refresher` holding dangling pointers
+to destroyed UI items. **It was wrong.** The pointers were fine; their memory was
+being overwritten. Six corroborating sites and a plausible mechanism were not
+enough, and only ASAN settled it.
+
+Two process lessons worth keeping:
+
+* *Fixing a data-format bug exposes code that has never run.* This happened three
+  times in one sprint. Expect the next layer to be untested, not merely unfixed.
+* *A cluster of crash sites is evidence of a corruptor, not of a bug at those
+  sites.* When symbolised backtraces point at several structurally unrelated
+  places, reach for the sanitiser before building a theory about any one of them.
+
+Evidence: ASAN on the identical command went heap-buffer-overflow/rc=139 →
+0 errors/rc=124; release crash rate went ~1 in 3 (2/6, 1/5, 1/3) → 0 in 8.
