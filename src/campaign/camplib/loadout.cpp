@@ -364,7 +364,20 @@ int LoadWeapons(void *squadron, int vindex, uchar *dam, MoveType mt, int num, in
                     {
                         if (type_flags bitand WEAP_LASER_POD)
                         {
-                            num = LoadWeapon(hp, hp, GetListEntryWeapon(wl, bw), 1, 1, (Squadron)squadron, Weapon, Weapons, vc);
+                            // FF_LINUX: this used GetListEntryWeapon(wl, bw), but
+                            // wl and bw belong to the "vc->Weapons[hp] == 255"
+                            // weapon-LIST branch above and are never assigned on
+                            // this path -- so the pod was loaded with a weapon id
+                            // indexed by uninitialised values, or worse by values
+                            // left over from an earlier hardpoint that did take
+                            // the list branch (a wrong but plausible weapon, which
+                            // is why this never looked like a crash).
+                            //
+                            // In this branch the hardpoint carries a weapon id
+                            // directly; every other LoadWeapon call here uses
+                            // vc->Weapon[hp], including the one it was just
+                            // scored with on the line above.
+                            num = LoadWeapon(hp, hp, vc->Weapon[hp], 1, 1, (Squadron)squadron, Weapon, Weapons, vc);
                             return 0;
                         }
                         else
