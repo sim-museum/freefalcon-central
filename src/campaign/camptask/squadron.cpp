@@ -1427,16 +1427,23 @@ void SquadronClass::UpdateSquadronStores(
         uchar *buffer;
 
         msg->dataBlock.type = FalconFlightPlanMessage::squadronStores;
-        msg->dataBlock.size = HARDPOINT_MAX + HARDPOINT_MAX * sizeof(short) + sizeof(long) * 2;
+        // FF_LINUX: lbsfuel and planes are int parameters, but this copied
+        // sizeof(long) out of each -- 8 bytes read from a 4-byte object, an
+        // overread of the variable itself. It also put an 8-byte field on the
+        // wire where the 32-bit original put 4. Both sides now use int32_t
+        // explicitly (same treatment as SAVE-1); the decoder in
+        // falconflightplanmsg.cpp is changed to match.
+        int32_t lbsfuel32 = (int32_t)lbsfuel, planes32 = (int32_t)planes;
+        msg->dataBlock.size = HARDPOINT_MAX + HARDPOINT_MAX * sizeof(short) + sizeof(int32_t) * 2;
         msg->dataBlock.data = buffer = new uchar[msg->dataBlock.size];
         memcpy(buffer, weapon, HARDPOINT_MAX * sizeof(short));
         buffer += HARDPOINT_MAX * sizeof(short);
         memcpy(buffer, weapons, HARDPOINT_MAX);
         buffer += HARDPOINT_MAX;
-        memcpy(buffer, &lbsfuel, sizeof(long));
-        buffer += sizeof(long);
-        memcpy(buffer, &planes, sizeof(long));
-        buffer += sizeof(long);
+        memcpy(buffer, &lbsfuel32, sizeof(int32_t));
+        buffer += sizeof(int32_t);
+        memcpy(buffer, &planes32, sizeof(int32_t));
+        buffer += sizeof(int32_t);
         FalconSendMessage(msg, TRUE);
     }
 }
@@ -1504,16 +1511,23 @@ void SquadronClass::ResupplySquadronStores(
         uchar *buffer;
 
         msg->dataBlock.type = FalconFlightPlanMessage::squadronStores;
-        msg->dataBlock.size = HARDPOINT_MAX + HARDPOINT_MAX * sizeof(short) + sizeof(long) * 2;
+        // FF_LINUX: lbsfuel and planes are int parameters, but this copied
+        // sizeof(long) out of each -- 8 bytes read from a 4-byte object, an
+        // overread of the variable itself. It also put an 8-byte field on the
+        // wire where the 32-bit original put 4. Both sides now use int32_t
+        // explicitly (same treatment as SAVE-1); the decoder in
+        // falconflightplanmsg.cpp is changed to match.
+        int32_t lbsfuel32 = (int32_t)lbsfuel, planes32 = (int32_t)planes;
+        msg->dataBlock.size = HARDPOINT_MAX + HARDPOINT_MAX * sizeof(short) + sizeof(int32_t) * 2;
         msg->dataBlock.data = buffer = new uchar[msg->dataBlock.size];
         memcpy(buffer, weapon, HARDPOINT_MAX * sizeof(short));
         buffer += HARDPOINT_MAX * sizeof(short);
         memcpy(buffer, weapons, HARDPOINT_MAX);
         buffer += HARDPOINT_MAX;
-        memcpy(buffer, &lbsfuel, sizeof(long));
-        buffer += sizeof(long);
-        memcpy(buffer, &planes, sizeof(long));
-        buffer += sizeof(long);
+        memcpy(buffer, &lbsfuel32, sizeof(int32_t));
+        buffer += sizeof(int32_t);
+        memcpy(buffer, &planes32, sizeof(int32_t));
+        buffer += sizeof(int32_t);
         FalconSendMessage(msg, TRUE);
     }
 }

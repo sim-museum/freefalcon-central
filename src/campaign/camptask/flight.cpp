@@ -332,7 +332,22 @@ FlightClass::FlightClass(VU_BYTE **stream, long *rem) : AirUnitClass(stream, rem
             memcpychk(weapon, stream, sizeof(uchar)*HARDPOINT_MAX, rem);
 
             if ( not use_loadout)
-                memcpy(loadout[0].WeaponID, weapon, sizeof(short)*HARDPOINT_MAX);
+            {
+                // FF_LINUX: this was
+                //     memcpy(loadout[0].WeaponID, weapon, sizeof(short)*HARDPOINT_MAX);
+                // which is wrong twice over. WeaponID is short[HARDPOINT_MAX] but
+                // `weapon` is uchar[HARDPOINT_MAX], so the copy read 2*HARDPOINT_MAX
+                // bytes out of a HARDPOINT_MAX-byte stack buffer -- an overread of
+                // exactly its own length -- and it pasted byte PAIRS into shorts, so
+                // every weapon id came out garbage. This is the current save format
+                // (version >= 18), on the path taken whenever a flight has no
+                // explicit loadout block.
+                //
+                // The version < 18 branch just above already does it correctly:
+                // widen element by element.
+                for (int i = 0; i < HARDPOINT_MAX; i++)
+                    loadout[0].WeaponID[i] = (short) weapon[i];
+            }
         }
 
         memcpychk(weapons, stream, sizeof(uchar)*HARDPOINT_MAX, rem);

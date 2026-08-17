@@ -96,17 +96,24 @@ int FalconFlightPlanMessage::Process(uchar autodisp)
     switch (dataBlock.type)
     {
         case squadronStores:
+        {
             short weapon[HARDPOINT_MAX];
             unsigned char weapons[HARDPOINT_MAX];
 
+            // FF_LINUX: the sender writes these as int32_t (they are int-valued;
+            // see SquadronClass::UpdateSquadronStores / ResupplySquadronStores,
+            // which used to memcpy sizeof(long) out of 4-byte ints). Read the
+            // same width here so the two sides agree.
+            int32_t lbsfuel32 = 0, planes32 = 0;
             memcpychk(weapon, &buffer, HARDPOINT_MAX * sizeof(short), &rem);
             memcpychk(weapons, &buffer, HARDPOINT_MAX, &rem);
-            memcpychk(&lbsfuel, &buffer, sizeof(long), &rem);
-            memcpychk(&planes, &buffer, sizeof(long), &rem);
-            ((Squadron)unit)->UpdateSquadronStores(weapon, weapons, lbsfuel, planes);
+            memcpychk(&lbsfuel32, &buffer, sizeof(int32_t), &rem);
+            memcpychk(&planes32, &buffer, sizeof(int32_t), &rem);
+            ((Squadron)unit)->UpdateSquadronStores(weapon, weapons, lbsfuel32, planes32);
             ((Squadron)unit)->MakeSquadronDirty(DIRTY_SQUAD_STORES, DDP[149].priority);
             // ((Squadron)unit)->MakeSquadronDirty (DIRTY_SQUAD_STORES, SEND_EVENTUALLY);
             break;
+        }
 
         case loadoutData:
             uchar ac;
