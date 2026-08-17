@@ -1396,11 +1396,36 @@ runway does. All the probed draws report `pit=0`, i.e. the world is drawn before
 the pit pass, so this is not the pit geometry overdrawing it.
 
 So the surfaces are submitted, the bias is applied, nothing masks them — and the
-terrain still paints over them **in this pass only**. That points at draw order or
-depth state specific to the pit pass rather than anything about the runway. Next:
-compare the depth state and submission order of that terrain batch between the two
-views, rather than continuing to vary runway-side parameters, all of which are now
-ruled out.
+terrain still paints over them **in this pass only**.
+
+**Then the measurement method turned out to be the problem, twice.** Recording
+this at length because it invalidated two intermediate conclusions:
+
+1. *Sampling one screen band is not enough.* The original "3-view shows grass"
+   came from a single band at `H*0.42`. Scanning a **strip** down the screen shows
+   the pit view does render tarmac — just only close to the aircraft:
+   `......TTTTTTTTTT` versus 2-view's `TTT.TTTTTTTTTTTT`.
+2. *Single captures are not always reproducible.* One run of the default bias in
+   3-view gave a patchy `......T.......TT`, which read as "more bias helps".
+   Running the identical configuration three times gives `......TTTTTTTTTT` every
+   time — that run had captured before the scene reached steady state.
+
+With a metric that is actually reproducible, the finding reverses: **in the pit
+view the runway's visible extent does not depend on the bias at all.** Default
+`-32,-8192`, `-4,-256` and `-256,-131072` all produce the identical strip. In the
+HUD and 2D-pit views it depends on bias strongly (`-4,-256` collapses view 0 to
+`.......T........`). So whatever limits the runway in the pit view is *not* the
+depth fight.
+
+One further caveat that invalidates the original framing: comparing the **same
+screen row** between two views is meaningless, because the cameras differ, so a
+given row corresponds to a different ground distance in each. Any future
+comparison here has to be against ground distance, not screen position.
+
+Next: establish where the pit view's runway actually ends in world terms, and
+whether that distance matches the 2D pit's. Until that is measured, "3-view shows
+no tarmac" is not established as a rendering defect at all — it may be the same
+draw distance seen through a different camera.
 
 ### GEAR-1 — "landing gear is not visible": three causes eliminated (2026-08-16)
 
