@@ -30,7 +30,24 @@ void *map_file(char *filename);
 
 LHSP::LHSP(void)
 {
-
+    // FF_LINUX: these were never initialised. The only assignments to PMSIZE and
+    // CODESIZE are the commented-out CodecInfoExStruct lines below, because the
+    // ST80 codec is stubbed out on this port -- so ReadLHSPFile() ran its decode
+    // loop on garbage:
+    //
+    //   * outputCodedSize = PMSIZE (garbage) was accumulated into the RETURN
+    //     value, which the caller stores as dataInWaveBuffer. AddNoise() then
+    //     walks that many bytes over an 80960-byte buffer and WRITES to them
+    //     (*pos = level) -- heap corruption whose damage lands in whatever
+    //     allocation happens to sit after the voice buffer;
+    //   * a garbage CODESIZE <= 0 makes the loop subtract 0 from loopCount
+    //     forever -- a hang, not just corruption.
+    //
+    // PMSIZE = 0 is the honest value while the codec is stubbed: no samples are
+    // produced, so no samples are reported.
+    hAccess = NULL;
+    PMSIZE = 0;
+    CODESIZE = MAXCODESIZE;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -87,12 +104,23 @@ long LHSP::ReadLHSPFile(COMPRESSION_DATA *input, unsigned char **buffer)
     outputCodedSize = PMSIZE;
     outputPtr = *buffer;
 
+    // FF_LINUX: never let the loop stall (decodeSize <= 0 would spin forever) and
+    // never report more output than the caller's buffer can hold.
+    if (CODESIZE <= 0)
+        CODESIZE = MAXCODESIZE;
+
+    if (outputCodedSize < 0)
+        outputCodedSize = 0;
+
     while (loopCount > 0)
     {
         decodeSize = loopCount;
 
         if (decodeSize > CODESIZE)
             decodeSize = CODESIZE;
+
+        if (compDecodeSize + outputCodedSize > MAX_OUTDECODE_SIZE)
+            break;
 
         /* I must check if Decode adjusts the output buffer size to use for channel struct */
         //errorCode = ST80_Decode

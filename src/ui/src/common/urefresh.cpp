@@ -237,6 +237,46 @@ void UI_Refresher::UpdateMission(CampEntity entity)
 void UI_Refresher::RemoveMission()
 {
     long ID;
+
+#ifdef FF_LINUX
+    // FF_LINUX (CAMPUI-1): this crashes intermittently -- roughly one campaign run
+    // in three -- and the caller already checks Mission_ for NULL, so the pointer
+    // is non-NULL but STALE: GetOwner() reads freed memory and returns garbage.
+    // That is consistent with the other CAMPUI-1 sites (O_Output::Cleanup on a
+    // dangling control, O_Output::SetText on a dangling label): UI_Refresher holds
+    // raw pointers to UI items that are destroyed elsewhere without telling it.
+    //
+    // The lifetime problem is not fixed here. What this does is refuse to
+    // dereference a pointer that does not read back, and say so -- so the next
+    // occurrence produces a diagnosis instead of a backtrace.
+    if (F4IsBadReadPtr(Mission_, sizeof(void *)))
+    {
+        fprintf(stderr, "[CAMPUI-1] RemoveMission: Mission_=%p is unreadable (stale); skipping\n",
+                (void *)Mission_);
+        fflush(stderr);
+        Mission_ = NULL;
+        return;
+    }
+
+    if ( not Mission_->GetOwner() or F4IsBadReadPtr(Mission_->GetOwner(), sizeof(void *)))
+    {
+        fprintf(stderr, "[CAMPUI-1] RemoveMission: Mission_=%p has owner=%p (stale); skipping\n",
+                (void *)Mission_, (void *)Mission_->GetOwner());
+        fflush(stderr);
+        Mission_ = NULL;
+        return;
+    }
+
+    if ( not Owner_ or not Owner_->MisTree_)
+    {
+        fprintf(stderr, "[CAMPUI-1] RemoveMission: Owner_=%p MisTree_=%p; skipping\n",
+                (void *)Owner_, (void *)(Owner_ ? Owner_->MisTree_ : NULL));
+        fflush(stderr);
+        Mission_ = NULL;
+        return;
+    }
+
+#endif
     ID = Mission_->GetOwner()->ID_;
     Owner_->MisTree_->DeleteItem(Mission_->GetOwner());
     ShiAssert( not Owner_->MisTree_->Find(ID));

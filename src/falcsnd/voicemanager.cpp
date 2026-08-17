@@ -1729,7 +1729,29 @@ void VoiceManager::AddNoise(VOICE_STREAM_BUFFER *streamBuffer, VU_ID from, int c
 
     unsigned char  *pos = streamBuffer->waveBuffer;
 
-    for (i = 0; i < streamBuffer->dataInWaveBuffer; i++)
+    // FF_LINUX: this loop WRITES (*pos = level) and dataInWaveBuffer comes from
+    // LHSP::ReadLHSPFile, so a bad length here corrupts the heap rather than just
+    // reading rubbish. ASAN caught it as a heap-buffer-overflow 0 bytes past the
+    // 80960-byte voice buffer. The length is fixed at source in lhsp.cpp; clamp
+    // here too, because this is the side that does the damage.
+    DWORD ffCount = streamBuffer->dataInWaveBuffer;
+
+    if (ffCount > (DWORD)MAX_OUTDECODE_SIZE)
+    {
+        static int ffRptd = 0;
+
+        if (ffRptd < 5)
+        {
+            ffRptd++;
+            fprintf(stderr, "[VOICE] AddNoise: dataInWaveBuffer=%lu exceeds buffer %d; clamping\n",
+                    (unsigned long)ffCount, (int)MAX_OUTDECODE_SIZE);
+            fflush(stderr);
+        }
+
+        ffCount = (DWORD)MAX_OUTDECODE_SIZE;
+    }
+
+    for (i = 0; i < ffCount; i++)
     {
         if ( not (i % 50))
             level = minLevel - rand() % 4 - rand() % 4;
