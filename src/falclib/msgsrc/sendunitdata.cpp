@@ -46,8 +46,10 @@ FalconSendUnitData::FalconSendUnitData(VU_MSG_TYPE type, VU_ID senderid, VU_ID t
 
 FalconSendUnitData::~FalconSendUnitData(void)
 {
+    // FF_LINUX: see sendobjdata.cpp -- "delete[] <void*>" is ill-formed; the
+    // field is always allocated as new VU_BYTE[].
     if (dataBlock.unitData)
-        delete[] dataBlock.unitData;
+        delete[] (VU_BYTE*)dataBlock.unitData;
 
     dataBlock.unitData = NULL;
 }

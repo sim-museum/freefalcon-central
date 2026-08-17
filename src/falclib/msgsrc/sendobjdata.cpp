@@ -36,7 +36,12 @@ FalconSendObjData::FalconSendObjData(VU_MSG_TYPE type, VU_ID senderid, VU_ID tar
 
 FalconSendObjData::~FalconSendObjData()
 {
-    delete[] dataBlock.objData;
+    // FF_LINUX: objData is a void*, and "delete[] <void*>" is ill-formed -- the
+    // compiler has no element type, so it cannot apply array deallocation
+    // correctly. Every allocation of this field is new VU_BYTE[] (see Expand()
+    // and the block sender below), so free it as that. Same class as MSG-1.
+    delete[] (VU_BYTE*)dataBlock.objData;
+    dataBlock.objData = NULL;
 }
 
 int FalconSendObjData::Size() const

@@ -35,8 +35,10 @@ FalconSendPersistantList::FalconSendPersistantList(VU_MSG_TYPE type, VU_ID sende
 
 FalconSendPersistantList::~FalconSendPersistantList(void)
 {
+    // FF_LINUX: see sendobjdata.cpp -- "delete[] <void*>" is ill-formed; the
+    // field is always allocated as new VU_BYTE[].
     if (dataBlock.data)
-        delete[] dataBlock.data;
+        delete[] (VU_BYTE*)dataBlock.data;
 
     dataBlock.data = NULL;
 }

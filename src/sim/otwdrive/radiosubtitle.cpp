@@ -148,7 +148,11 @@ RadioSubTitle::~RadioSubTitle(void)
 
     do
     {
-        delete(theRadioChatterList->RemHead());
+        // FF_LINUX: RemHead() returns void*, so "delete" here never ran
+        // ~SubTitleNode() -- which free()s theSpokenLine. Every radio subtitle
+        // leaked its string, on every teardown and on every ResetAll(). The
+        // expiry path further down already casts before deleting; match it.
+        delete((SubTitleNode*)theRadioChatterList->RemHead());
         node = (SubTitleNode*)theRadioChatterList->GetHead();
     }
     while (node);
@@ -211,7 +215,11 @@ void RadioSubTitle::ResetAll()
 
     do
     {
-        delete(theRadioChatterList->RemHead());
+        // FF_LINUX: RemHead() returns void*, so "delete" here never ran
+        // ~SubTitleNode() -- which free()s theSpokenLine. Every radio subtitle
+        // leaked its string, on every teardown and on every ResetAll(). The
+        // expiry path further down already casts before deleting; match it.
+        delete((SubTitleNode*)theRadioChatterList->RemHead());
         node = (SubTitleNode*)theRadioChatterList->GetHead();
     }
     while (node);
