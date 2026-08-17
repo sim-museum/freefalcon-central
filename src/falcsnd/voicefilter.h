@@ -72,18 +72,27 @@ typedef struct
     short fileNbr;
 } SPEAKER_TO_FILE;
 
+/* FF_LINUX: these are FILE layouts (see the comment above), written by a 32-bit
+ * Windows build where long is 4 bytes. Left as `long` they are 16 bytes here
+ * instead of 8, because the 8-byte long also forces 4 bytes of padding after the
+ * two shorts. That breaks the frag/eval databases twice over: GetFragInfo()
+ * strides by sizeof(FRAG_FILE_INFO), so every record after index 0 is read from
+ * the wrong offset, and FragFile::Initialise() computes
+ * maxfrags = fragOffset / sizeof(*f1), which comes out HALF its true value.
+ * That is the source of the "fragNumber < fragfile.MaxFrags()" and
+ * "F4IsBadReadPtr(eEvalElem)" assertions seen in every session. */
 typedef struct
 {
     short fragHdrNbr;
     short totalSpeakers;
-    long fragOffset;
+    int32_t fragOffset;
 } FRAG_FILE_INFO;
 
 typedef struct
 {
     short evalHdrNbr;
     short numEvals;
-    long evalOffset;
+    int32_t evalOffset;
 } EVAL_FILE_INFO;
 
 typedef struct
@@ -113,9 +122,15 @@ typedef struct
     short bullseye;
     unsigned char totalElements;
     unsigned char totalEvals;
-    long commOffset;
+    int32_t commOffset;   /* FF_LINUX: file layout - 4 bytes, not sizeof(long) */
 } COMM_FILE_INFO;
 #pragma pack()
+
+/* FF_LINUX: lock the on-disk sizes down so this cannot drift again. These are
+ * the 32-bit Windows sizes the data files were written with. */
+static_assert(sizeof(FRAG_FILE_INFO) == 8,  "FRAG_FILE_INFO must match the file layout");
+static_assert(sizeof(EVAL_FILE_INFO) == 8,  "EVAL_FILE_INFO must match the file layout");
+static_assert(sizeof(COMM_FILE_INFO) == 14, "COMM_FILE_INFO must match the file layout");
 
 typedef struct
 {
