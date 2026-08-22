@@ -2802,3 +2802,34 @@ it that includes a ground surface — `TheStateStack.SetLODBias` / the pit FOV a
 `resRelativeScaler` are the obvious levers. This is very likely the same family
 as the known runway-elevation decoupling (the airfield rendering as a ~20 ft
 plateau over flat z=0 collision data).
+
+### PIT-1 — a second correction, and the honest state
+
+Two more results, one of which invalidates part of the analysis above.
+
+* `FF_LOD_BIAS_CAP=5.441342` (clamping the pit pass to the highest bias the 2D
+  pit ever uses — measured with `FF_DEBUG_LODBIAS`, which shows the pit pass
+  additionally running at 7.584) produces **no change**. So the LOD bias is not
+  the lever either.
+* **The cross-view pixel comparison is confounded.** Views 1 and 4 do not share a
+  field of view, so pixel (960,330) is *not the same world point* in both. The
+  "model 2647 submits a ground batch in the pit pass that it does not submit in
+  the 2D pit" conclusion recorded above does not follow from that data and should
+  not be treated as established. Comparing two renders pixel-for-pixel requires
+  first showing the pixel means the same thing in both.
+
+**What is actually established for PIT-1:**
+
+1. Unattended repro and metric (above), replacing "needs the PO's eyes".
+2. The tarmac renders in views 0, 1 and 2 and is missing in view 4.
+3. The decals *are* submitted in view 4 — 300/300 draws, all with `pit=0`,
+   identical to the working view — and they *do* render there: lifted 60 ft they
+   appear plainly, as a roof above the horizon.
+4. At ground level they never appear, at any lift from 3 to 60 ft.
+5. Not the depth bias, not stencil (entry or exit), not the pit-exit depth clear,
+   not the pit-exit solid-surface drain, not the LOD bias.
+
+So: drawn, in the right pass, outside pit mode, and invisible only at their real
+height. **Next step:** compare the two views at the same *world* point rather
+than the same pixel — anchor on a feature (the runway threshold) and probe where
+it projects in each view, or match the FOVs before comparing.

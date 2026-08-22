@@ -913,6 +913,32 @@ BOOL StateStackClass::IsValidIntensityIndex(int i)
 
 void StateStackClass::SetLODBias(float bias)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (PIT-1): FF_LOD_BIAS_CAP=<v> clamps the bias, to test whether the
+    // virtual-pit pass's higher bias is what selects the occluding airfield LOD.
+    {
+        static float ffCap = -1.0f;
+        if (ffCap < 0.0f) { const char *e = getenv("FF_LOD_BIAS_CAP"); ffCap = e ? (float)atof(e) : 0.0f; }
+        if (ffCap > 0.0f && bias > ffCap) bias = ffCap;
+    }
+#endif
     LODBiasInv = 1.f / bias;
+#ifdef FF_LINUX
+    // FF_LINUX (PIT-1): the LOD bias drives which model detail level is
+    // submitted. The virtual-pit pass appears to select a level of the airfield
+    // model that carries a ground surface occluding the runway decals; this
+    // reports the bias actually in force so the passes can be compared.
+    {
+        static int ffDbg = -1;
+        if (ffDbg == -1) ffDbg = getenv("FF_DEBUG_LODBIAS") ? 1 : 0;
+        static float lastBias = 0.0f;
+        if (ffDbg && bias != lastBias)
+        {
+            lastBias = bias;
+            fprintf(stderr, "[LODBIAS] bias=%.6f inv=%.3f\n", bias, LODBiasInv);
+            fflush(stderr);
+        }
+    }
+#endif
     TheDXEngine.SetLODBias(LODBiasInv);
 };
