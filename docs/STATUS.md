@@ -2595,3 +2595,66 @@ Two process lessons worth keeping:
 
 Evidence: ASAN on the identical command went heap-buffer-overflow/rc=139 →
 0 errors/rc=124; release crash rate went ~1 in 3 (2/6, 1/5, 1/3) → 0 in 8.
+
+---
+
+## Sprint 24 — WHITE-1: A/G master mode whites out the screen (`ef4497ed`)
+
+The PO's report: pick the CCIP tactical engagement (or campaign CCIP), press
+A/G on the UFC, and about a second later the whole frame goes white except the
+MFDs and HUD, permanently. Instant Action was fine.
+
+**Root cause.** Selecting A/G is the only thing that puts the FCR into ground
+map, so `RenderGMComposite` is the one render pass in this port that runs
+*nested inside another one* — it draws during the cockpit/MFD pass. It finishes
+with `RenderGMRadar::FlushDrawnTargets` → `ContextMPR::FlushPolyLists`, which is
+written as **frame-level teardown**: it flushes the global DX engine, resets the
+shared polygon arena, and rewrites global Z/stencil state. The part that bites is
+`TheDXEngine.FlushBuffers()`, which brackets itself with
+`CreateStateBlock(D3DSBT_ALL)`/`ApplyStateBlock` over the shared device. Run from
+inside another pass, that bracket leaves global state altered such that the 2D
+cockpit panel — a full-screen chroma-keyed quad — samples white from then on.
+
+One flush is enough, and it is pure loss: `TheVbManager.TotalDraws` is the
+pending-item count and it is **0** there, so the call draws nothing at all. The
+fix guards exactly that: a nested flush with an empty draw list returns before
+the state-block bracket. `FF_DX_NESTED_FLUSH=1` restores the old behaviour.
+
+**Evidence.** Unattended repro (TE "20 Bombs with CCIP", scripted A/G click,
+frame captured 19 s later), causality shown both ways:
+
+| run | white % |
+|---|---|
+| fixed | **0.0** |
+| `FF_DX_NESTED_FLUSH=1` | 96.4 |
+| fixed, repeated ×3 | **0.0** |
+
+and the captured frame shows a correct cockpit with A/G engaged — ground-map MFD
+sweeping, A/G HUD symbology, `airGroundBearing` feeding the MFD offset.
+
+**How it was found, and two theories that died.** Entirely by measurement. The
+ground-map render stages were disabled one at a time (`FF_GM_SKIP`, kept as a
+kill switch for this newly-exercised path): that isolated the target-return draw,
+then the flush inside it, then the DX engine call inside that. Both of the
+theories I formed on the way were killed by measurement rather than argument, and
+they are recorded so nobody re-tries them:
+
+* **Not** `AllocResetPool` recycling the shared polygon arena out from under the
+  main scene. Plausible, and I shipped a guard for it — the arena measured
+  **0 KB** at that point and the guard changed nothing. Reverted.
+* **Not** the ground-map "heart of darkness" branch that renders straight into
+  the primary surface. `bRender2Texture` measured **1**, so the private
+  render-target branch is taken.
+
+Also ruled out by measurement, in the order they were tried: the mode predicate
+(`IsAGMasterMode` and `GetMainMasterMode` were each made to lie — the whiteout
+survived both, exonerating every reader that goes through them), and texture
+damage (`FF_DUMP_GLTEX` now reports the whole mip chain; level 0 and level 1 of
+the panel texture are clean and the chain is complete, 1600×1200 down to 1×1).
+
+**Bug class to expect again.** *A function written as end-of-frame teardown is
+not safe to call from a render pass nested inside another one.* `FlushPolyLists`
+is reached from every instrument context, not just the main renderer. Open issue
+#10 (terrain painting over the 3D-pit MFD screens as the last writer) has the
+same "two flushes per frame, one carries all the polys" shape and is worth
+re-examining in this light — tracked as **NEST-1**.
