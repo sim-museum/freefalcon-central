@@ -2855,3 +2855,43 @@ symbology, stores page populated.
 Caveat: flying a mission with Mavericks aboard is not the same as putting the
 Maverick *video page* up, which needs the weapon selected and its page called.
 So `mavdisp`'s nested flush is exercised but not proven to be under load.
+
+### PIT-1 — SOLVED: the pit pass restored a cull mode the world pass never used
+
+The 3-view showed grass where the runway is because, on leaving pit mode, the DX
+engine put back a **hard-coded** cull mode:
+
+```c
+m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, (m_bCullEnable) ? D3DCULL_CW : D3DCULL_NONE);
+```
+
+That is not what the world pass was using. Every object drawn after pit exit
+inherited `D3DCULL_CW`, and the runway/tarmac decals are single-sided and wound
+the other way — so they were culled when viewed from above. Views 0, 1 and 2 run
+no pit pass, nothing overrides the cull mode, and the tarmac renders correctly:
+that is the whole of the view-dependence.
+
+**The fix**: save the cull mode actually in force at pit entry
+(`GetRenderState(D3DRENDERSTATE_CULLMODE, &m_ffPrePitCullMode)`) and restore
+exactly that at pit exit, instead of assuming a value.
+
+| run | ground band |
+|---|---|
+| before | gray=6 green=106 of 588 |
+| `FF_PIT_EXIT_CULL=0` (NONE) | gray=428 green=2 |
+| `FF_PIT_EXIT_CULL=2` (CCW) | gray=428 green=2 |
+| **fix (restore what was saved)** | **gray=428 green=2** |
+| 2D pit, fix vs old behaviour forced | gray=291 both — unchanged |
+
+**The clue that cracked it was one I had already collected and misread.** The
+z-lift sweep showed the decals invisible at ground level but plainly visible when
+lifted 60 ft. I first recorded that as "no change" (a metric that sampled the
+wrong rows), then as "drawn but occluded". Neither fit: what it actually means is
+that the surface is only drawn when seen **from below** — the signature of a
+back-face cull with the wrong winding, not of an occluder. Every hypothesis about
+*something covering it* (stencil, depth clear, solid-surface drain, LOD, a
+stronger depth bias up to 32×) failed because nothing was covering it.
+
+Note this also explains why the earlier `-32,-8192` depth-bias tuning was needed
+to make the runway survive in the 2D pit and yet did nothing here: two different
+problems on the same geometry.

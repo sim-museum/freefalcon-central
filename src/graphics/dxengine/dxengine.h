@@ -207,6 +207,9 @@ public:
     {
         m_RenderState = DX_OTW;
         m_StatesStackLevel = 0;
+#ifdef FF_LINUX
+        m_ffPrePitCullMode = D3DCULL_NONE;
+#endif
     }
     DX_StateType GetState(void)
     {
@@ -324,6 +327,10 @@ private:
     DWORD DxEngineStateHandle;
     static DX_StateType m_RenderState;
     static DWORD m_StatesStackLevel;
+#ifdef FF_LINUX
+    // FF_LINUX (PIT-1): cull mode in force before the pit pass overrides it.
+    DWORD m_ffPrePitCullMode;
+#endif
     static DX_StatesStackType m_StatesStack[DX_MAX_NESTED_STATES];
 
     ///////////////////////////////// 2D ENGINE ITEMS ////////////////////////////////////////////////////////////////

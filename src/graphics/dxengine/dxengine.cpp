@@ -113,6 +113,9 @@ CDXEngine::CDXEngine(void)
     m_LinearFog = false;
     m_StatesStackLevel = 0;
     m_RenderState = DX_OTW;
+#ifdef FF_LINUX
+    m_ffPrePitCullMode = D3DCULL_NONE;   // FF_LINUX (PIT-1)
+#endif
 
 #ifdef DATE_PROTECTION
 
@@ -1884,6 +1887,9 @@ void CDXEngine::FlushObjects(void)
                     const char* e = getenv("FF_PIT_CULL");  // 0=none 1=cw 2=ccw
                     s_pitCull = e ? atoi(e) : 0;
                 }
+                // FF_LINUX (PIT-1): remember what was in force, so pit exit can
+                // put it back instead of assuming a value.
+                m_pD3DD->GetRenderState(D3DRENDERSTATE_CULLMODE, &m_ffPrePitCullMode);
                 m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE,
                                         s_pitCull == 0 ? D3DCULL_NONE :
                                         s_pitCull == 1 ? D3DCULL_CW : D3DCULL_CCW);
@@ -2002,7 +2008,34 @@ void CDXEngine::FlushObjects(void)
             // FF_LINUX: Restore scene Projection after pit near/far override.
             m_pD3DD->SetTransform(D3DTRANSFORMSTATE_PROJECTION, (LPD3DMATRIX)&Projection);
             // Restore culling (was disabled for pit)
-            m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, (m_bCullEnable) ? D3DCULL_CW : D3DCULL_NONE);
+            // FF_LINUX (PIT-1): every world object drawn after pit exit inherits
+            // this cull mode -- including the runway/tarmac decals. If it does not
+            // match what the non-pit passes use, single-sided ground surfaces are
+            // culled from above and only visible from below, which is exactly what
+            // the z-lift sweep showed. FF_PIT_EXIT_CULL=0|1|2 = NONE|CW|CCW.
+            {
+                // The old code put back (m_bCullEnable ? CW : NONE), which is not
+                // what the world pass was using: every object drawn after pit exit
+                // then inherited CW and single-sided ground surfaces -- the
+                // runway/tarmac decals -- were culled when viewed from above. That
+                // is why the 3-view showed grass where the runway is, while the
+                // 2D pit, chase and HUD views (no pit pass, so no override) were
+                // correct, and why lifting the decals 60 ft made them reappear:
+                // seen from below, the surviving face is the one being drawn.
+                // FF_PIT_EXIT_CULL=0|1|2 forces NONE|CW|CCW for comparison.
+                static int ffExitCull = -1;
+                if (ffExitCull == -1)
+                {
+                    const char *e = getenv("FF_PIT_EXIT_CULL");
+                    ffExitCull = e ? atoi(e) : -2;   // -2 = restore what was saved
+                }
+                if (ffExitCull == -2)
+                    m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, m_ffPrePitCullMode);
+                else
+                    m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE,
+                                            ffExitCull == 0 ? D3DCULL_NONE :
+                                            ffExitCull == 1 ? D3DCULL_CW : D3DCULL_CCW);
+            }
             // Restore lighting (was disabled for pit vertex-colored geometry)
             glEnable(FF_GL_LIGHTING);
 #endif
