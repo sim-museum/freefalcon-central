@@ -97,11 +97,14 @@ void SimObjectType::Release(void)
     // DigitalBrain::groundTargetPtr, for one -- is left dangling, and the next
     // Reference() on it dereferences freed memory.
     //
-    // Reported by the PO as a SIGSEGV in SimObjectType::Reference() from
-    // BombClass::Start <- SMSClass::DropBomb <- AircraftClass::DoWeapons, flying a
-    // campaign OCA strike on autopilot at 8x time compression -- i.e. exactly the
-    // conditions that put the sim and campaign threads through entity churn
-    // concurrently.
+    // CORRECTION (CRASH-7, 2026-08-22): this comment used to claim the PO's
+    // SIGSEGV in SimObjectType::Reference() from BombClass::Start <-
+    // SMSClass::DropBomb <- AircraftClass::DoWeapons was this race. It was not.
+    // That backtrace was a plain NULL dereference: BombClass::SetTarget never
+    // assigned targetPtr (its only assignments were commented-out Copy() calls)
+    // and then called targetPtr->Reference() on NULL. Fixed in bombmain.cpp.
+    // The lock-scope bug below is real and worth fixing on its own merits, but
+    // do not read it as explaining that crash signature.
     //
     // Decide under the lock, act on the captured value.
     int remaining;
