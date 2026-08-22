@@ -2294,6 +2294,8 @@ void CDXEngine::DrawFrameSurfaces(NodeScannerType *NODE, float Alpha)
 extern DWORD LODsLoaded;
 // *************** This function is the REAL SCENE DRAW FUNCTION *********************
 // it flushes all requested Drawsand draws all poly types
+#include <execinfo.h>
+
 #ifdef FF_LINUX
 // FF_LINUX (WHITE-1): set while a render pass nested inside another one (the
 // A/G ground-map radar, which draws during the cockpit/MFD pass) flushes.
@@ -2303,7 +2305,10 @@ bool g_FFNestedFlush = false;
 void CDXEngine::FlushBuffers(void)
 {
 #ifdef FF_LINUX
-    if (getenv("FF_DEBUG_DXFLUSH"))
+    static int ffDbgDxFlush = -1;
+    if (ffDbgDxFlush == -1) ffDbgDxFlush = getenv("FF_DEBUG_DXFLUSH") ? 1 : 0;
+
+    if (ffDbgDxFlush)
     {
         fprintf(stderr, "[DXFLUSH] nested=%d TotalDraws=%lu\n",
                 (int)g_FFNestedFlush, (unsigned long)TheVbManager.TotalDraws);
@@ -2320,6 +2325,32 @@ void CDXEngine::FlushBuffers(void)
     // 0.0% to 96.4% white, and skipping this one call restored 0.0%.
     // Nothing is lost: TotalDraws is the pending-item count and it is 0 here.
     // FF_DX_NESTED_FLUSH=1 restores the old behaviour.
+    // FF_LINUX (NEST-1): enumerate every empty-draw-list flush with its caller,
+    // so the other instrument passes that reach this the same way (Maverick
+    // display, LANTIRN, laser pod, mirror, padlock) can be identified by
+    // measurement rather than assumed.
+    static int ffDbgNested = -1;
+    if (ffDbgNested == -1) ffDbgNested = getenv("FF_DEBUG_NESTED") ? 1 : 0;
+
+    if (ffDbgNested)
+    {
+        // Skip startup, then enumerate every flush site actually exercised.
+        static int nSeen = 0, nDbg = 0;
+        if (nSeen++ > 3000 && nDbg++ < 60)
+        {
+            void *bt[6];
+            int nb = backtrace(bt, 6);
+            char **syms = backtrace_symbols(bt, nb);
+            fprintf(stderr, "[NESTED] nested=%d draws=%lu solidStack=%lu caller=%s | %s\n",
+                    (int)g_FFNestedFlush, (unsigned long)TheVbManager.TotalDraws,
+                    (unsigned long)m_SolidStack.StackLevel,
+                    (nb > 1 && syms) ? syms[1] : "?",
+                    (nb > 2 && syms) ? syms[2] : "?");
+            free(syms);
+            fflush(stderr);
+        }
+    }
+
     if (g_FFNestedFlush && TheVbManager.TotalDraws == 0)
     {
         static int ffForce = -1;

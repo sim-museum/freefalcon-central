@@ -2658,3 +2658,37 @@ is reached from every instrument context, not just the main renderer. Open issue
 #10 (terrain painting over the 3D-pit MFD screens as the last writer) has the
 same "two flushes per frame, one carries all the polys" shape and is worth
 re-examining in this light — tracked as **NEST-1**.
+
+### NEST-1 — audit of the other nested render passes
+
+WHITE-1 raised the obvious question: `ContextMPR::FlushPolyLists` is frame-level
+teardown, and the ground-map radar is not the only pass that reaches it from
+inside another pass. Every caller was enumerated:
+
+| caller | nested? | flushes real work? |
+|---|---|---|
+| `OTWDriverClass::RenderFrame` ×2 | no — the main frame | yes (one of the two is routinely empty) |
+| `RenderGMRadar::FlushDrawnTargets` | **yes** | **no** — nothing queued |
+| `mavdisp` (Maverick), `lantirn`, `lantmfd`, `laserpod`, `cpmirror`, `padefov` | yes | yes — each `DrawScene()`s first |
+| `acmiloop`, `c3dview` | no — their own frames | yes |
+
+Two things fell out of measuring rather than assuming:
+
+* **An empty draw list is not by itself the problem.** The main frame flushes
+  with `TotalDraws == 0` constantly — 59 of the 60 sampled flushes in an A/G run
+  — and it is harmless. The damage needs the *nested* context as well, which is
+  why the guard is keyed on both and why a general "skip when empty" rule would
+  have been wrong.
+* **The ground-map radar is the only nested pass that flushes nothing.** All the
+  other nested passes draw a scene first, so the guard cannot fire for them and
+  must not: their flush has real work to do.
+
+Scenario coverage: in the CCIP TE repro, in both the 2D pit and the 3-D virtual
+pit, `RenderGMRadar::FlushDrawnTargets` is the *only* nested flush exercised, and
+both views render correctly with A/G engaged after the fix.
+
+**What is not settled.** Whether a nested flush that *does* draw also perturbs
+global state is untested — those sites need sensor-specific scenarios (a Maverick
+loadout, a LANTIRN or laser pod, the padlock view). No symptom is known for them
+today, so nothing was changed there. If a "displays go strange in A/G" report
+turns up with a Maverick or pod aboard, this table is where to start.
