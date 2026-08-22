@@ -4137,3 +4137,79 @@ present it as a 4x draw+swap burst (like FF_LoadingClear), drop the FF_LoadingCl
 black-overwrite that followed each splash call in StartLoop, and animate frames
 (1/2/4/0) through the OTWDriver::Enter heavy-setup checkpoints. Pre-splash phases
 still paint black. Sequence: brief black -> animated plane -> cockpit.
+
+---
+
+### Session: August 2026 — WHITE-1 (A/G whiteout) and PIT-1 (3-view tarmac)
+
+Two long-standing defects fixed, both in the same area: **a render pass that runs
+nested inside another one, doing things only the outermost pass may do.**
+
+* **WHITE-1** (`ef4497ed`) — selecting an A/G master mode whited out the screen
+  permanently. The A/G ground-map radar is the only pass here that renders
+  *inside* the cockpit/MFD pass, and it ends with `FlushPolyLists`, i.e.
+  frame-level teardown, which calls `TheDXEngine.FlushBuffers()`. With an empty
+  draw list that call draws nothing but still runs its
+  `CreateStateBlock/ApplyStateBlock` bracket over the shared device, leaving
+  state that makes the 2D cockpit panel sample white. Guarded: a nested flush
+  with `TheVbManager.TotalDraws == 0` returns early. `FF_DX_NESTED_FLUSH=1`
+  reverts.
+* **PIT-1** (`b46af7ef`) — the 3-view rendered no tarmac. On leaving pit mode the
+  engine hard-coded `CULLMODE` back to `(m_bCullEnable ? CW : NONE)`, which is
+  not what the world pass used; everything drawn after pit exit inherited CW and
+  the single-sided, opposite-wound runway decals were culled from above. Now the
+  cull mode in force at pit entry is saved and restored. `FF_PIT_EXIT_CULL=0|1|2`
+  forces NONE|CW|CCW.
+
+**Bug class to expect again:** a function written as end-of-frame teardown is not
+safe to call from a nested pass, and neither is "restoring" state to a guessed
+constant instead of to what was actually there. `FlushPolyLists` is reached from
+every instrument context (`mavdisp`, `lantirn`, `lantmfd`, `laserpod`,
+`cpmirror`, `padefov`) — see NEST-1 in docs/STATUS.md for which are exercised.
+
+**Method note worth keeping:** a numeric metric that samples only where you
+expect the answer will confirm whatever you already believe. The PIT-1 z-lift
+result was misread twice from its metric and was obvious the moment the image was
+opened. Look at the picture.
+
+#### New env vars
+
+| Env | Effect |
+|-----|--------|
+| `FF_DX_NESTED_FLUSH=1` | Revert the WHITE-1 guard (nested DX-engine flush runs again) |
+| `FF_GM_SKIP=all\|bg\|draw\|new` | Kill stages of the A/G ground-map radar render path |
+| `FF_DEBUG_GM=1` | Report which render-target branch `RenderGMComposite::Setup` takes |
+| `FF_R2T=0\|1` | Force `DisplayOptions.bRender2Texture` |
+| `FF_DEBUG_NESTED=1` | Every DX-engine flush with caller, pending draw count, solid-stack level |
+| `FF_DEBUG_DXFLUSH=1` | Per-flush nested flag + `TotalDraws` |
+| `FF_DEBUG_ORDER=1` | Per-flush poly loads, runway-decal draws, pit-exit solid-stack depth |
+| `FF_DEBUG_LODS=1` | Distinct model LOD ids drawn per frame (diff two views to find what one pass submits and the other does not) |
+| `FF_TRACE_LOD=<id>` | Whether that model is drawn inside pit mode |
+| `FF_DEBUG_LODBIAS=1` / `FF_LOD_BIAS_CAP=<v>` | Report / clamp the LOD bias |
+| `FF_PIT_EXIT_CULL=0\|1\|2` | Force the cull mode restored at pit exit (NONE/CW/CCW) |
+| `FF_PIT_EXIT_STENCIL=0` / `FF_PIT_EXIT_ZCLEAR=0` / `FF_PIT_EXIT_SOLID=0` | Skip the stencil re-enable / depth clear / solid-surface drain at pit exit |
+
+`FF_PROBE_PIXEL` draw lines now also carry `lod=<id>`, so a pixel can be
+attributed to a **model**, not just a texture. `FF_DUMP_GLTEX=<id>` now reports
+the whole mip chain (that is what ruled out texture damage in WHITE-1).
+
+#### Test-harness coordinates (UI is 1024x768 regardless of sim resolution)
+
+Tactical Engagement mission list — **not scrolled**, all 34 rows visible, row 01
+at y≈110 down to row 34 at y≈672, ~17 px apart:
+
+| row | y | row | y |
+|---|---|---|---|
+| 02 Takeoff | 128 | 20 Bombs with CCIP | 433 |
+| 18 A-G Radar Modes | 400 | 24 Mavericks | 502 |
+
+**The list has a dead band in x**: around y≈118–134 a click at x=205 hits no
+control at all, while x=110 or x=140 hit fine. Row 02 is reachable at
+**(140,128)**, not (205,128). Full unattended TE flight:
+
+```
+FF_UI_CLICK="677,748@12;<row_x>,<row_y>@18;824,750@24;973,750@30"
+FF_SIM_CLICK="1130,554@40"           # A/G button on the UFC, once in the sim
+FF_VIEW_SCRIPT="4@62"                # 0=HUD 1=2Dpit 2=chase 3=orbit 4=virtual pit
+FF_SIM_SCREENSHOT="70:/tmp/x.bmp"
+```
