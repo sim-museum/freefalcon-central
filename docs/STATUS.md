@@ -2920,3 +2920,45 @@ really was changing it to `CW` behind everything drawn afterwards.
 
 So: one real bug in four candidates, and the other three left untouched with the
 measurement that says why. The pattern was a good lead; it was not evidence.
+
+---
+
+## Sprint 26 — MFD-THRU-1: terrain through the 3D-pit MFD screens (CLAUDE.md issue #10)
+
+Re-opened first to check whether the PIT-1 cull fix had changed it. It had not:
+cropping the same MFD region from a pre-fix and a post-fix capture gives
+structurally identical images. The only difference is the colour of what bleeds
+through — grass before, tarmac now, because the tarmac is finally rendering.
+
+**It is genuinely the outside world.** Flown airborne, the left MFD shows real
+terrain — green/brown ground texture with a hard diagonal edge — and 13.9% of the
+screen's pixels change between two captures 20 s apart. World-locked, not a stale
+canvas.
+
+**It is pit-pass specific.** The same instruments in the 2D pit are clean. Only
+the left MFD is affected; the right MFD is correct in the same frame.
+
+**What the probe establishes:**
+
+* The instrument content is composited **additively** — `src=GL_SRC_ALPHA
+  dst=GL_ONE`, with an alpha test at `GEQUAL 0.5`. That is right for
+  self-luminous symbology drawn *onto an opaque black screen*: the black
+  background contributes nothing, so whatever is behind shows through.
+* **Nothing draws an opaque backdrop in the screen hole.** The frame order at an
+  MFD pixel is sky → world objects → symbology. This corrects the note in
+  CLAUDE.md issue #10, which said "the MFD black-background quad draws EARLY":
+  backtracing that early black draw gives `RenderOTW::DrawSun` ←
+  `DrawSkyNoRoof` ← `DrawSky` ← `DrawScene`. It is the sky, not an MFD backdrop.
+* Not the pit-exit solid-surface drain (`FF_PIT_EXIT_SOLID=0` — no change), and
+  not solid surfaces at all: `FF_NO_SOLID=1` makes the wash **larger**, so those
+  surfaces were partly covering it, not causing it.
+
+So the pit model's MFD screen area is a transparent hole, the world renders
+through it, and only the additive symbology lands on top.
+
+**Next step:** decide where the opacity belongs — either the pit model's screen
+polygon should be drawn opaque (it is presumably chroma-keyed so the RTT canvas
+can show through) or the 3D-pit canvas blit should be an opaque copy rather than
+an additive one. The 2D pit must be re-checked against whichever is changed,
+since additive-over-an-opaque-panel is correct there and a blanket change would
+break it.

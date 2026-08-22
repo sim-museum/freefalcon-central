@@ -2315,6 +2315,15 @@ void CDXEngine::DrawSortedAlpha(DWORD Level, bool SetupMode)
 
 void CDXEngine::DrawSolidSurfaces(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (MFD-THRU-1): FF_NO_SOLID=1 makes this a no-op, to test whether
+    // the grey wash over the 3D-pit left MFD is a solid surface.
+    {
+        static int ffNoSolid = -1;
+        if (ffNoSolid == -1) ffNoSolid = getenv("FF_NO_SOLID") ? 1 : 0;
+        if (ffNoSolid) { m_SolidStack.StackLevel = 0; return; }
+    }
+#endif
     D3DXMATRIX State;
     ObjectInstance *LastObj = NULL;
     float LastFog = 0;
