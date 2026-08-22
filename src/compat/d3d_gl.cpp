@@ -746,6 +746,25 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_Clear(IDirect3DDevice7* This, DWORD dwC
     if (dwFlags & D3DCLEAR_TARGET) {
         float r, g, b, a;
         D3DColorToGL(dwColor, &r, &g, &b, &a);
+
+        // FF_LINUX (WHITE-1): Clear is invisible to the pixel probe, which only
+        // hooks draw calls -- so a full-screen clear can repaint the frame after
+        // the last draw the probe saw. FF_DEBUG_CLEAR=1 reports colour clears,
+        // with rect count, so a white one can be spotted directly.
+        if (getenv("FF_DEBUG_CLEAR")) {
+            static unsigned long ffLast = 0xdeadbeefUL;
+            static int ffRepeat = 0;
+
+            if ((unsigned long)dwColor != ffLast || ffRepeat < 3) {
+                if ((unsigned long)dwColor != ffLast) { ffLast = (unsigned long)dwColor; ffRepeat = 0; }
+                ffRepeat++;
+                fprintf(stderr, "[CLEAR] color=0x%08lx rgba=%.2f,%.2f,%.2f,%.2f rects=%lu flags=0x%lx\n",
+                        (unsigned long)dwColor, r, g, b, a,
+                        (unsigned long)dwCount, (unsigned long)dwFlags);
+                fflush(stderr);
+            }
+        }
+
         glClearColor(r, g, b, a);
         clearMask |= GL_COLOR_BUFFER_BIT;
     }
@@ -1721,6 +1740,72 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                 (int)glIsEnabled(GL_ALPHA_TEST), (int)glIsEnabled(GL_TEXTURE_2D),
                 (int)glIsEnabled(GL_FOG), (unsigned)fogMode, fogDen, fogStart, fogEnd,
                 fogCol[0], fogCol[1], fogCol[2], (unsigned)fogSrc);
+        // FF_LINUX (WHITE-1): geometry, UVs and texture content all check out for
+        // the draw that paints the CCIP A/G whiteout, so the remaining candidates
+        // are the blend factors, the texture environment and the vertex colour.
+        // Print them for the winning draw.
+        {
+            GLint texEnv = 0, alphaFunc = 0;
+            GLfloat alphaRef = 0.0f, texEnvCol[4] = {0,0,0,0};
+            glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &texEnv);
+            glGetTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, texEnvCol);
+            glGetIntegerv(GL_ALPHA_TEST_FUNC, &alphaFunc);
+            glGetFloatv(GL_ALPHA_TEST_REF, &alphaRef);
+            GLfloat curCol[4] = {0,0,0,0};
+            glGetFloatv(GL_CURRENT_COLOR, curCol);
+            GLint texMatMode = 0;
+            GLfloat texMat[16];
+            glGetIntegerv(GL_MATRIX_MODE, &texMatMode);
+            glGetFloatv(GL_TEXTURE_MATRIX, texMat);
+            fprintf(stderr, "[PIXPROBE-BLEND] src=0x%x dst=0x%x texEnv=0x%x envCol=%.2f,%.2f,%.2f,%.2f "
+                    "alphaFunc=0x%x ref=%.3f curColor=%.2f,%.2f,%.2f,%.2f "
+                    "texMat diag=%.2f,%.2f trans=%.2f,%.2f\n",
+                    (unsigned)srcBlend, (unsigned)dstBlend, (unsigned)texEnv,
+                    texEnvCol[0], texEnvCol[1], texEnvCol[2], texEnvCol[3],
+                    (unsigned)alphaFunc, alphaRef,
+                    curCol[0], curCol[1], curCol[2], curCol[3],
+                    texMat[0], texMat[5], texMat[12], texMat[13]);
+
+            // texEnv 0x8570 is GL_COMBINE, so the mode alone says nothing -- the
+            // result is whatever the combiner is configured to compute. If a
+            // previous draw left a combiner set up and this one assumes plain
+            // MODULATE, the output can be a constant regardless of the texture.
+            if (texEnv == 0x8570) {
+                GLint cRGB = 0, s0 = 0, o0 = 0, s1 = 0, o1 = 0, s2 = 0, o2 = 0, cA = 0;
+                GLfloat rgbScale = 0.0f;
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_RGB, &cRGB);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, &cA);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_SRC0_RGB, &s0);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND0_RGB, &o0);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_SRC1_RGB, &s1);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND1_RGB, &o1);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_SRC2_RGB, &s2);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND2_RGB, &o2);
+                glGetTexEnvfv(GL_TEXTURE_ENV, GL_RGB_SCALE, &rgbScale);
+                fprintf(stderr, "[PIXPROBE-COMB] combRGB=0x%x combA=0x%x "
+                        "src0=0x%x op0=0x%x src1=0x%x op1=0x%x src2=0x%x op2=0x%x scale=%.1f\n",
+                        (unsigned)cRGB, (unsigned)cA, (unsigned)s0, (unsigned)o0,
+                        (unsigned)s1, (unsigned)o1, (unsigned)s2, (unsigned)o2, rgbScale);
+            }
+
+            // WHITE-1: with GL_REPLACE from GL_TEXTURE the output IS the sampled
+            // texel, and level 0 dumps clean -- so if the draw minifies (1600x1200
+            // source into a 1080-tall screen) a mipmapped MIN filter can be
+            // sampling a stale higher level instead. This port already hit that
+            // class once (see the MAX_LEVEL clamp in SetRenderTarget).
+            {
+                GLint minF = 0, magF = 0, baseL = 0, maxL = 0, w1 = 0, h1 = 0;
+                glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &minF);
+                glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, &magF);
+                glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, &baseL);
+                glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, &maxL);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 1, GL_TEXTURE_WIDTH, &w1);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 1, GL_TEXTURE_HEIGHT, &h1);
+                fprintf(stderr, "[PIXPROBE-FILT] minF=0x%x magF=0x%x base=%d max=%d level1=%dx%d\n",
+                        (unsigned)minF, (unsigned)magF, (int)baseL, (int)maxL, (int)w1, (int)h1);
+            }
+        }
+
         lastColor = c;
 
         // FF_LINUX (TE2-7): decode the winning draw's texture coordinates. The
@@ -1729,11 +1814,17 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
         // is which part of that atlas the surface actually samples: a UV span
         // that collapses to a small uniform patch would magnify plain concrete
         // over the whole surface and look exactly like "no markings".
+        // FF_LINUX (WHITE-1): XYZRHW draws used to be excluded here, which is why
+        // the 2D quad that paints the CCIP A/G whiteout never produced a UV dump.
+        // Pre-transformed vertices carry x,y in SCREEN space, so the same walk
+        // also tells us how big the quad is -- a full-screen span is the whole
+        // question for "the cockpit bitmap covers everything in white".
         if (indexed && indexed->vbBase && indexed->indices && indexed->indexCount >= 1 &&
-            indexed->indexCount <= 4096 && !(fvf & 0x004 /*XYZRHW*/)) {
+            indexed->indexCount <= 4096) {
             // Walk the FVF to find where the first texcoord set starts.
             int off = 0;                                   // in floats
-            if (fvf & 0x002) off += 3;                     // XYZ
+            if (fvf & 0x004) off += 4;                     // XYZRHW (x,y,z,rhw)
+            else if (fvf & 0x002) off += 3;                // XYZ
             if (fvf & 0x010) off += 3;                     // NORMAL
             if (fvf & 0x020) off += 1;                     // PSIZE
             if (fvf & 0x040) off += 1;                     // DIFFUSE  (DWORD)
@@ -1744,6 +1835,7 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                 const float* fv = (const float*)indexed->vbBase;
                 float uMin = 1e30f, uMax = -1e30f, vMin = 1e30f, vMax = -1e30f;
                 float xMin = 1e30f, xMax = -1e30f;
+                float yMin = 1e30f, yMax = -1e30f;
                 for (DWORD i = 0; i < indexed->indexCount; i++) {
                     const DWORD vi = (DWORD)indexed->indices[i] + indexed->startVertex;
                     const float* v = fv + (size_t)vi * stride;
@@ -1754,6 +1846,8 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                     if (t > vMax) vMax = t;
                     if (v[0] < xMin) xMin = v[0];
                     if (v[0] > xMax) xMax = v[0];
+                    if (v[1] < yMin) yMin = v[1];
+                    if (v[1] > yMax) yMax = v[1];
                 }
                 // Wrap mode decides whether an atlas cell can tile along the
                 // slab at all: if the data means to repeat but we CLAMP, one
@@ -1782,10 +1876,10 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                     }
                 }
                 fprintf(stderr, "[PIXPROBE-UV] tex=%d idxCount=%lu start=%lu stride=%dfl uvOff=%d "
-                        "u=[%.4f..%.4f] span=%.4f  v=[%.4f..%.4f] span=%.4f  x=[%.1f..%.1f]\n",
+                        "u=[%.4f..%.4f] span=%.4f  v=[%.4f..%.4f] span=%.4f  x=[%.1f..%.1f] y=[%.1f..%.1f]\n",
                         (int)tex, (unsigned long)indexed->indexCount,
                         (unsigned long)indexed->startVertex, stride, off,
-                        uMin, uMax, uMax - uMin, vMin, vMax, vMax - vMin, xMin, xMax);
+                        uMin, uMax, uMax - uMin, vMin, vMax, vMax - vMin, xMin, xMax, yMin, yMax);
             }
         }
 
@@ -1821,6 +1915,30 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
             glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
             glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
             fprintf(stderr, "[PIXPROBE] dumping glTex=%d (%dx%d)\n", tex, (int)w, (int)h);
+
+            // WHITE-1: also dump mip level 1. If level 0 is the correct artwork
+            // but level 1 is blank, a minifying draw with a MIPMAP MIN filter
+            // samples the stale level and the surface renders white.
+            {
+                GLint w1 = 0, h1 = 0;
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 1, GL_TEXTURE_WIDTH, &w1);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, 1, GL_TEXTURE_HEIGHT, &h1);
+                if (w1 > 0 && h1 > 0 && w1 <= 4096 && h1 <= 4096) {
+                    unsigned char* p1 = (unsigned char*)malloc((size_t)w1 * h1 * 4);
+                    if (p1) {
+                        glGetTexImage(GL_TEXTURE_2D, 1, GL_RGBA, GL_UNSIGNED_BYTE, p1);
+                        double sum = 0.0; long nWhite = 0;
+                        for (long q = 0; q < (long)w1 * h1; q++) {
+                            sum += p1[q*4] + p1[q*4+1] + p1[q*4+2];
+                            if (p1[q*4] > 245 && p1[q*4+1] > 245 && p1[q*4+2] > 245) nWhite++;
+                        }
+                        fprintf(stderr, "[PIXPROBE] glTex=%d level1 %dx%d meanRGB=%.1f white%%=%.1f\n",
+                                tex, (int)w1, (int)h1, sum / (3.0 * w1 * h1),
+                                100.0 * nWhite / ((double)w1 * h1));
+                        free(p1);
+                    }
+                }
+            }
             if (w > 0 && h > 0 && w <= 4096 && h <= 4096) {
                 unsigned char* px = (unsigned char*)malloc((size_t)w * h * 4);
                 if (px) {
@@ -4187,6 +4305,22 @@ static HRESULT STDMETHODCALLTYPE DDS7_Blt(IDirectDrawSurface7* This, LPRECT lpDe
     if (dwFlags & DDBLT_COLORFILL) {
         if (dst->pixelData && lpDDBltFx) {
             DWORD fillColor = lpDDBltFx->dwFillColor;
+
+            // FF_LINUX (WHITE-1): a colour fill writes the surface's CPU buffer and
+            // marks it dirty, so the next upload replaces the GL texture -- a path
+            // the draw probe and the Clear trace both miss entirely.
+            if (getenv("FF_DEBUG_BLT")) {
+                static int ffN = 0;
+
+                if (ffN < 40) {
+                    ffN++;
+                    fprintf(stderr, "[BLT] COLORFILL surf=%p glTex=%u %dx%d rect=%d,%d %dx%d color=0x%08lx\n",
+                            (void*)dst, dst->glTexture, dst->width, dst->height,
+                            dstX, dstY, dstW, dstH, (unsigned long)fillColor);
+                    fflush(stderr);
+                }
+            }
+
             int bpp = dst->pixelFormat.dwRGBBitCount ? dst->pixelFormat.dwRGBBitCount / 8 : 4;
 
             for (int y = dstY; y < dstY + dstH && y < dst->height; y++) {
