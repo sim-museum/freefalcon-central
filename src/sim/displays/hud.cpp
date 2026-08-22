@@ -616,6 +616,16 @@ void HudClass::Display(VirtualDisplay *newDisplay, bool gTranslucent)
             break;
 
         case FireControlComputer::AirGroundBomb:
+#ifdef FF_LINUX
+            // FF_LINUX (WHITE-1): this is what the HUD newly draws every frame once
+            // the master mode becomes AirGroundBomb -- the CCIP pipper/fall line.
+            // FF_AG_SKIP=draw suppresses it to test whether it is the whiteout.
+            {
+                static int ffSkipDraw = -1;
+                if (ffSkipDraw == -1) { const char *e = getenv("FF_AG_SKIP"); ffSkipDraw = (e and strstr(e, "draw")) ? 1 : 0; }
+                if (ffSkipDraw) break;
+            }
+#endif
             DrawAirGroundGravity();
             break;
 

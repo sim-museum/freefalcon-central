@@ -5742,6 +5742,25 @@ void SimICPAA1(unsigned long, int state, void* pButton)
 
 void SimICPAG(unsigned long, int state, void* pButton)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (WHITE-1): bisect the A/G handler. FF_AG_SKIP=all makes the button
+    // a no-op; if the screen still whites out, the cause is not in here at all.
+    // The handler does only a few things -- SetMasterMode, radar DefaultAGMode,
+    // SMS display mode and two MFD SetNewMode calls -- so a no-op result cleanly
+    // separates "A/G did it" from "something else that the click also triggers".
+    {
+        static int ffSkipAll = -1;
+        if (ffSkipAll == -1) { const char *e = getenv("FF_AG_SKIP"); ffSkipAll = (e and strcmp(e, "all") == 0) ? 1 : 0; }
+
+        if (ffSkipAll)
+        {
+            fprintf(stderr, "[AG] SimICPAG suppressed by FF_AG_SKIP=all (state=%d)\n", state);
+            fflush(stderr);
+            return;
+        }
+    }
+
+#endif
     if ( not SimDriver.GetPlayerAircraft() or not SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 ADDED BY S.G. Do it once here and removed the corresponding line from below
         return;
 
@@ -5813,20 +5832,47 @@ void SimICPAG(unsigned long, int state, void* pButton)
             }
             else if (SimDriver.GetPlayerAircraft()->Sms)
             {
+#ifdef FF_LINUX
+                // FF_LINUX (WHITE-1): bisect within the handler. FF_AG_SKIP takes
+                // fcc | icp | radar | mfd to suppress one step at a time.
+                const char *ffSkip = getenv("FF_AG_SKIP");
+                const bool ffSkipFcc   = ffSkip and strstr(ffSkip, "fcc");
+                const bool ffSkipIcp   = ffSkip and strstr(ffSkip, "icp");
+                const bool ffSkipRadar = ffSkip and strstr(ffSkip, "radar");
+                const bool ffSkipMfd   = ffSkip and strstr(ffSkip, "mfd");
+
+                if (ffSkip) { fprintf(stderr, "[AG] enter-AG with skips: %s\n", ffSkip); fflush(stderr); }
+
+                if ( not ffSkipFcc)
+#endif
                 SimDriver.GetPlayerAircraft()->FCC->EnterAGMasterMode();
+
                 //passes our puttonstate to the ICP
+#ifdef FF_LINUX
+                if ( not ffSkipIcp)
+#endif
                 OTWDriver.pCockpitManager->mpIcp->HandleInput(AG_BUTTON, (CPButtonObject*)pButton);
 
                 // Put the radar in the its default AG mode
                 //Makes us go into NAV mode next time we push it.
                 RadarClass* pradar = (RadarClass*) FindSensor(SimDriver.GetPlayerAircraft(), SensorClass::Radar);
 
-                if (pradar)
+                if (pradar
+#ifdef FF_LINUX
+                    and not ffSkipRadar
+#endif
+                   )
                     pradar->DefaultAGMode();
 
                 // Configure the MFDs
+#ifdef FF_LINUX
+                if ( not ffSkipMfd) {
+#endif
                 MfdDisplay[0]->SetNewMasterMode(SimDriver.GetPlayerAircraft()->FCC->GetMainMasterMode());
                 MfdDisplay[1]->SetNewMasterMode(SimDriver.GetPlayerAircraft()->FCC->GetMainMasterMode());
+#ifdef FF_LINUX
+                }
+#endif
 
                 //Set the Flag that we've been here before
                 OTWDriver.pCockpitManager->mpIcp->SetICPFlag(ICPClass::MODE_A_G);

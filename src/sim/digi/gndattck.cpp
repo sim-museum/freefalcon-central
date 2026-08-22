@@ -2774,6 +2774,26 @@ void DigitalBrain::SelectCampGroundTarget(void)
 // This routine is called until an attack profile can be established, then it is no longer call unless agDoctrine is reset to AGD_NONE
 void DigitalBrain::SetupAGMode(WayPointClass *cwp, WayPointClass *wp)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (WHITE-1): A/G works in Instant Action and whites out in a CCIP
+    // TE. The difference is that the TE has a real ground target, so this runs to
+    // completion instead of bailing. FF_DEBUG_AG=1 traces entry/exit and whether
+    // this aircraft is the player's, to tie it to the click.
+    if (getenv("FF_DEBUG_AG"))
+    {
+        static int ffN = 0;
+
+        if (ffN < 30)
+        {
+            ffN++;
+            fprintf(stderr, "[AG] SetupAGMode enter self=%p isPlayer=%d cwp=%p wp=%p\n",
+                    (void *)self, (int)(self == SimDriver.GetPlayerAircraft()),
+                    (void *)cwp, (void *)wp);
+            fflush(stderr);
+        }
+    }
+
+#endif
     int wpAction;
     UnitClass *campUnit = (UnitClass *)self->GetCampaignObject();
     CampBaseClass *campBaseTarg;

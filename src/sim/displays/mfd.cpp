@@ -1,4 +1,5 @@
 #include "stdhdr.h"
+#include <cmath>
 #include "mfd.h"
 #include "hud.h"
 #include "sms.h"
@@ -1163,6 +1164,28 @@ void MfdDrawable::DrawReference(AircraftClass *self)
             if (FCC->inRange)
             {
                 offset = FCC->airGroundBearing / RefAngle;
+
+#ifdef FF_LINUX
+                // FF_LINUX (WHITE-1): airGroundBearing is NOT initialised by the
+                // FCC constructor -- it is only ever assigned in grndfcc.cpp when a
+                // ground solution is computed. Entering AirGroundBomb sets
+                // inRange = TRUE unconditionally, so this can read an
+                // uninitialised float before any solution exists.
+                if (getenv("FF_DEBUG_AG"))
+                {
+                    static int ffN2 = 0;
+
+                    if (ffN2 < 10)
+                    {
+                        ffN2++;
+                        fprintf(stderr, "[AG] MFD offset: airGroundBearing=%g RefAngle=%g offset=%g finite=%d\n",
+                                (double)FCC->airGroundBearing, (double)RefAngle,
+                                (double)offset, (int)std::isfinite(offset));
+                        fflush(stderr);
+                    }
+                }
+
+#endif
             }
 
             break;

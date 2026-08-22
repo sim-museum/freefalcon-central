@@ -1756,7 +1756,25 @@ void FireControlComputer::SetMasterMode(FCCMasterMode newMode)
 
     oldMode = masterMode;
 
+#ifdef FF_LINUX
+    // FF_LINUX (WHITE-1): FF_AG_SKIP=assign suppresses ONLY the mode assignment,
+    // leaving every call in this function intact. If that alone stops the
+    // whiteout, the fault is not in anything SetMasterMode DOES -- it is in
+    // whatever reads masterMode afterwards while rendering.
+    {
+        const char *ffS3 = getenv("FF_AG_SKIP");
+
+        if (ffS3 and strstr(ffS3, "assign"))
+        {
+            fprintf(stderr, "[AG] masterMode assignment suppressed (would be %d)\n", (int)newMode);
+            fflush(stderr);
+        }
+        else
+#endif
     if (masterMode not_eq Dogfight and masterMode not_eq MissileOverride) masterMode = newMode;//me123
+#ifdef FF_LINUX
+    }
+#endif
 
     int isAI = not playerFCC or
                (playerFCC and ((AircraftClass *)Sms->Ownship())->AutopilotType() == AircraftClass::CombatAP) ;
@@ -1931,6 +1949,21 @@ void FireControlComputer::SetMasterMode(FCCMasterMode newMode)
             if (isAI and not WeaponClassMatchesMaster(Sms->curWeaponClass))
                 Sms->FindWeaponClass(wcBombWpn);
 
+#ifdef FF_LINUX
+            // FF_LINUX (WHITE-1): bisect this branch. FF_AG_SKIP=sub | hud.
+            {
+                const char *ffS2 = getenv("FF_AG_SKIP");
+
+                if (ffS2)
+                {
+                    fprintf(stderr, "[AG] AirGroundBomb branch, skips=%s realistic=%d agbSub=%d\n",
+                            ffS2, (int)g_bRealisticAvionics, (int)Sms->GetAGBSubMode());
+                    fflush(stderr);
+                }
+
+                if ( not (ffS2 and strstr(ffS2, "sub")))
+                {
+#endif
             if (g_bRealisticAvionics)
             {
                 SetSubMode(Sms->GetAGBSubMode());
@@ -1939,6 +1972,11 @@ void FireControlComputer::SetMasterMode(FCCMasterMode newMode)
             {
                 SetSubMode(CCIP);
             }
+#ifdef FF_LINUX
+                }
+
+                if ( not (ffS2 and strstr(ffS2, "hud")))
+#endif
 
             //if(playerFCC)
             //{
@@ -1947,6 +1985,9 @@ void FireControlComputer::SetMasterMode(FCCMasterMode newMode)
 
             if (TheHud and playerFCC)
                 TheHud->headingPos = HudClass::High;
+#ifdef FF_LINUX
+            }
+#endif
 
             break;
 
@@ -2635,6 +2676,18 @@ void FireControlComputer::EnterAAMasterMode(void)
 
 void FireControlComputer::EnterAGMasterMode(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (WHITE-1): the constructor sets lastAgMasterMode = -1 and
+    // lastAirGroundHp = -1, with a comment saying THIS function will notice and
+    // pick a default -- but it never checks. Trace what actually arrives.
+    if (getenv("FF_DEBUG_AG"))
+    {
+        fprintf(stderr, "[AG] EnterAGMasterMode inAGGunMode=%d lastAgMasterMode=%d lastAirGroundHp=%d\n",
+                (int)inAGGunMode, (int)lastAgMasterMode, (int)lastAirGroundHp);
+        fflush(stderr);
+    }
+
+#endif
     if (inAGGunMode)
     {
         // go to gun mode
@@ -2643,7 +2696,18 @@ void FireControlComputer::EnterAGMasterMode(void)
     }
     else
     {
+#ifdef FF_LINUX
+        // FF_LINUX (WHITE-1): split the two statements so the bisect can say which
+        // one whites the screen. FF_AG_SKIP=hp | mm.
+        const char *ffS = getenv("FF_AG_SKIP");
+
+        if ( not (ffS and strstr(ffS, "hp")))
+#endif
         Sms->SetCurrentHardPoint(lastAirGroundHp);
+
+#ifdef FF_LINUX
+        if ( not (ffS and strstr(ffS, "mm")))
+#endif
         SetMasterMode(lastAgMasterMode);
     }
 }
