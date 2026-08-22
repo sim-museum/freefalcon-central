@@ -1933,11 +1933,66 @@ void CDXEngine::FlushObjects(void)
             // Save transformation State
             D3DXMATRIX OldState = AppliedState;
             // Immediatly draw Solid surfaces ( coming from Pit )
-            DrawSolidSurfaces();
+            // FF_LINUX (PIT-1): this runs BEFORE the scene projection is restored
+            // below, so anything still on the shared solid-surface stack is drawn
+            // through the pit's 0.1-100m projection. If world surfaces (the
+            // runway/tarmac decals) are on that stack they are mis-projected and
+            // vanish -- which is exactly the 3-view symptom. FF_PIT_EXIT_SOLID=0
+            // leaves them for the normal DrawSolidSurfaces() at the end of
+            // FlushBuffers, which runs under the correct projection.
+            {
+                static int ffExitSolid = -1;
+                if (ffExitSolid == -1)
+                {
+                    const char *e = getenv("FF_PIT_EXIT_SOLID");
+                    ffExitSolid = e ? atoi(e) : 1;
+                }
+                if (getenv("FF_DEBUG_ORDER"))
+                {
+                    static int nS = 0;
+                    if (nS++ < 200)
+                    {
+                        fprintf(stderr, "[ORDER] pit-exit solid stack=%lu\n",
+                                (unsigned long)m_SolidStack.StackLevel);
+                        fflush(stderr);
+                    }
+                }
+                if (ffExitSolid)
+                    DrawSolidSurfaces();
+            }
             AppliedState = OldState;
-            m_pD3DD->Clear(0, NULL, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
+            // FF_LINUX (PIT-1): this clear discards the world depth built up
+            // before the pit pass, so everything drawn afterwards (runway/tarmac
+            // decals, far-terrain object batches) resolves by draw order alone.
+            // FF_PIT_EXIT_ZCLEAR=0 skips it, to test whether that is what lets a
+            // late terrain batch paint over the tarmac in the 3-view.
+            {
+                static int ffExitZ = -1;
+                if (ffExitZ == -1)
+                {
+                    const char *e = getenv("FF_PIT_EXIT_ZCLEAR");
+                    ffExitZ = e ? atoi(e) : 1;
+                }
+                if (ffExitZ)
+                    m_pD3DD->Clear(0, NULL, D3DCLEAR_ZBUFFER, 0, 1.0f, 0);
+            }
             // enable stenciling in Check Mode
-            SetStencilMode(STENCIL_CHECK);
+            // FF_LINUX (PIT-1): the world objects drawn after pit exit -- which
+            // includes the runway/tarmac decals -- are subject to this
+            // STENCIL_CHECK. FF_PIT_EXIT_STENCIL=0 leaves stencil off for them,
+            // to test whether it is what rejects the tarmac in the 3-view.
+            {
+                static int ffExitSt = -1;
+                if (ffExitSt == -1)
+                {
+                    const char *e = getenv("FF_PIT_EXIT_STENCIL");
+                    ffExitSt = e ? atoi(e) : 1;
+                }
+                if (ffExitSt)
+                    SetStencilMode(STENCIL_CHECK);
+                else
+                    SetStencilMode(STENCIL_OFF);
+            }
             // Restore Fog
             float Start = 0.0f;
             m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGSTART, *(DWORD*)&Start);
@@ -1965,6 +2020,17 @@ void CDXEngine::FlushObjects(void)
         {
             extern int g_ffDXDrawIsRunway;
             FF_SetRunwayDepthBias(g_ffDXDrawIsRunway);
+
+            // FF_LINUX (PIT-1): trace when a runway/tarmac decal is drawn, so its
+            // order relative to the terrain flush and the pit pass can be compared
+            // between views.
+            static int ffOrd = -1;
+            if (ffOrd == -1) ffOrd = getenv("FF_DEBUG_ORDER") ? 1 : 0;
+            if (ffOrd && g_ffDXDrawIsRunway)
+            {
+                static int nR = 0;
+                if (nR++ < 200000) { fprintf(stderr, "[ORDER] runway-draw pit=%d\n", (int)m_PitMode); fflush(stderr); }
+            }
         }
 #endif
 

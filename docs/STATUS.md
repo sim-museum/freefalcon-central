@@ -2692,3 +2692,70 @@ global state is untested — those sites need sensor-specific scenarios (a Maver
 loadout, a LANTIRN or laser pod, the padlock view). No symptom is known for them
 today, so nothing was changed there. If a "displays go strange in A/G" report
 turns up with a Maverick or pod aboard, this table is where to start.
+
+---
+
+## Sprint 25 — PIT-1: the 3-view renders no tarmac
+
+PIT-1 has been on the board as *unmeasured* since it was raised, with the note
+that every attempt needed the PO's eyes because the agent could not capture
+sim-mode frames. That is no longer true — it now has an **unattended repro and a
+numeric metric**, and six candidate causes have been eliminated by measurement.
+
+**Repro.** TE "02 Takeoff", parked on the runway, switch view, capture:
+
+```
+FF_UI_CLICK="677,748@12;140,128@18;824,750@24;973,750@30" \
+FF_VIEW_SCRIPT="<view>@62" FF_SIM_SCREENSHOT="70:/tmp/x.bmp"
+```
+
+Metric: sample rows y = 280/320/360 across the frame and count grey (tarmac) vs
+green (grass) pixels.
+
+| view | | tarmac |
+|---|---|---|
+| 0 — HUD only, no pit model | grey ✓ (runway fills the frame) | **renders** |
+| 1 — 2D pit | grey=42 green=1 | **renders** |
+| 2 — chase | grey=63 green=0 | **renders** |
+| 4 — virtual pit | grey=**0** green=22 | **missing** |
+
+View 0 is the same eye position as view 4 with no pit model, and it renders the
+runway perfectly. **So this is the pit pass, not the camera, the LOD, or the
+aircraft's position.**
+
+**The decals are submitted.** A per-draw trace (`FF_DEBUG_ORDER`) counts 63
+runway/tarmac draws per frame in the 3-view — identical to the 2D pit. Both views
+have the same per-frame order: an empty flush, the big terrain flush
+(plain≈770 tex≈3716), then the 63 decal draws. Ordering is not the difference.
+
+**Eliminated by measurement** (each with the switch that tested it, all left in
+place and defaulting to the original behaviour):
+
+| hypothesis | switch | result |
+|---|---|---|
+| depth bias loses the decal | `FF_RUNWAY_NOBIAS=1` | no change |
+| stencil rejects it at pit entry | `FF_PIT_NO_STENCIL=1` | no change |
+| stencil rejects it at pit exit | `FF_PIT_EXIT_STENCIL=0` | no change |
+| pit-exit depth clear makes draw order paint order | `FF_PIT_EXIT_ZCLEAR=0` | no change |
+| pit-exit `DrawSolidSurfaces` drains world surfaces under the pit projection | `FF_PIT_EXIT_SOLID=0` | no change (the 16 surfaces there are genuinely the pit's) |
+| the decal is buried under terrain | `FF_RUNWAY_ZLIFT=60` | **no change in the 3-view** — while the same switch moves the tarmac right out of the sampled band in the 2D pit (grey 42 → 2) |
+
+That last one is the sharpest result: the lift switch demonstrably moves the
+tarmac in a working view and does *nothing* in the 3-view, so in the pit pass the
+decals contribute **nothing to the image at all** — they are not merely hidden.
+
+**Best remaining clue.** Probing one ground pixel in each view:
+
+* view 1: `tex=573`, 12 verts, paints **grey** — that is the decal.
+* view 4: `tex=573` never appears. Instead a `tex=54` batch of **4380** verts
+  paints green last, where view 1's `tex=54` batch has **14** verts.
+
+So the pit pass submits a materially different world-geometry set. **Next step:**
+trace which drawable/LOD supplies `tex=573` in view 1 and why it is not submitted
+in view 4 — that is now the whole question.
+
+**Harness knowledge worth keeping.** The TE list is not scrolled: rows run 01 at
+y≈110 to 34 at y≈672, ~17 px apart, and row 20 ("Bombs with CCIP") is y=433. But
+the list has a **dead band in x**: at x=205 the rows around y≈118–134 hit no
+control at all, while x=110 or x=140 hit them fine. Row 02 ("Takeoff") is
+reachable at **(140,128)**, not (205,128) — that cost several runs to find.

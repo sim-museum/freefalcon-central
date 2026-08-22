@@ -2620,6 +2620,25 @@ void ContextMPR::FlushPolyLists()
     }
 #endif
 
+#ifdef FF_LINUX
+    {
+        // FF_LINUX (PIT-1): trace each flush's poly load, to establish whether the
+        // terrain flush lands before or after the object/runway draws in each view.
+        static int ffOrd = -1;
+        if (ffOrd == -1) ffOrd = getenv("FF_DEBUG_ORDER") ? 1 : 0;
+        if (ffOrd)
+        {
+            static int nF = 0;
+            if (nF++ < 200000)
+            {
+                fprintf(stderr, "[ORDER] flush plain=%ld tex=%ld trans=%ld\n",
+                        (long)plainPolyVCnt, (long)texturedPolyVCnt, (long)translucentPolyVCnt);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     VCounter = 0;
 
     // START_PROFILE(BSP_ENGINE_PROF);
