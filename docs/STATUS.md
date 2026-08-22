@@ -2833,3 +2833,25 @@ So: drawn, in the right pass, outside pit mode, and invisible only at their real
 height. **Next step:** compare the two views at the same *world* point rather
 than the same pixel — anchor on a feature (the runway threshold) and probe where
 it projects in each view, or match the FOVs before comparing.
+
+### AGTE-1 — WHITE-1 regression-tested across three A/G missions
+
+The WHITE-1 fix was found and verified on one mission (TE 20, "Bombs with
+CCIP"). It has now been exercised on the two other TEs that drive the same
+machinery, each flown unattended with the A/G button clicked in the sim:
+
+| mission | pre-A/G | post-A/G | crashes |
+|---|---|---|---|
+| TE 20 — Bombs with CCIP | 0.0% white | **0.0%** | 0 |
+| TE 18 — A-G Radar Modes | 0.0% white | **0.0%** | 0 |
+| TE 24 — Mavericks | 0.0% white | **0.0%** | 0 |
+
+TE 18 is the mission built around the ground-map radar that WHITE-1 was in.
+TE 24 carries Mavericks, which drives `mavdisp` — one of the nested render
+passes NEST-1 flagged as untested — and is the code path CRASH-5 was found in.
+Both render correctly with A/G engaged: ground-map MFD sweeping, A/G HUD
+symbology, stores page populated.
+
+Caveat: flying a mission with Mavericks aboard is not the same as putting the
+Maverick *video page* up, which needs the weapon selected and its page called.
+So `mavdisp`'s nested flush is exercised but not proven to be under load.
