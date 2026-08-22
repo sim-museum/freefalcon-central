@@ -1105,6 +1105,16 @@ void BombClass::SetTarget(SimObjectType* newTarget)
         // Same defect and same cause as the one already fixed in
         // MissileClass::SetTarget; the bomb was missed.
         targetPtr = newTarget;
+
+        // FF_DEBUG_BOMBTGT=1 confirms this path runs -- every hit here is a
+        // release that used to dereference NULL.
+        if (getenv("FF_DEBUG_BOMBTGT"))
+        {
+            fprintf(stderr, "[BOMBTGT] SetTarget with a live target; pre-fix this "
+                    "dereferenced NULL\n");
+            fflush(stderr);
+        }
+
 #endif
         targetPtr->Reference();
     }
