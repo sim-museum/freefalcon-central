@@ -2895,3 +2895,28 @@ stronger depth bias up to 32×) failed because nothing was covering it.
 Note this also explains why the earlier `-32,-8192` depth-bias tuning was needed
 to make the runway survive in the 2D pit and yet did nothing here: two different
 problems on the same geometry.
+
+### PITSTATE-1 — audit of the pit pass's other restores: only the cull mode was wrong
+
+PIT-1 was a restore-to-a-guessed-constant bug, and the same block has three more
+of that shape. Rather than "fix" them on the strength of the pattern, the
+pre-pit state was measured (`FF_DEBUG_PITSTATE`, read at the very top of the pit
+entry branch, before anything is overwritten):
+
+```
+[PITSTATE] pre-pit cull=1 fogStart=0.00 fogEnd=80000.00 fogEnable=1 zwrite=1 lighting=1
+```
+
+| pit exit does | in force before the pit | verdict |
+|---|---|---|
+| `CULLMODE = (m_bCullEnable ? CW : NONE)` → CW (2) | **NONE (1)** | **wrong — fixed under PIT-1** |
+| `FOGSTART = 0.0f` | 0.0 | matches, leave alone |
+| `glEnable(GL_LIGHTING)` | lighting on | matches, leave alone |
+| `SetStencilMode(STENCIL_CHECK)` | — | by design: the world pass must reject over pit pixels, and `FF_PIT_EXIT_STENCIL=0` showed no visual difference |
+
+That `cull=1` reading is also a direct, independent confirmation of the PIT-1
+diagnosis: the world pass really was running with `D3DCULL_NONE`, and pit exit
+really was changing it to `CW` behind everything drawn afterwards.
+
+So: one real bug in four candidates, and the other three left untouched with the
+measurement that says why. The pattern was a good lead; it was not evidence.

@@ -1835,6 +1835,32 @@ void CDXEngine::FlushObjects(void)
         // ok, just entered Pit Mode
         if (m_PitMode and not WasInPitMode)
         {
+            // FF_LINUX (PITSTATE-1): pit exit also restores FOGSTART to a
+            // hard-coded 0.0f and unconditionally re-enables GL lighting.
+            // Report what is actually in force here, so we only "fix" those
+            // if they genuinely differ from the constants.
+            if (getenv("FF_DEBUG_PITSTATE"))
+            {
+                static int nPS = 0;
+                if (nPS++ < 12)
+                {
+                    DWORD fs = 0, fe = 0, fen = 0, zw = 0, lit = 0, cull = 0;
+                    m_pD3DD->GetRenderState(D3DRENDERSTATE_CULLMODE, &cull);
+                    m_pD3DD->GetRenderState(D3DRENDERSTATE_FOGSTART, &fs);
+                    m_pD3DD->GetRenderState(D3DRENDERSTATE_FOGEND, &fe);
+                    m_pD3DD->GetRenderState(D3DRENDERSTATE_FOGENABLE, &fen);
+                    m_pD3DD->GetRenderState(D3DRENDERSTATE_ZWRITEENABLE, &zw);
+                    m_pD3DD->GetRenderState(D3DRENDERSTATE_LIGHTING, &lit);
+                    fprintf(stderr,
+                            "[PITSTATE] pre-pit cull=%lu fogStart=%.2f fogEnd=%.2f fogEnable=%lu "
+                            "zwrite=%lu lighting=%lu\n",
+                            (unsigned long)cull,
+                            *(float*)&fs, *(float*)&fe, (unsigned long)fen,
+                            (unsigned long)zw, (unsigned long)lit);
+                    fflush(stderr);
+                }
+            }
+
             //START_PROFILE("3D PIT");
             // enable stenciling in Write Mode
             SetStencilMode(STENCIL_WRITE);
