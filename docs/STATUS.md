@@ -2962,3 +2962,27 @@ can show through) or the 3D-pit canvas blit should be an opaque copy rather than
 an additive one. The 2D pit must be re-checked against whichever is changed,
 since additive-over-an-opaque-panel is correct there and a blanket change would
 break it.
+
+### MFD-THRU-1 — where the content actually lives
+
+Dumping a whole frame's draw calls (`FF_DRAWLIST`) in the 3D pit separates the
+two halves of the pipeline:
+
+* **The instrument canvases do render, into an RTT.** 136 draws go to `fbo=1`,
+  at viewports `550,568,200x199` and `550,318,200x200` inside a 768×768 target —
+  the two MFDs. They include untextured `blend=0 atest=0` fills, i.e. the opaque
+  background *is* being drawn, into the canvas.
+* **The symbology seen on screen does not come from there.** The draw that paints
+  green at the left-MFD pixel is `tex=4, n=30, fvf=0x2c4, fbo=0` with a full
+  `1920x1080` viewport and scissor off — screen space, straight to the window,
+  additively blended, with nothing opaque drawn under it.
+
+So the content and its black background exist in the canvas; what is missing is
+the step that puts that canvas onto the pit's screen opaquely. `Canvas3D` is not
+the culprit: its `ClearDraw()` is empty in the original code too, so Windows does
+not clear there either — the opacity has to come from the composite, not a clear.
+
+**Next step is now specific:** find where the 3D-pit screen polygon samples the
+MFD RTT texture, and why the visible symbology instead arrives as a screen-space
+additive overlay to `fbo=0`. One of those two paths is being used when the other
+should be.
