@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 /***************************************************************************\
     Handoff.cpp
     Scott Randolph
@@ -82,6 +84,42 @@ FalconEntity* SimCampHandoff(FalconEntity *current, HandOffType style)
 
                     // Make sure we didn't get asked to find a radar in a non-radar unit
                     ShiAssert(campRadarType);
+#ifdef FF_LINUX
+                    // FF_LINUX (HANDOFF-1): ShiAssert does not halt this build, so
+                    // execution used to fall into the search below with
+                    // campRadarType == 0 -- which matches the first component whose
+                    // radar type is also 0, i.e. an arbitrary NON-radar vehicle, and
+                    // hands the radar/HARM lock to it. There is nothing to hand off
+                    // to in a unit with no radar; this function's contract is to
+                    // return NULL when no handoff is possible, and every live caller
+                    // (fccmain, sensclas, beamrider) handles NULL.
+                    if ( not campRadarType)
+                    {
+                        // FF_DEBUG_HANDOFF=1 reports what the unguarded search
+                        // would have handed back, to show this is a real
+                        // mis-target and not merely a noisy assertion.
+                        if (getenv("FF_DEBUG_HANDOFF"))
+                        {
+                            SimBaseClass *probe = simobj;
+
+                            while (probe)
+                            {
+                                if (probe->GetRadarType() == 0 and not probe->IsDead())
+                                    break;
+
+                                probe = (SimBaseClass*)componentIterator.GetNext();
+                            }
+
+                            fprintf(stderr, "[HANDOFF] radar handoff asked of a non-radar unit; "
+                                    "unguarded search would have returned %s\n",
+                                    probe ? "a NON-RADAR vehicle" : "NULL");
+                            fflush(stderr);
+                        }
+
+                        return NULL;
+                    }
+
+#endif
 
                     // Search the list for a battalion radar vehicle
                     while (simobj)
@@ -234,6 +272,13 @@ SimObjectType* SimCampHandoff(SimObjectType *current, SimObjectType *targetList,
 
                     // Make sure we didn't get asked to find a radar in a non-radar unit
                     ShiAssert(campRadarType);
+#ifdef FF_LINUX
+                    // FF_LINUX (HANDOFF-1): same as above -- with no radar type the
+                    // search below matches an arbitrary non-radar component.
+                    if ( not campRadarType)
+                        return NULL;
+
+#endif
 
                     // Search the list for a battalion radar vehicle
                     while (simobj)

@@ -3032,3 +3032,43 @@ HUD.
 
 Ruled out along the way: the pit alpha test (`FF_PIT_NO_ATEST=1`, no change), the
 pit-exit solid drain, and solid surfaces generally.
+
+---
+
+## Sprint 27 — SOAK-1 and HANDOFF-1
+
+**SOAK-1.** This session changed global render state in two places every frame
+touches — the nested DX-engine flush guard (WHITE-1) and the pit-exit cull
+restore (PIT-1) — so both were put under a soak before the PO tests A/G. Six
+unattended flights (TE 02 takeoff in the 3-view and the 2D pit, TE 18 A-G radar,
+TE 20 CCIP, TE 24 Mavericks, TE 20 in the 3-view), each with the A/G click or a
+view switch: **zero crashes, zero whiteouts, and only two distinct assertion
+sites across all six**.
+
+**HANDOFF-1 — found by that assertion inventory, and it is a real mis-target.**
+`SimCampHandoff(..., HANDOFF_RADAR)` converts a radar/HARM lock between the
+campaign and sim representations of a unit. It reads the unit's radar type and
+asserts it is non-zero — "make sure we didn't get asked to find a radar in a
+non-radar unit" — and then searches the unit's components for the vehicle whose
+radar type matches.
+
+`ShiAssert` does not halt this build. With `campRadarType == 0` the search
+compares `GetRadarType() == 0`, which matches **the first component that also has
+no radar** — so the lock is handed to an arbitrary truck instead of failing.
+
+Measured, not argued: instrumenting the guard to run the old search and report
+what it would have returned gives, in one CCIP flight,
+
+```
+20 [HANDOFF] radar handoff asked of a non-radar unit;
+             unguarded search would have returned a NON-RADAR vehicle
+```
+
+Twenty mis-targets in a single flight. The fix returns NULL, which is this
+function's own documented contract — *"If the target is no longer valid and no
+handoff is possible, NULL will be returned"* — and all three live callers
+(`fccmain`, `sensclas`, `beamrider`) already handle NULL. Applied at both
+`HANDOFF_RADAR` sites (the sim→camp and camp→sim searches), and the assertion is
+left in place as the diagnostic.
+
+Soak re-run with the guard in: six flights, zero crashes, zero whiteouts.
