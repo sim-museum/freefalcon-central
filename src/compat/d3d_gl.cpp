@@ -1506,6 +1506,8 @@ int g_DrawPrimitiveVBCount = 0;
 int g_DrawIdxPrimVBCount = 0;
 int g_FF_PitModeActive = 0;  // Set by DXEngine FlushObjects when drawing pit geometry
 
+extern DWORD gDebugLodID;  // FF_LINUX (PIT-1): model id under draw, for probe attribution
+
 // FF_LINUX: pixel-attribution probe - issue #12 (black pit). FF_PROBE_PIXEL="x,y"
 // (window coords, y from top). After each draw call, read that pixel; when its
 // color changes, log the draw parameters. Identifies which draw paints a pixel.
@@ -1794,10 +1796,10 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                 "twoSide=%d norml=%d\n",
                 l0cut, l0att0, l0att1, l0att2, (unsigned)cmMode, (unsigned)shadeModel,
                 (int)twoSide, (int)glIsEnabled(GL_NORMALIZE));
-        fprintf(stderr, "[PIXPROBE] %s: color 0x%06x -> 0x%06x fvf=0x%lx nVerts=%lu v0=(%.0f,%.0f,%.4f) "
+        fprintf(stderr, "[PIXPROBE] %s: color 0x%06x -> 0x%06x fvf=0x%lx lod=%lu nVerts=%lu v0=(%.0f,%.0f,%.4f) "
                 "tex=%d light=%d l0=%d l0amb=%.2f pit=%d blend=%d atest=%d tex2D=%d "
                 "fog=%d(mode=0x%x den=%.3f s=%.0f e=%.0f col=%.2f,%.2f,%.2f src=0x%x)\n",
-                where, lastColor, c, (unsigned long)fvf, (unsigned long)nVerts,
+                where, lastColor, c, (unsigned long)fvf, (unsigned long)gDebugLodID, (unsigned long)nVerts,
                 firstVert ? ((const float*)firstVert)[0] : -1.0f,
                 firstVert ? ((const float*)firstVert)[1] : -1.0f,
                 firstVert ? ((const float*)firstVert)[2] : -1.0f,

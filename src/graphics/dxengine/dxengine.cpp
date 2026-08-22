@@ -2079,6 +2079,46 @@ void CDXEngine::FlushObjects(void)
 
         gDebugLodID = LodID;
 
+#ifdef FF_LINUX
+        // FF_LINUX (PIT-1): FF_TRACE_LOD=<id> reports whether that model is drawn
+        // inside pit mode -- i.e. under the pit's 0.1-100m projection, which would
+        // clip anything the size of a runway.
+        {
+            static long ffTrLod = -2;
+            if (ffTrLod == -2) { const char *e = getenv("FF_TRACE_LOD"); ffTrLod = e ? atol(e) : -1; }
+            if (ffTrLod >= 0 && (long)LodID == ffTrLod)
+            {
+                static int nT = 0;
+                if (nT++ < 300) { fprintf(stderr, "[TRACELOD] lod=%ld pit=%d\n", ffTrLod, (int)m_PitMode); fflush(stderr); }
+            }
+        }
+#endif
+
+#ifdef FF_LINUX
+        // FF_LINUX (PIT-1): accumulate the distinct model LOD ids drawn per frame,
+        // so the set submitted by the virtual-pit pass can be diffed against a
+        // view that renders the tarmac correctly.
+        {
+            static int ffLods = -1;
+            if (ffLods == -1) ffLods = getenv("FF_DEBUG_LODS") ? 1 : 0;
+            if (ffLods)
+            {
+                static DWORD seen[512];
+                static int nSeen = 0, nFrames = 0;
+                bool have = false;
+                for (int q = 0; q < nSeen; q++) if (seen[q] == LodID) { have = true; break; }
+                if (!have && nSeen < 512) seen[nSeen++] = LodID;
+                if (++nFrames % 600 == 0)
+                {
+                    fprintf(stderr, "[LODS] distinct=%d:", nSeen);
+                    for (int q = 0; q < nSeen; q++) fprintf(stderr, " %lu", (unsigned long)seen[q]);
+                    fprintf(stderr, "\n"); fflush(stderr);
+                    nSeen = 0;
+                }
+            }
+        }
+#endif
+
         // Update the lights for the object
         if (Lited) TheLightEngine.UpdateDynamicLights(LightOwner, &pos, objInst->Radius());
 

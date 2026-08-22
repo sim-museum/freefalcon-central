@@ -2759,3 +2759,46 @@ y≈110 to 34 at y≈672, ~17 px apart, and row 20 ("Bombs with CCIP") is y=433.
 the list has a **dead band in x**: at x=205 the rows around y≈118–134 hit no
 control at all, while x=110 or x=140 hit them fine. Row 02 ("Takeoff") is
 reachable at **(140,128)**, not (205,128) — that cost several runs to find.
+
+### PIT-1 continued — correction, and the model that occludes
+
+**Correction to the table above.** I wrote that `FF_RUNWAY_ZLIFT=60` produced "no
+change in the 3-view" and concluded the decals contribute nothing to that pass.
+That conclusion was wrong, and the reason is worth recording: the metric samples
+three rows across the middle of the frame, and lifting the decals 60 ft moves
+them *above the horizon* — looking at the actual image, they are plainly there,
+forming a grey roof over the canopy. **The decals do render in the 3-view.** A
+numeric metric that only samples where you expect the answer will confirm
+whatever you already believe; the image disproved it in one glance.
+
+With that corrected, the lift sweep says something sharper. At lifts of 3 (the
+default), 8, 20, 30, 45 and 60 ft the ground band is byte-identical
+(grey=6 green=106 of 588) — the tarmac never reappears at ground level at *any*
+lift. So this is not a near-coincident z-fight that a few feet of decal offset
+would win.
+
+**What the probe shows.** At the same ground pixel, in the 3-view the decal
+(`lod=156`, `tex=573`) never paints at all, while three draws do:
+
+```
+lod=4105  192 verts  tex=30
+lod=2647 1248 verts  tex=610
+lod=2647 4380 verts  tex=54    <- green, last world draw
+```
+
+In the 2D pit at the same pixel, `lod=2647` submits only its 1248-vert `tex=610`
+batch, the decal paints grey before it, and it survives. **Model 2647 submits a
+4380-vert ground batch in the virtual-pit pass that it does not submit in the 2D
+pit pass**, and the decal is depth-rejected against it.
+
+Also measured: `lod=156` is drawn 300/300 times with `pit=0` in *both* views, so
+the decal is submitted identically and outside pit mode — the difference is
+entirely on the occluder's side. The per-frame distinct-LOD sets are 122/123
+identical between the two views; view 1 uniquely draws `153`, view 4 uniquely
+draws `4105`.
+
+**Next step:** identify model 2647 and why the virtual-pit pass selects a LOD of
+it that includes a ground surface — `TheStateStack.SetLODBias` / the pit FOV and
+`resRelativeScaler` are the obvious levers. This is very likely the same family
+as the known runway-elevation decoupling (the airfield rendering as a ~20 ft
+plateau over flat z=0 collision data).
