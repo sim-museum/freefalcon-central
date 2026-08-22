@@ -129,6 +129,9 @@ typedef void* LPDDBLTBATCH;
 // PIT-1: world-distance probe helper, defined further down.
 static void FF_NoteWorldMatrices(DWORD nVerts);
 
+// WHITE-1: whole-frame draw list, defined further down.
+static void FF_DrawList(const char* where, DWORD fvf, DWORD nVerts, const void* firstVert);
+
 // PIT-1 instrument bookkeeping: largest draw batch seen, so a "no matrices"
 // result can be told apart from "the terrain never came through this hook".
 static DWORD s_maxBatch = 0;
@@ -1371,6 +1374,18 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
     FFVertexEmissiveState emissiveDIP;
     FF_BeginVertexEmissive(&emissiveDIP, dev, dwVertexTypeDesc, isXYZRHW);
 
+    // WHITE-1 experiment (FF_NO_2D_MIPMAP=1): the ONLY state difference measured
+    // between a working 2D pit blit and the white one is the MIN filter --
+    // GL_LINEAR when it works, LINEAR_MIPMAP_LINEAR when it whites out. Force the
+    // non-mipmapped filter for pre-transformed (2D) draws and see if the whiteout
+    // goes away. This is a probe, not a fix.
+    {
+        static int s_no2dMip = -1;
+        if (s_no2dMip == -1) s_no2dMip = getenv("FF_NO_2D_MIPMAP") ? 1 : 0;
+        if (s_no2dMip && (dwVertexTypeDesc & 0x004) && glIsEnabled(GL_TEXTURE_2D))
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    }
+
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
         WORD idx = lpwIndices[i];
@@ -1435,6 +1450,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
 
     // PIT-1: the terrain batches come through this (non-VB) path.
     FF_NoteWorldMatrices(dwIndexCount);
+    FF_DrawList("DIP", dwVertexTypeDesc, dwIndexCount, lpvVertices);
 
     // FF_LINUX: Restore material emission clobbered by per-vertex emissive
     FF_EndVertexEmissive(&emissiveDIP);
@@ -1664,6 +1680,57 @@ void FF_ProbeDepthStrip(int w, int h) {
     s_worldMatsValid = false;   // require a fresh capture for the next frame
 }
 
+// FF_LINUX (WHITE-1): FF_DRAWLIST="sec[,sec...]" -- dump EVERY draw for a ~60ms
+// window at each listed time. Per-pixel attribution has repeatedly named draws
+// that turn out to be innocent; comparing the whole draw list of a working frame
+// against a whiteout frame asks a different question: what appears, disappears or
+// changes order when A/G is pressed.
+static void FF_DrawList(const char* where, DWORD fvf, DWORD nVerts, const void* firstVert) {
+    static int s_n = -1;
+    static double s_at[8];
+    static int s_count = 0;
+
+    if (s_n == -1) {
+        const char* e = getenv("FF_DRAWLIST");
+        s_n = 0;
+        if (e) {
+            const char* p2 = e;
+            while (*p2 && s_n < 8) {
+                s_at[s_n++] = atof(p2);
+                const char* c = strchr(p2, ',');
+                if (!c) break;
+                p2 = c + 1;
+            }
+        }
+        if (s_n) { fprintf(stderr, "[DRAWLIST] armed for %d window(s)\n", s_n); fflush(stderr); }
+    }
+
+    if (s_n <= 0) return;
+
+    const double now = SDL_GetTicks() / 1000.0;
+    for (int i = 0; i < s_n; i++) {
+        if (now >= s_at[i] && now < s_at[i] + 0.06) {
+            GLint tex = 0;
+            glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex);
+            GLint fb = 0;
+            glGetIntegerv(GL_FRAMEBUFFER_BINDING, &fb);
+            GLint vp[4] = {0,0,0,0}, sc[4] = {0,0,0,0};
+            glGetIntegerv(GL_VIEWPORT, vp);
+            glGetIntegerv(GL_SCISSOR_BOX, sc);
+            fprintf(stderr, "[DRAWLIST t=%.1f #%d] vp=%d,%d,%dx%d sciss=%d(%d,%d,%dx%d) %s fvf=0x%lx n=%lu tex=%d fbo=%d blend=%d atest=%d tex2D=%d depth=%d v0=(%.0f,%.0f)\n",
+                    s_at[i], ++s_count, vp[0], vp[1], vp[2], vp[3],
+                    (int)glIsEnabled(GL_SCISSOR_TEST), sc[0], sc[1], sc[2], sc[3],
+                    where, (unsigned long)fvf, (unsigned long)nVerts,
+                    (int)tex, (int)fb, (int)glIsEnabled(GL_BLEND),
+                    (int)glIsEnabled(GL_ALPHA_TEST), (int)glIsEnabled(GL_TEXTURE_2D),
+                    (int)glIsEnabled(GL_DEPTH_TEST),
+                    firstVert ? ((const float*)firstVert)[0] : -1.0f,
+                    firstVert ? ((const float*)firstVert)[1] : -1.0f);
+            break;
+        }
+    }
+}
+
 static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                           const void* firstVert = nullptr,
                           const FF_ProbeIndexed* indexed = nullptr) {
@@ -1740,6 +1807,23 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                 (int)glIsEnabled(GL_ALPHA_TEST), (int)glIsEnabled(GL_TEXTURE_2D),
                 (int)glIsEnabled(GL_FOG), (unsigned)fogMode, fogDen, fogStart, fogEnd,
                 fogCol[0], fogCol[1], fogCol[2], (unsigned)fogSrc);
+        // WHITE-1: when the watched pixel first turns white, dump the ENTIRE
+        // framebuffer at that instant. If the frame still shows the cockpit art,
+        // the per-pixel readback is misleading and the white arrives later; if the
+        // frame is already white, this draw really did paint it.
+        if (getenv("FF_DUMP_ON_WHITE") && c == 0xffffff) {
+            static int s_done = 0;
+            static int s_skip = -1;
+            if (s_skip == -1) { const char* e = getenv("FF_DUMP_ON_WHITE"); s_skip = atoi(e); }
+            if (!s_done && s_skip-- <= 0) {
+                s_done = 1;
+                fprintf(stderr, "[WHITEDUMP] pixel went white on this draw (tex=%d) - dumping frame\n", (int)tex);
+                fflush(stderr);
+                extern void SaveGLFramebufferAsBMP(const char*);
+                SaveGLFramebufferAsBMP("/tmp/whitedump.bmp");
+            }
+        }
+
         // FF_LINUX (WHITE-1): geometry, UVs and texture content all check out for
         // the draw that paints the CCIP A/G whiteout, so the remaining candidates
         // are the blend factors, the texture environment and the vertex colour.
@@ -1788,6 +1872,33 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                         (unsigned)s1, (unsigned)o1, (unsigned)s2, (unsigned)o2, rgbScale);
             }
 
+            // WHITE-1: the FVF carries TWO texcoord sets, and every check so far has
+            // only ever queried texture unit 0. If a second stage is left enabled
+            // with a white/garbage texture and a REPLACE combiner, every textured
+            // draw comes out white no matter how correct unit 0 is.
+            {
+                GLint activeTex = 0;
+                glGetIntegerv(GL_ACTIVE_TEXTURE, &activeTex);
+
+                for (int u = 0; u < 3; u++) {
+                    glActiveTexture(GL_TEXTURE0 + u);
+                    GLint en = glIsEnabled(GL_TEXTURE_2D);
+                    GLint bind = 0, envMode = 0, cRGB = 0, s0 = 0;
+                    glGetIntegerv(GL_TEXTURE_BINDING_2D, &bind);
+                    glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &envMode);
+                    if (envMode == 0x8570) {
+                        glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_RGB, &cRGB);
+                        glGetTexEnviv(GL_TEXTURE_ENV, GL_SRC0_RGB, &s0);
+                    }
+                    if (en || bind) {
+                        fprintf(stderr, "[PIXPROBE-UNIT%d] enabled=%d bind=%d envMode=0x%x combRGB=0x%x src0=0x%x\n",
+                                u, (int)en, (int)bind, (unsigned)envMode, (unsigned)cRGB, (unsigned)s0);
+                    }
+                }
+
+                glActiveTexture(activeTex);
+            }
+
             // WHITE-1: with GL_REPLACE from GL_TEXTURE the output IS the sampled
             // texel, and level 0 dumps clean -- so if the draw minifies (1600x1200
             // source into a 1080-tall screen) a mipmapped MIN filter can be
@@ -1801,8 +1912,20 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
                 glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, &maxL);
                 glGetTexLevelParameteriv(GL_TEXTURE_2D, 1, GL_TEXTURE_WIDTH, &w1);
                 glGetTexLevelParameteriv(GL_TEXTURE_2D, 1, GL_TEXTURE_HEIGHT, &h1);
-                fprintf(stderr, "[PIXPROBE-FILT] minF=0x%x magF=0x%x base=%d max=%d level1=%dx%d\n",
-                        (unsigned)minF, (unsigned)magF, (int)baseL, (int)maxL, (int)w1, (int)h1);
+                // WHITE-1: a mipmapped MIN filter requires a COMPLETE chain down to
+                // 1x1. If the chain stops early while MAX_LEVEL is still 1000 the
+                // texture is incomplete, and an incomplete texture does not sample
+                // its level 0 -- it samples undefined (white on this driver). Count
+                // the levels that actually exist.
+                int lastLevel = -1;
+                for (int lv = 0; lv < 16; lv++) {
+                    GLint lw = 0, lh = 0;
+                    glGetTexLevelParameteriv(GL_TEXTURE_2D, lv, GL_TEXTURE_WIDTH, &lw);
+                    glGetTexLevelParameteriv(GL_TEXTURE_2D, lv, GL_TEXTURE_HEIGHT, &lh);
+                    if (lw > 0 && lh > 0) lastLevel = lv; else break;
+                }
+                fprintf(stderr, "[PIXPROBE-FILT] minF=0x%x magF=0x%x base=%d max=%d level1=%dx%d lastLevel=%d\n",
+                        (unsigned)minF, (unsigned)magF, (int)baseL, (int)maxL, (int)w1, (int)h1, lastLevel);
             }
         }
 
@@ -2361,6 +2484,18 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
                 (unsigned long)((*(const DWORD*)((const char*)vb->data + (DWORD)(lpwIndices[0] + dwStartVertex) * vertexSize + diffOff)) >> 24));
     }
 
+    // WHITE-1 experiment (FF_NO_2D_MIPMAP=1): the ONLY state difference measured
+    // between a working 2D pit blit and the white one is the MIN filter --
+    // GL_LINEAR when it works, LINEAR_MIPMAP_LINEAR when it whites out. Force the
+    // non-mipmapped filter for pre-transformed (2D) draws and see if the whiteout
+    // goes away. This is a probe, not a fix.
+    {
+        static int s_no2dMip = -1;
+        if (s_no2dMip == -1) s_no2dMip = getenv("FF_NO_2D_MIPMAP") ? 1 : 0;
+        if (s_no2dMip && (fvf & 0x004) && glIsEnabled(GL_TEXTURE_2D))
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    }
+
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
         WORD idx = lpwIndices[i] + dwStartVertex;
@@ -2489,6 +2624,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     {
         FF_ProbeIndexed pi = { vb->data, lpwIndices, dwIndexCount, dwStartVertex };
         FF_ProbePixel("DIPVB", fvf, dwIndexCount, vb->data, &pi);
+        FF_DrawList("DIPVB", fvf, dwIndexCount, vb->data);
         FF_NoteWorldMatrices(dwIndexCount);
     }
 
@@ -3976,6 +4112,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     }
 
     FF_ProbePixel("DrawVerts", fvf, count, vertices);
+    FF_DrawList("DrawVerts", fvf, count, vertices);
     FF_NoteWorldMatrices(count);
 
 #ifdef FF_LINUX_DEBUG_RENDER

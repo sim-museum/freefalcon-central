@@ -3024,7 +3024,8 @@ static void main_loop(void) {
                         s_clicks[ci].downAt = el;
                         gxPos = s_clicks[ci].x;
                         gyPos = s_clicks[ci].y;
-                        fprintf(stderr, "[FF_SIM_CLICK] DOWN (%d,%d) at %ums\n", gxPos, gyPos, el);
+                        fprintf(stderr, "[FF_SIM_CLICK] DOWN (%d,%d) at %ums (wall %.1fs)\n",
+                                gxPos, gyPos, el, SDL_GetTicks() / 1000.0);
                         fflush(stderr);
                         FF_PushMouseEvent(DIMOFS_BUTTON0, 0x80);
                     } else if (s_clicks[ci].phase == 1 && el >= s_clicks[ci].downAt + s_clicks[ci].holdMs) {
