@@ -1092,6 +1092,20 @@ void BombClass::SetTarget(SimObjectType* newTarget)
         //#else
         // targetPtr = newTarget->Copy();
         //#endif
+#ifdef FF_LINUX
+        // FF_LINUX (CRASH-7): both Copy() calls above are commented out because
+        // the old OBJ_TAG signature is gone -- and they were the ONLY thing that
+        // assigned targetPtr. targetPtr is provably NULL here (a SimMoverClass
+        // member initialised to NULL, and set to NULL again just above if it was
+        // set), so targetPtr->Reference() dereferenced NULL every time a bomb was
+        // released against a designated target. Assign before referencing, as
+        // HudClass::SetTarget does. The bomb never touches targetPtr->localData,
+        // so it can share the caller's object rather than Copy() it.
+        //
+        // Same defect and same cause as the one already fixed in
+        // MissileClass::SetTarget; the bomb was missed.
+        targetPtr = newTarget;
+#endif
         targetPtr->Reference();
     }
 }
