@@ -348,13 +348,33 @@ SimBaseClass *DigitalBrain::FindSimGroundTarget(CampBaseClass *targetGroup, int 
         //* // Cobra - Don't target low priority features (trees, fences, sheds)
         if (simTarg->IsStatic()) // It's a feature
         {
-            fc = GetFeatureClassData(((Objective)simTarg)->GetFeatureID(i));
+            // FF_LINUX: "(Objective)simTarg" reinterprets a SIM object as a
+            // CAMPAIGN ObjectiveClass. IsStatic() only means "static sim object";
+            // it does NOT make this an ObjectiveClass, so static_data.class_data
+            // was read from a bogus offset and GetFeatureID() dereferenced it.
+            // That is the SIGSEGV on entering A/G:
+            //   ObjectiveClass::GetFeatureID <- FindSimGroundTarget
+            //   <- SelectGroundTarget <- SetupAGMode <- DoTargeting
+            // and it is why the CRASH-4 bounds check on `f` did not stop it: the
+            // guard itself must read class_data to know the bound.
+            //
+            // Reach the objective through the campaign object -- the idiom used
+            // elsewhere here (actions.cpp: "(Flight)self->GetCampaignObject()").
+            // If no objective is behind this feature, skip the priority/destroyed
+            // filters rather than guess; that only means we do not rule it out.
+            CampBaseClass *ffCamp = simTarg->GetCampaignObject();
 
-            if (fc and not F4IsBadReadPtr(fc, sizeof(fc)) and fc->Priority > 2)  // higher priority number = lower priority
-                continue;
+            if (ffCamp and ffCamp->IsObjective())
+            {
+                Objective ffObj = (Objective)ffCamp;
+                fc = GetFeatureClassData(ffObj->GetFeatureID(i));
 
-            if (((Objective)simTarg)->GetFeatureStatus(i) == VIS_DESTROYED)
-                continue;
+                if (fc and not F4IsBadReadPtr(fc, sizeof(fc)) and fc->Priority > 2)  // higher priority number = lower priority
+                    continue;
+
+                if (ffObj->GetFeatureStatus(i) == VIS_DESTROYED)
+                    continue;
+            }
         }
 
         //*/
@@ -607,13 +627,33 @@ SimBaseClass *DigitalBrain::FindJSOWGroundTarget(CampBaseClass *targetGroup, int
         ///* // FRB - Cobra - Don't target low priority features (trees, fences, sheds)
         if (simTarg->IsStatic()) // It's a feature
         {
-            fc = GetFeatureClassData(((Objective)simTarg)->GetFeatureID(i));
+            // FF_LINUX: "(Objective)simTarg" reinterprets a SIM object as a
+            // CAMPAIGN ObjectiveClass. IsStatic() only means "static sim object";
+            // it does NOT make this an ObjectiveClass, so static_data.class_data
+            // was read from a bogus offset and GetFeatureID() dereferenced it.
+            // That is the SIGSEGV on entering A/G:
+            //   ObjectiveClass::GetFeatureID <- FindSimGroundTarget
+            //   <- SelectGroundTarget <- SetupAGMode <- DoTargeting
+            // and it is why the CRASH-4 bounds check on `f` did not stop it: the
+            // guard itself must read class_data to know the bound.
+            //
+            // Reach the objective through the campaign object -- the idiom used
+            // elsewhere here (actions.cpp: "(Flight)self->GetCampaignObject()").
+            // If no objective is behind this feature, skip the priority/destroyed
+            // filters rather than guess; that only means we do not rule it out.
+            CampBaseClass *ffCamp = simTarg->GetCampaignObject();
 
-            if (fc and not F4IsBadReadPtr(fc, sizeof(fc)) and fc->Priority > 2)  // higher priority number = lower priority
-                continue;
+            if (ffCamp and ffCamp->IsObjective())
+            {
+                Objective ffObj = (Objective)ffCamp;
+                fc = GetFeatureClassData(ffObj->GetFeatureID(i));
 
-            if (((Objective)simTarg)->GetFeatureStatus(i) == VIS_DESTROYED)
-                continue;
+                if (fc and not F4IsBadReadPtr(fc, sizeof(fc)) and fc->Priority > 2)  // higher priority number = lower priority
+                    continue;
+
+                if (ffObj->GetFeatureStatus(i) == VIS_DESTROYED)
+                    continue;
+            }
         }//*/
 
 
@@ -737,14 +777,33 @@ int DigitalBrain::FindJDAMGroundTarget(CampBaseClass *targetGroup, int targetNum
         // FRB - Cobra - Don't target low priority features (trees, fences, sheds)
         if (simTarg->IsStatic()) // It's a feature
         {
-            if ((Objective)simTarg)
-                fc = GetFeatureClassData(((Objective)simTarg)->GetFeatureID(i));
+            // FF_LINUX: "(Objective)simTarg" reinterprets a SIM object as a
+            // CAMPAIGN ObjectiveClass. IsStatic() only means "static sim object";
+            // it does NOT make this an ObjectiveClass, so static_data.class_data
+            // was read from a bogus offset and GetFeatureID() dereferenced it.
+            // That is the SIGSEGV on entering A/G:
+            //   ObjectiveClass::GetFeatureID <- FindSimGroundTarget
+            //   <- SelectGroundTarget <- SetupAGMode <- DoTargeting
+            // and it is why the CRASH-4 bounds check on `f` did not stop it: the
+            // guard itself must read class_data to know the bound.
+            //
+            // Reach the objective through the campaign object -- the idiom used
+            // elsewhere here (actions.cpp: "(Flight)self->GetCampaignObject()").
+            // If no objective is behind this feature, skip the priority/destroyed
+            // filters rather than guess; that only means we do not rule it out.
+            CampBaseClass *ffCamp = simTarg->GetCampaignObject();
 
-            if (fc and not F4IsBadReadPtr(fc, sizeof(fc)) and fc->Priority > 2)  // higher priority number = lower priority
-                continue;
+            if (ffCamp and ffCamp->IsObjective())
+            {
+                Objective ffObj = (Objective)ffCamp;
+                fc = GetFeatureClassData(ffObj->GetFeatureID(i));
 
-            if (((Objective)simTarg)->GetFeatureStatus(i) == VIS_DESTROYED)
-                continue;
+                if (fc and not F4IsBadReadPtr(fc, sizeof(fc)) and fc->Priority > 2)  // higher priority number = lower priority
+                    continue;
+
+                if (ffObj->GetFeatureStatus(i) == VIS_DESTROYED)
+                    continue;
+            }
         }
 
         // Are flight members already using it (was using it) as a target?

@@ -284,6 +284,22 @@ void OnSimMouseInput(HWND)
 
         if (dx or dy)
         {
+#ifdef FF_LINUX
+            // FF_LINUX: FF_DEBUG_MOUSE=1 traces the sim cursor path -- the deltas
+            // that arrive, which branch consumes them (view pan vs cursor move),
+            // and where the cursor ends up. Comparing dx/dy against the change in
+            // gxPos/gyPos is what distinguishes "no input" from "input consumed by
+            // the wrong branch" from "input scaled/clamped wrongly".
+            if (getenv("FF_DEBUG_MOUSE"))
+            {
+                fprintf(stderr, "[MOUSE] dx=%d dy=%d mode=%d clickable=%d oneDown=%d cursor=(%d,%d) disp=%dx%d\n",
+                        dx, dy, (int)OTWDriver.GetOTWDisplayMode(), (int)clickableMouseMode,
+                        (int)oneDown, gxPos, gyPos,
+                        (int)DisplayOptions.DispWidth, (int)DisplayOptions.DispHeight);
+                fflush(stderr);
+            }
+
+#endif
             if (OTWDriver.GetOTWDisplayMode() == OTWDriverClass::Mode3DCockpit)
             {
                 // reset these wacky variables when a mode change occured..

@@ -2975,6 +2975,70 @@ static void main_loop(void) {
             }
         }
 
+        // FF_LINUX: scripted COCKPIT clicks via FF_SIM_CLICK="x,y@sec[+holdms];..."
+        // (sim-mode coords, i.e. the pit's own 0..DispWidth/DispHeight space).
+        //
+        // The pit has no equivalent of FF_UI_CLICK, which meant every cockpit-button
+        // defect had to be reproduced by hand by the PO. Driving it from outside
+        // does not work: sim mode holds an SDL relative-mouse grab, so synthetic
+        // pointer warps (xdotool) never become cockpit clicks. So place the sim's
+        // own cursor and push button events into the same DirectInput buffer the
+        // real mouse feeds, which exercises the whole dispatch path.
+        if (!doUI) {
+            static int s_clickInit = 0;
+            static struct { int x, y; Uint32 atMs, holdMs; int phase; Uint32 downAt; } s_clicks[16];
+            static int s_nClicks = 0;
+            static Uint32 s_clickStart = 0;
+
+            if (!s_clickInit) {
+                s_clickInit = 1;
+                const char* e = getenv("FF_SIM_CLICK");
+                if (e) {
+                    const char* p2 = e;
+                    while (*p2 && s_nClicks < 16) {
+                        int cx = 0, cy = 0; float at = 0.0f; unsigned hold = 120;
+                        if (sscanf(p2, "%d,%d@%f+%u", &cx, &cy, &at, &hold) >= 3) {
+                            s_clicks[s_nClicks].x = cx;
+                            s_clicks[s_nClicks].y = cy;
+                            s_clicks[s_nClicks].atMs = (Uint32)(at * 1000.0f);
+                            s_clicks[s_nClicks].holdMs = hold;
+                            s_clicks[s_nClicks].phase = 0;
+                            s_nClicks++;
+                        }
+                        const char* semi = strchr(p2, ';');
+                        if (!semi) break;
+                        p2 = semi + 1;
+                    }
+                    fprintf(stderr, "[FF_SIM_CLICK] parsed %d click(s)\n", s_nClicks);
+                    fflush(stderr);
+                }
+            }
+
+            if (s_nClicks) {
+                extern int gxPos, gyPos;
+                if (!s_clickStart) s_clickStart = SDL_GetTicks();
+                Uint32 el = SDL_GetTicks() - s_clickStart;
+                for (int ci = 0; ci < s_nClicks; ci++) {
+                    if (s_clicks[ci].phase == 0 && el >= s_clicks[ci].atMs) {
+                        s_clicks[ci].phase = 1;
+                        s_clicks[ci].downAt = el;
+                        gxPos = s_clicks[ci].x;
+                        gyPos = s_clicks[ci].y;
+                        fprintf(stderr, "[FF_SIM_CLICK] DOWN (%d,%d) at %ums\n", gxPos, gyPos, el);
+                        fflush(stderr);
+                        FF_PushMouseEvent(DIMOFS_BUTTON0, 0x80);
+                    } else if (s_clicks[ci].phase == 1 && el >= s_clicks[ci].downAt + s_clicks[ci].holdMs) {
+                        s_clicks[ci].phase = 2;
+                        gxPos = s_clicks[ci].x;
+                        gyPos = s_clicks[ci].y;
+                        fprintf(stderr, "[FF_SIM_CLICK] UP   (%d,%d) at %ums\n", gxPos, gyPos, el);
+                        fflush(stderr);
+                        FF_PushMouseEvent(DIMOFS_BUTTON0, 0x00);
+                    }
+                }
+            }
+        }
+
         // FF_LINUX debug: scripted sim key injection via FF_SIM_KEY="dik@sec[+holdms];..."
         // dik = DirectInput key code (decimal or 0x-hex, e.g. 57 or 0x39 = SPACE),
         // sec = seconds after entering sim mode, holdms = hold duration (default 250).

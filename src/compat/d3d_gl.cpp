@@ -630,8 +630,37 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This,
     // FF_LINUX: FBO-based render target switching for RTT (render-to-texture)
     // Use defaultRenderTarget to distinguish screen vs off-screen surfaces
     if (newTarget && newTarget != dev->defaultRenderTarget) {
+        // FF_LINUX (TEX-1): log every off-screen render target with the GL texture
+        // it will be attached to. If a surface that is already in use as a SOURCE
+        // texture is set as a render target, the FBO renders straight into that
+        // artwork and destroys it -- which is what "the 2D cockpit bitmap turned
+        // white" would look like. Printing the id lets us match it against the
+        // texture the pixel probe reports.
+        if (getenv("FF_DEBUG_RT")) {
+            fprintf(stderr, "[RT] off-screen target surf=%p fbo=%u glTex=%u %dx%d primary=%d\n",
+                    (void*)newTarget, newTarget->fboId, newTarget->glTexture,
+                    newTarget->width, newTarget->height, (int)newTarget->isPrimary);
+            fflush(stderr);
+        }
+
         // Rendering to an off-screen surface - need FBO
         if (!newTarget->fboId) {
+            // FF_LINUX: creating the FBO rebinds GL_TEXTURE_2D (and a renderbuffer)
+            // as a side effect. Those bindings are NOT this function's job -- its
+            // contract is to change the render target -- and leaving them changed
+            // clobbers whatever texture the renderer last selected. The next
+            // textured draw then samples the RTT texture we just allocated with
+            // glTexImage2D(..., nullptr), i.e. empty: cockpit art and the 2D pit
+            // render WHITE and font glyphs come out as solid blocks, while
+            // untextured geometry (MFD arcs, symbology lines) still looks right.
+            //
+            // It only bites the FIRST time a given target is created, which is why
+            // it presents as "clicked A/G and the screen went white": the new
+            // master mode brings up MFD pages whose RTT surfaces do not exist yet.
+            GLint prevTex2D = 0, prevRenderbuffer = 0;
+            glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTex2D);
+            glGetIntegerv(GL_RENDERBUFFER_BINDING, &prevRenderbuffer);
+
             // Create FBO
             glGenFramebuffers(1, &newTarget->fboId);
             glBindFramebuffer(GL_FRAMEBUFFER, newTarget->fboId);
@@ -671,6 +700,12 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This,
                 fprintf(stderr, "[SetRenderTarget] FBO incomplete: 0x%x for surface %p (%dx%d)\n",
                         status, (void*)newTarget, newTarget->width, newTarget->height);
             }
+
+            // FF_LINUX: put back the bindings we borrowed (see the note above).
+            // The FBO binding is deliberately NOT restored -- switching it is what
+            // the caller asked for.
+            glBindRenderbuffer(GL_RENDERBUFFER, (GLuint)prevRenderbuffer);
+            glBindTexture(GL_TEXTURE_2D, (GLuint)prevTex2D);
         } else {
             glBindFramebuffer(GL_FRAMEBUFFER, newTarget->fboId);
         }
