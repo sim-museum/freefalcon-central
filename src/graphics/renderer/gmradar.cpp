@@ -1,3 +1,4 @@
+#include <string.h>
 /***************************************************************************\
     GMRadar.cpp
     Scott Randolph
@@ -488,8 +489,20 @@ void RenderGMRadar::PrepareToDrawTargets(void)
 
 void RenderGMRadar::FlushDrawnTargets(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (WHITE-1): mark this flush as nested. The ground-map radar
+    // renders inside the cockpit/MFD pass, so the frame-level teardown this
+    // flush performs is not safe to apply wholesale - see the guard in
+    // CDXEngine::FlushBuffers.
+    extern bool g_FFNestedFlush;
+    g_FFNestedFlush = true;
+    this->context.FlushPolyLists();
+    g_FFNestedFlush = false;
+    TheDXEngine.RestoreState();
+#else
     this->context.FlushPolyLists();
     TheDXEngine.RestoreState();
+#endif
 }
 
 

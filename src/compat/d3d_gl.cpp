@@ -2042,6 +2042,14 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
             // WHITE-1: also dump mip level 1. If level 0 is the correct artwork
             // but level 1 is blank, a minifying draw with a MIPMAP MIN filter
             // samples the stale level and the surface renders white.
+            // WHITE-1: report EVERY mip level. A gap in the chain makes the
+            // texture incomplete, and an incomplete texture samples white.
+            for (int lv = 0; lv <= 14; lv++) {
+                GLint lw = 0, lh = 0;
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, lv, GL_TEXTURE_WIDTH, &lw);
+                glGetTexLevelParameteriv(GL_TEXTURE_2D, lv, GL_TEXTURE_HEIGHT, &lh);
+                fprintf(stderr, "[MIPCHAIN] tex=%d level%d %dx%d\n", tex, lv, (int)lw, (int)lh);
+            }
             {
                 GLint w1 = 0, h1 = 0;
                 glGetTexLevelParameteriv(GL_TEXTURE_2D, 1, GL_TEXTURE_WIDTH, &w1);

@@ -1,3 +1,4 @@
+#include <string.h>
 /***************************************************************************\
     GMComposite.cpp
     Scott Randolph
@@ -74,6 +75,19 @@ static inline BYTE Noise(int input)
 }
 
 
+#ifdef FF_LINUX
+// FF_LINUX (WHITE-1): kill switch for the ground-map radar render path,
+// which only runs in an A/G master mode and so went unexercised until the
+// whiteout report. FF_GM_SKIP=bg|draw|new|all disables stages of it.
+static bool FF_GMSkip(const char *what)
+{
+    static const char *ffGm = (const char *)-1;
+    if (ffGm == (const char *)-1) ffGm = getenv("FF_GM_SKIP");
+    if (!ffGm) return false;
+    return strstr(ffGm, "all") || strstr(ffGm, what);
+}
+#endif
+
 RenderGMComposite::RenderGMComposite()
 {
     lTexHandle = rTexHandle = nTexHandle = NULL;
@@ -104,6 +118,16 @@ void RenderGMComposite::Setup(ImageBuffer *output, void(*tgtDrawCallback)(void*,
     ShiAssert(tgtDrawCallback);
     tgtDrawCB = tgtDrawCallback;
     tgtDrawCBparam = tgtDrawParam;
+
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_GM"))
+    {
+        fprintf(stderr, "[GM] RenderGMComposite::Setup bRender2Texture=%d (%s path)\n",
+                (int)DisplayOptions.bRender2Texture,
+                DisplayOptions.bRender2Texture ? "private RTT" : "PRIMARY SURFACE");
+        fflush(stderr);
+    }
+#endif
 
     if (DisplayOptions.bRender2Texture)
     {
@@ -337,6 +361,10 @@ void RenderGMComposite::SetBeam(Tpoint *from, Tpoint *at, Tpoint *center, float 
 
 void RenderGMComposite::DrawComposite(Tpoint *center, float platformHdg)
 {
+#ifdef FF_LINUX
+    if (FF_GMSkip("draw")) return;
+#endif
+
     float Px, Py, x, y, dx, dy;
     float sinRot, cosRot;
     int num = 0;
@@ -523,6 +551,10 @@ void RenderGMComposite::SetRange(float newRange, int newLOD)
 
 bool RenderGMComposite::BackgroundGeneration(Tpoint *from, Tpoint *at, float platformHdg, int beamPercent, BOOL movingRight, bool Shaped)
 {
+#ifdef FF_LINUX
+    if (FF_GMSkip("bg")) return false;
+#endif
+
     OpName operation;
     float dx, dy;
     Tpoint center;
@@ -623,6 +655,10 @@ bool RenderGMComposite::BackgroundGeneration(Tpoint *from, Tpoint *at, float pla
 
 void RenderGMComposite::NewImage(Tpoint *at, float platformHdg, BOOL replaceRight, bool Shaped)
 {
+#ifdef FF_LINUX
+    if (FF_GMSkip("new")) return;
+#endif
+
     TextureHandle *targetHandle;
     ShiAssert(lTexHandle);
     ShiAssert(rTexHandle);

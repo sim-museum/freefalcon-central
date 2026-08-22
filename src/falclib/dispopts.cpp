@@ -148,10 +148,18 @@ int DisplayOptionsClass::LoadOptions(char *filename)
     }
 
 #ifdef FF_LINUX
+    // FF_LINUX (WHITE-1): bRender2Texture selects between the private
+    // render-target path and the "heart of darkness" path in
+    // RenderGMComposite::Setup, which renders the ground-map radar straight
+    // into the primary surface. FF_R2T=0/1 forces the value for bisection.
+    if (const char *ffR2T = getenv("FF_R2T"))
+        bRender2Texture = (atoi(ffR2T) != 0);
+
     if (getenv("FF_DEBUG_DISPCFG"))
     {
-        fprintf(stderr, "[dispcfg] DisplayOptions::LoadOptions -> %dx%dx%d\n",
-                DispWidth, DispHeight, DispDepth);
+        fprintf(stderr, "[dispcfg] DisplayOptions::LoadOptions -> %dx%dx%d r2t=%d zbuf=%d\n",
+                DispWidth, DispHeight, DispDepth,
+                (int)bRender2Texture, (int)bZBuffering);
         fflush(stderr);
     }
 

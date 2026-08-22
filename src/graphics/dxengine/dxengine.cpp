@@ -2294,8 +2294,39 @@ void CDXEngine::DrawFrameSurfaces(NodeScannerType *NODE, float Alpha)
 extern DWORD LODsLoaded;
 // *************** This function is the REAL SCENE DRAW FUNCTION *********************
 // it flushes all requested Drawsand draws all poly types
+#ifdef FF_LINUX
+// FF_LINUX (WHITE-1): set while a render pass nested inside another one (the
+// A/G ground-map radar, which draws during the cockpit/MFD pass) flushes.
+bool g_FFNestedFlush = false;
+#endif
+
 void CDXEngine::FlushBuffers(void)
 {
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_DXFLUSH"))
+    {
+        fprintf(stderr, "[DXFLUSH] nested=%d TotalDraws=%lu\n",
+                (int)g_FFNestedFlush, (unsigned long)TheVbManager.TotalDraws);
+        fflush(stderr);
+    }
+
+    // FF_LINUX (WHITE-1): the A/G ground-map radar renders nested inside the
+    // cockpit/MFD pass and ends with a FlushPolyLists, which lands here. With
+    // an empty draw list this call draws nothing, but it still runs its
+    // CreateStateBlock/ApplyStateBlock bracket over the *shared* device --
+    // and that leaves global state altered such that the 2D cockpit panel
+    // (a full-screen chroma-keyed quad) samples white for the rest of the
+    // session. Measured: selecting an A/G master mode took the frame from
+    // 0.0% to 96.4% white, and skipping this one call restored 0.0%.
+    // Nothing is lost: TotalDraws is the pending-item count and it is 0 here.
+    // FF_DX_NESTED_FLUSH=1 restores the old behaviour.
+    if (g_FFNestedFlush && TheVbManager.TotalDraws == 0)
+    {
+        static int ffForce = -1;
+        if (ffForce == -1) ffForce = getenv("FF_DX_NESTED_FLUSH") ? 1 : 0;
+        if (!ffForce) return;
+    }
+#endif
 #ifdef FF_LINUX
     // FF_LINUX: Safety check for NULL D3D device or uninitialized state block
     if (m_pD3DD == NULL || DxEngineStateHandle == 0) {
