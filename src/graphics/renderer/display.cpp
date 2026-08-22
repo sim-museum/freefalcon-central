@@ -12,6 +12,18 @@
 extern "C" void glDisable(unsigned int cap);
 extern "C" void glEnable(unsigned int cap);
 #define GL_DEPTH_TEST 0x0B71
+#ifdef FF_LINUX
+// FF_LINUX (MFD-THRU-1): minimal GL decls for the FF_DUMP_RTT canvas probe.
+extern "C" void glGetIntegerv(unsigned int pname, int *params);
+extern "C" void glGetTexLevelParameteriv(unsigned int target, int level, unsigned int pname, int *params);
+extern "C" void glGetTexImage(unsigned int target, int level, unsigned int fmt, unsigned int type, void *pixels);
+#define GL_TEXTURE_BINDING_2D 0x8069
+#define GL_TEXTURE_2D_FF      0x0DE1
+#define GL_TEXTURE_WIDTH_FF   0x1000
+#define GL_TEXTURE_HEIGHT_FF  0x1001
+#define GL_RGBA_FF            0x1908
+#define GL_UNSIGNED_BYTE_FF   0x1401
+#endif
 #endif
 #include "display.h"
 #include "render3d.h" // ASSO:
@@ -1448,6 +1460,19 @@ void VirtualDisplay::SetRttCanvas(Tpoint* ul_, Tpoint* ur_, Tpoint* ll_, char bl
     canUR = *ur_;
     canLL = *ll_;
 
+#ifdef FF_LINUX
+    // FF_LINUX (MFD-THRU-1): 3Dckpit.dat asks for 'c' (chroma) on the MFD
+    // canvases. If our chroma path keys the canvas's black background rather
+    // than a dedicated key colour, the whole screen becomes transparent and the
+    // outside world shows through it. FF_RTT_BLEND=a|c|g|t overrides the mode
+    // for every RTT canvas so the two can be told apart.
+    {
+        static char ffB = 0;
+        if (!ffB) { const char *e = getenv("FF_RTT_BLEND"); ffB = (e && *e) ? *e : '-'; }
+        if (ffB != '-') blendMode_ = ffB;
+    }
+#endif
+
     switch (blendMode_)
     {
         case 'a':
@@ -1559,8 +1584,62 @@ void VirtualDisplay::ResetRttViewport()
 
 void VirtualDisplay::DrawRttQuad()
 {
+#ifdef FF_LINUX
+    // FF_LINUX (MFD-THRU-1): FF_NO_RTT_QUAD=1 skips the canvas composite
+    // entirely, to see what the pit model itself draws at the instrument
+    // locations -- an opaque screen face, or nothing at all.
+    {
+        static int ffNoQuad = -1;
+        if (ffNoQuad == -1) ffNoQuad = getenv("FF_NO_RTT_QUAD") ? 1 : 0;
+        if (ffNoQuad) return;
+    }
+#endif
     r3d->context.RestoreState(rttBlendMode);
     r3d->context.SelectTexture1((intptr_t)renderTexture);
+#ifdef FF_LINUX
+    // FF_LINUX (MFD-THRU-1): the canvas is composited chroma-keyed. If our
+    // chroma path keys on texture alpha, the canvas background's alpha decides
+    // whether the screen is opaque or a hole. Report it once.
+    {
+        static int ffDumpRtt = -1;
+        if (ffDumpRtt == -1) ffDumpRtt = getenv("FF_DUMP_RTT") ? 1 : 0;
+        static int done = 0;
+        if (ffDumpRtt && done < 14)
+        {
+            done++;
+            int bound = 0, w = 0, h = 0;
+            glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
+            glGetTexLevelParameteriv(GL_TEXTURE_2D_FF, 0, GL_TEXTURE_WIDTH_FF, &w);
+            glGetTexLevelParameteriv(GL_TEXTURE_2D_FF, 0, GL_TEXTURE_HEIGHT_FF, &h);
+            if (w > 0 && h > 0 && w <= 4096 && h <= 4096)
+            {
+                unsigned char *px = (unsigned char*)malloc((size_t)w * h * 4);
+                if (px)
+                {
+                    glGetTexImage(GL_TEXTURE_2D_FF, 0, GL_RGBA_FF, GL_UNSIGNED_BYTE_FF, px);
+                    // sample the rect this canvas actually uses
+                    long n = 0, a0 = 0, a255 = 0; double aSum = 0.0;
+                    for (int y = tTop; y < tBottom && y < h; y++)
+                        for (int x = tLeft; x < tRight && x < w; x++)
+                        {
+                            unsigned char a = px[((long)y * w + x) * 4 + 3];
+                            aSum += a; n++;
+                            if (a == 0) a0++;
+                            if (a == 255) a255++;
+                        }
+                    fprintf(stderr,
+                            "[RTTQUAD] glTex=%d %dx%d rect=(%d,%d)-(%d,%d) blendMode=%d "
+                            "alpha mean=%.1f zero=%ld%% full=%ld%% of %ld\n",
+                            (int)bound, (int)w, (int)h, tLeft, tTop, tRight, tBottom,
+                            rttBlendMode, n ? aSum / n : -1.0,
+                            n ? a0 * 100 / n : 0, n ? a255 * 100 / n : 0, n);
+                    fflush(stderr);
+                    free(px);
+                }
+            }
+        }
+    }
+#endif
 #ifdef FF_LINUX
     // FF_LINUX: Disable depth test for RTT quads - they overlay on the cockpit surface
     // and must not fight with the 3D pit model depth

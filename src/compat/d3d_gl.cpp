@@ -2358,6 +2358,20 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         pitReplaceVB = true;
     }
 
+    // FF_LINUX (MFD-THRU-1): FF_PIT_NO_ATEST=1 disables the alpha test for
+    // pit-mode lit draws. The 3D-pit MFD screens are composited as chroma-keyed
+    // RTT quads (blend char 'c' in 3Dckpit.dat) over what is supposed to be an
+    // opaque screen face on the pit model. If that face is instead being
+    // discarded by the chroma alpha test, the screen becomes a hole and the
+    // outside world shows through -- which is the reported symptom.
+    static int s_pitNoATest = -1;
+    if (s_pitNoATest == -1) s_pitNoATest = getenv("FF_PIT_NO_ATEST") ? 1 : 0;
+    bool pitNoATestVB = false;
+    if (s_pitNoATest && g_FF_PitModeActive && !isXYZRHW && glIsEnabled(GL_ALPHA_TEST)) {
+        glDisable(GL_ALPHA_TEST);
+        pitNoATestVB = true;
+    }
+
     // FF_LINUX: Issue #12 experiment - FF_PIT_UNLIT=1 disables GL lighting for
     // pit-mode lit draws at the GL layer (primary = white vertex color), so
     // modulate = texture. Distinguishes "lit primary is black" from depth or
@@ -2573,6 +2587,10 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     // FF_LINUX: Restore lighting after FF_PIT_UNLIT experiment
     if (pitUnlitVB) {
         glEnable(GL_LIGHTING);
+    }
+    // FF_LINUX (MFD-THRU-1): restore the alpha test after FF_PIT_NO_ATEST
+    if (pitNoATestVB) {
+        glEnable(GL_ALPHA_TEST);
     }
     // FF_LINUX: Restore texture binding/env after FF_PIT_UV_DEBUG experiment
     if (pitUVDebugVB) {

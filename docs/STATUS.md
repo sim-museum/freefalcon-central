@@ -2986,3 +2986,49 @@ not clear there either — the opacity has to come from the composite, not a cle
 MFD RTT texture, and why the visible symbology instead arrives as a screen-space
 additive overlay to `fbo=0`. One of those two paths is being used when the other
 should be.
+
+### MFD-THRU-1 — root cause found: the canvas background is written with alpha 0
+
+The chain, each step measured:
+
+1. **The pit model has no screen face behind the MFDs.** Skipping the canvas
+   composite entirely (`FF_NO_RTT_QUAD=1`) leaves the bleed unchanged
+   (331 vs 329) — there is nothing behind the canvas but the world. So the
+   canvas is what has to fill the hole.
+2. **The composite is chroma-keyed, by data.** `3Dckpit.dat` lines 35–36 end in
+   `c`, which `VirtualDisplay::SetRttCanvas` maps to
+   `STATE_CHROMA_TEXTURE_GOURAUD2`. The texture rects in those lines
+   (`550 1 750 200`, `550 250 750 450`) match the RTT viewports seen in a frame
+   dump exactly, Y-flipped.
+3. **The canvas background carries alpha 0.** Reading the canvas texture back
+   (`FF_DUMP_RTT=1`) — one shared 768×768 target, GL texture 4:
+
+   | canvas | rect | alpha zero | alpha full |
+   |---|---|---|---|
+   | HUD | (1,1)–(430,430) | 98% | 0% |
+   | DED | (1,500)–(200,580) | 95% | 4% |
+   | PFL | (1,600)–(200,680) | 100% | 0% |
+   | RWR | (250,500)–(430,680) | 100% | 0% |
+   | **MFD left** | (550,1)–(750,200) | **95%** | 4% |
+   | **MFD right** | (550,250)–(750,450) | **94%** | 5% |
+
+   Only the symbology has alpha. The black background does not, so a keyed
+   composite discards it and the screen is a hole.
+
+**Why a blend change is the wrong fix.** `FF_RTT_BLEND=g` makes the MFDs render
+perfectly — an opaque screen with full symbology, bleed 329 → 3 — but it is
+applied to every canvas, and the **HUD then becomes an opaque black slab** with
+the world no longer visible through it. The HUD *must* stay keyed. The engine
+distinguishes the two by canvas content, not by blend mode: on Windows the MFD
+canvas's background evidently survives the key and the HUD's does not.
+
+So the fix belongs where the alpha is written, not in the composite. **Next
+step:** make the MFD canvas's background opaque in the RTT. `Canvas3D::ClearDraw()`
+is an empty stub and is the natural candidate — but it is shared with the HUD,
+so anything done there has to leave the HUD transparent. That is the constraint
+that decides the shape of the fix, and it is why nothing was changed here yet
+rather than shipping something that trades a cosmetic MFD defect for an unusable
+HUD.
+
+Ruled out along the way: the pit alpha test (`FF_PIT_NO_ATEST=1`, no change), the
+pit-exit solid drain, and solid surfaces generally.
