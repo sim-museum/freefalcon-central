@@ -4345,3 +4345,54 @@ state again — read `GL_ALPHA_TEST`/`GL_ALPHA_TEST_REF` and the unit-0 combiner
 immediately before one of the blue draws, rather than reasoning forward from the
 D3D calls. What is confirmed so far: the four colour ops are right (the cockpit
 renders in correct NVG green), and the blue is not caused by them.
+
+### NVG-3, second attempt — also negative, but the blue is now identified exactly
+
+The surviving blue measures **`srgb(0, 32, 127)`**, uniform. That number is not
+arbitrary: it is pure-blue chroma key `(0, 0, 255)` run through stage 3's
+`ADDSIGNED` against the NVG texture factor `(0, 0.627, 0)`:
+
+```
+R: 0.0 + 0.0   - 0.5 -> clamps to 0     ->   0
+G: 0.0 + 0.627 - 0.5 -> 0.127           ->  32
+B: 1.0 + 0.0   - 0.5 -> 0.5             -> 127
+```
+
+Two things follow. The blue **is** the panel's chroma key, arriving un-discarded —
+not a cleared background and not a colour-op error. And `TEXTUREFACTOR` and
+`ADDSIGNED` are demonstrably correct: the green term lands on 32/255 to the pixel.
+
+Two fixes tried against that, both reverted:
+
+1. **Mirror the key onto unit 0** when the alpha stage has no texture. No effect —
+   and the reason is now clear: `DrawIndexedPrimitiveVB` *already* forces
+   `COMBINE_ALPHA=REPLACE`/`SOURCE0_ALPHA=GL_TEXTURE`/`glAlphaFunc(GEQUAL, 0.5)`
+   onto unit 0 at draw time. The mirror was redundant.
+2. **Make a textureless alpha stage pass `GL_PREVIOUS` through** instead of
+   sampling a texture it does not have. Also no effect; the corner stayed exactly
+   `srgb(0,32,127)`.
+
+And the probe (`FF_DEBUG_NVGALPHA=1`, kept) shows the draw-time gate's inputs are
+**identically distributed with `DX_NVG` applied and skipped**:
+
+```
+tex0=NO  alphaTest=OFF func=0x207 ref=0.000 blend=0   SKIPPED
+tex0=NO  alphaTest=on  func=0x206 ref=0.003 blend=1   SKIPPED
+tex0=yes alphaTest=OFF func=0x207 ref=0.000 blend=0   SKIPPED
+tex0=yes alphaTest=on  func=0x206 ref=0.500 blend=1   RUNS
+```
+
+So the gate is not what differs when the screen goes blue. (Counts are capped per
+category, so this establishes which cases occur, not their volume — a real
+frequency comparison would need the cap lifted.)
+
+**Where that leaves NVG-3.** The failing surface is drawn by something the
+instrumented `XYZRHW` paths do not cover, or its texture simply has no alpha=0
+key pixels to discard under NVG. The next step is to identify *the draw itself*
+rather than the state around it — capture the bound texture's alpha channel for
+the draw that paints `(0,32,127)` (the `FF_DUMP_GLTEX` alpha reporting already
+exists), which distinguishes "key present but not tested" from "key never
+generated for this texture".
+
+Two plausible mechanisms, two measurements, both refuted. Recording the refutations
+because the next attempt should not re-run them.

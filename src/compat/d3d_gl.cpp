@@ -2353,6 +2353,34 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     }
 
 #ifdef FF_LINUX
+    // FF_LINUX (NVG-3): the chroma key is already forced onto unit 0 here at draw
+    // time, which is why routing it from the stage-state path changes nothing.
+    // FF_DEBUG_NVGALPHA=1 reports this block's GATE inputs for pre-transformed
+    // draws, so the question is answered from GL state rather than inferred from
+    // the D3D call order. Measured: the category distribution is IDENTICAL with
+    // DX_NVG applied and skipped, so the gate is not what differs when the screen
+    // goes blue. (Counts are capped per category -- this reports which cases
+    // occur, not how often.)
+    if (isXYZRHW and getenv("FF_DEBUG_NVGALPHA")) {
+        static int s_seen[4] = { 0, 0, 0, 0 };
+        int idx = (dev->textures[0] ? 1 : 0) + (glIsEnabled(GL_ALPHA_TEST) ? 2 : 0);
+
+        if (s_seen[idx] < 3) {
+            s_seen[idx]++;
+            GLint af = 0;
+            GLfloat ar = 0.0f;
+            glGetIntegerv(GL_ALPHA_TEST_FUNC, &af);
+            glGetFloatv(GL_ALPHA_TEST_REF, &ar);
+            fprintf(stderr, "[NVGALPHA] XYZRHW draw: tex0=%s alphaTest=%s"
+                    " func=0x%x ref=%.3f blend=%d -> chroma block %s\n",
+                    dev->textures[0] ? "yes" : "NO",
+                    glIsEnabled(GL_ALPHA_TEST) ? "on" : "OFF",
+                    (unsigned)af, (double)ar, glIsEnabled(GL_BLEND) ? 1 : 0,
+                    idx == 3 ? "RUNS" : "SKIPPED");
+            fflush(stderr);
+        }
+    }
+
     // FF_LINUX: Fix chroma key transparency for cockpit panels.
     // When alpha test is enabled (chroma key) and a texture is bound, ensure:
     // 1. Fragment alpha comes from the texture (not vertex primary color)
