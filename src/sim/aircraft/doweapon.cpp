@@ -113,6 +113,34 @@ void AircraftClass::DoWeapons()
                 if ( not ffFired[q] and nowSec >= ffTimes[q])
                 {
                     ffFired[q] = 1;
+
+                    // Point the SMS at a station that actually holds a bomb --
+                    // FCC->GetTheBomb() requires it, and forcing the master mode
+                    // alone does not select one.
+                    //
+                    // KNOWN INCOMPLETE: this gets a real bomb into GetTheBomb()
+                    // but no release follows. SMSClass::DropBomb early-outs on
+                    // its own curWeapon, which SetCurHardpoint does not update,
+                    // and SMSClass::SelectWeapon(wtMk82/wtMk84, wdGround) picks
+                    // station 1 (no bomb) on this loadout while the bomb is at
+                    // station 3 -- so the loadout is not Mk82/84 and the right
+                    // WeaponType is not yet known. That is where to resume.
+                    if (FCC->Sms)
+                    {
+                        for (int hp = 0; hp < FCC->Sms->NumHardpoints(); hp++)
+                        {
+                            if (FCC->Sms->hardPoint[hp] and
+                                FCC->Sms->hardPoint[hp]->weaponPointer and
+                                FCC->Sms->hardPoint[hp]->weaponPointer->IsBomb())
+                            {
+                                FCC->Sms->SetCurHardpoint(hp);
+                                fprintf(stderr, "[TESTBOMB] selected bomb station %d\n", hp);
+                                break;
+                            }
+                        }
+                    }
+
+                    FCC->SetMasterMode(FireControlComputer::AirGroundBomb);
                     FCC->bombPickle = TRUE;
                     fprintf(stderr, "[TESTBOMB] mode->AirGroundBomb, pickle raised at t=%.1f (theBomb=%p)\n",
                             nowSec, (void *)FCC->GetTheBomb());
