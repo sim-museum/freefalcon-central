@@ -3633,3 +3633,25 @@ would have sent me hunting a class-table bug. The trace was simply placed *above
 the assignment — it was printing the variables' initial values. Moving it below
 the lookup gave `type=2 stype=3`, the real answer. A trace is a measurement, and
 where you put it is part of the measurement.
+
+### Assertion inventory and ASAN coverage after the fixes
+
+The six-flight soak's assertion inventory is now down to two sites, and **both
+are explained**:
+
+* `handoff.cpp:86` — HANDOFF-1's own assertion, deliberately left in place as the
+  diagnostic. The guard below it returns NULL; the assertion still reports the
+  condition.
+* `atm.cpp:792` — `ShiAssert(sq->GetRating(j) == 0 or uc->Scores[j] > 0)`.
+  **Checked and benign.** The loop runs `j < ARO_OTHER` (16) over
+  `Scores[MAXIMUM_ROLES]` (16), so it is in bounds — this is not the ASAN-1
+  shape. It fires while a squadron's rating decays in a role its unit class
+  scores 0 for: `(rating*2 + 0)/3` takes a few campaign cycles to reach zero, and
+  the assertion is over-strict during that decay, exactly like the already
+  documented `atm.cpp:2134`. Recorded so it is not chased again.
+
+ASAN coverage was also extended past the TE flights that the first soak used:
+a **campaign** run (commit → priorities → START CAMPAIGN → pick a flight → slot
+in → TAKEOFF) reaches the sim with **0 errors**. That matters because the
+campaign path is where VOICE-3 and CAMPUI-1 lived, and the TE-only soak would
+never have touched it.
