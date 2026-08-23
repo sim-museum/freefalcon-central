@@ -4405,7 +4405,52 @@ int DigitalBrain::MaverickSetup(float rx, float ry, float ata, float approxRange
         {
             // 2001-07-23 MODIFIED BY S.G. MOVERS ARE ONLY 3D ENTITIES WHILE BATTALIONS WILL INCLUDE 2D AND 3D VEHICLES...
             //       if (groundTargetPtr and groundTargetPtr->BaseData()->IsMover())
+#ifdef FF_LINUX
+            // FF_LINUX (GNDATK-1): `and` binds tighter than `or`, so the
+            // groundTargetPtr null check gated only the first disjunct and the
+            // second dereferenced groundTargetPtr->BaseData() unconditionally.
+            // With no ground target selected -- which the line at the top of
+            // this same function explicitly allows for -- that is a null
+            // dereference. The commented-out original directly above shows the
+            // intended grouping: the null check was meant to cover the lot.
+            //
+            // GetCampaignObject() can also return NULL (handoff.cpp checks it
+            // before use), and it was being dereferenced straight through, so
+            // that link is checked here too.
+            //
+            // Found by -Wparentheses, added to the FF_WARN build after SEEKER-1
+            // turned out to be the same bug class.
+            bool ffTargetIsBattalion = false;
+
+            if (groundTargetPtr and groundTargetPtr->BaseData())
+            {
+                FalconEntity *ffBase = groundTargetPtr->BaseData();
+
+                if (ffBase->IsSim())
+                {
+                    CampBaseClass *ffCamp = ((SimBaseClass *)ffBase)->GetCampaignObject();
+                    ffTargetIsBattalion = ffCamp and ffCamp->IsBattalion();
+                }
+
+                if ( not ffTargetIsBattalion and ffBase->IsCampaign())
+                    ffTargetIsBattalion = ffBase->IsBattalion() ? true : false;
+            }
+
+            // FF_DEBUG_GNDATK=1 reports whether the pre-fix expression would
+            // actually have dereferenced NULL here, rather than leaving that as
+            // an argument from the parse alone.
+            if (getenv("FF_DEBUG_GNDATK") and (not groundTargetPtr or not groundTargetPtr->BaseData()))
+            {
+                fprintf(stderr, "[GNDATK] radar mode select reached with %s -- "
+                        "the pre-fix second disjunct would have dereferenced it\n",
+                        groundTargetPtr ? "BaseData() NULL" : "groundTargetPtr NULL");
+                fflush(stderr);
+            }
+
+            if (ffTargetIsBattalion)
+#else
             if (groundTargetPtr and (groundTargetPtr->BaseData()->IsSim() and ((SimBaseClass *)groundTargetPtr->BaseData())->GetCampaignObject()->IsBattalion()) or (groundTargetPtr->BaseData()->IsCampaign() and groundTargetPtr->BaseData()->IsBattalion()))
+#endif
                 theRadar->SetMode(RadarClass::GMT);
             else
                 theRadar->SetMode(RadarClass::GM);

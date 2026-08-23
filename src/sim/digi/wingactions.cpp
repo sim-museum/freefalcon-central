@@ -94,16 +94,16 @@ void DigitalBrain::AiPerformManeuver(void)
 
             if (theRadar)
             {
-                if (theRadar->digiRadarMode = RadarClass::DigiSTT)
+                if (theRadar->digiRadarMode == RadarClass::DigiSTT)
                     strcat(tmpchr, " STT");
-                else if (theRadar->digiRadarMode = RadarClass::DigiSAM)
+                else if (theRadar->digiRadarMode == RadarClass::DigiSAM)
                     strcat(tmpchr, " SAM");
-                else if (theRadar->digiRadarMode = RadarClass::DigiTWS)
+                else if (theRadar->digiRadarMode == RadarClass::DigiTWS)
                     strcat(tmpchr, " TWS");
-                else if (theRadar->digiRadarMode = RadarClass::DigiRWS)
+                else if (theRadar->digiRadarMode == RadarClass::DigiRWS)
                     strcat(tmpchr, " RWS");
-                else if (theRadar->digiRadarMode = RadarClass::DigiOFF)
-                    strcat(tmpchr, "%s OFF");
+                else if (theRadar->digiRadarMode == RadarClass::DigiOFF)
+                    strcat(tmpchr, " OFF");
                 else strcat(tmpchr, " UNKNOWN");
             }
         }

@@ -377,15 +377,15 @@ void DigitalBrain::Actions(void)
 
             if (theRadar)
             {
-                if (theRadar->digiRadarMode = RadarClass::DigiSTT)
+                if (theRadar->digiRadarMode == RadarClass::DigiSTT)
                     strcat(label, " STT");
-                else if (theRadar->digiRadarMode = RadarClass::DigiSAM)
+                else if (theRadar->digiRadarMode == RadarClass::DigiSAM)
                     strcat(label, " SAM");
-                else if (theRadar->digiRadarMode = RadarClass::DigiTWS)
+                else if (theRadar->digiRadarMode == RadarClass::DigiTWS)
                     strcat(label, " TWS");
-                else if (theRadar->digiRadarMode = RadarClass::DigiRWS)
+                else if (theRadar->digiRadarMode == RadarClass::DigiRWS)
                     strcat(label, " RWS");
-                else if (theRadar->digiRadarMode = RadarClass::DigiOFF)
+                else if (theRadar->digiRadarMode == RadarClass::DigiOFF)
                     strcat(label, " OFF");
                 else strcat(label, " UNKNOWN");
             }

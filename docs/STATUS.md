@@ -3906,3 +3906,95 @@ moves the seeker count, so each metric responds only to its own change.
 right about the sensor callers and wrong about the FCC, because a single style
 enum was serving two different questions. Worth checking the other callers when
 a shared helper is changed on the strength of one of them.
+
+---
+
+## WPAREN-1 — adding `-Wparentheses`, and what it found
+
+SEEKER-1 was an operator-precedence bug, so the obvious next question was how
+many more of those exist. `-Wparentheses` was added to the `FF_WARN` build for
+exactly that. It yields **295 warnings**:
+
+| count | class |
+|---|---|
+| 154 | assignment used as truth value |
+| 126 | `&&` within `\|\|` — the SEEKER-1 shape |
+| 15 | arithmetic in operand of a bit-op |
+
+This is a queue to triage, not a bug list: most instances are correct as written.
+`seeker.cpp:29` is a good example — `not sensorArray or not sensorArray[0] or
+(PreLaunch and parent and IsAirplane and MasterArm == Safe)` parses exactly as
+intended. Two genuine defects came out of the first pass.
+
+### GNDATK-1 — a null dereference in AI ground attack
+
+`gndattck.cpp:4408` read:
+
+```c
+if (groundTargetPtr and (A) or (groundTargetPtr->BaseData()->IsCampaign() and ...))
+```
+
+which parses as `(groundTargetPtr and A) or (groundTargetPtr->…)`. With no ground
+target selected the first disjunct short-circuits false and the second
+dereferences the null pointer. The commented-out original directly above it
+(`// if (groundTargetPtr and groundTargetPtr->BaseData()->IsMover())`) shows the
+null check was meant to cover the lot. `GetCampaignObject()` was also being
+dereferenced without a check, which `handoff.cpp` does check before use.
+
+Same file as CRASH-4, which came from one of the PO's gdb backtraces.
+
+**Status: fixed by inspection, reachability not demonstrated.** `FF_DEBUG_GNDATK=1`
+reports whenever the pre-fix expression *would* have dereferenced null, and over
+four runs (Mavericks ×2, 20mm A-G, CCIP bombs) it fired **zero** times. The parse
+is unambiguous and the fix is safe, but this is the same status as CRASH-4: a
+correct guard on a path I could not make the automation reach. Not "verified".
+
+### Twenty `=` where `==` was meant
+
+```c
+if (theRadar->digiRadarMode = RadarClass::DigiSTT)   // assigns, always true
+```
+
+Twenty sites across `actions.cpp`, `bvrengage.cpp`, `wvrengage.cpp` and
+`wingactions.cpp` — the same copy-pasted block. Each *assigns* the AI's radar
+mode while drawing a debug label, then branches on whether the constant is
+non-zero, so the label always reads " STT" and the act of displaying the radar
+mode changes it. Only live when `g_nShowDebugLabels & 0x40`, so this is not in
+the normal AI path — but it means the one facility for observing AI radar
+behaviour both lies and perturbs what it measures. Worth knowing before anyone
+turns those labels on to diagnose something. Fixed to `==`, plus two
+`strcat(tmpchr, "%s OFF")` that printed the format string literally.
+
+### A hypothesis of mine that the measurement killed
+
+After HANDOFF-2, TE row 22 grew a new assertion site, `texbank.cpp:407`, that was
+not in the sweep baseline. The tidy explanation was ready: the FCC now retains
+its target instead of dropping it, so a model that used to be abandoned is now
+released, and `Release()` hits the same guarded sentinel-id check that
+`Reference()` (line 314) already did.
+
+Running it both ways killed that:
+
+```
+fixed    handoff86=0  texbank314=2  texbank407=2
+revert   handoff86=2  texbank314=2  texbank407=2
+```
+
+`texbank:407` appears identically with the fix reverted, so it has nothing to do
+with HANDOFF-2. The handoff numbers in the same table re-confirm HANDOFF-2 for
+free.
+
+My second explanation was that it was a run-length artifact, since these runs
+were 180 s against the sweep's 150 s. **That is also wrong** — a later 150 s run
+of the same mission shows it too (`314 ×2, 407 ×2, 792 ×2`, with `86` gone).
+
+So: the site is guarded, it is not caused by HANDOFF-2, and its absence from the
+sweep baseline is **unexplained**. It may be run-to-run variation in a stochastic
+sim, or another change in this commit range. Recorded as open rather than
+resolved, because two tidy explanations have already failed.
+
+Both explanations were plausible and mechanistic, and the first would have gone
+into this file as fact if the revert arm had been skipped on the grounds that the
+story hung together. **A new symptom appearing next to a change is not evidence
+the change caused it** — and the follow-up explanation deserves the same
+scepticism as the one it replaced. Cost of checking each: one run.
