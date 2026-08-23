@@ -3419,3 +3419,37 @@ both were checked — the binary carries 39 `__asan` symbols and the runs were
 confirmed to reach `RunningGraphics` before the result was believed. The first
 pit run had in fact *not* reached the sim and had to be re-run with a longer
 timeout, which is exactly how a clean-looking null result gets manufactured.
+
+---
+
+## Sprint 31 — BLUE-1 identified: it is the NVG path, not the bomb release
+
+The PO reported the screen going blue after switching to CCIP and releasing a
+bomb, and reasonably attributed it to the release. It is not the release.
+
+Reasoning from the screenshot rather than the story: green cockpit art on a
+**pure blue** field with the world absent is exactly what a green-tinted render
+over an unkeyed chroma background looks like, and the engine has exactly one
+mode that tints everything green — night vision (`SetGreenMode` plus
+`ColorBankClass::GreenMode`). `ToggleNVGMode` is bound to **N (0x31)**.
+
+Tested directly on an automated flight — press N mid-flight and measure:
+
+| | pure blue | green |
+|---|---|---|
+| before | 0.0% | 0.1% |
+| **after N** | **80.2%** | 5.6% |
+
+The captured frame is a match for the PO's screenshot: green cockpit, pure blue
+everywhere else, no outside world. **BLUE-1 is broken NVG rendering**, and it now
+has a one-keystroke unattended repro instead of a bombing run.
+
+Two things follow. The visible defect is that NVG renders the 2D pit green over
+a chroma background that is no longer being keyed out, and drops the world
+entirely — the blue is the panel's chroma colour showing through. Separately,
+something in the PO's session enabled NVG without them pressing N; that is worth
+finding, but it is a second question and the rendering is broken either way.
+
+Also cleared this sprint: the "no visible explosion" hunt gained nothing from a
+420 s flight — zero weapon impacts of any kind, so waiting for AI bombs is not a
+route to an instrumented impact either.

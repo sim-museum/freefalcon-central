@@ -156,6 +156,26 @@ void AircraftClass::DoWeapons()
                     }
 
                     FCC->SetMasterMode(FireControlComputer::AirGroundBomb);
+
+                    // FF_LINUX (BLUE-1): FF_TEST_SUBMODE=ccip|ccrp also forces the
+                    // A/G sub-mode. The PO established the blue screen happens only
+                    // after switching to CCIP, and CCIP draws a bomb fall line that
+                    // CCRP does not -- so this makes that difference reproducible
+                    // without a human at the controls.
+                    {
+                        const char *sm = getenv("FF_TEST_SUBMODE");
+
+                        if (sm)
+                        {
+                            FireControlComputer::FCCSubMode want =
+                                (sm[1] == 'c' or sm[1] == 'C') ? FireControlComputer::CCIP
+                                                               : FireControlComputer::CCRP;
+                            FCC->SetSubMode(want);
+                            fprintf(stderr, "[TESTBOMB] sub-mode forced to %s\n",
+                                    want == FireControlComputer::CCIP ? "CCIP" : "CCRP");
+                        }
+                    }
+
                     FCC->bombPickle = TRUE;
                     fprintf(stderr, "[TESTBOMB] mode->AirGroundBomb, pickle raised at t=%.1f (theBomb=%p)\n",
                             nowSec, (void *)FCC->GetTheBomb());
