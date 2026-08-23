@@ -193,6 +193,28 @@ void BombClass::Init()
     wc = (WeaponClassDataType*)classPtr->dataPtr;
     wpnDefinition = &SimWeaponDataTable[classPtr->vehicleDataIndex];
     dataIdx = wpnDefinition->dataIdx;
+
+#ifdef FF_LINUX
+    // FF_LINUX (BOMB-1): dataIdx selects the bomb's aux dataset, which carries
+    // its impact effect name. Measured as 0 for a live Mk-82, and dataset 0 is
+    // "default", whose .dat defines no psBombImpact -- hence the empty effect
+    // name in the impact message. Report the lookup that produced it.
+    if (getenv("FF_DEBUG_BOMBDATA"))
+    {
+        static int n = 0;
+
+        if (n++ < 12)
+        {
+            fprintf(stderr, "[BOMBDATA] Type=%d vehicleDataIndex=%d -> dataIdx=%d "
+                    "wpnClass=%d domain=%d wpnType=%d mnemonic='%.8s'\n",
+                    (int)Type(), (int)classPtr->vehicleDataIndex, dataIdx,
+                    wpnDefinition->weaponClass, wpnDefinition->domain,
+                    wpnDefinition->weaponType, wpnDefinition->mnemonic);
+            fflush(stderr);
+        }
+    }
+
+#endif
     ReadInput(dataIdx);
 
     LauInit(); // MLR 3/5/2004 -

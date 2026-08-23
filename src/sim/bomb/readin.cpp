@@ -67,6 +67,27 @@ void BombClass::ReadInput(int idx)
         auxData = &DefaultBombAuxData;
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX (BOMB-1): the impact effect name reaches the end message empty
+    // (measured: endCode=BombImpact with psName=''), even though the bomb data
+    // files define psBombImpact. Report what actually got loaded.
+    if (getenv("FF_DEBUG_BOMBDATA"))
+    {
+        static int n = 0;
+
+        if (n++ < 12)
+        {
+            fprintf(stderr, "[BOMBDATA] ReadInput idx=%d numDatasets=%d dataset=%p aux=%p "
+                    "psBombImpact='%s' psFeatureImpact='%s'\n",
+                    idx, numBombDatasets, (void *)BombDataset, (void *)auxData,
+                    (auxData and auxData->psBombImpact) ? auxData->psBombImpact : "(null)",
+                    (auxData and auxData->psFeatureImpact) ? auxData->psFeatureImpact : "(null)");
+            fflush(stderr);
+        }
+    }
+
+#endif
+
     /*
     weight = inputData->wm0 + inputData->wp0;
     wprop  = inputData->wp0;

@@ -76,12 +76,7 @@ int FalconMissileEndMessage::Process(uchar autodisp)
     static int s_dbgMslEnd = -1;
     if (s_dbgMslEnd < 0) s_dbgMslEnd = getenv("FF_DEBUG_MSLEND") ? 1 : 0;
 
-    if (s_dbgMslEnd)
-        fprintf(stderr, "[MSLEND] Process: endCode=%d pos=(%.0f,%.0f,%.0f) groundType=%d "
-                "psName='%s' autodisp=%d otwActive=%d\n",
-                (int)dataBlock.endCode, dataBlock.x, dataBlock.y, dataBlock.z,
-                (int)dataBlock.groundType, dataBlock.sfxPartSysName,
-                (int)autodisp, (int)OTWDriver.IsActive());
+
 
     // prevent handling messages if the graphics isn't running
     if (autodisp or not OTWDriver.IsActive())
@@ -101,6 +96,16 @@ int FalconMissileEndMessage::Process(uchar autodisp)
         stype = classPtr->vuClassData.classInfo_[VU_STYPE];
         wc = (WeaponClassDataType *)classPtr->dataPtr;
     }
+
+    // FF_LINUX: trace AFTER the class lookup -- placed before it, this printed
+    // type/stype's initial -1 and looked like an unresolved class.
+    if (s_dbgMslEnd)
+        fprintf(stderr, "[MSLEND] Process: endCode=%d pos=(%.0f,%.0f,%.0f) groundType=%d "
+                "wIndex=%d type=%d stype=%d TYPE_MISSILE=%d psName='%s' autodisp=%d otwActive=%d\n",
+                (int)dataBlock.endCode, dataBlock.x, dataBlock.y, dataBlock.z,
+                (int)dataBlock.groundType, (int)dataBlock.wIndex, (int)type, (int)stype,
+                (int)TYPE_MISSILE, dataBlock.sfxPartSysName,
+                (int)autodisp, (int)OTWDriver.IsActive());
 
     pos.x = dataBlock.x;
     pos.y = dataBlock.y;
@@ -192,7 +197,26 @@ int FalconMissileEndMessage::Process(uchar autodisp)
      20.0f ) ); // scale
     }
     */
+#ifdef FF_LINUX
+    // FF_LINUX (BOMB-1): this switch carries the BombImpact and FeatureImpact
+    // cases -- the ones that spawn a bomb's ground explosion -- but it was gated
+    // on TYPE_MISSILE, so a bomb never reached them. Measured: a released Mk-82
+    // produces endCode=BombImpact with type=2 (TYPE_BOMB), stype=3
+    // (STYPE_BOMB_IRON), against TYPE_MISSILE=6, and a trace inside the
+    // BombImpact case never executed. With the named-effect path also silent
+    // (dataIdx is 0 for Mk-82/84, selecting the "default" aux dataset, which
+    // defines no psBombImpact), NOTHING drew a bomb impact at all -- which is
+    // the PO's "bomb hits, no explosion" report.
+    //
+    // Let bombs into the switch. Its cases are selected by endCode, so a bomb
+    // only ever reaches the bomb ones. FF_NO_BOMB_IMPACT_FX=1 reverts.
+    static int ffBombFx = -1;
+    if (ffBombFx == -1) ffBombFx = getenv("FF_NO_BOMB_IMPACT_FX") ? 1 : 0;
+
+    if (type == TYPE_MISSILE or (type == TYPE_BOMB and not ffBombFx))
+#else
     if (type == TYPE_MISSILE)
+#endif
     {
         switch (dataBlock.endCode)
         {
@@ -263,6 +287,22 @@ int FalconMissileEndMessage::Process(uchar autodisp)
                 break;
 
             case BombImpact: // added 2002-03-28 MN
+#ifdef FF_LINUX
+                // FF_LINUX (BOMB-1): dataIdx is 0 for Mk-82/84, so the aux dataset
+                // is "default", which defines no psBombImpact -- the named effect
+                // path is correctly skipped and THIS legacy branch is what should
+                // draw the explosion. Report whether it is reached and with what
+                // damage type, since an unhandled type falls out silently.
+                if (s_dbgMslEnd)
+                {
+                    fprintf(stderr, "[MSLEND] BombImpact legacy branch: wc=%p DamageType=%d "
+                            "BlastRadius=%d\n",
+                            (void *)wc, wc ? (int)wc->DamageType : -1,
+                            wc ? (int)wc->BlastRadius : -1);
+                    fflush(stderr);
+                }
+
+#endif
                 switch (wc->DamageType)
                 {
                     case HeaveDam:
@@ -283,6 +323,15 @@ int FalconMissileEndMessage::Process(uchar autodisp)
 
                     case NuclearDam:
                     case HighExplosiveDam:
+#ifdef FF_LINUX
+                        if (s_dbgMslEnd)
+                        {
+                            fprintf(stderr, "[MSLEND] spawning SFX_GROUND_EXPLOSION at "
+                                    "(%.0f,%.0f,%.0f)\n", pos.x, pos.y, pos.z);
+                            fflush(stderr);
+                        }
+
+#endif
                         /*
                         OTWDriver.AddSfxRequest(
                          new SfxClass(SFX_GROUND_EXPLOSION, // type

@@ -144,11 +144,15 @@ void AircraftClass::DoWeapons()
                                 // real weapon type, so curWeapon is updated too --
                                 // DropBomb early-outs on curWeapon, which
                                 // SetCurHardpoint alone leaves stale.
-                                WeaponType wt = FCC->Sms->hardPoint[hp]->GetWeaponType();
-                                FCC->Sms->SelectWeapon(wt, wdGround);
-                                fprintf(stderr, "[TESTBOMB] bomb at station %d weaponId=%d type=%d "
-                                        "-> SelectWeapon gave hardpoint=%d theBomb=%p\n",
-                                        hp, (int)FCC->Sms->hardPoint[hp]->weaponId, (int)wt,
+                                // SetCurrentWeapon is the SMS's own entry point for
+                                // this: it sets curHardpoint AND curWeapon (plus
+                                // type/class/id), and DropBomb early-outs on
+                                // curWeapon, which SetCurHardpoint alone leaves stale.
+                                FCC->Sms->SetCurrentWeapon(hp,
+                                        (SimWeaponClass *)FCC->Sms->hardPoint[hp]->weaponPointer.get());
+                                fprintf(stderr, "[TESTBOMB] bomb at station %d weaponId=%d "
+                                        "-> SetCurrentWeapon: hardpoint=%d theBomb=%p\n",
+                                        hp, (int)FCC->Sms->hardPoint[hp]->weaponId,
                                         FCC->Sms->CurHardpoint(), (void *)FCC->GetTheBomb());
                                 break;
                             }

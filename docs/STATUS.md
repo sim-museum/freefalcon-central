@@ -3573,3 +3573,63 @@ of earlier sessions, and the fixed pixel crop I had been using silently indexed
 out of range. The metric is now expressed as fractions of the frame, which is
 what it should have been from the start — a crop tuned to one resolution is a
 measurement that quietly stops meaning anything when the resolution changes.
+
+---
+
+## Sprint 33 — BOMB-1 root cause: the explosion branch excluded bombs
+
+The PO's "bomb hits, no explosion" is now explained end to end, and the chain
+only became visible once an automated release existed.
+
+**Getting a release.** `FF_TEST_BOMB=<sec>` raises the FCC's bomb pickle at a
+given time. It stalled for several attempts because `FCC->GetTheBomb()` needs
+`Sms->CurHardpoint()` to be a bomb station, and neither `SetCurHardpoint` (leaves
+`curWeapon` stale, which `DropBomb` early-outs on) nor
+`SelectWeapon(wtMk82, wdGround)` (selects station 1, which holds no bomb) does
+the job. `SMSClass::SetCurrentWeapon(station, weapon)` is the SMS's own entry
+point and sets both. With that, bombs release on demand.
+
+**What the release showed.** A live Mk-82 impact produces:
+
+```
+Process: endCode=11 (BombImpact) type=2 stype=3 TYPE_MISSILE=6 psName=''
+```
+
+Two independent things are wrong, and each alone would have been enough:
+
+1. **The named effect is empty.** `dataIdx` is **0** for both Mk-82 and Mk-84,
+   and bomb dataset 0 is `default`, whose `.dat` defines no `psBombImpact`. The
+   named-effect path is therefore correctly skipped. (The weapon table itself
+   reads fine — mnemonic `M82`, class 2, domain 2, type 5 — so this is the data's
+   own index, not a 32/64-bit layout bug.)
+2. **The fallback that should then draw it is unreachable.** The `endCode` switch
+   holding `case BombImpact` and `case FeatureImpact` is gated on
+   `if (type == TYPE_MISSILE)`. A bomb is `TYPE_BOMB` (2), not `TYPE_MISSILE`
+   (6). Proven rather than inferred: a trace placed *inside* `case BombImpact`
+   never executed while a `BombImpact` message was being processed.
+
+So no path drew a bomb impact at all. Fixed by letting bombs into the switch —
+its cases are selected by `endCode`, so a bomb only ever reaches the bomb ones.
+`FF_NO_BOMB_IMPACT_FX=1` reverts.
+
+| | impacts | legacy branch reached | effect spawned |
+|---|---|---|---|
+| fixed | 1 | **1** | `SFX_GROUND_EXPLOSION` at the impact point |
+| `FF_NO_BOMB_IMPACT_FX=1` | 1 | **0** | none |
+
+with `DamageType=2` (`HighExplosiveDam`) and `BlastRadius=293` reaching the
+spawn. Six-flight regression soak clean.
+
+**Not yet visually confirmed.** The trace proves the effect is spawned at the
+impact point, and `FF_TEST_EXPLOSION` separately proves the particle system
+renders — but I have not caught the fireball in a screenshot, because the impact
+lands roughly 2 nm ahead of and below an aircraft flying straight and level, and
+the cockpit view does not necessarily contain it. The PO seeing a fireball is
+still the test that closes this.
+
+**A measurement error worth recording.** The first attempt at reading the weapon
+type printed `type=-1 stype=-1`, which looked like an unresolved entity class and
+would have sent me hunting a class-table bug. The trace was simply placed *above*
+the assignment — it was printing the variables' initial values. Moving it below
+the lookup gave `type=2 stype=3`, the real answer. A trace is a measurement, and
+where you put it is part of the measurement.
