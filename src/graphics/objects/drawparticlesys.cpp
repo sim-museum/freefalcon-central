@@ -3437,6 +3437,30 @@ void DrawableParticleSys::PS_GenerateEmitters(PS_PTR owner, PS_PPType &PPN)
 // Thhe public Call
 void DrawableParticleSys::PS_AddParticleEx(int ID, Tpoint *Pos, Tpoint *Vel)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (BOMB-1): PPN[] maps an SFX id to a particle-parameter index, and
+    // this table has resolved to an empty entry before (the particlesys.ini CRLF
+    // bug, 5783ca73), which silently produced no effect at all. Report the
+    // mapping so "the spawn was called" can be told apart from "the spawn
+    // resolved to something real".
+    {
+        static int ffDbgPS = -1;
+        if (ffDbgPS == -1) ffDbgPS = getenv("FF_DEBUG_PSMAP") ? 1 : 0;
+
+        if (ffDbgPS)
+        {
+            static int n = 0;
+
+            if (n++ < 30)
+            {
+                fprintf(stderr, "[PSMAP] PS_AddParticleEx id=%d -> PPN[%d]=%d\n",
+                        ID, ID, (int)PPN[ID]);
+                fflush(stderr);
+            }
+        }
+    }
+
+#endif
     PS_AddParticle((int)PPN[ID], Pos, Vel);
 }
 
@@ -6084,11 +6108,34 @@ bool DrawableParticleSys::PS_LoadParameters(void)
     // as an index (missile-impact crash). Zero it and bounds-check ids.
     memset(PPN, 0, sizeof(ParticleParamNode *) * l);
 
+    int ffDropped = 0, ffMaxId = -1;
+
     for (int c = 0; c < l; c++)
     {
+        if (PS_PPN[c].id > ffMaxId) ffMaxId = PS_PPN[c].id;
+
         if (PS_PPN[c].id >= 0 && PS_PPN[c].id < l)
             PPN[PS_PPN[c].id] = (ParticleParamNode *)c;
+        else
+            ffDropped++;
     }
+
+#ifdef FF_LINUX
+    // FF_LINUX (BOMB-1): PPN is SIZED by the number of parameter sets but
+    // INDEXED by effect id -- different spaces. The bounds check above (added to
+    // stop a crash on garbage ids) therefore silently drops any effect whose id
+    // is >= the count, and such an effect can never spawn. Report whether that
+    // is happening rather than assuming it is not.
+    if (getenv("FF_DEBUG_PSMAP"))
+    {
+        fprintf(stderr, "[PSMAP] table built: paramSets=%d maxEffectId=%d dropped=%d "
+                "PPN[6](GROUND_EXPLOSION)=%d\n",
+                l, ffMaxId, ffDropped,
+                (6 < l) ? (int)(uintptr_t)PPN[6] : -1);
+        fflush(stderr);
+    }
+
+#endif
 
     /*ppn=(ParticleParamNode *)paramList.GetHead();
     while(ppn)
