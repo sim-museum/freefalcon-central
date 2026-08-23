@@ -1,3 +1,4 @@
+#include <string.h>
 #include "graphics/include/tod.h"
 #include "graphics/include/renderow.h"
 #include "graphics/include/rendernvg.h"
@@ -118,9 +119,26 @@ void OTWDriverClass::NVGToggle(void)
     if (TheTimeOfDay.GetNVGmode())
     {
         // newRenderer = new RenderNVG;
+#ifdef FF_LINUX
+        // FF_LINUX (BLUE-1): NVG turns the screen into green art over an unkeyed
+        // pure-blue chroma field with no world. FF_NVG_SKIP=ctx|green|all drops
+        // parts of what the toggle does, to find which one loses the chroma key.
+        const char *ffNvgSkip = getenv("FF_NVG_SKIP");
+        #define FF_NVG_SKIPPED(k) (ffNvgSkip and (strstr(ffNvgSkip, "all") or strstr(ffNvgSkip, k)))
+
+        if ( not FF_NVG_SKIPPED("ctx"))
+            renderer->context.SetNVGmode(TRUE);
+
+        //TheDXEngine.SetState(DX_NVG);
+        if ( not FF_NVG_SKIPPED("green"))
+            renderer->SetGreenMode(true); //sfr
+
+        #undef FF_NVG_SKIPPED
+#else
         renderer->context.SetNVGmode(TRUE);
         //TheDXEngine.SetState(DX_NVG);
         renderer->SetGreenMode(true); //sfr
+#endif
         bNVGmode = true;
     }
     else

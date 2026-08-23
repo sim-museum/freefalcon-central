@@ -3453,3 +3453,41 @@ finding, but it is a second question and the rendering is broken either way.
 Also cleared this sprint: the "no visible explosion" hunt gained nothing from a
 420 s flight — zero weapon impacts of any kind, so waiting for AI bombs is not a
 route to an instrumented impact either.
+
+### BLUE-1 bisected to `ContextMPR::SetNVGmode` — with a contradiction left standing
+
+Measured with a metric that does not depend on where the aircraft happens to be
+pointing. The first attempt used "percentage of blue pixels", which varies with
+attitude between runs and produced misleading numbers; counting the **draws that
+paint the probed pixel blue** does not:
+
+| configuration | blue-painting draws | all from tex 29 |
+|---|---|---|
+| NVG on (baseline) | 865 | 865 |
+| `FF_NVG_NOVTX=1` — suppress the NVG vertex tint | 790 | 790 |
+| `FF_NVG_SKIP=ctx` — skip `context.SetNVGmode(TRUE)` | **0** | 0 |
+
+So the culprit is `renderer->context.SetNVGmode(TRUE)`, and the blue is texture
+29 — the 2D cockpit panel — painting its **pure-blue chroma background** because
+the alpha test stops discarding it. The world renders correctly underneath
+(green terrain is visible in the probe trace right before the panel covers it).
+
+**The contradiction, recorded rather than papered over.** `SetNVGmode` does
+nothing but assign the flag:
+
+```c
+void ContextMPR::SetNVGmode(BOOL state) { NVGmode = state; }
+```
+
+and that flag has exactly **two** readers in the tree — the NVG vertex tint at
+`context.cpp` 3252 and 3369, confirmed by searching for the tint constants
+(`0xFF00FF00` / `0x0000B400`) across every source file. Yet suppressing both
+readers leaves the bug (790 draws) while clearing the flag removes it (0). One of
+those two facts has to be wrong, and finding out which is the next step. The
+guard was verified to be compiled in (the env string is present in the binary and
+the code is at both sites), so the likeliest explanations are that the panel is
+drawn through a path that reads the flag some other way, or that the two runs
+differ in something not yet controlled.
+
+Everything here is env-gated and off by default; the defaults regression is
+clean (WHITE-1 0.0% white, 0.0% blue).

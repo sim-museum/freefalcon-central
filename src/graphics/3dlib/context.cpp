@@ -3243,7 +3243,16 @@ void ContextMPR::DrawPoly(DWORD opFlag, Poly *poly, int *xyzIdxPtr, int *rgbaIdx
             if (opFlag bitand PRIM_COLOP_TEXTURE)
             {
                 // NVG_LIGHT_LEVEL = 0.703125f
+#ifdef FF_LINUX
+                // FF_LINUX (BLUE-1): FF_NVG_NOVTX=1 suppresses this NVG vertex
+                // tint, to test whether it is what loses the 2D panel's chroma
+                // key (the screen fills with the panel's pure-blue chroma).
+                static int ffNoVtx = -1;
+                if (ffNoVtx == -1) ffNoVtx = getenv("FF_NVG_NOVTX") ? 1 : 0;
+                if ((NVGmode or TVmode or IRmode) and not ffNoVtx)
+#else
                 if (NVGmode or TVmode or IRmode)
+#endif
                 {
                     pVtx->color and_eq 0xFF00FF00;
                     pVtx->color or_eq 0x0000B400;
@@ -3351,7 +3360,16 @@ void ContextMPR::DrawPoly(DWORD opFlag, Poly *poly, int *xyzIdxPtr, int *rgbaIdx
             if (opFlag bitand PRIM_COLOP_TEXTURE)
             {
                 // NVG_LIGHT_LEVEL = 0.703125f
+#ifdef FF_LINUX
+                // FF_LINUX (BLUE-1): FF_NVG_NOVTX=1 suppresses this NVG vertex
+                // tint, to test whether it is what loses the 2D panel's chroma
+                // key (the screen fills with the panel's pure-blue chroma).
+                static int ffNoVtx = -1;
+                if (ffNoVtx == -1) ffNoVtx = getenv("FF_NVG_NOVTX") ? 1 : 0;
+                if ((NVGmode or TVmode or IRmode) and not ffNoVtx)
+#else
                 if (NVGmode or TVmode or IRmode)
+#endif
                 {
                     sVertex->color and_eq 0xFF00FF00;
                     sVertex->color or_eq 0x0000B400;

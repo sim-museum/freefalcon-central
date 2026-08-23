@@ -2041,6 +2041,31 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
             glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
             fprintf(stderr, "[PIXPROBE] dumping glTex=%d (%dx%d)\n", tex, (int)w, (int)h);
 
+            // WHITE-1/BLUE-1: report the ALPHA distribution too. These panel
+            // textures are chroma-keyed -- the keyed texels must carry alpha 0 so
+            // the alpha test discards them. If a mode change re-uploads the
+            // texture with opaque alpha, the chroma background is drawn instead of
+            // discarded and the panel covers the screen.
+            if (w > 0 && h > 0 && w <= 4096 && h <= 4096) {
+                unsigned char* pa = (unsigned char*)malloc((size_t)w * h * 4);
+                if (pa) {
+                    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pa);
+                    long n = (long)w * h, a0 = 0, aFull = 0, blueKey = 0, blueOpaque = 0;
+                    for (long q = 0; q < n; q++) {
+                        unsigned char R = pa[q*4], G = pa[q*4+1], B = pa[q*4+2], A = pa[q*4+3];
+                        if (A == 0) a0++;
+                        if (A == 255) aFull++;
+                        if (B > 200 && R < 60 && G < 60) { blueKey++; if (A >= 128) blueOpaque++; }
+                    }
+                    fprintf(stderr, "[TEXALPHA] glTex=%d alpha zero=%ld%% full=%ld%% | "
+                            "chroma-blue texels=%ld of which OPAQUE=%ld\n",
+                            tex, n ? a0 * 100 / n : 0, n ? aFull * 100 / n : 0,
+                            blueKey, blueOpaque);
+                    fflush(stderr);
+                    free(pa);
+                }
+            }
+
             // WHITE-1: also dump mip level 1. If level 0 is the correct artwork
             // but level 1 is blank, a minifying draw with a MIPMAP MIN filter
             // samples the stale level and the surface renders white.
