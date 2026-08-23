@@ -3709,3 +3709,60 @@ That is three stale claims in this file corrected in one session — the flat-z=
 collision world, "the agent can't capture sim frames", and now the unloadable
 landing missions. **Notes describing a defect are only true of the build that
 observed it**; each one here was disproved by simply running the thing again.
+
+---
+
+## TESWEEP-1 — all 34 Tactical Engagement missions swept
+
+Every stock TE mission was launched, driven to the 3D world, held there, and
+exited, one process per mission, logs kept at `/tmp/te-<row>.log`.
+
+**Result: 34 of 34 load, reach the sim, and exit clean.** No segfaults, no
+aborts, no join failures, no mission that fails to load. That includes rows 33
+and 34 (the two F-18 carrier missions), which a note in this file previously
+claimed were unloadable — the third stale claim corrected this session.
+
+The value of the sweep is less the pass/fail than the **assertion inventory** it
+produced, since recurring assertions have twice this project turned out to be
+unfixed bugs rather than noise. Across the 34 runs, 68 assertions fired at 8
+distinct sites; 7 missions were assertion-free.
+
+| count | site | assessment |
+|---|---|---|
+| 20 | `team.cpp:1800` | guarded — `AttachChild` already rejects `slotNumber >= nSlots` |
+| 18 | `texbank.cpp:314` | guarded |
+| 10 | `handoff.cpp:86` | **upstream assert is over-strict.** A HARM asking to hand off inside a unit with no radar is a normal request, not a defect; HANDOFF-1 now answers it with NULL, which every caller handles. The assert fires on the healthy path |
+| 10 | `atm.cpp:792` | benign decay clamp |
+| 4 | `objectiv.cpp:3663` | guarded — the loop's `else` resets `count = 0` |
+| 4 | `drawbsp.cpp:108` | guarded |
+| 2 | `seeker.cpp:350` | degenerate but safe — see below |
+| 2 | `drawbsp.cpp:107` | guarded |
+
+Missions that assert most are the weapon-employment ones (Rockets and 20mm
+Cannon at 6 each; HARMs, CCRP Bombs, AIM-7 and AIM-9 at 4), which is where the
+`handoff.cpp` and `seeker.cpp` sites live.
+
+**`seeker.cpp:350` — an ARH missile going active with `GetRadarType() == 0`.**
+Memory-safe: `RadarClass::RadarClass` does `radarData = &RadarDataTable[type]`,
+and index 0 is a real entry, with the follow-on `RDRDataInd` lookup bounds-checked
+against `NumRadarDatFileTable`. So nothing is read out of range — the missile just
+goes active carrying a no-radar radar and cannot guide. Recorded rather than
+fixed, because whether that is wrong depends on whether the missile *should* have
+had a radar type, which is a data question needing the Wine reference.
+
+Worth flagging: this is the **same "radar type 0" condition as HANDOFF-1**, now
+seen at a second site. Two independent code paths reaching a zero radar type
+suggests the value may be under-populated at its source rather than each
+consumer being individually at fault. That source is the thing to look at next
+if a guidance defect shows up.
+
+### Method note — the same measurement error, twice more
+
+Row 33 first read `sim=0` with no mission name and looked like the sweep's one
+genuine failure. It was a **mid-write sample**: re-read after the run completed,
+it showed `RunningGraphics: 1` and the correct mission name. This is the third
+time this session a metric was read before the thing it measures had finished
+(the others: "0 ASAN errors" from a run that never reached the sim, and a pixel
+metric sampling rows the geometry had already left). *A number harvested from a
+log while the process is still writing it is not a measurement.* Check the
+process has exited before believing the count.
