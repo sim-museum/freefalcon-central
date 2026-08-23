@@ -4129,8 +4129,7 @@ First capture is the main menu, rendering correctly — FreeFalcon 6.0 / FFViper
 the same coordinates the Linux harness already uses**: the menu bar sits at
 y≈750 with TACTICAL ENGAGEMENT at x≈673, which is what `FF_UI_CLICK`'s
 `677,748` was written against. So the existing click scripts translate to
-`xdotool` against the Wine window with essentially the same numbers, and a
-side-by-side of the same mission is a scripting job, not a research one.
+`xdotool` against the Wine window with essentially the same numbers.
 
 **Config safety.** The Wine build shares the game data directory with the Linux
 build, so it can overwrite the PO's settings. Measured: a run rewrites only
@@ -4139,9 +4138,28 @@ display setting — are untouched. `config/` and `ffviper.cfg` were backed up be
 the first Wine launch and restored after the last, and a final `diff -rq` reports
 no differences. Anyone doing this again should keep that backup/restore step.
 
-**Status of the two items.** Neither is blocked any more; both now need the same
-next piece of work — an `xdotool` driver that puts the Wine build into a given TE
-mission so the same frame can be captured from both builds. NVG-2 additionally
+### The catch, found by trying it
+
+`scripts/wine-drive.sh` drives the Wine window with window-relative `xdotool`
+clicks, and **the clicks land**: a test click at `673,750` came back with
+TACTICAL ENGAGEMENT visibly highlighted, at exactly those coordinates.
+
+But the rest of that same capture is **black**. The Windows build renders through
+DirectDraw, so an `import` of the window returns only what X has been given —
+freshly blitted damage regions — not the DirectDraw surface. The one region that
+had just been redrawn (the hover highlight) is the one region that appeared. The
+earlier full menu capture worked because it happened to land right after a full
+redraw.
+
+So driving is solved and capture is not. Capturing an arbitrary moment — which is
+exactly what an NVG or HUD comparison needs — requires either forcing a full
+redraw before each grab, or reading the DirectDraw surface some other way
+(`WINEDLLOVERRIDES` to a software renderer, or Wine's own screenshot path).
+That is a research question, not a scripting one, and my first write-up of this
+called it the opposite before I had tried it.
+
+**Status of the two items.** Neither is blocked on the PO any more. Both now need
+the DirectDraw capture problem solved first. NVG-2 additionally
 needs the D3D7 semantics for the three missing ops (`ADDSIGNED` = `a1 + a2 - 0.5`,
 `ADDSMOOTH` = `a1 + a2 - a1·a2`, `DOTPRODUCT3`), which GL's texture combiners
 cover directly for two of the three. Retitled from "blocked" to "ready".
