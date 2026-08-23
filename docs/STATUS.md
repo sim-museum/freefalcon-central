@@ -3375,3 +3375,47 @@ release without a human. It is not working yet — `FCC->GetTheBomb()` stays NUL
 because it requires `Sms->CurHardpoint()` to be a *bomb* station, and forcing the
 master mode bypasses the station selection the real A/G press performs.
 `curHardpoint=1` is selected but its weapon is not a bomb. Left in, default off.
+
+---
+
+## Sprint 30 — ASAN-1: a global-buffer-overflow in the campaign package code
+
+The sanitiser build had not been rebuilt since 2026-08-17, and this session
+changed global render state, the bomb target path and the radar handoff. Rebuilt
+and soaked over the TE flights that exercise those paths.
+
+Three A/G flights came back clean. The flight that reaches the **3-D pit** did
+not:
+
+```
+ERROR: AddressSanitizer: global-buffer-overflow
+READ of size 1 at 0x... thread T14
+  #0 PackageClass::GetFACFlight()      package.cpp:2182
+  #1 FlightClass::GetFACFlight()       flight.cpp:4284
+  #2 FlightClass::GetFlightController() flight.cpp:4294
+  #3 VoiceManager::AddNoise(...)       voicemanager.cpp:1704
+  #4 VoiceManagementThread(void*)      voicemanager.cpp:662
+```
+
+`GetFACFlight` opens with `MissionData[mis_request.mission].skill`.
+`mis_request.mission` is a **`uchar`** — 0…255 — and `MissionData` has
+`AMIS_OTHER` = **41** entries. Nothing bounds it. A package whose request is
+unset or stale therefore reads past the end of a global table, and it is the
+**voice thread** doing it, mid-flight, on every session that gets there.
+
+Fixed by returning NULL for an out-of-range mission, which is this function's
+normal "no FAC flight" answer. Measured on the identical command and mission:
+**1 error → 0**, with the flight still reaching the sim.
+
+This is the same shape as CRASH-4 (an unchecked index into a fixed table read
+from a thread that has no idea the value is stale) and the same thread that
+carried VOICE-3. Note the other `MissionData[...]` index sites — `misseval.cpp`
+1834/1836/3967 and `mission.cpp` 256/257 — take the same unchecked `uchar`; they
+were left alone because nothing has shown them going out of range, but they are
+where to look if this recurs.
+
+**Method note:** "0 errors" and "the tool never ran" produce identical output, so
+both were checked — the binary carries 39 `__asan` symbols and the runs were
+confirmed to reach `RunningGraphics` before the result was believed. The first
+pit run had in fact *not* reached the sim and had to be re-run with a longer
+timeout, which is exactly how a clean-looking null result gets manufactured.

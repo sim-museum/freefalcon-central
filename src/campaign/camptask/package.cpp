@@ -2179,6 +2179,21 @@ Flight PackageClass::GetFACFlight(void)
 {
     Flight fac;
 
+#ifdef FF_LINUX
+    // FF_LINUX (ASAN-1): mis_request.mission is a uchar indexing MissionData,
+    // which has AMIS_OTHER (41) entries, and nothing bounds it here. Caught by
+    // AddressSanitizer as a global-buffer-overflow READ of 1 byte at
+    // package.cpp:2182, reached from the voice thread:
+    //   VoiceManager::AddNoise -> FlightClass::GetFlightController
+    //   -> FlightClass::GetFACFlight -> PackageClass::GetFACFlight
+    // A package whose request is unset or stale therefore reads past the table.
+    // No FAC flight can be identified from an out-of-range mission, and NULL is
+    // this function's normal "none" answer, so return it.
+    if (mis_request.mission >= AMIS_OTHER)
+        return NULL;
+
+#endif
+
     if (MissionData[mis_request.mission].skill not_eq ARO_GA)
         return NULL;
 
