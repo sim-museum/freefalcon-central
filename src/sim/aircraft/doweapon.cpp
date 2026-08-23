@@ -48,6 +48,82 @@ static int gMaxIAWeaponsFired = 12;
 
 void AircraftClass::DoWeapons()
 {
+#ifdef FF_LINUX
+    // FF_LINUX (BOMB-1 harness): FF_TEST_BOMB=<sec>[,<sec>...] puts the FCC into
+    // the A/G bomb master mode and raises its bomb pickle at those sim times, so
+    // an automated flight can release a bomb without a human driving master arm,
+    // sub-mode and a release solution. It sets the same state the real controls
+    // set, so everything downstream is the production path.
+    if (FCC and this == SimDriver.GetPlayerAircraft())
+    {
+        static float ffTimes[8];
+        static int ffN = -1;
+        static int ffFired[8] = {0};
+        static DWORD ffLastLog = 0;
+
+        if (ffN < 0)
+        {
+            ffN = 0;
+            const char *e = getenv("FF_TEST_BOMB");
+
+            if (e)
+            {
+                char buf[128];
+                strncpy(buf, e, sizeof(buf) - 1);
+                buf[sizeof(buf) - 1] = 0;
+
+                for (char *tok = strtok(buf, ","); tok and ffN < 8; tok = strtok(NULL, ","))
+                    ffTimes[ffN++] = (float)atof(tok);
+
+                fprintf(stderr, "[TESTBOMB] armed %d release time(s)\n", ffN);
+                fflush(stderr);
+            }
+        }
+
+        if (ffN > 0)
+        {
+            // SimLibElapsedTime is an absolute clock, so the listed times are
+            // taken as seconds since this hook first ran. The master mode is set
+            // on the first tick and left alone, giving the SMS time to select a
+            // bomb before the pickle is raised.
+            static float ffT0 = -1.0f;
+            float absSec = SimLibElapsedTime * MSEC_TO_SEC;
+
+            if (ffT0 < 0.0f)
+            {
+                ffT0 = absSec;
+                fprintf(stderr, "[TESTBOMB] t0=%.1f\n", absSec);
+                fflush(stderr);
+            }
+
+            float nowSec = absSec - ffT0;
+
+            if (SimLibElapsedTime - ffLastLog > 2000)
+            {
+                ffLastLog = SimLibElapsedTime;
+                fprintf(stderr, "[TESTBOMB] t=%.1f masterMode=%d curHardpoint=%d theBomb=%p\n",
+                        nowSec, (int)FCC->GetMasterMode(),
+                        FCC->Sms ? FCC->Sms->CurHardpoint() : -99,
+                        (void *)FCC->GetTheBomb());
+                fflush(stderr);
+            }
+
+            for (int q = 0; q < ffN; q++)
+            {
+                if ( not ffFired[q] and nowSec >= ffTimes[q])
+                {
+                    ffFired[q] = 1;
+                    FCC->bombPickle = TRUE;
+                    fprintf(stderr, "[TESTBOMB] mode->AirGroundBomb, pickle raised at t=%.1f (theBomb=%p)\n",
+                            nowSec, (void *)FCC->GetTheBomb());
+                    fflush(stderr);
+                }
+            }
+        }
+    }
+
+#endif
+
     int fireFlag, wasPostDrop;
     SimWeaponClass* curWeapon = Sms->GetCurrentWeapon();
     WayPointClass* tmpWp;
@@ -356,6 +432,8 @@ void AircraftClass::DoWeapons()
 
                 // Ok, look for a Bomb
                 BombClass *TheBomb = FCC->GetTheBomb();
+
+
 
                 // And if the Bomb is present and released
                 if (TheBomb and FCC->bombPickle)

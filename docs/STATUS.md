@@ -3311,3 +3311,67 @@ bomb sinking into the visible ground is explained and the fix is in the elevatio
 query; if they agree, then the ground level is right and the missing explosion is
 somewhere in the effect path after all. That is the next thing to do, and it can
 be run unattended.
+
+---
+
+## Sprint 29 — ELEV-1 measured: the elevation query is NOT broken
+
+The PO asked for the measurement that would decide whether bombs sink because
+`GetGroundLevel` disagrees with the drawn terrain. It has been run, and the
+answer is **no — the query is correct where it matters.**
+
+`OTWDriverClass::GetGroundLevel` delegates to `viewPoint->GetGroundLevel(x, y,
+normal, &lod)` and the `lod` says which terrain detail level answered.
+Instrumented with `FF_DEBUG_GROUND=1` (a per-second sample of the query, the
+player's own position, and a probe at increasing range ahead of the aircraft).
+
+**Parked on the runway, TE 02** — the aircraft's z *is* the rendered surface
+there, so this is a direct read of any split:
+
+```
+[GROUND] query=0.00   lod=5  player z=-2.39   ground=0.00   split=-2.39
+[GROUND] query=-26.00 lod=0  player z=-31.99  ground=-26.00 split=-5.99
+```
+
+Once the fine terrain has loaded the query answers at **lod=0 with −26.00 ft**,
+and the aircraft rests 5.99 ft above it — which is just gear height. No 20 ft
+split. The first sample *does* show the documented failure (0.00 at coarse
+lod=5), but it is a **startup transient that resolves within a second or two**,
+not a standing condition.
+
+**Airborne over open terrain, probing ahead of the aircraft:**
+
+| range | ground | lod |
+|---|---|---|
+| 0 ft | −1560 | **0** |
+| 3 000 ft | −1695 | **0** |
+| 6 000 ft | −1550 | **0** |
+| 12 000 ft | −1344 | **0** |
+| 24 000 ft | −1288 | 1 |
+| 48 000 ft | −1425 | 2 |
+| 96 000 ft | −746 | 3 |
+
+Real elevations (this terrain is 1300–1700 ft), finest LOD out to 12 000 ft
+(2 nm), coarsening gracefully beyond, and **not a single zero**. A bomb lands
+well inside the lod=0 radius, so it gets a correct ground height.
+
+**Consequences.**
+
+1. **The "flat z=0 collision world" in CLAUDE.md does not reproduce.** What
+   reproduces is a transient at terrain-load time. That entry should not be
+   taken at face value; whatever it described has either been fixed since or was
+   always the transient.
+2. **BOMB-1 is not an elevation problem.** The bomb gets the right ground height,
+   so the missing explosion lives somewhere in the impact/effect path after all —
+   back to where the code reading pointed before I let the airfield theory pull
+   me away.
+3. The same applies to the landing complaint, which was attributed to the same
+   flat-z=0 story and now needs re-measuring on its own terms rather than
+   inheriting a conclusion.
+
+**Harness status (HARNESS-1).** To instrument a real impact, `FF_TEST_BOMB` was
+added: it raises the FCC's bomb pickle at given times so an automated flight can
+release without a human. It is not working yet — `FCC->GetTheBomb()` stays NULL
+because it requires `Sms->CurHardpoint()` to be a *bomb* station, and forcing the
+master mode bypasses the station selection the real A/G press performs.
+`curHardpoint=1` is selected but its weapon is not a bomb. Left in, default off.

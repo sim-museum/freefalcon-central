@@ -3209,6 +3209,70 @@ float OTWDriverClass::GetGroundLevel(float x, float y, Tpoint* normal)
 
     // final normal copy
     COPYNORMAL(normal, bestNormal);
+
+#ifdef FF_LINUX
+    // FF_LINUX (ELEV-1): FF_DEBUG_GROUND=1 samples this query about once a
+    // second together with the player's own position. When the aircraft is
+    // parked on a runway its z IS the rendered surface, so playerZ vs ret is a
+    // direct measurement of any split between what is drawn and what the sim
+    // collides/detonates against. bestLod says which terrain detail level
+    // answered -- a coarse level answering for a point under the aircraft is
+    // the documented failure mode.
+    {
+        static int ffDbgGnd = -1;
+        if (ffDbgGnd == -1) ffDbgGnd = getenv("FF_DEBUG_GROUND") ? 1 : 0;
+
+        if (ffDbgGnd)
+        {
+            static DWORD lastMs = 0;
+            DWORD nowMs = SimLibElapsedTime;
+
+            if (nowMs - lastMs > 1000)
+            {
+                lastMs = nowMs;
+                SimBaseClass *pe = SimDriver.GetPlayerEntity();
+                float px = pe ? pe->XPos() : 0.0f;
+                float py = pe ? pe->YPos() : 0.0f;
+                float pz = pe ? pe->ZPos() : 0.0f;
+                float pGround = 0.0f;
+                int pLod = -1;
+
+                if (pe and viewPoint and viewPoint->IsReady())
+                    pGround = viewPoint->GetGroundLevel(px, py, NULL, &pLod);
+
+                fprintf(stderr,
+                        "[GROUND] query(%.0f,%.0f)=%.2f lod=%d | player(%.0f,%.0f) z=%.2f "
+                        "ground=%.2f lod=%d  split=%.2f\n",
+                        x, y, bestRet, bestLod, px, py, pz, pGround, pLod, pz - pGround);
+
+                // FF_LINUX (ELEV-1): probe the query at increasing range ahead of
+                // the aircraft. A bomb lands some distance out, so what matters is
+                // whether the answer degrades with distance -- the documented
+                // failure is a far point falling back to a coarse level and
+                // reporting 0 while the terrain there is drawn at its real height.
+                if (pe and viewPoint and viewPoint->IsReady())
+                {
+                    float ux = (float)cos(pe->Yaw()), uy = (float)sin(pe->Yaw());
+                    const float ranges[] = { 0.0f, 3000.0f, 6000.0f, 12000.0f,
+                                             24000.0f, 48000.0f, 96000.0f };
+
+                    for (unsigned r = 0; r < sizeof(ranges) / sizeof(ranges[0]); r++)
+                    {
+                        int lod = -1;
+                        float qx = px + ux * ranges[r];
+                        float qy = py + uy * ranges[r];
+                        float g = viewPoint->GetGroundLevel(qx, qy, NULL, &lod);
+                        fprintf(stderr, "[GROUNDR] range=%6.0fft ground=%9.2f lod=%d\n",
+                                ranges[r], g, lod);
+                    }
+                }
+
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     return bestRet;
 
 
