@@ -4202,3 +4202,82 @@ restored after the last, with `diff -rq` confirming no differences remain. NVG-2
 needs the D3D7 semantics for the three missing ops (`ADDSIGNED` = `a1 + a2 - 0.5`,
 `ADDSMOOTH` = `a1 + a2 - a1·a2`, `DOTPRODUCT3`), which GL's texture combiners
 cover directly for two of the three. Retitled from "blocked" to "ready".
+
+---
+
+## NVG-2 — three ops implemented, and the rest of the gap measured
+
+The three texture operations `DX_NVG`/`DX_TV` need have exact fixed-function
+equivalents, so no approximation is involved:
+
+| D3D | semantics | GL |
+|---|---|---|
+| `D3DTOP_ADDSIGNED` (8) | `A1 + A2 - 0.5` | `GL_ADD_SIGNED` |
+| `D3DTOP_ADDSIGNED2X` (9) | same, doubled | `GL_ADD_SIGNED` + `GL_RGB_SCALE 2` |
+| `D3DTOP_DOTPRODUCT3` (24) | `4·dot(A1-½, A2-½)` | `GL_DOT3_RGB` |
+
+Those are in, defaulting on, `FF_NO_TEXOP_FIX=1` reverts. Sources are left alone
+deliberately: `D3DTSS_COLORARG1/2` arrive as their own calls and program
+`SOURCE0/SOURCE1` themselves.
+
+**New harness: `FF_TEST_NVG="<sec>[,<sec>…]"`** toggles night vision at those
+times. `NVGToggle()` must run on the sim thread, so the main thread raises a flag
+that `otwloop` consumes next to the existing view-mode request. Verified working:
+two toggles, on the sim thread, no crash.
+
+### Why the implementation is not yet verified
+
+With NVG toggled on, the `[TEXOP]` trace reports **nothing** — and, decisively,
+it reports nothing **with `FF_NO_TEXOP_FIX=1` as well**, which restores the old
+fallback. If the ops were being requested, the reverted arm would have logged
+them. They are not being requested at all, so "no unimplemented ops remain" was a
+vacuous result and the new code is currently **unexercised**.
+
+The reason is **BLUE-1, my own earlier fix**. Its comment says it outright —
+*"So skip it until those operations exist"* — and it skips the only call site:
+
+```c
+if (renderer->context.NVGmode and ffDxState) TheDXEngine.SetState(DX_NVG);
+```
+
+`ffDxState` defaults to 0. `SetState(DX_NVG)` is what issues all four stages, so
+with BLUE-1 in place the ops can never appear. Exercising them requires
+`FF_NVG_DXSTATE=1`.
+
+### Two more pieces the gap actually contains
+
+Reading `dxengine.cpp:715-745`, the NVG pipeline is four stages, and the ops are
+only part of it:
+
+```
+stage 0  ARG1=DIFFUSE ARG2=DIFFUSE  ADDSMOOTH
+stage 1  ARG1=TEXTURE ARG2=CURRENT  ADDSIGNED
+stage 2  ARG1=CURRENT ARG2=DIFFUSE  DOTPRODUCT3
+stage 3  ARG1=CURRENT ARG2=TFACTOR  ADDSIGNED
+```
+
+1. **`D3DTOP_ADDSMOOTH` (11) is deliberately still unimplemented.** It is
+   `A1 + A2 - A1·A2`, which is exactly `GL_INTERPOLATE` (`S0·S2 + S1·(1-S2)`)
+   with `S2=A1`, `S1=A2` and **`S0` forced to white**. The only GL source that
+   can carry a constant is `GL_CONSTANT` — which is also where `D3DTA_TFACTOR`
+   has to live. They collide unless the per-unit `GL_TEXTURE_ENV_COLOR` is
+   managed per stage. Guessing an arrangement here would produce something that
+   renders but is not the D3D result, so it is left out until it can be checked
+   against Wine.
+
+2. **`D3DRENDERSTATE_TEXTUREFACTOR` is a no-op in this layer** — the case exists
+   and does nothing but `break`. Stage 3 adds `D3DTA_TFACTOR`, which is the NVG
+   green tint (`0x0000a000`), so at present that stage would add the default
+   env colour (black) instead. Implementing the ops without this would still not
+   give NVG its colour.
+
+### What completing NVG-2 looks like
+
+Implement `TEXTUREFACTOR` and `ADDSMOOTH` with per-unit env colours, then
+**re-enable `DX_NVG`** (`FF_NVG_DXSTATE=1` → default) and confirm two things
+together: NVG renders, and BLUE-1's blue screen does not return — BLUE-1 was only
+ever a workaround for the pipeline being unexecutable. Finally, a side-by-side
+against the Wine build, which WINE-1/WINE-2 above made possible.
+
+Recorded this way because the honest status is "spec-correct, unexercised", not
+"fixed".

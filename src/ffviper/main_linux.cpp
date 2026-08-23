@@ -353,6 +353,7 @@ static bool g_autoTestInstantAction = false;  // TEST: Set by auto-launch code
 bool g_testInstantActionFlag = false;  // Command-line flag for auto-testing
 volatile int g_requestedPanel = -1;  // Set by main thread, read by sim thread for view testing
 volatile int g_requestedViewMode = -1;  // Set by main thread, -1=none, 0=HUD, 1=cockpit, 2=chase, 3=orbit
+volatile int g_requestedNVGToggle = 0;  // FF_LINUX (NVG-2): set by main thread, consumed on the sim thread
 volatile int g_screenshotRequest = 0;   // Set by main thread, read by sim thread to take screenshot
 const char* g_screenshotFilename = "/tmp/ff_screenshot.bmp"; // Filename for next screenshot
 
@@ -2914,6 +2915,54 @@ static void main_loop(void) {
                             g_requestedViewMode = s_vs[vi].mode;
                             fprintf(stderr, "[FF_VIEW_SCRIPT] view mode %d at %ums\n", s_vs[vi].mode, el);
                         }
+                    }
+                }
+            }
+        }
+
+        // FF_LINUX (NVG-2): FF_TEST_NVG="<sec>[,<sec>...]" toggles night-vision at
+        // those times (clock runs from program start, like FF_VIEW_SCRIPT). NVG
+        // is the only path that exercises D3DTOP_ADDSMOOTH, so without a way to
+        // turn it on from the harness the op cannot be observed at all.
+        if (!doUI) {
+            static int s_nvgInit = 0;
+            static Uint32 s_nvgAt[8];
+            static int s_nvgFired[8];
+            static int s_nNvg = 0;
+            static Uint32 s_nvgStart = 0;
+
+            if (!s_nvgInit) {
+                s_nvgInit = 1;
+                const char* e = getenv("FF_TEST_NVG");
+
+                if (e) {
+                    char buf[128];
+                    strncpy(buf, e, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
+
+                    for (char* tok = strtok(buf, ","); tok && s_nNvg < 8; tok = strtok(NULL, ",")) {
+                        float at = 0.0f;
+
+                        if (sscanf(tok, "%f", &at) == 1) {
+                            s_nvgAt[s_nNvg] = (Uint32)(at * 1000.0f);
+                            s_nvgFired[s_nNvg] = 0;
+                            s_nNvg++;
+                        }
+                    }
+
+                    fprintf(stderr, "[FF_TEST_NVG] parsed %d toggles\n", s_nNvg);
+                }
+            }
+
+            if (s_nNvg) {
+                if (!s_nvgStart) s_nvgStart = SDL_GetTicks();
+
+                Uint32 el = SDL_GetTicks() - s_nvgStart;
+
+                for (int ni = 0; ni < s_nNvg; ni++) {
+                    if (!s_nvgFired[ni] && el >= s_nvgAt[ni]) {
+                        s_nvgFired[ni] = 1;
+                        g_requestedNVGToggle = 1;
+                        fprintf(stderr, "[FF_TEST_NVG] requesting toggle at %ums\n", el);
                     }
                 }
             }

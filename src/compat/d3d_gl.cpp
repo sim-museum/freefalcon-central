@@ -3586,6 +3586,26 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
     }
 }
 
+#ifdef FF_LINUX
+// FF_LINUX (NVG-2): last COLORARG1/2 seen per stage. D3DTOP_ADDSMOOTH has an
+// exact GL equivalent only once its arguments are known -- it maps to
+// GL_INTERPOLATE with a white constant in SOURCE0 -- so the trace records the
+// arguments actually requested instead of assuming the usual TEXTURE/CURRENT.
+static DWORD ffLastColorArg[8][2];
+
+// FF_LINUX (NVG-2): one place to ask whether the texture-op implementations are
+// enabled, so the revert switch cannot drift between call sites.
+static bool ffTexOpFixEnabled(void)
+{
+    static int cached = -1;
+
+    if (cached == -1)
+        cached = getenv("FF_NO_TEXOP_FIX") ? 0 : 1;
+
+    return cached != 0;
+}
+#endif
+
 void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE type, DWORD value) {
     glActiveTexture(GL_TEXTURE0 + stage);
 
@@ -3632,6 +3652,43 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
                     glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_ADD);
                     break;
+#ifdef FF_LINUX
+                // FF_LINUX (NVG-2): these three used to fall through to the
+                // default arm and silently become MODULATE, which is how DX_NVG
+                // and DX_TV degraded. All three have exact fixed-function
+                // equivalents, so no approximation is involved:
+                //
+                //   D3DTOP_ADDSIGNED   A1 + A2 - 0.5            == GL_ADD_SIGNED
+                //   D3DTOP_ADDSIGNED2X same, doubled            == GL_ADD_SIGNED, RGB_SCALE 2
+                //   D3DTOP_DOTPRODUCT3 4*dot(A1-.5, A2-.5)      == GL_DOT3_RGB
+                //
+                // The sources are left alone deliberately: D3DTSS_COLORARG1/2
+                // arrive as their own SetTextureStageState calls and program
+                // SOURCE0/SOURCE1 themselves, so touching them here would fight
+                // whichever call happened to come second.
+                //
+                // FF_NO_TEXOP_FIX=1 restores the MODULATE fallback.
+                case D3DTOP_ADDSIGNED:
+                case D3DTOP_ADDSIGNED2X:
+                case D3DTOP_DOTPRODUCT3:
+                    if (ffTexOpFixEnabled()) {
+                        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+
+                        if (value == D3DTOP_DOTPRODUCT3) {
+                            glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_DOT3_RGB);
+                            glTexEnvi(GL_TEXTURE_ENV, GL_RGB_SCALE, 1);
+                        } else {
+                            glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_ADD_SIGNED);
+                            glTexEnvi(GL_TEXTURE_ENV, GL_RGB_SCALE,
+                                      value == D3DTOP_ADDSIGNED2X ? 2 : 1);
+                        }
+
+                        break;
+                    }
+
+                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+                    break;
+#endif
                 default:
 #ifdef FF_LINUX
                     // FF_LINUX (NVG-2): D3D texture ops this layer does not
@@ -3651,8 +3708,10 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                             if (!have && nSeen < 32) {
                                 seen[nSeen++] = value;
                                 fprintf(stderr, "[TEXOP] unimplemented COLOROP value=%lu on stage %lu"
-                                        " -> falling back to MODULATE\n",
-                                        (unsigned long)value, (unsigned long)stage);
+                                        " arg1=%lu arg2=%lu -> falling back to MODULATE\n",
+                                        (unsigned long)value, (unsigned long)stage,
+                                        (unsigned long)(stage < 8 ? ffLastColorArg[stage][0] : 0),
+                                        (unsigned long)(stage < 8 ? ffLastColorArg[stage][1] : 0));
                                 fflush(stderr);
                             }
                         }
@@ -3705,6 +3764,9 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
             break;
 
         case D3DTSS_COLORARG1:
+#ifdef FF_LINUX
+            if (stage < 8) ffLastColorArg[stage][0] = value;
+#endif
             // Set source 0 for GL_COMBINE color operation
             glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
             if (value == D3DTA_TEXTURE)
@@ -3718,6 +3780,9 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
             break;
 
         case D3DTSS_COLORARG2:
+#ifdef FF_LINUX
+            if (stage < 8) ffLastColorArg[stage][1] = value;
+#endif
             // Set source 1 for GL_COMBINE color operation
             glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
             if (value == D3DTA_TEXTURE)

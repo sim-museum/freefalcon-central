@@ -255,6 +255,24 @@ void OTWDriverClass::Cycle(void)
         }
     }
 
+    // FF_LINUX (NVG-2): cross-thread NVG toggle request. NVGToggle() has to run
+    // on the sim thread for the same reason the view-mode change does, so the
+    // main thread only raises a flag. Driven by FF_TEST_NVG=<sec>[,<sec>...].
+    {
+        extern volatile int g_requestedNVGToggle;
+
+        if (g_requestedNVGToggle) {
+            g_requestedNVGToggle = 0;
+            OTWDriver.NVGToggle();
+
+            if (getenv("FF_DEBUG_TEXOP"))
+            {
+                fprintf(stderr, "[FF_TEST_NVG] toggled NVG\n");
+                fflush(stderr);
+            }
+        }
+    }
+
     // FF_LINUX: FF_ACMI_STOP=<sec> stops the ACMI recording N seconds after the
     // sim starts, which is what FLUSHES THE TAPE TO DISK. Without it a tape only
     // appears when the mission ends of its own accord, so any run cut short by a
