@@ -2597,7 +2597,35 @@ void OTWDriverClass::RenderFrame()
     TheDXEngine.ResetState();
 
     // Select the right mode
+#ifdef FF_LINUX
+    // FF_LINUX (BLUE-1): DX_NVG builds night vision out of a four-stage texture
+    // pipeline -- D3DTOP_ADDSMOOTH on stage 0, ADDSIGNED on 1 and 3,
+    // DOTPRODUCT3 on 2 -- and moves the alpha source to stage 3
+    // (CDXEngine::m_AlphaTextureStage). This GL compat layer implements NONE of
+    // those three operations; they fall through the COLOROP switch to its
+    // default. What the state does achieve is to leave stage 0 configured for a
+    // pipeline that never runs, and the 2D cockpit panel drawn afterwards
+    // through the MPR path inherits it, loses its chroma key, and fills the
+    // screen with its pure-blue background. That is the PO's "screen goes blue"
+    // report; measured as ~860 blue-painting draws per flight, 0 with this
+    // skipped.
+    //
+    // So skip it until those operations exist. Nothing real is lost -- the state
+    // configures a pipeline the layer cannot execute -- and NVG then renders
+    // correctly: green world, green cockpit, legible HUD and MFDs, which is what
+    // night vision is supposed to look like. The green itself comes from
+    // SetGreenMode and ColorBankClass::GreenMode, which are independent of this.
+    //
+    // FF_NVG_DXSTATE=1 restores the old behaviour for comparison.
+    {
+        static int ffDxState = -1;
+        if (ffDxState == -1) ffDxState = getenv("FF_NVG_DXSTATE") ? 1 : 0;
+
+        if (renderer->context.NVGmode and ffDxState) TheDXEngine.SetState(DX_NVG);
+    }
+#else
     if (renderer->context.NVGmode) TheDXEngine.SetState(DX_NVG);
+#endif
 
     if (renderer->context.TVmode) TheDXEngine.SetState(DX_TV);
 

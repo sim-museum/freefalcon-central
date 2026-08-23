@@ -3491,3 +3491,49 @@ differ in something not yet controlled.
 
 Everything here is env-gated and off by default; the defaults regression is
 clean (WHITE-1 0.0% white, 0.0% blue).
+
+### BLUE-1 FIXED — the contradiction resolved, and it was my grep
+
+The contradiction recorded above ("the flag's only readers are the tint sites,
+yet suppressing them leaves the bug") had a boring cause: **my grep was filtered.**
+Searching again with nothing excluded turned up a third reader:
+
+```
+otwloop.cpp:2600:  if (renderer->context.NVGmode) TheDXEngine.SetState(DX_NVG);
+```
+
+That is the one that matters, and the exclusion pattern I used to tidy the first
+search is exactly what hid it. Worth remembering: a filtered grep that returns a
+tidy answer is a filtered answer.
+
+**Root cause.** `DX_NVG` builds night vision from a four-stage texture pipeline —
+`D3DTOP_ADDSMOOTH` on stage 0, `ADDSIGNED` on 1 and 3, `DOTPRODUCT3` on 2 — and
+moves the alpha source to stage 3 via `CDXEngine::m_AlphaTextureStage`, where
+chroma keying is then configured (`ALPHAARG1=TEXTURE, ALPHAOP=SELECTARG1`).
+
+**This layer implements none of those three operations.** They are absent from the
+`COLOROP` switch entirely and fall through to its `default`. The state therefore
+leaves stage 0 set up for a pipeline that never executes, and the 2D cockpit
+panel drawn afterwards through the MPR path inherits it, loses its chroma key,
+and covers the screen with its pure-blue background.
+
+**Fix:** skip `SetState(DX_NVG)` until those operations exist. Nothing real is
+lost — it configures a pipeline the layer cannot run — and NVG then renders
+properly: green world, green cockpit, legible HUD and MFDs. The green comes from
+`SetGreenMode` and `ColorBankClass::GreenMode`, which are independent of this.
+`FF_NVG_DXSTATE=1` restores the old behaviour.
+
+| | blue-painting draws |
+|---|---|
+| fixed (default) | **0** |
+| `FF_NVG_DXSTATE=1` | 724 |
+
+Six-flight regression soak clean after the change.
+
+**A speculative fix that was tried and reverted.** Before finding the third
+reader I redirected the alpha stage states to texture unit 0 when the requested
+stage had no texture bound — reasoning that `m_AlphaTextureStage = 3` sent the
+chroma config to an empty unit. It reduced the blue draws (~860 → 673) without
+fixing it, and in the form that fired at all it redirected *every* stage, which
+would disturb genuine multitexturing. Reverted: a change that neither fixes the
+bug nor has evidence behind it is worse than none, however plausible its story.
