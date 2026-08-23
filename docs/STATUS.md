@@ -3190,3 +3190,46 @@ Still to verify: a trace of `z` vs `terrainHeight` at an actual detonation. That
 needs an automated release, which needs master arm plus a CCRP pickle held
 through the solution — the PO's correction (no dive required in CCRP) means
 HARNESS-1 does **not** need axis injection after all.
+
+### BOMB-1 confirmed from the PO's ACMI tape
+
+The PO dropped a bomb on the airstrip, saw no explosion, and reported one detail
+that decides the case: **the explosion sound played *after* the bomb disappeared
+into the airstrip.** A bomb that detonated on the visible surface would sound at
+the moment it vanished; a delay means it kept falling below that surface first.
+
+They also saved an ACMI tape, which turns the argument into numbers. Parsing
+`TAPE0012.vhs` directly (header 80 bytes, entity records 36, position records 41
+— the layout is pinned by static_asserts in `AcmiTape.h`):
+
+```
+entities=3  feats=892  positions=2467
+uid=1, uid=2   flags=0x04 (aircraft)   z from -12362 to -12249
+uid=393        type=377                the bomb, 197 samples
+```
+
+* The **bomb** is recorded from z = −12140 down to z = −729 ft (z is
+  positive-down, so those are altitudes) and the tape stops before impact.
+* **All 892 features are recorded at exactly z = 0.00** — minimum, maximum and
+  mean all zero, not one non-zero value in the whole theater.
+
+Two controls, because "every value is zero" is exactly the shape of a recording
+artifact rather than a finding:
+
+1. **Aircraft z records correctly** in the same tape (−12362 … −12249), so the
+   position pipeline is not simply dropping z.
+2. **The recorder writes the real field** — `featPos.data.z = theObject->ZPos()`
+   in `simdrive.cpp:2189`. It is not writing a constant.
+
+So the zero is the sim's own belief: every feature, the whole airfield included,
+sits at `ZPos() == 0`. Across 892 features spanning a theater that cannot be real
+elevation data. This is the same flat-z=0 world CLAUDE.md describes for the
+runway-elevation decoupling, now measured from a live tape instead of inferred.
+
+Applied to the bomb: it detonates when `z >= GetGroundLevel(x,y)` = 0, i.e. at
+sea level, roughly 20 ft *below* the rendered runway — so the fireball spawns
+inside the terrain and is occluded, and the bang arrives late because the bomb
+had further to fall. That is precisely what the PO saw and heard.
+
+**BOMB-1 needs no fix of its own.** Fixing the elevation decoupling should
+restore bomb explosions, landings, and the jet's collision height together.
