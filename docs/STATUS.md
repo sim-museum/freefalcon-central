@@ -3272,3 +3272,42 @@ sound-delay reasoning was also weaker than I presented it: sound propagation
 delay over a few thousand feet is seconds on its own, so the late bang never
 needed a buried detonation to explain it. Worth remembering the next time a
 measurement and a plausible mechanism seem to agree.
+
+### BOMB-1 — third tape, and a reading I nearly got wrong
+
+The PO's bridge run (`TAPE0013.vhs`) missed the bridge, so it is a pure ground
+impact. Parsing it:
+
+```
+tape startTime=32742.6 totPlayTime=213.3  -> ends 32956.0
+AIRCRAFT uid=1    800 samples, t 32742.6 -> 32955.8   final z=-7852
+weapon   uid=591  148 samples, t 32918.7 -> 32938.4   final z=-1235
+```
+
+The asymmetry looks damning: the aircraft records to the end of the tape while
+the bomb stops 17 s early at z = −1235 (1235 ft above **sea level**), still
+descending ~640 ft/s. I checked the recorder for distance culling — there is
+none, it walks the live object list — so the obvious conclusion is that the bomb
+leaves the sim about 2 s before it reaches the ground, which would be a real
+finding.
+
+**It is not a safe conclusion, and the reason is worth writing down.** That
+arithmetic assumes the ground beneath the bomb is at sea level. Nothing
+establishes that — this is inland terrain, not the coastal airfield of the
+previous tape. If the terrain there is ~1100 ft, the bomb stopped being recorded
+essentially *at* impact, which is exactly what should happen. The tape gives z
+relative to sea level and gives no terrain elevation at all (feature z is
+uniformly 0 and therefore useless for this).
+
+So this tape does **not** settle it either way. Recording it because the
+"aircraft records to the end, bomb stops early" comparison is genuinely
+compelling and will look like evidence to the next reader — it is not, without a
+terrain height to subtract.
+
+**The measurement that does settle it needs no user input:** instrument
+`OTWDriver.GetGroundLevel(x, y)` and compare it against the terrain height the
+renderer draws at the same point, over ordinary terrain. If those disagree, the
+bomb sinking into the visible ground is explained and the fix is in the elevation
+query; if they agree, then the ground level is right and the missing explosion is
+somewhere in the effect path after all. That is the next thing to do, and it can
+be run unattended.
