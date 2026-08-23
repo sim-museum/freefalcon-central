@@ -3724,8 +3724,14 @@ claimed were unloadable — the third stale claim corrected this session.
 
 The value of the sweep is less the pass/fail than the **assertion inventory** it
 produced, since recurring assertions have twice this project turned out to be
-unfixed bugs rather than noise. Across the 34 runs, 68 assertions fired at 8
-distinct sites; 7 missions were assertion-free.
+unfixed bugs rather than noise. Across the 34 runs, 68 assertion *lines* were
+logged at 8 distinct sites; 7 missions were assertion-free.
+
+> **Read the counts below as coverage, not frequency.** See "What an assertion
+> count actually counts" further down: `ShiAssert` suppresses a site after its
+> first hit and prints two lines per hit, so every number in this section is
+> `2 × (sites that fired at least once)`. The 68 lines are 34 site-firings, and
+> a mission listed with "6" hit three distinct sites, not six times.
 
 | count | site | assessment |
 |---|---|---|
@@ -3738,9 +3744,9 @@ distinct sites; 7 missions were assertion-free.
 | 2 | `seeker.cpp:350` | degenerate but safe — see below |
 | 2 | `drawbsp.cpp:107` | guarded |
 
-Missions that assert most are the weapon-employment ones (Rockets and 20mm
-Cannon at 6 each; HARMs, CCRP Bombs, AIM-7 and AIM-9 at 4), which is where the
-`handoff.cpp` and `seeker.cpp` sites live.
+Missions touching the most distinct sites are the weapon-employment ones
+(Rockets and 20mm Cannon at three sites each; HARMs, CCRP Bombs, AIM-7 and AIM-9
+at two), which is where the `handoff.cpp` and `seeker.cpp` sites live.
 
 **`seeker.cpp:350` — an ARH missile going active with `GetRadarType() == 0`.**
 Memory-safe: `RadarClass::RadarClass` does `radarData = &RadarDataTable[type]`,
@@ -4037,3 +4043,60 @@ comparison**, same as NVG-2: the gold-standard build can show whether the headin
 tape moves with realistic avionics off, and that answer decides the grouping.
 Guessing here would change what the PO sees on the HUD on the strength of an
 operator-precedence argument alone.
+
+---
+
+## TEXBANK-1 closed, and what an assertion count actually counts
+
+TEXBANK-1 asked two things about `texbank.cpp`'s invalid-index guard: are the ids
+the `-1` sentinel the guard assumes, or genuine miscomputed indices; and why did
+`Release()` (line 407) start appearing when `Reference()` (line 314) always had.
+`FF_DEBUG_TEXBANK=1` reports every rejected id. One TE row 22 run:
+
+```
+16 [TEXBANK] REF invalid id=-1
+16 [TEXBANK] REL invalid id=-1
+```
+
+**Every** rejected id is exactly `-1` — never an out-of-range value — so the guard's
+premise is right and the condition is by design. Reference and release are
+perfectly paired at 16 each, so skipping both sides leaves no refcount skew.
+TEXBANK-1 is benign; closed.
+
+### The part that matters more
+
+That same run logged **2** assertion lines at line 314 and **0** at 407, while the
+trace shows the condition occurred **16 times at each**. So assertion output is
+nothing like a frequency count. From `shierror.h`:
+
+```c
+#define ShiAssert( expr ) \
+ if (shiAssertsOn && !(expr)) { \
+     static int skipThisOne = FALSE; \
+     if (!skipThisOne) { ... choice = MessageBox(...); \
+     ... else if (choice == IDIGNORE) { skipThisOne = TRUE; } ...
+```
+
+`skipThisOne` is a **per-site static**, and the Linux `MessageBoxA` stub returns
+`IDIGNORE` unconditionally for `MB_ABORTRETRYIGNORE`. So every site fires **once
+per process** and is suppressed forever after. It also prints twice per hit —
+once through `OutputDebugString`, once through the stub's `fprintf` — which is
+why every count in the inventory is even.
+
+**An assertion count is `2 × (distinct sites that fired at least once)`.** It
+answers "was this site reached in this run", never "how often". Every number in
+the TESWEEP-1 inventory above has been reframed accordingly: 68 lines are 34
+site-firings, `team.cpp:1800` at "20×" means it was reached in 10 missions, and
+the missions "asserting most" are the ones touching the most distinct sites.
+
+This also dissolves the rest of TEXBANK-1. Whether line 407 appears in a given
+log is a one-bit fact — did `Release()` see a `-1` before the log window closed —
+so its absence from the sweep baseline was never the anomaly it looked like. Both
+of my earlier explanations for it were wrong, and so was the premise of the
+question.
+
+Worth carrying forward: the inventory is still a good work queue — it is how
+VOICE-1, VOICE-2, SAVE-2 and now SEEKER-1 were found — but only for *which* sites
+are reached. Ranking by count ranks nothing. To measure how often a condition
+actually occurs, add a trace like `FF_DEBUG_TEXBANK`; the assertion will not tell
+you.

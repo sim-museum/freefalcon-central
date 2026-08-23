@@ -317,7 +317,17 @@ void TextureBankClass::Reference(int id)
     // the ShiAssert is a no-op here, so guard at runtime to avoid TexturePool[-1].
     // (FF_TEXBANK_LOCK is a RAII lock_guard - it releases on return.)
     if (not IsValidIndex(id))
+    {
+        // TEXBANK-1: is this the -1 sentinel the guard assumes, or a genuine
+        // out-of-range index computed wrong? FF_DEBUG_TEXBANK=1 says which.
+        if (getenv("FF_DEBUG_TEXBANK"))
+        {
+            fprintf(stderr, "[TEXBANK] %s invalid id=%d\n", "REF", id);
+            fflush(stderr);
+        }
+
         return;
+    }
 #endif
 
     // Get our reference to this texture recorded to ensure it doesn't disappear out from under us
@@ -408,7 +418,17 @@ void TextureBankClass::Release(int id)
 #ifdef FF_LINUX
     // FF_LINUX: guard against invalid/sentinel ids (see Reference()).
     if (not IsValidIndex(id))
+    {
+        // TEXBANK-1: is this the -1 sentinel the guard assumes, or a genuine
+        // out-of-range index computed wrong? FF_DEBUG_TEXBANK=1 says which.
+        if (getenv("FF_DEBUG_TEXBANK"))
+        {
+            fprintf(stderr, "[TEXBANK] %s invalid id=%d\n", "REL", id);
+            fflush(stderr);
+        }
+
         return;
+    }
 #endif
     ShiAssert(TexturePool[id].refCount > 0);
 
