@@ -3072,3 +3072,68 @@ handoff is possible, NULL will be returned"* — and all three live callers
 left in place as the diagnostic.
 
 Soak re-run with the guard in: six flights, zero crashes, zero whiteouts.
+
+---
+
+## Sprint 28 — PO verification against the Wine gold standard
+
+The PO flew the CCIP TE on both builds and recorded them. **The whiteout is gone**
+(confirmed by the PO on the A/G press), and leaving the SMS on CCRP the Linux run
+is "almost identical to gold standard". Two things came out of it.
+
+### CRASH-7 — bomb release dereferenced NULL (fixed, `a7017798`)
+
+Found in the PO's session log, not by the soak. `BombClass::SetTarget` released
+the old target, set `targetPtr = NULL`, then called `targetPtr->Reference()` —
+because the only two lines that assigned `targetPtr` are commented-out
+`Copy(OBJ_TAG, this)` calls whose signature no longer exists. `targetPtr` is a
+`SimMoverClass` member initialised to NULL, so it was **provably NULL** there:
+every release against a designated target, deterministically.
+
+Same defect and cause as one already fixed in `MissileClass::SetTarget`; the bomb
+was missed. All nine `::SetTarget(SimObjectType*)` implementations were audited —
+the bomb was the only one lacking the assignment. The soak missed it because none
+of those six flights dropped a bomb; *a soak only covers what it actually does*.
+
+Also corrected: a comment in `simobj.cpp` claimed this exact backtrace was the
+refcount race fixed as CRASH-1/2. It was not, and leaving that in place would
+have sent the next reader hunting a race that is not producing this signature.
+
+### BLUE-1 narrowed by the PO to the CCIP sub-mode
+
+On **CCRP the run is clean**; the blue screen only appears after switching to
+CCIP. That halves the search, and it means the release path itself is not at
+fault — CCRP releases bombs too.
+
+### BOMB-1 — bomb impact produces no explosion
+
+Measured from the two recordings rather than by eye. Both 1920×1080/60. The Linux
+capture is windowed, so the game region (`crop=1030:810:444:120`) has to be
+isolated before any metric means anything:
+
+* **Wine**, t≈130.5 s: a large fireball with smoke plumes on the tarmac —
+  1.21% fire-coloured pixels, 9.9% bright.
+* **Linux**, t=256 s: the bomb model is plainly visible falling toward the
+  runway threshold. By t=260 s it is simply gone. No fireball, no smoke, no
+  crater flash — and **no fire-coloured pixels anywhere in the game region across
+  the entire 290 s run**.
+
+Also worth noting from the same frames: the PILOT OPTIONS dialog at t=266 s
+renders its text correctly. So the "text as white blocks" the PO saw earlier is
+*not* a general font defect — it is part of the corrupted state that follows a
+BLUE-1 event, which makes it a symptom of BLUE-1 rather than a separate bug.
+
+Code path traced: `BombClass::DoExplosion` sends a `FalconMissileEndMessage` with
+`endCode = BombImpact` and `SetParticleEffectName(auxData->psBombImpact)`.
+`Process()` calls `AddParticleEffect(name)` when the name is non-empty, and
+otherwise falls through to a legacy branch that should still spawn
+`SFX_GROUND_EXPLOSION` for a high-explosive bomb. So *something* should draw
+either way, which is what makes this interesting. `FF_DEBUG_MSLEND=1` reports the
+end code, position, ground type, effect name and spawn result — that trace on one
+real impact should settle it.
+
+**Harness status for the repro:** `FF_SIM_KEY` does deliver the pickle
+(`kbdPickle=1` confirmed in the log), so the input path works; the bomb did not
+release because master arm and sub-mode were not set up. Master arm is
+`Shift+M` (`0x32`, modifier 1) and no code change is needed to script it — a held
+`0x2A` with `0x32` pressed inside it does the job with the existing syntax.
