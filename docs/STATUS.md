@@ -3655,3 +3655,30 @@ a **campaign** run (commit → priorities → START CAMPAIGN → pick a flight �
 in → TAKEOFF) reaches the sim with **0 errors**. That matters because the
 campaign path is where VOICE-3 and CAMPUI-1 lived, and the TE-only soak would
 never have touched it.
+
+### NVG-2 sized: exactly three texture ops are missing, and only NVG/TV want them
+
+`FF_DEBUG_TEXOP=1` reports every D3D texture op that falls through the `COLOROP`
+switch's `default` and silently becomes `MODULATE`.
+
+* **A normal A/G flight reports none.** The gap does not touch ordinary
+  rendering.
+* With the NVG state restored (`FF_NVG_DXSTATE=1`) it reports exactly three:
+
+```
+[TEXOP] unimplemented COLOROP value=11 on stage 0   (D3DTOP_ADDSMOOTH)
+[TEXOP] unimplemented COLOROP value=8  on stage 1   (D3DTOP_ADDSIGNED)
+[TEXOP] unimplemented COLOROP value=24 on stage 2   (D3DTOP_DOTPRODUCT3)
+```
+
+which is precisely the `DX_NVG` stage setup. The diagnosis behind the BLUE-1 fix
+is therefore confirmed by direct measurement, not just by reading the code.
+
+Two of the three map exactly onto GL combine modes (`GL_ADD_SIGNED`,
+`GL_DOT3_RGB`); `ADDSMOOTH` (a + b − ab) has no direct equivalent and would need
+approximating. **Deliberately not implemented yet.** `DX_TV` shares the same
+branch and drives the Maverick and laser-pod displays, so implementing these
+changes how those render — and there is no way to tell better from worse without
+the Wine reference to compare against. Shipping an unvalidatable rendering change
+is how the earlier speculative alpha-stage redirect happened. The gap is now
+measured and named; implementing it is a task for when a reference is at hand.

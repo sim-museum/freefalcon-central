@@ -3633,6 +3633,31 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                     glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_ADD);
                     break;
                 default:
+#ifdef FF_LINUX
+                    // FF_LINUX (NVG-2): D3D texture ops this layer does not
+                    // implement land here and silently become MODULATE. That is
+                    // how DX_NVG and DX_TV degrade (ADDSMOOTH / ADDSIGNED /
+                    // DOTPRODUCT3). FF_DEBUG_TEXOP=1 reports which ops are
+                    // actually asked for, so the gap can be sized rather than
+                    // guessed at.
+                    {
+                        static int ffDbgOp = -1;
+                        if (ffDbgOp == -1) ffDbgOp = getenv("FF_DEBUG_TEXOP") ? 1 : 0;
+
+                        if (ffDbgOp) {
+                            static DWORD seen[32]; static int nSeen = 0;
+                            bool have = false;
+                            for (int q = 0; q < nSeen; q++) if (seen[q] == value) { have = true; break; }
+                            if (!have && nSeen < 32) {
+                                seen[nSeen++] = value;
+                                fprintf(stderr, "[TEXOP] unimplemented COLOROP value=%lu on stage %lu"
+                                        " -> falling back to MODULATE\n",
+                                        (unsigned long)value, (unsigned long)stage);
+                                fflush(stderr);
+                            }
+                        }
+                    }
+#endif
                     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
                     break;
             }
