@@ -3233,3 +3233,42 @@ had further to fall. That is precisely what the PO saw and heard.
 
 **BOMB-1 needs no fix of its own.** Fixing the elevation decoupling should
 restore bomb explosions, landings, and the jet's collision height together.
+
+### BOMB-1 — RETRACTION: it is not airfield-specific
+
+I closed BOMB-1 as a symptom of the *airfield* elevation decoupling, on the
+strength of the ACMI tape showing all 892 features at `ZPos() == 0`. **That
+conclusion was wrong, and the PO's next test is what killed it.**
+
+Asked whether a bomb explodes anywhere that is not an airfield, they dropped one
+on **open terrain in actual CCIP** and got identical behaviour: the terrain
+swallows the bomb, a delay, the explosion *sound*, and no visible explosion.
+Frame-scanning that recording's game region (same windowed crop) across all 172 s
+gives a peak "fire" measure of 1.51%, and the frame responsible is the **credits
+screen** — there is no explosion anywhere in the run.
+
+So the airfield's flat-z=0 features cannot be the explanation: ordinary terrain
+behaves the same. What survives from the tape analysis is only that features are
+recorded at z=0; what does *not* survive is the inference that this is why bombs
+vanish.
+
+**What the two runs actually establish, together:**
+
+* The bomb sinks *into* the rendered terrain rather than stopping at its surface,
+  on both an airfield and open ground.
+* It does detonate — the sound plays — but the effect is never visible.
+* The particle system is not at fault (`FF_TEST_EXPLOSION` renders, the effect
+  names exist in `particlesys.ini`, the bomb data defines them).
+
+That still points at a rendered-vs-collision elevation mismatch, but a **general**
+one rather than an airfield artifact — `GetGroundLevel` returning a lower surface
+than the one being drawn, everywhere. The next measurement is therefore to
+compare `GetGroundLevel(x,y)` against the rendered terrain height at the same
+point over ordinary terrain, which needs no user input.
+
+**Process note.** I built a confident, well-evidenced story from one tape and one
+audio cue, and a single control the PO ran demolished the part that mattered. The
+sound-delay reasoning was also weaker than I presented it: sound propagation
+delay over a few thousand feet is seconds on its own, so the late bang never
+needed a buried detonation to explain it. Worth remembering the next time a
+measurement and a plausible mechanism seem to agree.
