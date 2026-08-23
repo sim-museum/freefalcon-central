@@ -4119,10 +4119,28 @@ $ WINEARCH=win32 wine FFViper.exe
 wine: WINEARCH is set to 'win32' but this is not supported in wow64 mode.
 ```
 
-Neither message is about FreeFalcon. The prefix is 32-bit, system `wine` defaults
-to wow64, and `WINEARCH` cannot override it — the answer is the separate
-**`wine32`** binary, which is installed. `scripts/wine-capture.sh` wraps it:
-launch, wait for the `Falcon 4 - FreeFalcon` window by name, `import` it, kill.
+Neither message is about FreeFalcon: the prefix is 32-bit, system `wine` defaults
+to wow64, and `WINEARCH` cannot override it. System `wine32` *will* boot it — but
+**that is not the supported path, and using it was my mistake.** The PO already
+has a launcher, `~/sgl/SAT/freeFalcon/freeFalcon.sh`, which pins a specific
+runner and explains why in a comment:
+
+> system wine 10 (wow64) can't boot this 32-bit prefix at all; lutris-9.22-staging
+> detected the joystick but the setup screen locked up. Wine-GE 8 boots the prefix
+> and the game enumerates the stick via DirectInput8
+
+and launches inside a **Wine virtual desktop** sized to match `display.dsp`:
+
+```sh
+wine explorer /desktop=FreeFalcon,1024x768 'C:\FreeFalcon6\FFViper.exe'
+```
+
+That detail is the whole answer to capture (below). The script also documents why
+the executable needs a full Windows path, why the desktop must be exactly
+1024×768 (exclusive fullscreen mode-set fails on a multi-head screen otherwise),
+and why the window has to be pinned to 0,0 with `xdotool` on this two-monitor
+setup. **Read the launcher before driving the Wine build**; it encodes several
+hours of someone else's debugging.
 
 First capture is the main menu, rendering correctly — FreeFalcon 6.0 / FFViper
 2.3.3.44, full menu bar. The useful part is that **the Windows build's UI lands on
@@ -4130,13 +4148,6 @@ the same coordinates the Linux harness already uses**: the menu bar sits at
 y≈750 with TACTICAL ENGAGEMENT at x≈673, which is what `FF_UI_CLICK`'s
 `677,748` was written against. So the existing click scripts translate to
 `xdotool` against the Wine window with essentially the same numbers.
-
-**Config safety.** The Wine build shares the game data directory with the Linux
-build, so it can overwrite the PO's settings. Measured: a run rewrites only
-`config/Viper.plc`; `display.dsp` and `registry.ini` — which hold the 1920×1080
-display setting — are untouched. `config/` and `ffviper.cfg` were backed up before
-the first Wine launch and restored after the last, and a final `diff -rq` reports
-no differences. Anyone doing this again should keep that backup/restore step.
 
 ### The catch, found by trying it
 
@@ -4151,15 +4162,43 @@ had just been redrawn (the hover highlight) is the one region that appeared. The
 earlier full menu capture worked because it happened to land right after a full
 redraw.
 
-So driving is solved and capture is not. Capturing an arbitrary moment — which is
-exactly what an NVG or HUD comparison needs — requires either forcing a full
-redraw before each grab, or reading the DirectDraw surface some other way
-(`WINEDLLOVERRIDES` to a software renderer, or Wine's own screenshot path).
-That is a research question, not a scripting one, and my first write-up of this
-called it the opposite before I had tried it.
+Both `import -window` and `ffmpeg x11grab` returned black. That looked like the
+familiar wall — DirectDraw/GL surfaces are not X-readable, which is exactly why
+the *Linux* build needed in-process `glReadPixels` rather than an X grab.
 
-**Status of the two items.** Neither is blocked on the PO any more. Both now need
-the DirectDraw capture problem solved first. NVG-2 additionally
+It was not that wall. It was that I was launching the game **wrong**: system
+`wine32` running `FFViper.exe` directly gives a 1920×1080 exclusive-fullscreen
+window on the second monitor, and that surface is not capturable. Launched the
+supported way — `freeFalcon.sh`, GE-Proton runner, inside
+`wine explorer /desktop=FreeFalcon,1024x768` — the game renders into an ordinary
+X window inside the virtual desktop, and a plain `import -window` returns **a
+clean, complete 1024×768 frame**. Verified: the main menu captured in full.
+
+So both halves work:
+
+| | mechanism | status |
+|---|---|---|
+| drive | `xdotool mousemove --window W x y click 1` | works; a test click at `673,750` highlighted TACTICAL ENGAGEMENT |
+| capture | `import -window <Falcon 4 - FreeFalcon>` inside the virtual desktop | works; full 1024×768 frame |
+
+And the coordinates line up with the Linux harness: the Wine window is exactly
+1024×768 with the menu bar at y≈750 and TACTICAL ENGAGEMENT at x≈673 — the same
+numbers `FF_UI_CLICK`'s `677,748` was written against.
+
+**Status of the two items.** NVG-2 and NAVHUD-1 are genuinely unblocked. A matched
+side-by-side of the same TE mission from both builds is now a scripting job.
+
+**A second oracle worth remembering:** the PO's screen recordings in
+`~/Videos/`. `ffmpeg -ss <t> -i <video> -frames:v 1` pulls a reference frame
+straight out of them. The frame at t=130 s of `260822_wine_ff_TE_CCIP.mp4` shows
+the Wine build's bomb impact — a large fireball on the airstrip under a WEAPON
+CAMERA label — which is the gold standard for BOMB-1, the defect the PO reported
+as "no visible explosion" on Linux.
+
+**Config safety.** The Wine build shares the game data directory. Measured: a run
+rewrites only `config/Viper.plc`; `display.dsp` and `registry.ini` are untouched.
+`config/` and `ffviper.cfg` were backed up before the first Wine launch and
+restored after the last, with `diff -rq` confirming no differences remain. NVG-2 additionally
 needs the D3D7 semantics for the three missing ops (`ADDSIGNED` = `a1 + a2 - 0.5`,
 `ADDSMOOTH` = `a1 + a2 - a1·a2`, `DOTPRODUCT3`), which GL's texture combiners
 cover directly for two of the three. Retitled from "blocked" to "ready".
