@@ -3537,3 +3537,39 @@ chroma config to an empty unit. It reduced the blue draws (~860 → 673) without
 fixing it, and in the form that fired at all it redirected *every* stage, which
 would disturb genuine multitexturing. Reverted: a change that neither fixes the
 bug nor has evidence behind it is worse than none, however plausible its story.
+
+---
+
+## Sprint 32 — MFD-THRU-1 fixed: the 3-D pit MFDs are opaque again
+
+This was parked because the obvious fix broke something worse: forcing a
+non-chroma composite made the MFDs perfect *and* turned the HUD into an opaque
+black slab. That was a **global** override, though — `FF_RTT_BLEND` applied to
+every canvas. The MFD call sites can be told apart from the HUD's.
+
+`SetRttCanvas` now takes an `opaqueCanvas` flag, defaulted false, and only the
+two MFD sites in `mfd.cpp` pass true. Those canvases then composite opaquely
+instead of chroma-keyed. The HUD is not marked, so it stays keyed and remains
+see-through.
+
+Why this is the right shape: the MFD screens are *holes* in the pit model,
+filled only by this composite (verified earlier — removing the composite leaves
+the bleed unchanged at 331 vs 329). `3Dckpit.dat` asks for chroma, but the
+canvas background is rendered with alpha 0, so a keyed composite discards the
+background and the outside world shows through the instrument. An MFD is an
+opaque display; it should not be keyed.
+
+| | left-MFD bleed | dark |
+|---|---|---|
+| fixed (default) | **34** | 668 of 810 |
+| `FF_NO_OPAQUE_MFD=1` | 328 | 321 |
+
+And the constraint that blocked this is satisfied — the HUD region is
+**identical** in both runs (47 of 1911 dark), so it is untouched and still
+transparent. Six-flight regression soak clean.
+
+**Measurement note:** the captures came back 1024×768 rather than the 1920×1080
+of earlier sessions, and the fixed pixel crop I had been using silently indexed
+out of range. The metric is now expressed as fractions of the frame, which is
+what it should have been from the start — a crop tuned to one resolution is a
+measurement that quietly stops meaning anything when the resolution changes.

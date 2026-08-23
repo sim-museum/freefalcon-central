@@ -1454,8 +1454,12 @@ bool VirtualDisplay::CleanupRttTarget()
     return false;
 }
 
-void VirtualDisplay::SetRttCanvas(Tpoint* ul_, Tpoint* ur_, Tpoint* ll_, char blendMode_, float alpha_)
+void VirtualDisplay::SetRttCanvas(Tpoint* ul_, Tpoint* ur_, Tpoint* ll_, char blendMode_, float alpha_,
+                                  bool opaqueCanvas_)
 {
+#ifdef FF_LINUX
+    rttOpaqueCanvas = opaqueCanvas_;
+#endif
     canUL = *ul_;
     canUR = *ur_;
     canLL = *ll_;
@@ -1495,6 +1499,24 @@ void VirtualDisplay::SetRttCanvas(Tpoint* ul_, Tpoint* ur_, Tpoint* ll_, char bl
             rttBlendMode = STATE_TEXTURE_GOURAUD;
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX (MFD-THRU-1): the MFD screens are holes in the pit model, filled
+    // only by this canvas composite. 3Dckpit.dat asks for chroma ('c'), but the
+    // canvas background is rendered with alpha 0, so a keyed composite discards
+    // it and the outside world shows through the instrument. Those canvases are
+    // opaque displays and are marked as such by their caller; draw them opaque.
+    // The HUD is NOT marked, so it stays keyed and you can still see through it.
+    // FF_NO_OPAQUE_MFD=1 reverts.
+    if (rttOpaqueCanvas)
+    {
+        static int ffNoOpaque = -1;
+        if (ffNoOpaque == -1) ffNoOpaque = getenv("FF_NO_OPAQUE_MFD") ? 1 : 0;
+
+        if ( not ffNoOpaque)
+            rttBlendMode = STATE_TEXTURE_GOURAUD;
+    }
+
+#endif
     rttAlpha = alpha_;
 }
 

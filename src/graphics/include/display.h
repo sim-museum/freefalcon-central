@@ -238,7 +238,8 @@ public:
     static bool CleanupRttTarget();
     void StartRtt(Render3D* r3d_);
     void FinishRtt();
-    void SetRttCanvas(Tpoint* ul_, Tpoint* ur_, Tpoint* ll_, char blendMode_, float alpha_);
+    void SetRttCanvas(Tpoint* ul_, Tpoint* ur_, Tpoint* ll_, char blendMode_, float alpha_,
+                      bool opaqueCanvas_ = false);
     void SetRttRect(int tLeft_, int tTop_, int tRight_, int tBottom_,  bool rt_ = true);
     void AdjustRttViewport();
     void ResetRttViewport();
@@ -257,6 +258,10 @@ protected:
     Tpoint canUR;
     Tpoint canLL;
     int rttBlendMode;
+#ifdef FF_LINUX
+    // FF_LINUX (MFD-THRU-1): canvases whose own background must stay opaque.
+    bool rttOpaqueCanvas = false;
+#endif
     float rttAlpha;
 
     int oldXRes;

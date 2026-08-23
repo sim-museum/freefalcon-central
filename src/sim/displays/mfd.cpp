@@ -748,7 +748,7 @@ void MFDClass::Exec(int clearFrame, int virtualCockpit)
         {
             if (drawable->GetDisplay())
             {
-                drawable->GetDisplay()->SetRttCanvas(&cUL, &cUR, &cLL, cBlend, cAlpha);
+                drawable->GetDisplay()->SetRttCanvas(&cUL, &cUR, &cLL, cBlend, cAlpha, true);
                 drawable->GetDisplay()->SetRttRect(tLeft, tTop, tRight, tBottom);
             }
         }
@@ -826,7 +826,7 @@ void MFDClass::Exec(int clearFrame, int virtualCockpit)
                 drawable->DisplayInit(image);
 
                 OTWDriver.renderer->StartRtt(OTWDriver.renderer);
-                drawable->GetDisplay()->SetRttCanvas(&cUL, &cUR, &cLL, cBlend, cAlpha);
+                drawable->GetDisplay()->SetRttCanvas(&cUL, &cUR, &cLL, cBlend, cAlpha, true);
                 drawable->GetDisplay()->SetRttRect(tLeft, tTop, tRight, tBottom);
                 drawable->GetDisplay()->AdjustRttViewport();
 
