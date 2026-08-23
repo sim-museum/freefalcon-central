@@ -118,13 +118,20 @@ void AircraftClass::DoWeapons()
                     // FCC->GetTheBomb() requires it, and forcing the master mode
                     // alone does not select one.
                     //
-                    // KNOWN INCOMPLETE: this gets a real bomb into GetTheBomb()
-                    // but no release follows. SMSClass::DropBomb early-outs on
-                    // its own curWeapon, which SetCurHardpoint does not update,
-                    // and SMSClass::SelectWeapon(wtMk82/wtMk84, wdGround) picks
-                    // station 1 (no bomb) on this loadout while the bomb is at
-                    // station 3 -- so the loadout is not Mk82/84 and the right
-                    // WeaponType is not yet known. That is where to resume.
+                    // KNOWN INCOMPLETE -- what has been established so far:
+                    //   * scanning the stations finds a bomb at station 3 and
+                    //     GetTheBomb() then returns a real BombClass;
+                    //   * that station's GetWeaponType() is 5 = wtMk82, so the
+                    //     loadout IS Mk82 and the type is not the problem;
+                    //   * SelectWeapon(wtMk82, wdGround) nonetheless selects
+                    //     station 1, whose weaponPointer is NULL, so GetTheBomb()
+                    //     goes NULL again and no release follows.
+                    // The likely reason is that weapon objects are instantiated
+                    // lazily, so a station can legitimately hold Mk82s with a null
+                    // weaponPointer, and the real release path creates the object
+                    // as part of its own sequence. Resume by following what the
+                    // genuine pickle does between SMS selection and DropBomb
+                    // rather than by forcing selection from outside.
                     if (FCC->Sms)
                     {
                         for (int hp = 0; hp < FCC->Sms->NumHardpoints(); hp++)
@@ -133,8 +140,16 @@ void AircraftClass::DoWeapons()
                                 FCC->Sms->hardPoint[hp]->weaponPointer and
                                 FCC->Sms->hardPoint[hp]->weaponPointer->IsBomb())
                             {
-                                FCC->Sms->SetCurHardpoint(hp);
-                                fprintf(stderr, "[TESTBOMB] selected bomb station %d\n", hp);
+                                // Drive the SMS's own selection with the station's
+                                // real weapon type, so curWeapon is updated too --
+                                // DropBomb early-outs on curWeapon, which
+                                // SetCurHardpoint alone leaves stale.
+                                WeaponType wt = FCC->Sms->hardPoint[hp]->GetWeaponType();
+                                FCC->Sms->SelectWeapon(wt, wdGround);
+                                fprintf(stderr, "[TESTBOMB] bomb at station %d weaponId=%d type=%d "
+                                        "-> SelectWeapon gave hardpoint=%d theBomb=%p\n",
+                                        hp, (int)FCC->Sms->hardPoint[hp]->weaponId, (int)wt,
+                                        FCC->Sms->CurHardpoint(), (void *)FCC->GetTheBomb());
                                 break;
                             }
                         }
