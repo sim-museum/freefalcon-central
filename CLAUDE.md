@@ -4213,3 +4213,60 @@ FF_SIM_CLICK="1130,554@40"           # A/G button on the UFC, once in the sim
 FF_VIEW_SCRIPT="4@62"                # 0=HUD 1=2Dpit 2=chase 3=orbit 4=virtual pit
 FF_SIM_SCREENSHOT="70:/tmp/x.bmp"
 ```
+
+---
+
+### Session: August 2026 (cont.) — NVG, MFD see-through, bomb explosions
+
+Five more defects, four of them PO-visible. The through-line: **three separate
+symptoms all came from state or branches that quietly exclude the case in hand.**
+
+| item | defect | fix |
+|---|---|---|
+| **BLUE-1** | Toggling NVG (**N**) filled the screen with the 2D panel's pure-blue chroma. `DX_NVG` builds night vision from a four-stage pipeline (`ADDSMOOTH`/`ADDSIGNED`/`DOTPRODUCT3`) and moves the alpha source to stage 3 — **none of those three ops exist in this GL layer**; they fall through the `COLOROP` switch's `default`. Stage 0 is left set up for a pipeline that never runs, and the panel drawn afterwards loses its chroma key | skip `SetState(DX_NVG)` until those ops exist; NVG then renders correctly. `FF_NVG_DXSTATE=1` reverts |
+| **MFD-THRU-1** | The outside world showed through the 3-D pit MFD screens. They are holes in the pit model filled only by the canvas composite, which `3Dckpit.dat` asks to chroma-key — but the canvas background is written with alpha 0, so the key discards it | `SetRttCanvas` gained an `opaqueCanvas` flag; only the two MFD sites pass true, so the HUD stays keyed and see-through. `FF_NO_OPAQUE_MFD=1` reverts |
+| **BOMB-1** | Bombs hit the ground with no explosion. `dataIdx` is 0 for Mk-82/84 → dataset `default` → no `psBombImpact`, so the named path is skipped; and the `endCode` switch holding `case BombImpact` is gated on `type == TYPE_MISSILE`, which a `TYPE_BOMB` never satisfies | let bombs into the switch. `FF_NO_BOMB_IMPACT_FX=1` reverts |
+| **CRASH-7** | Every bomb release against a designated target dereferenced NULL — `BombClass::SetTarget`'s only assignments to `targetPtr` are commented-out `Copy(OBJ_TAG,…)` calls | assign before referencing, as `HudClass::SetTarget` does |
+| **HANDOFF-1** | `SimCampHandoff(HANDOFF_RADAR)` on a unit with no radar matched `GetRadarType()==0` and handed the lock to an arbitrary truck — 20 mis-targets in one flight | return NULL, which is the function's documented answer |
+| **ASAN-1** | `PackageClass::GetFACFlight` indexed `MissionData[41]` with an unbounded `uchar`, from the voice thread | bound the index |
+
+**Two corrections to earlier notes in this file.**
+
+* The **runway-elevation decoupling** entry says collision data is flat z=0 and
+  that the agent cannot capture sim frames. **Both are stale.** Measured with
+  `FF_DEBUG_GROUND`: parked on a runway the query answers at lod 0 with
+  −26.00 ft and the aircraft sits 5.99 ft above it (gear height); airborne it
+  answers at lod 0 with real elevations out to 12 000 ft, coarsening beyond, with
+  no zeros. Only a *startup transient* returns 0 at coarse lod. And
+  `FF_SIM_SCREENSHOT` captures sim frames fine — the whole PIT-1 and NVG work ran
+  on them.
+* Issue #10's claim that "the MFD black-background quad draws EARLY" is wrong:
+  backtracing that draw gives `RenderOTW::DrawSun`. There is no backdrop.
+
+**Method notes that cost real time here:**
+
+* A **filtered grep gave a tidy wrong answer.** Excluding `Set…`/`Get…` while
+  hunting NVG readers hid `otwloop.cpp:2600`, the one that mattered, and produced
+  a "contradiction" that stood for a whole sprint.
+* **Where a trace sits is part of the measurement.** Reading the weapon type
+  above its assignment printed `-1` and looked like an unresolved entity class.
+* **A metric tuned to one resolution silently stops meaning anything.** Fixed
+  pixel crops indexed out of range when captures came back 1024×768; express
+  regions as fractions of the frame.
+* **"0 errors" and "the tool never ran" look identical.** The first ASAN pit run
+  had not reached the sim at all.
+
+#### New env vars
+
+| Env | Effect |
+|-----|--------|
+| `FF_TEST_BOMB=<sec>[,<sec>…]` | Release a bomb at those times (relative to first call) — selects a bomb station via `SetCurrentWeapon`, sets A/G bomb mode, raises the FCC pickle |
+| `FF_TEST_SUBMODE=ccip\|ccrp` | Force the A/G sub-mode |
+| `FF_DEBUG_BOMBHIT` / `FF_DEBUG_BOMBDATA` / `FF_DEBUG_BOMBTGT` | Every gate on the ground-detonation path / the aux dataset and effect names loaded / bomb `SetTarget` calls |
+| `FF_NO_BOMB_IMPACT_FX=1` | Revert the BOMB-1 fix |
+| `FF_NVG_DXSTATE=1` / `FF_NVG_SKIP=ctx\|green\|all` / `FF_NVG_NOVTX=1` | Revert the BLUE-1 fix / drop parts of the NVG toggle / suppress the NVG vertex tint |
+| `FF_NO_OPAQUE_MFD=1` / `FF_RTT_BLEND=a\|c\|g\|t` / `FF_NO_RTT_QUAD=1` / `FF_DUMP_RTT=1` | Revert the MFD fix / override every canvas blend / skip the canvas composite / report canvas alpha |
+| `FF_DEBUG_GROUND=1` | Ground-level query with its LOD, the player's own position, and a probe at increasing range ahead |
+| `FF_DEBUG_MSLEND=1` | Weapon-impact messages, now including `type`/`stype`, the legacy branch, and effect spawns |
+| `FF_DEBUG_NESTED` / `FF_DEBUG_ORDER` / `FF_DEBUG_LODS` / `FF_TRACE_LOD=<id>` | Nested flush callers / per-flush poly loads and runway draws / distinct model ids per frame / whether a model draws in pit mode |
+| `FF_DEBUG_HANDOFF=1` | What the unguarded radar handoff would have returned |
