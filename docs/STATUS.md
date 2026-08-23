@@ -3766,3 +3766,143 @@ time this session a metric was read before the thing it measures had finished
 metric sampling rows the geometry had already left). *A number harvested from a
 log while the process is still writing it is not a measurement.* Check the
 process has exited before believing the count.
+
+---
+
+## RADARTYPE-1 — the zero radar type, and two real bugs behind it
+
+The TE sweep left one open thread: two independent sites reaching
+`GetRadarType() == 0`, at `handoff.cpp:86` (10 hits) and `seeker.cpp:350` (2).
+Both consumers were already safe, so the question was whether the *value* was
+wrong. It is not. The value is correct everywhere, and each site was asking the
+wrong question about it.
+
+### The data is fine — this is not another VOICE-1
+
+The first suspicion was a struct-layout mismatch, since `RadarType` is read by a
+raw block `fread` straight into `WeaponClassDataType`, and `LoadWeaponData`
+**skips its size sanity check entirely on the `g_bFFDBC` path** — the exact shape
+of VOICE-1/VOICE-2. Measured instead of assumed:
+
+| table | `sizeof` here | file | arithmetic |
+|---|---|---|---|
+| `WeaponClassDataType` | 60 | 47 822 / 47 824 | `2 + 797×60` and `2 + 797×60 + 2` |
+| `UnitClassDataType` | 336 | 252 002 | `2 + 750×336` |
+| `VehicleClassDataType` | 160 | 110 562 | `2 + 691×160` |
+
+Every table divides exactly, in both the plain (count leading) and DBC (count
+trailing) copies of each file, and parsing at those offsets yields identical
+field distributions from the two independently-formatted copies. The 64-bit
+build's layout matches the 32-bit on-disk format for this whole family.
+
+### `seeker.cpp` — SEEKER-1, an operator-precedence bug that disarms Sparrows
+
+Reading the weapon table directly settles what a zero means:
+
+```
+AIM-120B  51    AIM-7M   0     AA-10A  0
+AIM-120C-4 148  AIM-7E   0     AA-10B  0
+AIM-120C-5 67   AIM-7E-2 0     AA-10C  0
+AIM-120C-7 66   AIM-7F   0     AA-10D  0
+AA-12     63
+```
+
+Only 15 of 797 weapons carry a radar, and the split is exactly right: active-radar
+missiles have one, semi-active ones do not. A Sparrow has no radar of its own —
+it rides the launching aircraft's illumination. `RadarType 0` is correct data.
+
+The missile parameter files agree independently. `sim/misdata/*.dat` is parsed
+positionally by `readin.cpp`, and its "Time To Go Active (sec)" field lands
+exactly where `mslActiveTtg` is read (between Autopilot Bandwidth and Seeker
+Type, in both files' comment labels):
+
+```
+aim120B.dat   15.0      aim7.dat    -1
+aim120c.dat   15.0      aim7e.dat   -1
+aa12.dat      15.0      aim7f.dat   -1
+```
+
+So the two tables encode the same fact twice: the AMRAAMs and the AA-12 go
+active, the Sparrows never do.
+
+The bug is the branch that decides to go active, in the live (`NEW_RUNSEEKER`)
+`RunSeeker`:
+
+```c
+if (
+    inputData->mslActiveTtg > 0 and
+    ( timpct * factor < inputData->mslActiveTtg and ...Type() not_eq Radar ) or
+    ( launchState == InFlight and ...Type() not_eq Radar and (not isSlave or not targetPtr) )
+)
+```
+
+`and` binds tighter than `or`, so the `mslActiveTtg > 0` test at the top gates
+**only the first disjunct**. Any in-flight missile with a non-radar seeker and no
+slaved target took the second one — including every semi-active weapon in the
+game. And `GoActive()` is destructive: it deletes the working passive seeker
+*before* it ever looks at `GetRadarType()`, then installs
+`RadarMissileClass(0)`. The missile is left with a no-radar radar and cannot
+guide.
+
+The dead `#else` copy of this identical condition repeats the `mslActiveTtg`
+test inside the second disjunct. The live copy lost it.
+
+Fixed both halves: the condition now gates the second disjunct as the legacy copy
+does, and `GoActive()` refuses the transition before destroying anything.
+`FF_NO_SEEKER_TTG_FIX=1` restores the old behaviour.
+
+### `handoff.cpp` — HANDOFF-2, and a correction to my own HANDOFF-1
+
+The handoff assertions are **not** in the HARM mission. They are in rows 15, 17,
+19, 20 and 22 — Sidewinder, Sparrow, CCRP, CCIP and 20mm A-G, two apiece. The
+caller is `GroundListElement::HandoffBaseObject`, the FCC's ground target list,
+which asks `SimCampHandoff(baseObject, HANDOFF_RADAR)` — "find the emitter
+vehicle inside this unit."
+
+That is the right question for the HTS/RWR and HARM callers. It is the wrong one
+here: an FCC ground target is a bomb or gun target. **266 of 750 unit classes
+(35%) have no radar vehicle at all** — Supply, Armored, Corps Arty, SCUD,
+Airlift — so for a third of the target set the question has no answer.
+
+This also corrects HANDOFF-1 from earlier in this session. Before that fix the
+mismatch was invisible: the search fell through and matched the first component
+whose radar type was also 0, i.e. an arbitrary live vehicle. That is genuinely
+wrong for the emitter callers, which is what HANDOFF-1 fixed by returning NULL —
+but for the FCC ground list it was roughly the right answer, and returning NULL
+made it *drop* the target instead of following it into the deaggregated unit.
+`HANDOFF_LEADER` asks what this caller means and is the deterministic form of
+what the old fall-through did. `FF_FCC_HANDOFF_RADAR=1` restores the old style.
+
+### Measured, both fixes, both directions
+
+The assertion count alone would not have been enough: an assert that stops firing
+proves the question changed, not that the answer got better. So `[FCCHANDOFF]`
+(under `FF_DEBUG_HANDOFF=1`) reports what actually happened to the target —
+`followed` into the deaggregated unit, or `dropped` to NULL.
+
+TE row 22 "20mm Cannon (A-G)", two runs each way, identical numbers each time:
+
+| | dropped | followed | handoff asserts |
+|---|---|---|---|
+| fixed | **0** | 131 | 0 |
+| `FF_FCC_HANDOFF_RADAR=1` | **40** | 91 | 2 |
+
+40 + 91 = 131. The old style lost the FCC's ground target on **31% of handoffs**,
+which tracks the 35% of unit classes that have no radar vehicle. The fix follows
+all 131.
+
+TE row 29 "Offensive BFM" and row 22, assertion counts, two runs each way:
+
+| | row 29 seeker | row 22 handoff |
+|---|---|---|
+| both fixes in | 0, 0 | 0, 0 |
+| both reverted | 2, 2 | 2, 2 |
+
+The reverted counts reproduce the sweep exactly. The cross terms are the useful
+part: the seeker fix never moves the handoff count and the handoff fix never
+moves the seeker count, so each metric responds only to its own change.
+
+**One fix's correctness depended on which caller you looked at.** HANDOFF-1 was
+right about the sensor callers and wrong about the FCC, because a single style
+enum was serving two different questions. Worth checking the other callers when
+a shared helper is changed on the strength of one of them.

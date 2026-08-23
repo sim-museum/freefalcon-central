@@ -4270,3 +4270,5 @@ symptoms all came from state or branches that quietly exclude the case in hand.*
 | `FF_DEBUG_MSLEND=1` | Weapon-impact messages, now including `type`/`stype`, the legacy branch, and effect spawns |
 | `FF_DEBUG_NESTED` / `FF_DEBUG_ORDER` / `FF_DEBUG_LODS` / `FF_TRACE_LOD=<id>` | Nested flush callers / per-flush poly loads and runway draws / distinct model ids per frame / whether a model draws in pit mode |
 | `FF_DEBUG_HANDOFF=1` | What the unguarded radar handoff would have returned |
+| `FF_NO_SEEKER_TTG_FIX=1` | Revert the SEEKER-1 fix (missiles with no radar of their own go active again) |
+| `FF_FCC_HANDOFF_RADAR=1` | Revert HANDOFF-2 — the FCC ground list asks for the emitter vehicle again |

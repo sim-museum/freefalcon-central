@@ -1583,7 +1583,45 @@ void GroundListElement::HandoffBaseObject()
 
     if (baseObject == NULL) return;
 
+#ifdef FF_LINUX
+    // FF_LINUX (HANDOFF-2): the FCC's ground target list asked for HANDOFF_RADAR,
+    // which means "find the emitter vehicle inside this unit". That is the right
+    // question for the HTS/RWR and HARM callers, but not here: an FCC ground
+    // target is a bomb or gun target and usually has no radar at all, so
+    // UnitClass::GetRadarType() legitimately returns RDR_NO_RADAR for it.
+    //
+    // Before HANDOFF-1 the mismatch was invisible because the search fell
+    // through and matched the first component whose radar type was also 0 --
+    // i.e. an arbitrary live vehicle -- which happened to be roughly the right
+    // answer here and the wrong one for the emitter callers. HANDOFF-1 correctly
+    // returns NULL instead, but that dropped this list's baseObject rather than
+    // following it into the deaggregated unit.
+    //
+    // HANDOFF_LEADER asks the question this caller actually means and is the
+    // deterministic form of what the old fall-through did. Set
+    // FF_FCC_HANDOFF_RADAR=1 to restore the previous style.
+    static int ffFccStyle = -1;
+
+    if (ffFccStyle == -1)
+        ffFccStyle = getenv("FF_FCC_HANDOFF_RADAR") ? HANDOFF_RADAR : HANDOFF_LEADER;
+
+    newBase = SimCampHandoff(baseObject, (HandOffType)ffFccStyle);
+
+    // FF_DEBUG_HANDOFF=1 reports whether the ground list kept its target across
+    // deaggregation. This is the thing the assertion count cannot show: an
+    // assert that stops firing only proves the question changed, not that the
+    // answer is better. "dropped" means baseObject is about to become NULL.
+    if (getenv("FF_DEBUG_HANDOFF"))
+    {
+        fprintf(stderr, "[FCCHANDOFF] style=%s -> %s\n",
+                ffFccStyle == HANDOFF_RADAR ? "RADAR" : "LEADER",
+                newBase ? (newBase == baseObject ? "unchanged" : "followed") : "dropped");
+        fflush(stderr);
+    }
+
+#else
     newBase = SimCampHandoff(baseObject, HANDOFF_RADAR);
+#endif
 
     if (newBase not_eq baseObject)
     {

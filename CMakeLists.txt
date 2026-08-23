@@ -66,6 +66,11 @@ if(FF_PLATFORM_LINUX)
         add_compile_options(
             -Wsizeof-pointer-memaccess
             -Wmismatched-new-delete
+            # SEEKER-1 was an `and`/`or` precedence bug: a guard written at the
+            # top of a condition gated only the first disjunct, so semi-active
+            # missiles took a branch meant for active-radar ones. This is the
+            # diagnostic that finds that shape.
+            -Wparentheses
             -Wformat=2
             -Wformat-overflow=2
             -Wreturn-type

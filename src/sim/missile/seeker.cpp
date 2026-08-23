@@ -54,6 +54,26 @@ void MissileClass::RunSeeker()
     // see if its time to go active
     float factor = ((targetPtr and targetPtr->BaseData()->IsSPJamming()) ? 1.5f : 1.0f);
 
+#ifdef FF_LINUX
+    // FF_LINUX (SEEKER-1): `and` binds tighter than `or`, so the second disjunct
+    // below was never gated by mslActiveTtg > 0 -- the test at the top applies
+    // only to the first. Any in-flight missile with a non-radar seeker and no
+    // slaved target therefore went active, including semi-active weapons that
+    // have no radar of their own: in FALCON4.WCD every AIM-7 and AA-10 variant
+    // ships RadarType 0, and only the AIM-120s and the AA-12 carry one. That is
+    // correct data -- a Sparrow rides the launching aircraft's illumination --
+    // but GoActive() responds by deleting the working passive seeker and
+    // installing RadarMissileClass(0), after which the missile cannot guide.
+    // The legacy (#else) copy of this identical condition repeats the
+    // mslActiveTtg test inside the second disjunct; this copy lost it.
+    // FF_NO_SEEKER_TTG_FIX=1 restores the old behaviour.
+    static int ffSeekerTtgFix = -1;
+
+    if (ffSeekerTtgFix == -1)
+        ffSeekerTtgFix = getenv("FF_NO_SEEKER_TTG_FIX") ? 0 : 1;
+
+#endif
+
     if (
         inputData->mslActiveTtg > 0 and 
         (
@@ -61,6 +81,9 @@ void MissileClass::RunSeeker()
             sensorArray[0]->Type() not_eq SensorClass::Radar
         ) or
         (
+#ifdef FF_LINUX
+            (not ffSeekerTtgFix or inputData->mslActiveTtg > 0) and
+#endif
             launchState == InFlight and sensorArray[0]->Type() not_eq SensorClass::Radar and 
             ( not isSlave or not targetPtr) //I-Hawk - was missing the parentheses here, caused heat seeker locking problems
         )
@@ -339,6 +362,25 @@ void MissileClass::GoActive(void)
 {
     // Can't go active is we're already active
     ShiAssert(sensorArray[0]->Type() not_eq SensorClass::Radar)
+
+#ifdef FF_LINUX
+    // FF_LINUX (SEEKER-1): defence in depth for the condition fixed in
+    // RunSeeker. This function is destructive -- it deletes the current seeker
+    // before it ever looks at GetRadarType(), so a missile with no radar of its
+    // own (RadarType 0) that reaches here loses a working passive seeker and
+    // gets RadarMissileClass(0) in its place. Refusing the transition leaves the
+    // passive seeker running, which is what a semi-active weapon should keep
+    // using. The ShiAssert below documented this precondition but does not halt
+    // this build. FF_NO_SEEKER_TTG_FIX=1 restores the old behaviour.
+    static int ffSeekerGuard = -1;
+
+    if (ffSeekerGuard == -1)
+        ffSeekerGuard = getenv("FF_NO_SEEKER_TTG_FIX") ? 0 : 1;
+
+    if (ffSeekerGuard and not GetRadarType())
+        return;
+
+#endif
 
     // Get rid of the old sensor
     sensorArray[0]->SetPower(FALSE);
