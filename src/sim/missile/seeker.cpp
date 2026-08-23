@@ -75,10 +75,12 @@ void MissileClass::RunSeeker()
 #endif
 
     if (
-        inputData->mslActiveTtg > 0 and 
         (
-            timpct * factor < inputData->mslActiveTtg and 
-            sensorArray[0]->Type() not_eq SensorClass::Radar
+            inputData->mslActiveTtg > 0 and 
+            (
+                timpct * factor < inputData->mslActiveTtg and 
+                sensorArray[0]->Type() not_eq SensorClass::Radar
+            )
         ) or
         (
 #ifdef FF_LINUX
