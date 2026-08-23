@@ -874,9 +874,23 @@ void DigitalBrain::FireControl(void)
         return;
 
     // ADDED BY S.G. TO MAKE SURE WE DON'T FIRE BEAM RIDER IF THE MAIN RADAR IS JAMMED (NEW: USES SensorTrack INSTEAD of noTrack)
+#ifdef FF_LINUX
+    // FF_LINUX (WPAREN-1): `and` binds tighter than `or`, so the sensorArray
+    // null check gated only the first disjunct and the second indexed
+    // sensorArray[0] regardless. Restoring the intended grouping is a no-op
+    // whenever sensorArray is non-NULL, which the code above this point already
+    // assumes -- it dereferences sensorArray[0] unguarded -- so this is a tidy,
+    // not a fix for anything reachable. Kept because the guard states an intent
+    // that the precedence silently discarded.
+    if (curMissile->sensorArray and
+        (curMissile->sensorArray[0]->Type() == SensorClass::RadarHoming
+         /* and curMissile->GetSPType() not_eq SPTYPE_AIM120*/ or
+         curMissile->sensorArray[0]->Type() == SensorClass::Radar))
+#else
     if (curMissile->sensorArray and curMissile->sensorArray[0]->Type() == SensorClass::RadarHoming
         /* and curMissile->GetSPType() not_eq SPTYPE_AIM120*/ or
         curMissile->sensorArray[0]->Type() == SensorClass::Radar)
+#endif
     {
         // Find the radar attached to us
         if (targetPtr->localData->sensorState[SensorClass::Radar] not_eq SensorClass::SensorTrack)

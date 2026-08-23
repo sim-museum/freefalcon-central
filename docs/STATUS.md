@@ -3998,3 +3998,42 @@ into this file as fact if the revert arm had been skipped on the grounds that th
 story hung together. **A new symptom appearing next to a change is not evidence
 the change caused it** — and the follow-up explanation deserves the same
 scepticism as the one it replaced. Cost of checking each: one run.
+
+### WPAREN-1 triage, second pass — the crash shape, searched properly
+
+GCC prints only the *first* line of a multi-line condition, so grepping the
+warning text finds only single-line instances. Re-running the search against the
+source — reading each flagged condition through to its closing paren — turns 126
+warnings into 8 candidates for the GNDATK-1 shape (a pointer null-guarded before
+an `or` and dereferenced after it). Of those:
+
+* **3 are false positives.** The `harmPod` chains in `gndhud.cpp:781`,
+  `mislhud.cpp:643` and `navhud.cpp:1940` re-guard `harmPod` in every disjunct.
+* **1 is `dlogic.cpp:877`,** where the `sensorArray` guard covers only the first
+  disjunct. Grouping restored — but it is a tidy, not a fix: the lines directly
+  above it already dereference `sensorArray[0]` unguarded, so a NULL array would
+  have crashed before reaching it.
+* **4 are in `navhud.cpp` (945, 1004, 1327, 1519) and are left alone deliberately.**
+
+The navhud four are worth stating precisely, because the interesting problem
+there is *not* the null dereference my search was looking for:
+
+```c
+if (g_bRealisticAvionics and g_bINS and ownship and ownship->INSState(INS_PowerOff) or
+    not ownship->INSState(INS_HUD_STUFF))
+```
+
+`ownship` is already dereferenced unguarded in the surrounding lines
+(`((AircraftClass*)ownship)->af->gearPos`), so it cannot be NULL here and there
+is no crash to fix. What the precedence actually does is put
+`g_bRealisticAvionics and g_bINS` on the **first disjunct only** — so with
+realistic avionics switched *off*, INS state can still move the heading tape.
+At `navhud.cpp:1327` an enclosing `if (g_bRealisticAvionics and g_bINS)` makes
+that moot; at 1004 there is no such enclosure.
+
+That is a change to what the HUD draws, and the correct grouping is a judgement
+about intended avionics behaviour, not about C. **Deferred to a Wine
+comparison**, same as NVG-2: the gold-standard build can show whether the heading
+tape moves with realistic avionics off, and that answer decides the grouping.
+Guessing here would change what the PO sees on the HUD on the strength of an
+operator-precedence argument alone.
