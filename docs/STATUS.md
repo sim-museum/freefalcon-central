@@ -3682,3 +3682,30 @@ changes how those render — and there is no way to tell better from worse witho
 the Wine reference to compare against. Shipping an unvalidatable rendering change
 is how the earlier speculative alpha-stage redirect happened. The gap is now
 measured and named; implementing it is a task for when a reference is at hand.
+
+### A third stale note: the landing missions load again
+
+CLAUDE.md records that TE "09 Landing Final Approach" and "10 Instrument
+Landing" **cannot load** — their unit data was said to overrun the decode buffer
+at the second unit, and the note concludes the missions "still won't LOAD
+(incompatible unit data — a deep format issue not worth the risk)".
+
+**Both load and fly now.** Tested directly:
+
+```
+StartReadCampFile: filename='09 Landing Final Approach'  -> reachedSim=1
+StartReadCampFile: filename='10 Instrument Landing'      -> reachedSim=1, joinFailed=0, crash=0
+```
+
+and a capture from TE 09 shows a normal cockpit on approach over water with the
+coastline ahead. Whatever fixed it came from the intervening decode work; the
+note was never revisited.
+
+This matters beyond tidiness: the PO's standing "can't land" complaint was
+logged against a build where the two landing *training* missions could not even
+be started. They can be flown now, which is the natural way to test landing.
+
+That is three stale claims in this file corrected in one session — the flat-z=0
+collision world, "the agent can't capture sim frames", and now the unloadable
+landing missions. **Notes describing a defect are only true of the build that
+observed it**; each one here was disproved by simply running the thing again.
