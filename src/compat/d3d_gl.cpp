@@ -3254,6 +3254,43 @@ D3D7Device::D3D7Device() : refCount(1), d3d(nullptr), renderTarget(nullptr),
     memset(textures, 0, sizeof(textures));
 }
 
+#ifdef FF_LINUX
+// FF_LINUX (NVG-2): D3DRENDERSTATE_TEXTUREFACTOR, kept so D3DTA_TFACTOR has
+// something to read. Defaults to opaque black, which is what the layer
+// effectively used before.
+static float ffTextureFactor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+// FF_LINUX (NVG-2): D3DTA_* -> GL combiner source.
+static GLint ffD3DArgToGLSource(DWORD arg)
+{
+    switch (arg bitand 0xFF) {
+        case D3DTA_TEXTURE:  return GL_TEXTURE;
+        case D3DTA_DIFFUSE:  return GL_PRIMARY_COLOR;
+        case D3DTA_CURRENT:  return GL_PREVIOUS;
+        case D3DTA_TFACTOR:  return GL_CONSTANT;
+        default:             return GL_PREVIOUS;
+    }
+}
+
+// FF_LINUX (NVG-2): last COLORARG1/2 seen per stage. D3DTOP_ADDSMOOTH has an
+// exact GL equivalent only once its arguments are known -- it maps to
+// GL_INTERPOLATE with a white constant in SOURCE0 -- so the trace records the
+// arguments actually requested instead of assuming the usual TEXTURE/CURRENT.
+static DWORD ffLastColorArg[8][2];
+
+// FF_LINUX (NVG-2): one place to ask whether the texture-op implementations are
+// enabled, so the revert switch cannot drift between call sites.
+static bool ffTexOpFixEnabled(void)
+{
+    static int cached = -1;
+
+    if (cached == -1)
+        cached = getenv("FF_NO_TEXOP_FIX") ? 0 : 1;
+
+    return cached != 0;
+}
+#endif
+
 void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
     switch (state) {
         case D3DRENDERSTATE_ZENABLE:
@@ -3576,8 +3613,20 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
             break;
 
         case D3DRENDERSTATE_TEXTUREFACTOR:
-            // Store for use in texture combine
-            // OpenGL handles this differently - through glTexEnv
+#ifdef FF_LINUX
+            // FF_LINUX (NVG-2): this used to be a comment and a `break`, so
+            // D3DTA_TFACTOR read whatever GL_TEXTURE_ENV_COLOR happened to be
+            // (black by default). The NVG pipeline's stage 3 adds the tint
+            // 0x0000a000 through TFACTOR, so without this the tint never
+            // reached GL at all. Stored here and applied per unit, because
+            // GL_TEXTURE_ENV_COLOR is per texture unit and only the stages that
+            // actually reference TFACTOR should get it -- ADDSMOOTH needs the
+            // same slot to hold white on its own stage.
+            ffTextureFactor[0] = (float)((value >> 16) bitand 0xFF) / 255.0f;
+            ffTextureFactor[1] = (float)((value >> 8) bitand 0xFF) / 255.0f;
+            ffTextureFactor[2] = (float)(value bitand 0xFF) / 255.0f;
+            ffTextureFactor[3] = (float)((value >> 24) bitand 0xFF) / 255.0f;
+#endif
             break;
 
         default:
@@ -3585,26 +3634,6 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
             break;
     }
 }
-
-#ifdef FF_LINUX
-// FF_LINUX (NVG-2): last COLORARG1/2 seen per stage. D3DTOP_ADDSMOOTH has an
-// exact GL equivalent only once its arguments are known -- it maps to
-// GL_INTERPOLATE with a white constant in SOURCE0 -- so the trace records the
-// arguments actually requested instead of assuming the usual TEXTURE/CURRENT.
-static DWORD ffLastColorArg[8][2];
-
-// FF_LINUX (NVG-2): one place to ask whether the texture-op implementations are
-// enabled, so the revert switch cannot drift between call sites.
-static bool ffTexOpFixEnabled(void)
-{
-    static int cached = -1;
-
-    if (cached == -1)
-        cached = getenv("FF_NO_TEXOP_FIX") ? 0 : 1;
-
-    return cached != 0;
-}
-#endif
 
 void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE type, DWORD value) {
     glActiveTexture(GL_TEXTURE0 + stage);
@@ -3668,6 +3697,43 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                 // whichever call happened to come second.
                 //
                 // FF_NO_TEXOP_FIX=1 restores the MODULATE fallback.
+                case D3DTOP_ADDSMOOTH:
+                    // FF_LINUX (NVG-2): A1 + A2 - A1*A2, which is exactly
+                    // GL_INTERPOLATE (S0*S2 + S1*(1-S2)) with S2=A1, S1=A2 and
+                    // S0 held at white. White has to come from GL_CONSTANT, the
+                    // same slot D3DTA_TFACTOR uses -- but GL_TEXTURE_ENV_COLOR
+                    // is per texture unit, and a stage cannot be both ADDSMOOTH
+                    // and a TFACTOR consumer, so the two never collide on one
+                    // unit. If a stage ever asks for both, the trace below says
+                    // so rather than silently rendering the wrong thing.
+                    if (ffTexOpFixEnabled()) {
+                        static const GLfloat kWhite[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+                        DWORD a1 = stage < 8 ? ffLastColorArg[stage][0] : D3DTA_TEXTURE;
+                        DWORD a2 = stage < 8 ? ffLastColorArg[stage][1] : D3DTA_CURRENT;
+
+                        if (((a1 bitand 0xFF) == D3DTA_TFACTOR or (a2 bitand 0xFF) == D3DTA_TFACTOR)
+                            and getenv("FF_DEBUG_TEXOP")) {
+                            fprintf(stderr, "[TEXOP] ADDSMOOTH on stage %lu also uses TFACTOR;"
+                                    " the constant slot is needed for white\n",
+                                    (unsigned long)stage);
+                            fflush(stderr);
+                        }
+
+                        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+                        glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_INTERPOLATE);
+                        glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, kWhite);
+                        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_CONSTANT);
+                        glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_RGB, GL_SRC_COLOR);
+                        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB, ffD3DArgToGLSource(a2));
+                        glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_RGB, GL_SRC_COLOR);
+                        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE2_RGB, ffD3DArgToGLSource(a1));
+                        glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_COLOR);
+                        glTexEnvi(GL_TEXTURE_ENV, GL_RGB_SCALE, 1);
+                        break;
+                    }
+
+                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+                    break;
                 case D3DTOP_ADDSIGNED:
                 case D3DTOP_ADDSIGNED2X:
                 case D3DTOP_DOTPRODUCT3:
@@ -3766,6 +3832,13 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
         case D3DTSS_COLORARG1:
 #ifdef FF_LINUX
             if (stage < 8) ffLastColorArg[stage][0] = value;
+
+            // FF_LINUX (NVG-2): give this unit the texture factor only if it
+            // actually references TFACTOR, so ADDSMOOTH's white constant on a
+            // different stage is not overwritten.
+            if ((value bitand 0xFF) == D3DTA_TFACTOR)
+                glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, ffTextureFactor);
+
 #endif
             // Set source 0 for GL_COMBINE color operation
             glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
@@ -3782,6 +3855,13 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
         case D3DTSS_COLORARG2:
 #ifdef FF_LINUX
             if (stage < 8) ffLastColorArg[stage][1] = value;
+
+            // FF_LINUX (NVG-2): give this unit the texture factor only if it
+            // actually references TFACTOR, so ADDSMOOTH's white constant on a
+            // different stage is not overwritten.
+            if ((value bitand 0xFF) == D3DTA_TFACTOR)
+                glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, ffTextureFactor);
+
 #endif
             // Set source 1 for GL_COMBINE color operation
             glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);

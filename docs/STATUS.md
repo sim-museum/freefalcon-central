@@ -4271,13 +4271,53 @@ stage 3  ARG1=CURRENT ARG2=TFACTOR  ADDSIGNED
    env colour (black) instead. Implementing the ops without this would still not
    give NVG its colour.
 
-### What completing NVG-2 looks like
+### Both implemented, and then actually run
 
-Implement `TEXTUREFACTOR` and `ADDSMOOTH` with per-unit env colours, then
-**re-enable `DX_NVG`** (`FF_NVG_DXSTATE=1` → default) and confirm two things
-together: NVG renders, and BLUE-1's blue screen does not return — BLUE-1 was only
-ever a workaround for the pipeline being unexecutable. Finally, a side-by-side
-against the Wine build, which WINE-1/WINE-2 above made possible.
+`D3DRENDERSTATE_TEXTUREFACTOR` now stores the factor (ARGB, so `0x0000a000` is
+green at 0.63) and `ADDSMOOTH` is implemented as `GL_INTERPOLATE` with `S2=A1`,
+`S1=A2` and `S0` held at white. The white/TFACTOR collision is resolved by
+setting `GL_TEXTURE_ENV_COLOR` **per unit**: a unit gets the texture factor only
+if one of its args actually names `D3DTA_TFACTOR`, and ADDSMOOTH sets white on
+its own unit. A stage cannot be both, and the trace says so if one ever is.
 
-Recorded this way because the honest status is "spec-correct, unexercised", not
-"fixed".
+Run with `FF_NVG_DXSTATE=1` so `SetState(DX_NVG)` is issued: **no `[TEXOP]`
+fallbacks**, and this time the result is meaningful because the call site really
+executed. No crash, sim reached, NVG toggled.
+
+**And the captured frame shows night vision working.** The cockpit renders in
+proper NVG green — the four-stage pipeline executes and produces the right look.
+
+**But the outside world is pure blue.** BLUE-1's exact symptom, unchanged. So
+implementing the operations was necessary and not sufficient, and the assumption
+written into BLUE-1's comment — that the blue screen was a consequence of the
+pipeline being unexecutable — is **wrong**.
+
+### The other half of BLUE-1, now identified
+
+`DX_NVG` does not only set colour ops. At `dxengine.cpp:748` it also does:
+
+```c
+m_AlphaTextureStage = 3;
+```
+
+and the chroma-key setup that follows is applied to *that* stage:
+
+```c
+m_pD3DD->SetTextureStageState(m_AlphaTextureStage, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+m_pD3DD->SetTextureStageState(m_AlphaTextureStage, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1);
+```
+
+The chroma key in this port is an alpha test. In the 2D panel path only stage 0
+has a texture bound, so alpha selected from stage 3 is meaningless, the key stops
+discarding the panel's background, and its pure blue fills everything behind the
+cockpit. That is the mechanism behind the PO's "screen goes blue", stated
+exactly rather than inferred.
+
+**Default is unchanged and safe:** `DX_NVG` is still skipped, so the PO sees no
+difference. The colour ops are implemented and dormant until the alpha half
+lands.
+
+Completing NVG-2 now means honouring `m_AlphaTextureStage` in the compat layer's
+alpha path, then re-enabling `DX_NVG` and confirming green NVG *with* a keyed
+cockpit — and finally a side-by-side against Wine, which WINE-1/WINE-2 made
+possible.
