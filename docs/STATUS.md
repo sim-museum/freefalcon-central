@@ -4321,3 +4321,27 @@ Completing NVG-2 now means honouring `m_AlphaTextureStage` in the compat layer's
 alpha path, then re-enabling `DX_NVG` and confirming green NVG *with* a keyed
 cockpit — and finally a side-by-side against Wine, which WINE-1/WINE-2 made
 possible.
+
+### NVG-3, first attempt — a negative result
+
+The obvious fix for the surviving blue was to make the moved chroma-key stage
+reach the unit that actually produces the fragment: when `ALPHAOP=SELECTARG1`
+arrives for a stage whose unit has no texture bound, mirror
+`COMBINE_ALPHA=REPLACE` / `SOURCE0_ALPHA=GL_TEXTURE` onto unit 0.
+
+The mirror **fired** — `[TEXOP] alpha stage 3 has no texture; mirroring chroma
+key onto unit 0` — and changed nothing. Frame mean before the attempt
+`srgb(0.0015%, 23.16%, 27.21%)`, after it `srgb(0%, 23.16%, 27.21%)`, and the
+capture is pixel-for-pixel the same blue.
+
+So the mechanism is **not** simply "the alpha combiner was programmed on the
+wrong unit", or the mirrored state is being overwritten before the draw — the
+`COLOROP=DISABLE` arm sets `SOURCE0_ALPHA` on unit 0 itself, and `ApplyStateBlock`
+re-applies stage state per polygon, so either could undo it. Reverted rather than
+left in: it does not work, and a dormant non-working hack is worse than nothing.
+
+Next attempt should establish *what actually samples the key* before changing
+state again — read `GL_ALPHA_TEST`/`GL_ALPHA_TEST_REF` and the unit-0 combiner
+immediately before one of the blue draws, rather than reasoning forward from the
+D3D calls. What is confirmed so far: the four colour ops are right (the cockpit
+renders in correct NVG green), and the blue is not caused by them.
