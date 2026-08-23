@@ -3137,3 +3137,56 @@ real impact should settle it.
 release because master arm and sub-mode were not set up. Master arm is
 `Shift+M` (`0x32`, modifier 1) and no code change is needed to script it — a held
 `0x2A` with `0x32` pressed inside it does the job with the existing syntax.
+
+### BOMB-1 — most likely a symptom of the runway-elevation decoupling
+
+The bomb's detonation test is, in `BombClass::Exec`:
+
+```c
+terrainHeight = OTWDriver.GetGroundLevel(x, y);
+...
+else if (z >= terrainHeight)   // z is positive-down; at or below the ground
+{
+    z = terrainHeight;
+    SetExploding(TRUE);
+}
+```
+
+and `DoExplosion()` — which is what sends the `FalconMissileEndMessage` that
+spawns the effect — only runs once `IsExploding()` is set.
+
+CLAUDE.md already documents that **at an airfield `GetGroundLevel` returns 0
+while the airfield renders as a ~20 ft plateau** (the airfield post falls outside
+the loaded fine-terrain radius and falls back to coarse 0). That is the same
+defect that makes the jet collide 20 ft *under* the visible runway.
+
+Applied to a bomb: it falls through the visible runway surface and detonates
+~20 ft below it, so the fireball spawns **inside the terrain** and is occluded.
+That is exactly what the PO's recording shows — the bomb reaches the runway and
+simply disappears, with no effect at all.
+
+Supporting evidence against the alternatives, all checked:
+
+* The bomb data **does** define impact effects (`_mk82`, `_mk83`, `_mk84`,
+  `$CLUSTER_BOMB`, …) — not an empty-name fallback case.
+* Those names **do** exist in `terrdata/particlesys.ini`.
+* Named-effect spawning demonstrably works — `FF_TEST_EXPLOSION` renders both the
+  direct and named paths.
+
+So the particle system is not at fault, and this is not a separate bug: **fixing
+the elevation decoupling should restore bomb explosions as well as landings.**
+That raises its priority considerably — it is not just a landing annoyance, it
+also silently eats every bomb impact on an airfield.
+
+**A stale blocker worth deleting.** The CLAUDE.md entry for that issue says
+*"Blocker: agent can't capture sim-mode frames (glReadPixels=white,
+import-window=black) so every attempt needs the user's eyes."* That is no longer
+true — `FF_SIM_SCREENSHOT` has been capturing sim frames reliably throughout this
+session, and the whole PIT-1 investigation was run on them. The issue is now
+tractable unattended. It also references `memory/runway-elevation-decoupling.md`,
+which no longer exists; the content survives only in CLAUDE.md.
+
+Still to verify: a trace of `z` vs `terrainHeight` at an actual detonation. That
+needs an automated release, which needs master arm plus a CCRP pickle held
+through the solution — the PO's correction (no dive required in CCRP) means
+HARNESS-1 does **not** need axis injection after all.
