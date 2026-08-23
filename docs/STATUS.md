@@ -4100,3 +4100,48 @@ VOICE-1, VOICE-2, SAVE-2 and now SEEKER-1 were found — but only for *which* si
 are reached. Ranking by count ranks nothing. To measure how often a condition
 actually occurs, add a trace like `FF_DEBUG_TEXBANK`; the assertion will not tell
 you.
+
+---
+
+## WINE-1 — the gold standard is agent-drivable after all
+
+Two open items (**NVG-2** #41 and **NAVHUD-1** #47) were parked on "needs the Wine
+reference", where "the Wine reference" meant *the PO running the Windows build and
+recording video*. That framing was wrong: the Windows build runs here, under this
+agent, and can be captured the same way the Linux build can.
+
+The one thing that made it look impossible:
+
+```
+$ wine FFViper.exe
+wine: '.../WP' is a 32-bit installation, it cannot support 64-bit applications.
+$ WINEARCH=win32 wine FFViper.exe
+wine: WINEARCH is set to 'win32' but this is not supported in wow64 mode.
+```
+
+Neither message is about FreeFalcon. The prefix is 32-bit, system `wine` defaults
+to wow64, and `WINEARCH` cannot override it — the answer is the separate
+**`wine32`** binary, which is installed. `scripts/wine-capture.sh` wraps it:
+launch, wait for the `Falcon 4 - FreeFalcon` window by name, `import` it, kill.
+
+First capture is the main menu, rendering correctly — FreeFalcon 6.0 / FFViper
+2.3.3.44, full menu bar. The useful part is that **the Windows build's UI lands on
+the same coordinates the Linux harness already uses**: the menu bar sits at
+y≈750 with TACTICAL ENGAGEMENT at x≈673, which is what `FF_UI_CLICK`'s
+`677,748` was written against. So the existing click scripts translate to
+`xdotool` against the Wine window with essentially the same numbers, and a
+side-by-side of the same mission is a scripting job, not a research one.
+
+**Config safety.** The Wine build shares the game data directory with the Linux
+build, so it can overwrite the PO's settings. Measured: a run rewrites only
+`config/Viper.plc`; `display.dsp` and `registry.ini` — which hold the 1920×1080
+display setting — are untouched. `config/` and `ffviper.cfg` were backed up before
+the first Wine launch and restored after the last, and a final `diff -rq` reports
+no differences. Anyone doing this again should keep that backup/restore step.
+
+**Status of the two items.** Neither is blocked any more; both now need the same
+next piece of work — an `xdotool` driver that puts the Wine build into a given TE
+mission so the same frame can be captured from both builds. NVG-2 additionally
+needs the D3D7 semantics for the three missing ops (`ADDSIGNED` = `a1 + a2 - 0.5`,
+`ADDSMOOTH` = `a1 + a2 - a1·a2`, `DOTPRODUCT3`), which GL's texture combiners
+cover directly for two of the three. Retitled from "blocked" to "ready".
