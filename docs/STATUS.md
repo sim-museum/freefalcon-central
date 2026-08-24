@@ -4600,3 +4600,53 @@ this draw on GL. Verify by the corner pixel: `(0,32,127)` must leave, the NVG
 cockpit must stay green, and the normal (non-NVG) pit must not regress —
 that same quad is drawn outside NVG too and is currently covered by other
 geometry rather than discarded.
+
+---
+
+## TERRAIN-Z sprint 2 — automated bombing works end to end; visual framing still manual
+
+The bombing acceptance test can now run without a human. On Korea TE row 20
+("Bombs with CCIP"), with `FF_TEST_BOMB=20 FF_TEST_SUBMODE=ccip`, a bomb was
+released through the production path and:
+
+```
+[MSLEND] Process: endCode=11 ... groundType=7 type=2 (BOMB)
+[MSLEND] BombImpact legacy branch: DamageType=2 BlastRadius=293
+[MSLEND] spawning SFX_GROUND_EXPLOSION at (1724929,1204013,-1697)
+```
+
+Release → fall → ground impact at real terrain elevation (−1697 ft, lod-0
+data, not the transient) → **BombImpact fires → SFX_GROUND_EXPLOSION spawns**.
+That is the BOMB-1 fix and the TERRAIN-Z elevation chain working together on the
+full production path, reproducible in one command. Two independent runs, same
+result.
+
+Caveats, stated plainly:
+
+* `FCC->GetTheBomb()` still reads NULL in the harness trace while the release
+  demonstrably happens — the release path instantiates the weapon object as part
+  of its own sequence, so HARNESS-1's remaining gap is *only* in the pre-release
+  introspection, not in the release. The KNOWN-INCOMPLETE note in doweapon.cpp
+  stands corrected to that narrower claim.
+* The weapon-camera capture (`FF_VIEW_SCRIPT "5@88;s@95..."`) produced clean
+  in-sim frames (forest under the weapon camera) but did not frame the fireball
+  itself — the shots landed seconds after the ~2s effect. Getting the fireball
+  into an automated frame needs impact-triggered capture rather than scripted
+  times; noted as a harness improvement, not a defect.
+* **PO acceptance remains the decisive test** for the epic: fly takeoff, landing
+  and a bombing pass and compare against the Wine gold standard
+  (`260822_wine_ff_TE_CCIP.mp4` t≈130 s for the fireball reference). The feature
+  re-snap fix means the airbase deck now coincides with the terrain, so the
+  previous "bomb swallowed by the airstrip / explosion hidden under the slab"
+  mechanism should be gone.
+
+### Session state at handoff
+
+Committed and pushed this stretch: THEATER-1 (campaign suspend/resume race —
+Balkans generates missions), MISSEVAL-1 (aircraft_name overflow abort),
+TERRAIN-Z-1 (feature ground re-snap), THEATER-2 (theater art resolution),
+NVG-3 probes (blue pinned to the alpha-0 key-blue quad, fix path documented).
+`curTheater` is restored to **Balkans** (the PO's last manual choice). Open:
+NVG-3 fix, NAVHUD-1 (needs Wine HUD comparison), TERRAIN-Z PO acceptance, the
+spawn transient (self-correcting, deliberately left), and the −3 ft residual
+feature offset.
