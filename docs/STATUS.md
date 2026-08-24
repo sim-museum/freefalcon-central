@@ -4396,3 +4396,68 @@ generated for this texture".
 
 Two plausible mechanisms, two measurements, both refuted. Recording the refutations
 because the next attempt should not re-run them.
+
+---
+
+## THEATER-1 — Balkans generated no missions: a suspend/resume race, fixed
+
+**Symptom (PO, gold-standard verified):** switching theater to Balkans under
+Wine works completely; on Linux the campaign loads, the clock runs, but the
+frag order stays empty forever, TASK/TOT/TGT read "Not available", and Balkans
+units are drawn over Korea terrain.
+
+**Ruled out first, each by measurement:** theater path resolution (all eight
+globals correct after the switch — `FF_DEBUG_THEATER=1`), mixed-case Balkans
+terrain filenames (`Theater.map` opens via the case-insensitive shim), missing
+campaign data (6888 objectives load from `Theaters/Balkans/campaign/save0.cam`),
+and my own harness (it wasn't clicking START CAMPAIGN — fixed and validated on
+Korea, where teams 2/4/5 then task with 49/4/13 squadrons).
+
+**The differential that broke it open:** same binary, same click sequence —
+Korea runs `DoCampaignLoop`; Balkans never does, *while the campaign clock still
+advances* (`CurrentTime += deltatime` sits outside the gate). The suspend traces
+show the mechanism exactly:
+
+```
+KOREA    thread: Got CAMP_SUSPEND_REQUEST, setting CAMP_SUSPENDED   <- ack in time
+         LoadCampaign: Suspend -> already suspended
+         LoadCampaign: Resume  -> clears CAMP_SUSPENDED             <- runs
+
+BALKANS  LoadCampaign: Suspend - TIMEOUT after 1 second             <- no ack; request left set
+         LoadCampaign: Resume  -> IsSuspended()==false -> NO-OP
+         thread: Got CAMP_SUSPEND_REQUEST, setting CAMP_SUSPENDED   <- stale ack, after Resume
+         (nothing ever clears it; the campaign thread idles forever)
+```
+
+The 1-second timeout in `CampaignClass::Suspend` is this port's own earlier
+anti-hang patch. When it fires, `CAMP_SUSPEND_REQUEST` is left pending with
+nobody waiting; upstream `Resume()` starts with `if (not IsSuspended()) return;`
+so it cancels nothing; the campaign thread then acknowledges the stale request
+and suspends permanently. Theater-dependence is pure timing: a Balkans switch
+leaves the campaign thread busy loading fresh theater data at exactly the moment
+Suspend waits, so the ack misses the window; Korea acks in time. Not a Balkans
+bug — a race any slow load could trigger, Balkans just triggers it reliably.
+
+**Fix (`cmpclass.cpp`, `Resume()`):** on FF_LINUX, Resume clears *both*
+`CAMP_SUSPEND_REQUEST` and `CAMP_SUSPENDED` with and-not. Resume means "the
+campaign should run", so a not-yet-acknowledged suspend request must not
+survive it; idempotent clears mean the ack-races-Resume window ends in
+"running", not "stuck". Every other Suspend/Resume pair (UI start/end in
+`main_linux.cpp`) is healed by the same change.
+
+**Verified:** identical Balkans run, fix in — `DoCampaignLoop` runs, all 8
+teams have ATMs, team 2 tasks with 69 squadrons and team 6 with 23,
+`missionsFilled` reaches 19/58, and the screenshot shows a populated frag order
+(BAI/Escort/Strat Bomb/Strike, one flight Ingress), TASK "BAI — west of
+Podgorica", a drawn flight plan, and Balkans event text (Kukes). That was the
+PO's headline complaint.
+
+**Still open (split to THEATER-2):** the campaign map imagery/labels are still
+Korea's ("EAST SEA" overlay, Korea minimap, stale menu background) — UI art and
+map resources loaded once are not re-read after a theater switch. Cosmetic-to-
+serious (unit icons sit on wrong-looking terrain) but functionally the campaign
+now runs. Also noted in passing: inactive teams print garbage `missionsFilled`
+values (uninitialised fields, harmless today); and the Balkans `artdir` tree is
+nested one level deeper than its .tdf declares (`art/art/`), which Windows
+tolerates via recursive resource attach — check `ResAddPath(..., recurse)` on
+Linux before trusting theater-specific art.

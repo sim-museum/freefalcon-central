@@ -423,6 +423,30 @@ bool TheaterList::SetNewTheater(TheaterDef *td)
     fprintf(stderr, "  [SetNewTheater] SetCurrentTheater...\n");
     SetCurrentTheater(td);
     fprintf(stderr, "  [SetNewTheater] Complete!\n");
+
+#ifdef FF_LINUX
+    // FF_LINUX (THEATER-1): the PO reports that switching to Balkans leaves the
+    // menu background stale, shows a Korea map and generates no missions, while
+    // the Wine build switches cleanly. Path resolution has been ruled out by
+    // inspection -- SetPathName converts backslashes, and every directory the
+    // Balkans .tdf names exists with matching case -- so dump what the globals
+    // ACTUALLY hold once the switch has finished, rather than reasoning about
+    // what they should hold. FF_DEBUG_THEATER=1.
+    if (getenv("FF_DEBUG_THEATER"))
+    {
+        fprintf(stderr, "[THEATER] after switch to '%s':\n", td->m_name);
+        fprintf(stderr, "[THEATER]   campaign  = %s\n", FalconCampaignSaveDirectory);
+        fprintf(stderr, "[THEATER]   terrain   = %s\n", FalconTerrainDataDir);
+        fprintf(stderr, "[THEATER]   objects   = %s\n", FalconObjectDataDir);
+        fprintf(stderr, "[THEATER]   3ddata    = %s\n", Falcon3DDataDir);
+        fprintf(stderr, "[THEATER]   uiart     = %s\n", FalconUIArtThrDirectory);
+        fprintf(stderr, "[THEATER]   cockpit   = %s\n", FalconCockpitThrDirectory);
+        fprintf(stderr, "[THEATER]   misctex   = %s\n", FalconMiscTexDataDir);
+        fprintf(stderr, "[THEATER]   splash    = %s\n", FalconSplashThrDirectory);
+        fflush(stderr);
+    }
+
+#endif
     return true;
 }
 

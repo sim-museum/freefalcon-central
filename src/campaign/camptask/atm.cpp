@@ -530,6 +530,49 @@ int AirTaskingManagerClass::Task(void)
     int res;
     DWORD task_time = GetTickCount();
 
+#ifdef FF_LINUX
+    // FF_LINUX (THEATER-1): no missions are generated in the Balkans theater on
+    // Linux while Wine generates them fine. Every early return below is silent,
+    // so an ATM that never tasks anything is indistinguishable from one with
+    // nothing to do. Report which gate stops it. FF_DEBUG_ATM=1.
+    {
+        static int ffAtmDbg = -1;
+
+        if (ffAtmDbg == -1)
+            ffAtmDbg = getenv("FF_DEBUG_ATM") ? 1 : 0;
+
+        if (ffAtmDbg)
+        {
+            static int reported[8] = { 0 };
+            int gate = 0;
+
+            if ( not (TeamInfo[owner]->flags bitand TEAM_ACTIVE)) gate = 1;
+            else if ( not IsLocal())                              gate = 2;
+            else if ( not squadrons)                              gate = 3;
+            else if ( not (flags bitand ATM_NEW_REQUESTS) and
+                      not (flags bitand ATM_NEW_PLANES))          gate = 4;
+
+            if (gate < 8 and reported[gate] < 3)
+            {
+                reported[gate]++;
+                fprintf(stderr, "[ATM] team=%d Task() %s (squadrons=%d flags=0x%x"
+                        " hasRequestList=%d missionsFilled=%d/%d)\n",
+                        (int)owner,
+                        gate == 0 ? "PROCEEDS" :
+                        gate == 1 ? "STOPPED: team not TEAM_ACTIVE" :
+                        gate == 2 ? "STOPPED: not IsLocal()" :
+                        gate == 3 ? "STOPPED: no squadrons" :
+                                    "STOPPED: no new requests or planes",
+                        (int)squadrons, (unsigned)flags,
+                        requestList ? 1 : 0,
+                        (int)missionsFilled, (int)missionsToFill);
+                fflush(stderr);
+            }
+        }
+    }
+
+#endif
+
     // Don't do this if we're not active, or not owned by this machine
     if ( not (TeamInfo[owner]->flags bitand TEAM_ACTIVE) or not IsLocal())
         return 0;

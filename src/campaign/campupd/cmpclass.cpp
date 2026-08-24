@@ -2298,12 +2298,33 @@ void CampaignClass::Suspend(void)
 
 void CampaignClass::Resume(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (THEATER-1): Resume must also CANCEL a pending, unacknowledged
+    // suspend request. The Linux Suspend() has a 1-second timeout (added to
+    // avoid a hang) and can return with CAMP_SUSPEND_REQUEST still set and the
+    // campaign thread not yet suspended -- which is exactly what happens during
+    // a theater switch, when the thread is busy loading the new theater's data.
+    // The old Resume() then hit `not IsSuspended()` and returned WITHOUT doing
+    // anything, leaving the stale request pending; the thread acknowledged it
+    // moments later, set CAMP_SUSPENDED, and nothing ever cleared it again. The
+    // campaign clock kept advancing (that happens outside the suspend gate) but
+    // DoCampaignLoop never ran, so no missions were ever generated -- the PO's
+    // "Balkans generates no missions" report, while Korea, whose loads are fast
+    // enough to acknowledge within the timeout, was never bitten.
+    //
+    // Clearing with and-not (rather than the guarded xor) also makes both
+    // clears idempotent, so the tiny window where the thread acknowledges
+    // between these two statements ends in "running", not "stuck".
+    Flags and_eq compl CAMP_SUSPEND_REQUEST;
+    Flags and_eq compl CAMP_SUSPENDED;
+#else
     if ( not IsSuspended())
     {
         return;
     }
 
     Flags xor_eq CAMP_SUSPENDED;
+#endif
 }
 
 void CampaignClass::SetOnlineStatus(int online)

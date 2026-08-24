@@ -2820,6 +2820,38 @@ unsigned int __stdcall HandleCampaignThread(void)
             }
 
             //START_PROFILE("CAMPLOOP");
+#ifdef FF_LINUX
+            // FF_LINUX (THEATER-1): in the Balkans theater the campaign clock
+            // advances but DoCampaignLoop never runs, so no missions are ever
+            // tasked; in Korea the same build runs it fine. This is the gate
+            // that decides, so report its inputs. FF_DEBUG_ATM=1.
+            {
+                static int ffLoopDbg = -1;
+
+                if (ffLoopDbg == -1)
+                    ffLoopDbg = getenv("FF_DEBUG_ATM") ? 1 : 0;
+
+                if (ffLoopDbg)
+                {
+                    static int said = 0;
+
+                    if (said < 3)
+                    {
+                        said++;
+                        fprintf(stderr, "[CAMPLOOP] Flags=0x%x LIGHT=%d TACTICAL=%d IsMaster=%d -> %s\n",
+                                (unsigned)TheCampaign.Flags,
+                                (TheCampaign.Flags bitand CAMP_LIGHT) ? 1 : 0,
+                                (TheCampaign.Flags bitand CAMP_TACTICAL) ? 1 : 0,
+                                TheCampaign.IsMaster() ? 1 : 0,
+                                (TheCampaign.Flags bitand CAMP_LIGHT) ? "SKIP (light)" :
+                                not TheCampaign.IsMaster() ? "SKIP (not master)" :
+                                (TheCampaign.Flags bitand CAMP_TACTICAL) ? "DoTacticalLoop" : "DoCampaignLoop");
+                        fflush(stderr);
+                    }
+                }
+            }
+
+#endif
             if ( not (TheCampaign.Flags bitand CAMP_LIGHT) and TheCampaign.IsMaster())
             {
                 if (TheCampaign.Flags bitand CAMP_TACTICAL)
@@ -3156,6 +3188,48 @@ void DoCampaignLoop(int startup)
     }
 
     // Task air
+#ifdef FF_LINUX
+    // FF_LINUX (THEATER-1): AirTaskingManagerClass::Task() is never reached in
+    // the Balkans theater, so no missions are ever generated. Establish whether
+    // DoCampaignLoop runs at all and whether any team actually has an ATM,
+    // rather than inferring it from the absence of downstream output.
+    // FF_DEBUG_ATM=1.
+    {
+        static int ffAtmLoop = -1;
+
+        if (ffAtmLoop == -1)
+            ffAtmLoop = getenv("FF_DEBUG_ATM") ? 1 : 0;
+
+        if (ffAtmLoop)
+        {
+            static int said = 0;
+
+            if (said < 3)
+            {
+                said++;
+                char who[128];
+                int n = 0;
+                who[0] = '\0';
+
+                for (int q = 0; q < NUM_TEAMS; q++)
+                {
+                    if (TeamInfo[q])
+                    {
+                        n += snprintf(who + n, sizeof(who) - n, "%d:%s ", q,
+                                      TeamInfo[q]->atm ? "atm" : "NOATM");
+
+                        if (n >= (int)sizeof(who) - 8) break;
+                    }
+                }
+
+                fprintf(stderr, "[ATM] DoCampaignLoop teams -> %s\n", who[0] ? who : "(no TeamInfo at all)");
+                fflush(stderr);
+            }
+        }
+    }
+
+#endif
+
     for (t = 0; t < NUM_TEAMS; t++)
     {
         if (TeamInfo[t] and TeamInfo[t]->atm)

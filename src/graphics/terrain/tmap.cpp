@@ -45,6 +45,21 @@ int TMap::Setup(const char *mapPath)
 #endif
     headerFile = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
+#ifdef FF_LINUX
+    // FF_LINUX (THEATER-1): every error report below this point is commented
+    // out, so a failed terrain header open returns 0 in total silence and the
+    // previously loaded map simply stays in place. That is indistinguishable
+    // from "the theater switched fine" in any log. Say so instead.
+    // FF_DEBUG_THEATER=1.
+    if (getenv("FF_DEBUG_THEATER"))
+    {
+        fprintf(stderr, "[THEATER] MapClass::Setup '%s' -> %s\n",
+                filename, headerFile == INVALID_HANDLE_VALUE ? "FAILED" : "opened");
+        fflush(stderr);
+    }
+
+#endif
+
     if (headerFile == INVALID_HANDLE_VALUE)
     {
         //char string[80];
