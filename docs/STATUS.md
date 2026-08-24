@@ -4472,7 +4472,15 @@ engine terrain".
 
 ### The measurement chain, including two falsified fixes
 
-TE-02 parked on the runway gives all three numbers at one spot (z negative = up):
+**Correction (same session):** these runs were labelled TE-02/Korea but actually
+ran in the **Balkans** theater — `curTheater` had been left on Balkans by the
+THEATER-1 work, and the harness loaded "002 Eurofighter training flight" (the
+screenshot even shows Eurofighters, which should have given it away). The
+mechanism and fix are theater-independent and the verification stands; only the
+theater label was wrong. Korea's own runway numbers from ELEV-1 (−26 ft, gear
+5.99) differ from the −14 below, which is a Balkans airbase.
+
+Parked on the runway, all three numbers at one spot (z negative = up):
 
 | what | z |
 |---|---|
