@@ -612,12 +612,22 @@ void MissionEvaluationClass::PreEvalFlight(Flight element, Flight flight)
 
         vc = GetVehicleClassData(element->GetVehicleID(0));
 
+#ifdef FF_LINUX
+        // FF_LINUX (MISSEVAL-1): bounded copies, and no name-as-format-string
+        // (a '%' in an aircraft or callsign name must not be interpreted).
+        snprintf(flight_ptr->aircraft_name, sizeof(flight_ptr->aircraft_name),
+                 "%s", vc ? vc->Name : "");
+        snprintf(flight_ptr->name, sizeof(flight_ptr->name),
+                 "%s", flight_ptr->aircraft_name);
+#else
+
         if (vc) // JB 010113
             _stprintf(flight_ptr->aircraft_name, vc->Name);
         else
             _stprintf(flight_ptr->aircraft_name, "");
 
         _stprintf(flight_ptr->name, flight_ptr->aircraft_name);
+#endif
         GetCallsign(element->callsign_id, element->callsign_num, flight_ptr->name);
         flight_ptr->camp_id = element->GetCampID();
         flight_ptr->flight_id = element->Id();

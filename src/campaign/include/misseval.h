@@ -164,7 +164,13 @@ public:
     ulong status_flags;
     short camp_id;
     VU_ID flight_id;
-    _TCHAR aircraft_name[10];
+    // FF_LINUX (MISSEVAL-1): was [10], but PreEvalFlight copies
+    // VehicleClassDataType::Name, which is _TCHAR[15]. On Windows the overflow
+    // silently smashed start_aircraft/finish_aircraft (rescued by the
+    // assignments right after); under glibc _FORTIFY_SOURCE it aborts the
+    // process the moment any aircraft name is 10+ chars. In-memory struct only
+    // (holds live pointers, never serialised), so enlarging is safe.
+    _TCHAR aircraft_name[16];
     uchar start_aircraft;
     uchar finish_aircraft;
     Team flight_team;
