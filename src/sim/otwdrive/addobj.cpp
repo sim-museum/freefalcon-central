@@ -195,6 +195,24 @@ void CreateDrawable(SimBaseClass* theObject, float objectScale)
     simView.y     = theObject->YPos();
     simView.z     = theObject->ZPos();
 
+#ifdef FF_LINUX
+    // FF_LINUX (TERRAIN-Z): where does a feature drawable's z actually come
+    // from? Two fix attempts placed on deduced answers have been falsified, so
+    // report the measured one. FF_DEBUG_RESNAP=1.
+    if (getenv("FF_DEBUG_RESNAP") and classPtr->vuClassData.classInfo_[VU_CLASS] == CLASS_FEATURE)
+    {
+        static int s_cd = 0;
+
+        if (s_cd++ < 20)
+        {
+            fprintf(stderr, "[CREATEDRW] feature id=%d pos=(%.0f,%.0f,%.2f) awake=%d\n",
+                    (int)theObject->Id().num_, simView.x, simView.y, simView.z,
+                    theObject->IsAwake() ? 1 : 0);
+            fflush(stderr);
+        }
+    }
+
+#endif
     visType = classPtr->visType[theObject->Status() bitand VIS_TYPE_MASK];
 
     if (visType >= 0 or theObject->drawPointer)

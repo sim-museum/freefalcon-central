@@ -273,6 +273,22 @@ void OTWDriverClass::Cycle(void)
         }
     }
 
+    // FF_LINUX (TERRAIN-Z): service the deferred feature ground re-snaps about
+    // once a second (see SimFeatureClass::Wake in simfeature.cpp -- features
+    // that woke before the terrain streamed in are re-positioned here until
+    // their ground answer stabilises).
+    {
+        extern void FF_ServiceFeatureResnaps(void);
+        static DWORD ffLastResnap = 0;
+        DWORD ffNow = GetTickCount();
+
+        if (ffNow - ffLastResnap >= 1000)
+        {
+            ffLastResnap = ffNow;
+            FF_ServiceFeatureResnaps();
+        }
+    }
+
     // FF_LINUX: FF_ACMI_STOP=<sec> stops the ACMI recording N seconds after the
     // sim starts, which is what FLUSHES THE TAPE TO DISK. Without it a tape only
     // appears when the mission ends of its own accord, so any run cut short by a

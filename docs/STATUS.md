@@ -4461,3 +4461,65 @@ values (uninitialised fields, harmless today); and the Balkans `artdir` tree is
 nested one level deeper than its .tdf declares (`art/art/`), which Windows
 tolerates via recursive resource attach — check `ResAddPath(..., recurse)` on
 Linux before trusting theater-specific art.
+
+---
+
+## TERRAIN-Z, sprint 1 — features baked at transient ground height; convergent re-snap
+
+The PO's epic: takeoff, landing and bombing must match the Wine gold standard,
+solving "the physics engine terrain seems to be a few meters below the graphics
+engine terrain".
+
+### The measurement chain, including two falsified fixes
+
+TE-02 parked on the runway gives all three numbers at one spot (z negative = up):
+
+| what | z |
+|---|---|
+| terrain posts, lod 0 (physics AND terrain mesh) | **−14.0 ft** |
+| airbase features as drawn (DrawableBSP) | **−3.0 ft** |
+| parked player (physics ground + gear) | −20.4 ft |
+
+The features sit **11 ft ≈ 3.4 m below the terrain around them** — the PO's "few
+meters", measured.
+
+Getting from that number to the mechanism took three instrumented runs, each of
+which killed the previous theory:
+
+1. *"Features bake the coarse-LOD transient at Wake"* — partially wrong: a
+   re-check one second later returned the SAME value for all 500 features
+   (`moved=0 settled=500`), so the wake answer looked stable.
+2. *"Wake's SetPosition never reaches the drawable"* — the drawable IS created
+   from the entity's z, and syncing it at Wake changed nothing.
+3. The creation/wake probes then pinned it: the drawable is created (asleep) at
+   z=0, Wake's `GetApproxGroundLevel` **returns 0.00 — the streaming transient**
+   — and my re-snap's "settled when two answers agree" test was satisfied *by
+   the transient itself*: at one second in, the terrain has still not streamed,
+   so "0.00 twice" looked like convergence. **Two equal answers can be the
+   transient twice.**
+
+### The fix
+
+`SimFeatureClass::Wake()` still snaps as before, but every woken feature is
+queued for **convergent re-snapping** (`FF_QueueFeatureResnap`), serviced about
+once a second from the sim loop. The settle test is not value stability but
+**answer provenance**: an entry is only retired when `GetGroundLevel` answers at
+`lod <= 1` (fine terrain streamed in at that spot). Each re-snap moves the entity
+*and* its drawable (statics have no per-frame draw sync). Entries whose entity
+vanishes (bubble shrink) are dropped and simply re-queue on their next Wake.
+`FF_NO_FEATURE_RESNAP=1` reverts; `FF_DEBUG_RESNAP=1` reports.
+
+Verified by counter: first service tick after sim entry **moved all 500 queued
+features** off the transient; 233 near the viewer settled at fine LOD
+immediately; the remainder left the bubble and will re-queue when re-woken.
+Player physics unchanged and correct (gear height above lod-0 ground).
+
+### Still open in this epic
+
+- The **aircraft spawn** uses the same transient (`[SPAWN] groundZ@pos=0.00` at
+  placement, real ground −14) — physics re-settles it, but the first seconds and
+  any takeoff roll started inside them are wrong. Same fix shape applies.
+- The residual **−3.0 vs 0.0** discrepancy: drawables were created at 0.00 yet
+  drew at −3.0, so something applies a −3 offset after creation. Unidentified;
+  small next to the 11 ft, but it will still be there after the re-snap.
+- The PO's acceptance test: takeoff, landing, bombing side-by-side against Wine.

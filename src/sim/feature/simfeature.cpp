@@ -52,6 +52,145 @@ void SimFeatureClass::InitData()
     InitLocalData();
 }
 
+#ifdef FF_LINUX
+// FF_LINUX (TERRAIN-Z): deferred feature ground re-snap (see Wake()).
+// Serviced from the sim loop via FF_ServiceFeatureResnaps().
+#include <vector>
+#include <mutex>
+#include "rviewpnt.h"   // RViewPoint/TViewPoint: LOD-aware GetGroundLevel
+
+namespace
+{
+struct FFResnapEntry
+{
+    VU_ID id;
+    float lastZ;
+    int tries;
+};
+
+std::vector<FFResnapEntry> ffResnapQueue;
+std::mutex ffResnapLock;
+
+bool ffResnapEnabled(void)
+{
+    static int cached = -1;
+
+    if (cached == -1)
+        cached = getenv("FF_NO_FEATURE_RESNAP") ? 0 : 1;
+
+    return cached != 0;
+}
+}
+
+void FF_QueueFeatureResnap(VU_ID id, float z)
+{
+    if (not ffResnapEnabled())
+        return;
+
+    std::lock_guard<std::mutex> g(ffResnapLock);
+    ffResnapQueue.push_back({ id, z, 0 });
+}
+
+// Called about once a second from the sim loop. Each entry is re-queried until
+// two consecutive answers agree (terrain streamed in and stabilised) or the
+// attempt cap is hit.
+void FF_ServiceFeatureResnaps(void)
+{
+    if (not ffResnapEnabled())
+        return;
+
+    std::vector<FFResnapEntry> work;
+    {
+        std::lock_guard<std::mutex> g(ffResnapLock);
+
+        if (ffResnapQueue.empty())
+            return;
+
+        work.swap(ffResnapQueue);
+    }
+
+    static int ffDbg = -1;
+
+    if (ffDbg == -1)
+        ffDbg = getenv("FF_DEBUG_RESNAP") ? 1 : 0;
+
+    int resnapped = 0, settled = 0, dropped = 0;
+    std::vector<FFResnapEntry> keep;
+    keep.reserve(work.size());
+
+    for (FFResnapEntry &e : work)
+    {
+        SimFeatureClass *feat = (SimFeatureClass*)vuDatabase->Find(e.id);
+
+        if (not feat or not feat->IsStatic() or feat->IsDead())
+        {
+            dropped++;
+            continue;
+        }
+
+        // Measured (TE-02): "same answer twice" is NOT a safe settle test --
+        // during the terrain-streaming transient the query answers 0 at coarse
+        // LOD repeatedly, so two ticks inside the transient look "stable".
+        // Settle only when the answer actually came from fine terrain.
+        RViewPoint *vp = OTWDriver.GetViewpoint();
+        int lod = 99;
+        float z = e.lastZ;
+
+        if (vp)
+            z = vp->GetGroundLevel(feat->XPos(), feat->YPos(), NULL, &lod);
+
+        if (z != e.lastZ)
+        {
+            feat->SetPosition(feat->XPos(), feat->YPos(), z);
+
+            // Statics have no per-frame draw sync, so move the drawable too --
+            // repositioning only the entity would fix physics and leave the
+            // pixels where they were.
+            if (feat->drawPointer)
+            {
+                Tpoint p;
+                p.x = feat->XPos();
+                p.y = feat->YPos();
+                p.z = feat->ZPos();
+                feat->drawPointer->SetPosition(&p);
+            }
+
+            e.lastZ = z;
+            resnapped++;
+        }
+
+        if (lod <= 1)
+        {
+            settled++;   // fine terrain answered -- this feature is done
+            continue;
+        }
+
+        e.tries++;
+
+        if (e.tries < 30)
+            keep.push_back(e);
+        else
+            dropped++;
+    }
+
+    if (not keep.empty())
+    {
+        std::lock_guard<std::mutex> g(ffResnapLock);
+
+        for (FFResnapEntry &e : keep)
+            ffResnapQueue.push_back(e);
+    }
+
+    if (ffDbg and (resnapped or settled or dropped))
+    {
+        fprintf(stderr, "[RESNAP] moved=%d settled=%d dropped=%d pending=%d\n",
+                resnapped, settled, dropped, (int)keep.size());
+        fflush(stderr);
+    }
+}
+
+#endif
+
 void SimFeatureClass::InitLocalData()
 {
     Falcon4EntityClassType* classPtr;
@@ -144,6 +283,63 @@ int SimFeatureClass::Wake()
     //else
     // z = 0.0;
     SetPosition(XPos(), YPos(), z);
+#ifdef FF_LINUX
+    // FF_LINUX (TERRAIN-Z): "hopefully close enough" is not close enough. At
+    // sim entry, features Wake() in a burst BEFORE the terrain around the
+    // viewpoint has streamed in, so the approximation runs out of LODs and
+    // answers 0 (measured: the wake burst logs "RAN OUT OF LODs -> elevation=0"
+    // while every query a moment later answers -14.0 at lod 0). The bad z is
+    // then BAKED: nothing ever re-snaps a feature, so the whole airbase sits
+    // ~11-14 ft below the terrain mesh that finishes streaming moments later --
+    // the PO's "physics terrain seems to be a few meters below the graphics
+    // terrain" during takeoff, landing and bombing.
+    //
+    // Measured on TE-02 (FF_DEBUG_RESNAP): 500 features settle on their FIRST
+    // recheck -- the wake-time query is usually already right. The durable bug
+    // is the line above: VuEntity::SetPosition moves the ENTITY only, and
+    // nothing ever tells the drawable. The DrawableBSP keeps the position it
+    // was created with (simdata.z = 0 from objectiv.cpp, i.e. sea level), so
+    // the whole airbase RENDERS ~11-14 ft below the terrain mesh while the
+    // entity/physics sit correctly on it -- the PO's "physics terrain a few
+    // meters off the graphics terrain". Sync the drawable here, at the same
+    // moment the entity gets its ground snap.
+    if (drawPointer)
+    {
+        Tpoint ffP;
+        ffP.x = XPos();
+        ffP.y = YPos();
+        ffP.z = ZPos();
+        drawPointer->SetPosition(&ffP);
+    }
+
+    {
+        static int s_wk = -1;
+
+        if (s_wk == -1)
+            s_wk = getenv("FF_DEBUG_RESNAP") ? 1 : 0;
+
+        if (s_wk)
+        {
+            static int s_wc = 0;
+
+            if (s_wc++ < 20)
+            {
+                fprintf(stderr, "[WAKE] feature id=%d pos=(%.0f,%.0f) snapZ=%.2f drawPtr=%s\n",
+                        (int)Id().num_, XPos(), YPos(), z, drawPointer ? "yes" : "NULL");
+                fflush(stderr);
+            }
+        }
+    }
+
+    // Queue this feature for convergent re-snapping: re-query about once a
+    // second and re-position until the answer stops moving (terrain finished
+    // streaming here) or a generous attempt cap is hit. No LOD plumbing needed,
+    // and features waking with fine terrain already available converge on the
+    // first check. FF_NO_FEATURE_RESNAP=1 reverts to the old bake. This also
+    // covers the wake-during-streaming case, where the first answer really is
+    // the transient ("RAN OUT OF LODs -> elevation=0", seen once per run).
+    FF_QueueFeatureResnap(Id(), z);
+#endif
 
     if (drawPointer)
     {
