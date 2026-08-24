@@ -4531,3 +4531,35 @@ Player physics unchanged and correct (gear height above lod-0 ground).
   drew at −3.0, so something applies a −3 offset after creation. Unidentified;
   small next to the 11 ft, but it will still be there after the re-snap.
 - The PO's acceptance test: takeoff, landing, bombing side-by-side against Wine.
+
+---
+
+## THEATER-2 — stale Korea imagery after a theater switch: found and fixed
+
+The residual from THEATER-1: with the Balkans campaign running correctly, every
+piece of UI imagery — menu background, campaign map, minimap, map labels —
+stayed Korea's.
+
+**Root cause: an earlier port fix with a baked layout assumption.**
+`C_Resmgr::OpenResFile` (cresmgr.cpp) strips a leading `art/` from resource
+names whenever `FalconUIArtThrDirectory` ends in `/art`:
+
+- Korea: artdir `<data>/art` IS the art level — stripped name
+  `<data>/art/resource/main.idx` exists. Works.
+- Balkans: artdir `Theaters/Balkans/art` *also* ends in `/art`, but its tree
+  keeps the `art/` level inside (`art/art/resource/...`). The stripped open
+  fails **silently** and falls through to `FalconUIArtDirectory` — Korea's art.
+
+So the theater's own `mainbg.rsc`, `campmap.rsc`, `intel.rsc` etc. (all shipped
+by Balkans) were never even attempted at their real paths. On Windows this works
+because the resource manager registers the artdir tree recursively and resolves
+by basename; the Linux path goes through this direct-open helper instead.
+
+**Fix:** try the *unstripped* name against the theater dir first (Balkans
+layout), then the stripped one (Korea layout), then the base-art fallback as
+before. Verified visually: the game now boots into the Balkans theater with the
+Balkans main-menu background (F-16 at Aviano under the Alps) where Korea's art
+used to persist.
+
+Remaining for the PO to confirm in play: campaign map imagery and the strategic
+map labels, which ship in the same `.rsc` family and should follow.

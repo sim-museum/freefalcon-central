@@ -176,23 +176,40 @@ FILE *C_Resmgr::OpenResFile(const char *name, const char *sfx, const char *mode)
         if (*p == '\\') *p = '/';
     }
 
-    // Strip leading "art/" from name if directory already ends with "/art"
-    const char* adjustedName = normalizedName;
+    // FF_LINUX (THEATER-2): resource names arrive as "art/resource/main" etc.
+    // The old code stripped the leading "art/" whenever the theater art dir
+    // ends in "/art" -- right for Korea (artdir IS the art level:
+    // <data>/art/resource/...), wrong for Balkans, whose artdir
+    // (Theaters/Balkans/art) keeps the art/ level INSIDE
+    // (art/art/resource/...). The stripped open failed silently and fell back
+    // to FalconUIArtDirectory -- Korea's art -- which is why after a theater
+    // switch every campaign map, minimap and menu background stayed Korea's
+    // while the campaign itself ran Balkans. Try the unstripped name against
+    // the theater dir first (Balkans layout), then the stripped one (Korea
+    // layout), then fall back to the base art dir as before.
     size_t dirLen = strlen(FalconUIArtThrDirectory);
     bool thrDirEndsWithArt = (dirLen >= 4 &&
         strcmp(FalconUIArtThrDirectory + dirLen - 4, "/art") == 0);
-
-    if (thrDirEndsWithArt &&
+    bool nameHasArtPrefix =
         (normalizedName[0] == 'a' || normalizedName[0] == 'A') &&
         (normalizedName[1] == 'r' || normalizedName[1] == 'R') &&
         (normalizedName[2] == 't' || normalizedName[2] == 'T') &&
-        normalizedName[3] == '/') {
-        adjustedName = normalizedName + 4;  // Skip "art/"
-    }
+        normalizedName[3] == '/';
 
-    snprintf(filename, sizeof(filename), "%s/%s.%s", FalconUIArtThrDirectory, adjustedName, sfx);
+    snprintf(filename, sizeof(filename), "%s/%s.%s", FalconUIArtThrDirectory, normalizedName, sfx);
+
     if ((fp = fopen_nocase(filename, mode)) != NULL)
         return fp;
+
+    if (thrDirEndsWithArt && nameHasArtPrefix)
+    {
+        snprintf(filename, sizeof(filename), "%s/%s.%s", FalconUIArtThrDirectory, normalizedName + 4, sfx);
+
+        if ((fp = fopen_nocase(filename, mode)) != NULL)
+            return fp;
+    }
+
+    const char* adjustedName = normalizedName;
 
     // Try main directory too, adjusting for art suffix similarly
     dirLen = strlen(FalconUIArtDirectory);
