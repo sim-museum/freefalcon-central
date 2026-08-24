@@ -4563,3 +4563,40 @@ used to persist.
 
 Remaining for the PO to confirm in play: campaign map imagery and the strategic
 map labels, which ship in the same `.rsc` family and should follow.
+
+---
+
+## NVG-3, third pass — the surviving blue is an alpha-0 key-blue quad
+
+The vertex-colour probe (extension of `FF_DEBUG_NVGALPHA`) caught it exactly:
+
+```
+12x  KEY-BLUE untextured XYZRHW draw: n=24  diffuse=000000ff  alphaTest=0
+```
+
+An **untextured** 24-index quad whose every sampled vertex is diffuse ARGB
+`000000ff` — pure chroma-key blue with **vertex alpha 0** — drawn with the alpha
+test disabled. The NVG frame corner still measures `srgb(0,32,127)`, which is
+exactly this quad's blue after stage 3's ADDSIGNED against the green texture
+factor. This is the 2D pit's panel-background fill.
+
+Why it shows on GL and not on D3D: the quad is meant to be invisible via its
+alpha (0). In our path nothing ever consumes that alpha —
+
+- the chroma-key combine sources `ALPHA` from `GL_TEXTURE`, and sampling an
+  *unbound* texture returns alpha = 1;
+- with `GL_BLEND` off and the alpha test off, the RGB paints opaque regardless.
+
+D3D7's fixed function disables a stage that references an unbound texture and
+falls back so fragment alpha comes from **diffuse** — 0 — which the pipeline
+then discards (keyed or blended away).
+
+**Next step (precise):** make the untextured-draw path source alpha from
+`GL_PRIMARY_COLOR` when no texture is bound (matching D3D's stage fallback), and
+check which of blend/alpha-test D3D uses to discard it — the existing
+null-texture check in `DrawIndexedPrimitiveVB` already disables `GL_TEXTURE_2D`,
+so the remaining gap is only that neither blending nor testing is active for
+this draw on GL. Verify by the corner pixel: `(0,32,127)` must leave, the NVG
+cockpit must stay green, and the normal (non-NVG) pit must not regress —
+that same quad is drawn outside NVG too and is currently covered by other
+geometry rather than discarded.

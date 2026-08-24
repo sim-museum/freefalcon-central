@@ -2362,6 +2362,30 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     // goes blue. (Counts are capped per category -- this reports which cases
     // occur, not how often.)
     if (isXYZRHW and getenv("FF_DEBUG_NVGALPHA")) {
+        // NVG-3, next probe: for UNTEXTURED pre-transformed draws, also report
+        // the first vertex's diffuse colour. A solid quad in the chroma-key
+        // colour has no texture alpha to test, so the key can never discard it
+        // -- if such a draw carries pure blue, it IS the surviving blue.
+        if (!dev->textures[0] && vb->data && dwIndexCount >= 3) {
+            static int s_vc = 0;
+            int stride = GetVertexSize(fvf);
+            const unsigned char* v0 = (const unsigned char*)vb->data
+                + (dwStartVertex + lpwIndices[0]) * stride;
+            // XYZRHW layout: 4 floats, then DIFFUSE dword if present. Only
+            // report KEY-BLUE draws (RGB 0000ff, any alpha) -- a general sample
+            // cap burned all its samples on HUD lines before NVG ever engaged.
+            if ((fvf & D3DFVF_DIFFUSE)) {
+                DWORD c = *(const DWORD*)(v0 + 16);
+                if ((c & 0x00FFFFFFu) == 0x000000FFu && s_vc < 12) {
+                    s_vc++;
+                    fprintf(stderr, "[NVGALPHA] KEY-BLUE untextured XYZRHW draw: n=%lu diffuse=%08lx alphaTest=%d\n",
+                            (unsigned long)dwIndexCount, (unsigned long)c,
+                            glIsEnabled(GL_ALPHA_TEST) ? 1 : 0);
+                    fflush(stderr);
+                }
+            }
+        }
+
         static int s_seen[4] = { 0, 0, 0, 0 };
         int idx = (dev->textures[0] ? 1 : 0) + (glIsEnabled(GL_ALPHA_TEST) ? 2 : 0);
 
