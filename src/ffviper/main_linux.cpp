@@ -2082,6 +2082,35 @@ static void handle_sdl_events(void) {
                         glViewport(0, 0, event.window.data1, event.window.data2);
                         PostGameMessage(WM_SIZE, 0, MAKELPARAM(event.window.data1, event.window.data2));
                         break;
+
+                    // FF_LINUX (INPUT-1): there was no focus handling at all, so
+                    // once the window lost focus in sim mode nothing ever restored
+                    // relative mouse mode -- keyboard and mouse stayed dead while
+                    // the joystick kept working, because the joystick is polled
+                    // from a device path that does not depend on window focus.
+                    // Alt-Tabbing back returned the window but not its input.
+                    // Re-grab on focus gain, and drop the grab on focus loss so
+                    // the pointer is not held captive by a background window.
+                    case SDL_WINDOWEVENT_FOCUS_GAINED:
+                        if (!doUI) {
+                            SDL_SetRelativeMouseMode(SDL_TRUE);
+                            SDL_RaiseWindow(g_SDLWindow);
+                        }
+
+                        fprintf(stderr, "[INPUT] focus gained (doUI=%d) -> relative mouse %s\n",
+                                doUI ? 1 : 0, doUI ? "left off" : "re-enabled");
+                        fflush(stderr);
+                        break;
+
+                    case SDL_WINDOWEVENT_FOCUS_LOST:
+                        if (!doUI)
+                            SDL_SetRelativeMouseMode(SDL_FALSE);
+
+                        fprintf(stderr, "[INPUT] focus lost (doUI=%d) -> relative mouse released\n",
+                                doUI ? 1 : 0);
+                        fflush(stderr);
+                        break;
+
                     default:
                         break;
                 }

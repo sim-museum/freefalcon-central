@@ -467,6 +467,51 @@ int TViewPoint::GetGroundType(float x, float y)
 
 
 // Return the maximum z value of the terrain near the specified point.  (positive Z down)
+#ifdef FF_LINUX
+// FF_LINUX (TERRAIN-Z): height of the terrain posts at a FORCED LOD.
+//
+// The PO's symptom -- a bomb sinking into the drawn surface, a pause, then an
+// explosion heard but never seen -- says the DRAWN terrain sits above where
+// physics thinks the ground is, so the effect spawns underneath it. Physics
+// answers via GetGroundLevel at the finest available LOD; the renderer draws a
+// patch at whatever LOD its distance selects, and coarser LODs interpolate
+// across wider post spacing. If the two disagree, that difference IS the gap.
+//
+// This reports the post height at each LOD for one (x,y) so the spread can be
+// measured instead of argued about. Returns -99999 when that LOD has no data
+// loaded for the point.
+float FF_GroundLevelAtLOD(TViewPoint *vp, float x, float y, int lod);
+
+float FF_GroundLevelAtLOD(TViewPoint *vp, float x, float y, int lod)
+{
+    return vp ? vp->FFPostZAtLOD(x, y, lod) : -99999.0f;
+}
+
+float TViewPoint::FFPostZAtLOD(float x, float y, int lod)
+{
+    if (lod < minLOD or lod > maxLOD)
+        return -99999.0f;
+
+    int row = WORLD_TO_LEVEL_POST(x, lod);
+    int col = WORLD_TO_LEVEL_POST(y, lod);
+
+    EnterCriticalSection(&cs_update);
+
+    float z = -99999.0f;
+
+    if (blockLists[lod].RangeFromCenter(row, col) < blockLists[lod].GetAvailablePostRange())
+    {
+        Tpost *p = blockLists[lod].GetPost(row, col);
+
+        if (p) z = p->z;
+    }
+
+    LeaveCriticalSection(&cs_update);
+    return z;
+}
+
+#endif
+
 float TViewPoint::GetGroundLevelApproximation(float x, float y)
 {
     int LOD;

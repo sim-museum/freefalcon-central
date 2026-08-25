@@ -339,6 +339,49 @@ int FalconMissileEndMessage::Process(uchar autodisp)
                          2.0f, // time to live
                          (float)wc->BlastRadius ) ); // scale
                          */
+                        // FF_LINUX (TERRAIN-Z): trigger a frame capture ON the
+                        // impact rather than at a scripted time -- the fireball
+                        // lasts ~2s and scripted shots kept missing it, which is
+                        // why the bombing chain was verified by log only.
+                        // FF_LINUX (TERRAIN-Z): at the impact point, report the
+                        // terrain post height at every LOD. Physics answered at
+                        // the finest; the renderer drew at whatever its distance
+                        // picked. The spread between them is the gap the PO sees
+                        // as a bomb sinking into the surface. FF_DEBUG_LODZ=1.
+                        if (getenv("FF_DEBUG_LODZ"))
+                        {
+                            extern float FF_GroundLevelAtLOD(class TViewPoint *vp, float x, float y, int lod);
+                            RViewPoint *ffVp = OTWDriver.GetViewpoint();
+                            char ffBuf[192];
+                            int ffN = 0;
+                            ffBuf[0] = '\0';
+
+                            for (int L = 0; L < 5; L++)
+                            {
+                                float z = ffVp ? FF_GroundLevelAtLOD((TViewPoint*)ffVp, pos.x, pos.y, L) : -99999.0f;
+                                ffN += snprintf(ffBuf + ffN, sizeof(ffBuf) - ffN, "lod%d=%.1f ", L, (double)z);
+
+                                if (ffN >= (int)sizeof(ffBuf) - 24) break;
+                            }
+
+                            fprintf(stderr, "[LODZ] impact (%.0f,%.0f) physicsZ=%.1f | %s\n",
+                                    pos.x, pos.y, (double)pos.z, ffBuf);
+                            fflush(stderr);
+                        }
+
+                        if (getenv("FF_SHOT_ON_IMPACT"))
+                        {
+                            extern volatile int g_screenshotRequest;
+                            extern const char *g_screenshotFilename;
+                            static char ffShotPath[64];
+                            static int ffShotN = 0;
+                            snprintf(ffShotPath, sizeof(ffShotPath), "/tmp/ff_impact_%d.bmp", ffShotN++);
+                            g_screenshotFilename = ffShotPath;
+                            g_screenshotRequest = 1;
+                            fprintf(stderr, "[IMPACTSHOT] requested %s\n", ffShotPath);
+                            fflush(stderr);
+                        }
+
                         DrawableParticleSys::PS_AddParticleEx((SFX_GROUND_EXPLOSION + 1),
                                                               &pos,
                                                               &PSvec);
