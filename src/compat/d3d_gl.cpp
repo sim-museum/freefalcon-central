@@ -2361,6 +2361,38 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     // DX_NVG applied and skipped, so the gate is not what differs when the screen
     // goes blue. (Counts are capped per category -- this reports which cases
     // occur, not how often.)
+    // FF_LINUX (NVG-3): census of pre-transformed draws, so the SAME frame can be
+    // compared with and without FF_NVG_DXSTATE=1. The key-blue backdrop is drawn
+    // in both modes; what differs must be the draw that normally COVERS it, so
+    // the useful signal is a draw present in one census and missing (or
+    // degenerate) in the other. FF_DEBUG_2DCENSUS=1.
+    if (isXYZRHW and getenv("FF_DEBUG_2DCENSUS")) {
+        static int s_frame = 0;
+        static int s_n = 0;
+
+        if (s_n < 400) {
+            s_n++;
+            DWORD c0 = 0;
+
+            if ((fvf & D3DFVF_DIFFUSE) && vb->data && dwIndexCount >= 1) {
+                const unsigned char* v0 = (const unsigned char*)vb->data
+                    + (dwStartVertex + lpwIndices[0]) * GetVertexSize(fvf);
+                c0 = *(const DWORD*)(v0 + 16);
+            }
+
+            fprintf(stderr, "[2DCENSUS] n=%-5lu tex=%-3s diffuse=%08lx aTest=%d blend=%d zTest=%d\n",
+                    (unsigned long)dwIndexCount,
+                    dev->textures[0] ? "yes" : "NO",
+                    (unsigned long)c0,
+                    glIsEnabled(GL_ALPHA_TEST) ? 1 : 0,
+                    glIsEnabled(GL_BLEND) ? 1 : 0,
+                    glIsEnabled(GL_DEPTH_TEST) ? 1 : 0);
+            fflush(stderr);
+        }
+
+        (void)s_frame;
+    }
+
     if (isXYZRHW and getenv("FF_DEBUG_NVGALPHA")) {
         // NVG-3, next probe: for UNTEXTURED pre-transformed draws, also report
         // the first vertex's diffuse colour. A solid quad in the chroma-key
