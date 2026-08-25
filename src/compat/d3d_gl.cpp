@@ -2367,19 +2367,36 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     // the useful signal is a draw present in one census and missing (or
     // degenerate) in the other. FF_DEBUG_2DCENSUS=1.
     if (isXYZRHW and getenv("FF_DEBUG_2DCENSUS")) {
-        static int s_frame = 0;
-        static int s_n = 0;
+        // Collect DISTINCT draw signatures rather than a stream: a stream burns
+        // its cap in the first frames, long before the NVG toggle, which is
+        // exactly the window that matters. A signature set covers the whole run
+        // and diffs cleanly between FF_NVG_DXSTATE=1 and not.
+        static unsigned long long s_sig[256];
+        static int s_nSig = 0;
 
-        if (s_n < 400) {
-            s_n++;
-            DWORD c0 = 0;
+        DWORD c0 = 0;
 
-            if ((fvf & D3DFVF_DIFFUSE) && vb->data && dwIndexCount >= 1) {
-                const unsigned char* v0 = (const unsigned char*)vb->data
-                    + (dwStartVertex + lpwIndices[0]) * GetVertexSize(fvf);
-                c0 = *(const DWORD*)(v0 + 16);
-            }
+        if ((fvf & D3DFVF_DIFFUSE) && vb->data && dwIndexCount >= 1) {
+            const unsigned char* v0 = (const unsigned char*)vb->data
+                + (dwStartVertex + lpwIndices[0]) * GetVertexSize(fvf);
+            c0 = *(const DWORD*)(v0 + 16);
+        }
 
+        unsigned long long sig =
+            ((unsigned long long)(dwIndexCount & 0xFFFF) << 40) |
+            ((unsigned long long)(dev->textures[0] ? 1 : 0) << 39) |
+            ((unsigned long long)(glIsEnabled(GL_ALPHA_TEST) ? 1 : 0) << 38) |
+            ((unsigned long long)(glIsEnabled(GL_BLEND) ? 1 : 0) << 37) |
+            ((unsigned long long)(glIsEnabled(GL_DEPTH_TEST) ? 1 : 0) << 36) |
+            (unsigned long long)c0;
+
+        bool seen = false;
+
+        for (int q = 0; q < s_nSig; q++)
+            if (s_sig[q] == sig) { seen = true; break; }
+
+        if (!seen && s_nSig < 256) {
+            s_sig[s_nSig++] = sig;
             fprintf(stderr, "[2DCENSUS] n=%-5lu tex=%-3s diffuse=%08lx aTest=%d blend=%d zTest=%d\n",
                     (unsigned long)dwIndexCount,
                     dev->textures[0] ? "yes" : "NO",
@@ -2389,8 +2406,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
                     glIsEnabled(GL_DEPTH_TEST) ? 1 : 0);
             fflush(stderr);
         }
-
-        (void)s_frame;
     }
 
     if (isXYZRHW and getenv("FF_DEBUG_NVGALPHA")) {

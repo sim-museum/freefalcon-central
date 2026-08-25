@@ -4482,14 +4482,31 @@ theater label was wrong. Korea's own runway numbers from ELEV-1 (−26 ft, gear
 
 Parked on the runway, all three numbers at one spot (z negative = up):
 
-| what | z |
+| what | z (negative = up) |
 |---|---|
-| terrain posts, lod 0 (physics AND terrain mesh) | **−14.0 ft** |
-| airbase features as drawn (DrawableBSP) | **−3.0 ft** |
+| terrain posts, lod 0, at the parked aircraft | **−14.0 ft** |
+| two platform-child drawables, elsewhere on the field | −3.0 ft |
 | parked player (physics ground + gear) | −20.4 ft |
 
-The features sit **11 ft ≈ 3.4 m below the terrain around them** — the PO's "few
-meters", measured.
+**Correction (2026-08-24), and it matters.** The middle row was originally
+written up as "features sit 11 ft below the terrain around them — the PO's few
+metres, measured". **That subtraction is invalid.** The −3.0 drawables are at
+`(2067027,34439)` and `(2061970,29379)`; the −14.0 ground reading is at
+`(2068116,28081)` — different places on a field whose elevation varies. Same
+error in kind as the retracted "model 2647" pixel comparison earlier in this
+project: two numbers from two locations subtracted as though they shared one.
+
+RWY-2 independently contradicts the 11 ft story too: it *measured* the flat
+runway surfaces as **coplanar** with the terrain mesh — they z-fight it at
+approach range, which is why a slope-scaled polygon offset was added. Coplanar
+surfaces are not 11 ft below anything.
+
+**What survives, and it is what the fix rests on:** the same query at the same
+place answers `0.00 at lod=5` during streaming and `−14.00 at lod=0` once fine
+terrain arrives. The LOD is the signal, not a cross-location subtraction. Feature
+Wake() sampling inside that window bakes 0; that is real, and the re-snap
+addresses exactly it. The size of any residual visible offset is **not**
+established by this section and should not be quoted from it.
 
 Getting from that number to the mechanism took three instrumented runs, each of
 which killed the previous theory:
