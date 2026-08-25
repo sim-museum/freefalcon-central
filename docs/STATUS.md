@@ -4895,6 +4895,17 @@ scale:
 as they left the bubble — the designed behaviour. 0 ASAN errors on that run too.
 Without this, "0 errors" would not have distinguished *clean* from *never ran*.
 
+**Broadened to three paths**, since the build had been stale a full day and one
+soak covers one path:
+
+| soak | ASAN errors | reached 3D |
+|---|---|---|
+| campaign flight (420 s) | 0 | yes |
+| dogfight UI path (200 s) | 0 | yes |
+| Instant Action (200 s) | 0 | yes |
+
+All three ran to their timeouts (`rc=124`) rather than exiting early.
+
 **What this does and does not cover.** ASAN checks memory safety, not data
 races: it does *not* validate the re-snap queue's locking. That queue is written
 from the sim thread (`Wake`) and drained from the sim loop, with a
