@@ -5017,3 +5017,42 @@ draws at a given point versus which the physics query returns, at the same LOD.
 `FF_DEBUG_LODZ` is in place at bomb impact for exactly that, and has not yet
 caught an impact. That measurement, on sloped ground, should size the gap the PO
 sees.
+
+### TERRAIN-Z — the airstrip case: runway surfaces are drawn at a fixed sea-level height
+
+The PO pushed back on the slope-dependent conclusion with a case it cannot
+explain: on the landing TE the aircraft sits half-submerged in an airstrip that
+is **flat and barely above sea level**. Measuring that case directly (TE 02
+ground start, `FF_DEBUG_GROUND` + `FF_DEBUG_RUNWAY`):
+
+```
+aircraft   acZ = -31.99   groundZ = -26.00   aboveGround = 5.99 (gear)
+           vpAccurate = vpApprox = -26.00     <- terrain query agrees with itself
+runway drawables:  z = -3.0   at EVERY position sampled
+distinct z across ALL runway drawables in the mission:  -3.0
+```
+
+**One constant value for every runway piece at every location.** Pieces 1,559 ft
+from the player report the same −3.0 as pieces at another airbase 90,000 ft away.
+That is not terrain-following placement; it is a fixed height near sea level.
+
+**This supersedes the slope-dependent conclusion for the airstrip case.** The
+`vpAccurate`/`vpApprox` spread measured earlier is terrain-vs-terrain and says
+nothing about objects drawn *on* terrain. The airstrip never samples terrain at
+all, which is why a flat field shows the fault just as strongly as a hillside —
+exactly the PO's objection, and it was right.
+
+**It also predicts the magnitude.** With the surface pinned near sea level, the
+error simply *is* the field elevation: ~23 ft here (terrain −26 vs drawable −3),
+and the 2–3 m the PO reports on a Balkans strip that is barely above the sea.
+
+**Prime suspect**, consistent with the constant: `DrawablePlatform`'s constructor
+sets `position.z = 0.0f` ("to ensure we're in the lowest object list" — a sort
+key, not a placement), and `InsertStaticSurface` recomputes `position.x` and
+`position.y` from its children's extents while never touching `z`. Nothing in
+that class ever assigns a real elevation.
+
+**Why Wine is unaffected** is now a sharp question rather than a vague one: same
+terrain files, same airbase, same platform data — so the divergence is in how
+this port places or draws those surfaces, with a working oracle beside it. The
+next step is the same ground start captured in both builds.
