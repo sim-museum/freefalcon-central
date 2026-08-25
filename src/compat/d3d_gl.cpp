@@ -2335,41 +2335,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     // desynchronized from the device's texture binding state.
     GLboolean prevTex2D_forNullCheck = GL_FALSE;
     bool disabledTexForNullBinding = false;
-    // FF_LINUX (NVG-3): when no texture is bound, fragment alpha must come from
-    // the vertex, not from a texture that is not there. D3D7 fixed function
-    // disables a stage referencing an unbound texture and falls back to diffuse;
-    // our combine keeps SOURCE0_ALPHA = GL_TEXTURE, and sampling an unbound
-    // texture yields alpha = 1, so an alpha-0 quad paints opaque. That is the
-    // pit's key-blue panel fill surviving into the frame (measured: 24-index
-    // untextured draw, diffuse 000000ff). Source alpha from PRIMARY_COLOR for
-    // the duration of this draw and restore afterwards, so textured draws are
-    // untouched. FF_NO_UNTEX_ALPHA_FIX=1 reverts.
-    GLint ffPrevAlphaSrc = 0;
-    bool ffAlphaSrcPatched = false;
-
-    if (!dev->textures[0] && (fvf & D3DFVF_DIFFUSE))
-    {
-        static int ffUntexAlpha = -1;
-
-        if (ffUntexAlpha == -1)
-            ffUntexAlpha = getenv("FF_NO_UNTEX_ALPHA_FIX") ? 0 : 1;
-
-        if (ffUntexAlpha)
-        {
-            glActiveTexture(GL_TEXTURE0);
-            glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, &ffPrevAlphaSrc);
-
-            if (ffPrevAlphaSrc != GL_PRIMARY_COLOR)
-            {
-                glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-                glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
-                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_PRIMARY_COLOR);
-                glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
-                ffAlphaSrcPatched = true;
-            }
-        }
-    }
-
     if (!dev->textures[0] && glIsEnabled(GL_TEXTURE_2D)) {
         prevTex2D_forNullCheck = GL_TRUE;
         disabledTexForNullBinding = true;
@@ -2720,13 +2685,6 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         glEnable(GL_TEXTURE_2D);
     }
 
-    // FF_LINUX (NVG-3): put the alpha source back so this draw's fallback does
-    // not leak into subsequent textured draws.
-    if (ffAlphaSrcPatched)
-    {
-        glActiveTexture(GL_TEXTURE0);
-        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, ffPrevAlphaSrc);
-    }
 
     if (isXYZRHW) {
         glMatrixMode(GL_MODELVIEW);

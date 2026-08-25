@@ -4683,3 +4683,38 @@ burned by. Recorded here so the next `-Wparentheses` sweep does not re-open it.
 
 Cost of closing it this way: three greps. Cost of the Wine comparison it was
 waiting for: a driven side-by-side flight in two builds.
+
+### NVG-3, fourth pass — the alpha theory is dead; the blue is a *backdrop*, not a leak
+
+The vertex-alpha fix (source alpha from `GL_PRIMARY_COLOR` when untextured,
+matching D3D's unbound-stage fallback) was implemented and **had no effect**.
+The probe says why, and it kills the whole theory:
+
+```
+KEY-BLUE untextured XYZRHW draw: n=24 diffuse=000000ff alphaTest=0 blend=0
+```
+
+`alphaTest=0` **and** `blend=0`. Nothing in the pipeline consumes fragment alpha
+for this draw, so it cannot matter what alpha we compute — zero or one, the RGB
+paints opaque either way. Both `D3DRENDERSTATE_ALPHATESTENABLE` and
+`ALPHABLENDENABLE` *are* implemented in the layer, so this is the application's
+genuine intent, not a missing state. The fix was reverted rather than left in:
+it is semantically right but observably dead, and it would have changed alpha for
+every untextured diffuse draw in the game — real regression surface for zero
+measured benefit.
+
+**What this reframes.** The key-blue quad is not "leaking through a broken key" —
+it is an opaque **backdrop** that the pit is *supposed* to draw over. It is drawn
+in normal (non-NVG) mode too, where we never see it, because the cockpit panel
+covers it. So the defect is not the backdrop appearing; it is **the covering draw
+failing in NVG mode**. Every theory so far (alpha stage, chroma key, alpha
+source) has been aimed at the wrong object.
+
+**Next step:** identify the draw that covers this backdrop in non-NVG mode and
+find why it does not cover it under `DX_NVG` — compare the same frame's draw
+list with `FF_NVG_DXSTATE=1` and without, looking for a draw that is present in
+one and absent (or degenerate) in the other. The instrument for that is a
+per-draw dump keyed on the frame after the NVG toggle, not more state probing.
+
+Four theories, four measurements, four refutations — but the object under
+investigation is now the right one.
