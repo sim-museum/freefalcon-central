@@ -2382,6 +2382,17 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             c0 = *(const DWORD*)(v0 + 16);
         }
 
+        // Saturated the cap twice: HUD draws are untextured with a different
+        // colour each, so any colour-bearing key explodes. The covering draw
+        // this is hunting is a TEXTURED one (the cockpit panel), so census only
+        // textured draws, keyed on class alone -- plus a single bit for the
+        // key-blue untextured backdrop, which is the one untextured draw that
+        // matters here.
+        bool ffKeyBlue = (!dev->textures[0] && (c0 & 0x00FFFFFFu) == 0x000000FFu);
+        bool ffCensusThis = dev->textures[0] || ffKeyBlue;
+
+        c0 = ffKeyBlue ? 0x000000FFu : 0;
+
         unsigned long long sig =
             ((unsigned long long)(dwIndexCount & 0xFFFF) << 40) |
             ((unsigned long long)(dev->textures[0] ? 1 : 0) << 39) |
@@ -2390,14 +2401,32 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             ((unsigned long long)(glIsEnabled(GL_DEPTH_TEST) ? 1 : 0) << 36) |
             (unsigned long long)c0;
 
-        bool seen = false;
+        bool seen = !ffCensusThis;
 
         for (int q = 0; q < s_nSig; q++)
             if (s_sig[q] == sig) { seen = true; break; }
 
         if (!seen && s_nSig < 256) {
             s_sig[s_nSig++] = sig;
-            fprintf(stderr, "[2DCENSUS] n=%-5lu tex=%-3s diffuse=%08lx aTest=%d blend=%d zTest=%d\n",
+            // How many texture units are actually live, and what the alpha test
+            // is comparing. Fragment alpha comes from the LAST ENABLED unit, so
+            // if NVG lights up units the panel has no texture on, the panel's
+            // own alpha test can discard the panel.
+            int ffUnits = 0;
+            GLint ffAF = 0;
+            GLfloat ffAR = 0.0f;
+            glGetIntegerv(GL_ALPHA_TEST_FUNC, &ffAF);
+            glGetFloatv(GL_ALPHA_TEST_REF, &ffAR);
+
+            for (int u = 0; u < 4; u++) {
+                glActiveTexture(GL_TEXTURE0 + u);
+
+                if (glIsEnabled(GL_TEXTURE_2D)) ffUnits++;
+            }
+
+            glActiveTexture(GL_TEXTURE0);
+            fprintf(stderr, "[2DCENSUS] units=%d aFunc=0x%x aRef=%.3f ", ffUnits, (unsigned)ffAF, (double)ffAR);
+            fprintf(stderr, "n=%-5lu tex=%-3s diffuse=%08lx aTest=%d blend=%d zTest=%d\n",
                     (unsigned long)dwIndexCount,
                     dev->textures[0] ? "yes" : "NO",
                     (unsigned long)c0,

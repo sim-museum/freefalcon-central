@@ -4791,3 +4791,62 @@ mislabelled edge. `scratchpad/te-sweep.sh` forces the Korea theater first,
 because TE row coordinates index the *current* theater's mission list and
 `curTheater` persists across runs — a trap that produced two wasted measurements
 earlier in this session.
+
+### NVG-3, fifth pass — the structural finding: four D3D stages collapse onto one GL unit
+
+`FF_DEBUG_2DCENSUS` (three revisions — the first two saturated their signature
+cap and would have shown truncation as absence) finally produced a discriminating
+comparison of the same frame with and without `FF_NVG_DXSTATE=1`.
+
+**Draw classes are byte-for-byte identical between the two modes:**
+
+```
+units=0 aFunc=0x207 aRef=0.500  n=10   tex=NO  diffuse=000000ff aTest=0 blend=0 zTest=0
+units=0 aFunc=0x207 aRef=0.500  n=24   tex=NO  diffuse=000000ff aTest=0 blend=0 zTest=0
+units=1 aFunc=0x206 aRef=0.003  n=6    tex=yes diffuse=00000000 aTest=1 blend=1 zTest=1
+units=1 aFunc=0x206 aRef=0.500  n=264  tex=yes diffuse=00000000 aTest=1 blend=1 zTest=1
+units=1 aFunc=0x207 aRef=0.000  n=6    tex=yes diffuse=00000000 aTest=0 blend=0 zTest=1
+```
+
+So the covering-draw theory fails as a presence question: nothing is missing, and
+no alpha/blend/depth state differs. What differs is only the combine applied.
+
+**`units=1` is the structural finding.** DX_NVG configures a *four-stage* D3D
+pipeline (ADDSMOOTH → ADDSIGNED → DOTPRODUCT3 → ADDSIGNED, with the texture
+entering at stage 1 and the tint at stage 3), but this layer only ever enables
+**one** GL texture unit. Stages 1–3 never execute. A four-stage chain cannot be
+reproduced on one unit, so implementing the individual ops correctly — which
+NVG-2 did — cannot by itself reproduce the pipeline's result.
+
+**Positive confirmation that the NVG-2 ops do run**, from the pixel:
+
+| stage-0 op | corner pixel |
+|---|---|
+| `ADDSMOOTH` implemented (default) | `srgb(0, 32, 127)` — key blue through ADDSIGNED + green factor |
+| `FF_NO_TEXOP_FIX=1` → `MODULATE` | `srgb(0, 0, 255)` — raw key blue |
+
+The transform is visible in the output, so `ADDSIGNED` and `TEXTUREFACTOR` are
+genuinely executing. That is worth having: NVG-2's implementations are verified
+live, not just compiled.
+
+**Also refuted:** the hypothesis that stage-0 ADDSMOOTH starves the panel of its
+texture (both its args are DIFFUSE; the texture only arrives at stage 1). Forcing
+stage 0 back to MODULATE — which *does* sample the texture — leaves the backdrop
+just as visible. So the panel's failure to cover is not explained by the stage-0
+op either.
+
+**Standing tally for NVG-3: five theories, five measurements, five refutations** —
+alpha stage, chroma key, alpha source, missing covering draw, and stage-0
+starvation. Each was killed by the run meant to confirm it. What is now known
+precisely: the blue is an untextured alpha-0 key-blue quad with no alpha test or
+blend; the draw list and per-draw state are identical in both modes; the NVG ops
+execute and transform pixels; and the four-stage pipeline is collapsed to one
+texture unit.
+
+**The next attempt should start from multi-unit support**, not from another
+single-stage theory: bind the same texture to the units that reference
+`D3DTA_TEXTURE` and enable the stages DX_NVG configures, so the chain can
+actually run. That is a substantial piece of compat-layer work and should be
+scoped as its own item rather than bolted onto NVG-3.
+
+`DX_NVG` remains skipped by default (BLUE-1), so none of this reaches the PO.
