@@ -4901,3 +4901,38 @@ from the sim thread (`Wake`) and drained from the sim loop, with a
 `std::mutex` held across both, but "no ASAN findings" is not evidence the
 locking is right — only ThreadSanitizer would speak to that. Recorded as a known
 gap rather than implied coverage.
+
+### NVG-4 scoped, and where it blocks
+
+Comparing the two state setups makes the mechanism exact. `DX_OTW` explicitly
+disables the extra stages; `DX_NVG` configures them:
+
+```c
+DX_OTW:  stage 0 MODULATE(TEXTURE, DIFFUSE);  stages 1,2,3 COLOROP = DISABLE
+DX_NVG:  stage 0 ADDSMOOTH(DIFFUSE, DIFFUSE); stage 1 ADDSIGNED(TEXTURE, CURRENT)
+         stage 2 DOTPRODUCT3(CURRENT, DIFFUSE); stage 3 ADDSIGNED(CURRENT, TFACTOR)
+```
+
+For **3D** draws the app binds a texture at stage 1 (terrain multitexture), so
+our `SetTexture(1, …)` enables that GL unit — hence `units=3`. For **2D pit**
+draws nothing is ever bound at stage 1, so the unit stays disabled even though
+the stage carries a live COLOROP. In D3D a stage is active by virtue of its
+COLOROP, texture or no texture; in this layer a unit is active only if a texture
+was bound to it. That difference is the whole of NVG-4.
+
+**Where it blocks, and why I am not guessing past it.** Making the 2D path
+enable those units requires deciding what `D3DTA_TEXTURE` yields on a stage with
+no texture bound. D3D7 documents this as undefined, so any choice — white, black,
+the stage-0 texture, opaque — is a guess, and it feeds straight into
+`ADDSIGNED(TEXTURE, CURRENT)` where each choice produces a visibly different
+image (white gives `current + 0.5`, i.e. a wash, not identity). Picking one and
+shipping it is precisely the speculative-rendering-change pattern this project
+has had to revert repeatedly.
+
+**The oracle settles it.** WINE-1/WINE-2 established that the Windows build can
+be driven and captured here. A single Wine NVG frame answers what the pipeline is
+supposed to produce, and the choice follows from that rather than from a guess.
+That is the next step for NVG-4, and it needs the Wine build driven into the sim
+with NVG toggled — a larger automation job than the menu capture already done.
+
+`DX_NVG` stays skipped by default meanwhile, so none of this reaches the PO.
