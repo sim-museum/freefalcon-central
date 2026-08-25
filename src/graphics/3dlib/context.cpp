@@ -3093,6 +3093,32 @@ void ContextMPR::DrawPoly(DWORD opFlag, Poly *poly, int *xyzIdxPtr, int *rgbaIdx
     else
     {
         AllocatePolygon(sPolygon, poly->nVerts);
+#ifdef FF_LINUX
+        // FF_LINUX (CRASH-8): AllocatePolygon returns with curPoly NULL when the
+        // polygon arena is exhausted -- that early return was added inside the
+        // allocator without a matching check here, so the very next line
+        // dereferenced NULL. Crashed the PO's flight the moment A-G was selected:
+        // the ground-map radar (RenderGMRadar::DrawScene -> DrawGMsquare) submits
+        // thousands of squares per sweep and is the path most likely to exhaust
+        // the arena. Dropping the polygon loses one primitive for one frame,
+        // which is what an exhausted arena means anyway; the alternative is a
+        // segfault.
+        if ( not sPolygon)
+        {
+            static int ffWarned = 0;
+
+            if ( not ffWarned)
+            {
+                ffWarned = 1;
+                fprintf(stderr, "[POLYARENA] exhausted -- dropping primitives this frame "
+                        "(first occurrence only)\n");
+                fflush(stderr);
+            }
+
+            return;
+        }
+
+#endif
         sPolygon->renderState = currentState;
         sPolygon->textureID0 = currentTexture1;
 #ifdef FF_LINUX
@@ -4128,6 +4154,32 @@ void ContextMPR::DrawPrimitive(int nPrimType, WORD VtxInfo, WORD nVerts, MPRVtxT
     else
     {
         AllocatePolygon(sPolygon, nVerts);
+#ifdef FF_LINUX
+        // FF_LINUX (CRASH-8): AllocatePolygon returns with curPoly NULL when the
+        // polygon arena is exhausted -- that early return was added inside the
+        // allocator without a matching check here, so the very next line
+        // dereferenced NULL. Crashed the PO's flight the moment A-G was selected:
+        // the ground-map radar (RenderGMRadar::DrawScene -> DrawGMsquare) submits
+        // thousands of squares per sweep and is the path most likely to exhaust
+        // the arena. Dropping the polygon loses one primitive for one frame,
+        // which is what an exhausted arena means anyway; the alternative is a
+        // segfault.
+        if ( not sPolygon)
+        {
+            static int ffWarned = 0;
+
+            if ( not ffWarned)
+            {
+                ffWarned = 1;
+                fprintf(stderr, "[POLYARENA] exhausted -- dropping primitives this frame "
+                        "(first occurrence only)\n");
+                fflush(stderr);
+            }
+
+            return;
+        }
+
+#endif
         sPolygon->renderState = currentState;
         sPolygon->textureID0 = currentTexture1;
 
