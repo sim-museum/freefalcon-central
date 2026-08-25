@@ -4936,3 +4936,28 @@ That is the next step for NVG-4, and it needs the Wine build driven into the sim
 with NVG toggled — a larger automation job than the menu capture already done.
 
 `DX_NVG` stays skipped by default meanwhile, so none of this reaches the PO.
+
+### TERRAIN-Z — how far the transient family actually reaches: one member
+
+The transient is a *class* of bug (sample ground height while terrain is still
+streaming, bake the 0), so the obvious follow-up was to find its other victims.
+Auditing every `GetGroundLevel`/`GetApproxGroundLevel` caller that runs at
+creation time:
+
+| caller | pattern | exposed? |
+|---|---|---|
+| `SimFeatureClass::Wake` | snap once, never again | **yes — fixed by the re-snap queue** |
+| `GroundClass::Init` | snap at init… | no |
+| `GroundClass::Exec` | …but re-queries **every frame** (grndmain.cpp 416, 592) | self-correcting |
+| `AirframeClass::Init` | snap at placement… | no |
+| aircraft physics | …re-settles within seconds | self-correcting |
+| `HeloClass`, `gndhndl` | init-time clamps, then per-frame physics | self-correcting |
+
+**Every mover re-queries; only statics bake.** Statics have no per-frame Exec —
+that is exactly why they needed a queue rather than a one-line fix. So the family
+has one member and it is closed, rather than the open-ended hunt the pattern
+first suggested.
+
+Recorded because the natural instinct after finding a bug class is to assume more
+instances exist; here the audit says otherwise, and that is worth knowing before
+someone spends a sprint looking.
