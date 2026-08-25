@@ -4718,3 +4718,59 @@ per-draw dump keyed on the frame after the NVG toggle, not more state probing.
 
 Four theories, four measurements, four refutations — but the object under
 investigation is now the right one.
+
+---
+
+## TESWEEP-2 — full regression sweep after this session's changes: 34/34 clean
+
+This session changed campaign threading (THEATER-1), a campaign UI struct
+(MISSEVAL-1), sim feature placement plus a new per-second sim-loop service
+(TERRAIN-Z), and UI resource path resolution (THEATER-2). All 34 stock TE
+missions were re-run on `build-relg` to check none of that regressed.
+
+**Result: 34 of 34 load, reach the sim and exit clean. Zero crashes, zero
+aborts.** (Worth noting explicitly given MISSEVAL-1 was a `_FORTIFY_SOURCE`
+abort in the TE mission-select path — the sweep exercises exactly that path 34
+times.)
+
+### Assertion inventory vs the TESWEEP-1 baseline
+
+| | TESWEEP-1 | TESWEEP-2 |
+|---|---|---|
+| assertion lines | 68 | **64** |
+| `handoff.cpp:86` | 10 lines (5 missions) | **0** |
+| `seeker.cpp:350` | 2 lines (Offensive BFM) | **0** |
+| `atm.cpp` | 792 (×10) | 835 (×10) |
+
+The two sites this session set out to remove are gone, confirmed per mission:
+
+* **`handoff.cpp:86` — 0 occurrences across all 34 logs.** Mission 17 is the
+  cleanest single proof: baseline `3663 ×2` + `86 ×2`, now `3663 ×2` alone.
+  Mission 22 dropped 6 lines → 4 the same way. That is HANDOFF-2.
+* **`seeker.cpp:350` gone**, and Offensive BFM (its only baseline source) now
+  reports **0** assertions, with Defensive and Head-on BFM at 0 as well. That is
+  SEEKER-1.
+
+`atm.cpp` moved from line 792 to 835 because the file gained the FF_DEBUG_ATM
+gate trace — same rating-vs-scores assertion, shifted, not a new one.
+
+### Three sites not in the baseline — measured, not mine
+
+`tviewpnt.cpp:358/359` (ground-type post bounds) and `drawbsp.cpp:180`
+(`AttachChild` slot number) appear here and did not in TESWEEP-1. Two of them sit
+in terrain-query code that TERRAIN-Z now calls once a second, so they were the
+obvious suspects. **Tested rather than assumed:** the same mission with
+`FF_NO_FEATURE_RESNAP=1` produces the *identical* site set, and 358/359 did not
+reproduce at all on a re-run. They are run-to-run variation in which sites a
+stochastic sim reaches — exactly the one-bit-per-site behaviour TEXBANK-1
+established. TERRAIN-Z is not implicated.
+
+### Harness note
+
+The sweep's row→y mapping was off by one on the first batch (row 1 loaded
+mission "02"). Corrected to `y = 94 + N*17` (verified: mission 22 → y 468) and
+mission 01 was run separately, so the coverage is a genuine 34, not 33 with a
+mislabelled edge. `scratchpad/te-sweep.sh` forces the Korea theater first,
+because TE row coordinates index the *current* theater's mission list and
+`curTheater` persists across runs — a trap that produced two wasted measurements
+earlier in this session.
