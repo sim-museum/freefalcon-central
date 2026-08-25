@@ -4811,12 +4811,26 @@ units=1 aFunc=0x207 aRef=0.000  n=6    tex=yes diffuse=00000000 aTest=0 blend=0 
 So the covering-draw theory fails as a presence question: nothing is missing, and
 no alpha/blend/depth state differs. What differs is only the combine applied.
 
-**`units=1` is the structural finding.** DX_NVG configures a *four-stage* D3D
-pipeline (ADDSMOOTH → ADDSIGNED → DOTPRODUCT3 → ADDSIGNED, with the texture
-entering at stage 1 and the tint at stage 3), but this layer only ever enables
-**one** GL texture unit. Stages 1–3 never execute. A four-stage chain cannot be
-reproduced on one unit, so implementing the individual ops correctly — which
-NVG-2 did — cannot by itself reproduce the pipeline's result.
+**`units=1` looked like the structural finding — and the generalisation was
+wrong.** It was measured only on `isXYZRHW` (2D) draws, then written up as "this
+layer only ever enables one GL texture unit". The NVG world pipeline runs on *3D*
+draws, which that census never sampled. Censusing those too gives the opposite
+answer:
+
+| | 3D draws | 2D (XYZRHW) draws |
+|---|---|---|
+| `FF_NVG_DXSTATE=1` | **units=3**, stage 0 *and* stage 1 textured | units=1 |
+| DX_NVG skipped | units=1 | units=1 |
+
+So the layer supports multi-unit rendering perfectly well, and DX_NVG genuinely
+drives a multi-stage chain — but **only for the 3D world**. Three units appear
+with NVG on and never with it off, so that half is working.
+
+**The real gap is the 2D pit path.** Pre-transformed draws stay on a single unit
+in both modes, so the pit panel is rendered through stage 0 alone — and stage 0
+under DX_NVG is `ADDSMOOTH(DIFFUSE, DIFFUSE)`, which never samples a texture.
+That is a far narrower target than "the layer cannot do multitexture", which is
+what the previous entry claimed.
 
 **Positive confirmation that the NVG-2 ops do run**, from the pixel:
 

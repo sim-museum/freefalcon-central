@@ -2366,6 +2366,34 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     // in both modes; what differs must be the draw that normally COVERS it, so
     // the useful signal is a draw present in one census and missing (or
     // degenerate) in the other. FF_DEBUG_2DCENSUS=1.
+    // FF_LINUX (NVG-4): the 2D census below only samples pre-transformed draws.
+    // The NVG world pipeline runs on 3D draws, so a separate count is needed
+    // before any claim about how many texture units the layer uses -- the
+    // earlier "only ever one unit" statement was generalised from the 2D sample
+    // alone and is not established for the world path.
+    if (!isXYZRHW and getenv("FF_DEBUG_2DCENSUS")) {
+        static int s_seen3[8] = { 0 };
+        int u3 = 0;
+
+        for (int u = 0; u < 4; u++) {
+            glActiveTexture(GL_TEXTURE0 + u);
+
+            if (glIsEnabled(GL_TEXTURE_2D)) u3++;
+        }
+
+        glActiveTexture(GL_TEXTURE0);
+
+        if (u3 < 8 && s_seen3[u3] < 2) {
+            s_seen3[u3]++;
+            fprintf(stderr, "[3DCENSUS] units=%d texStage0=%s texStage1=%s n=%lu\n",
+                    u3,
+                    dev->textures[0] ? "yes" : "NO",
+                    dev->textures[1] ? "yes" : "NO",
+                    (unsigned long)dwIndexCount);
+            fflush(stderr);
+        }
+    }
+
     if (isXYZRHW and getenv("FF_DEBUG_2DCENSUS")) {
         // Collect DISTINCT draw signatures rather than a stream: a stream burns
         // its cap in the first frames, long before the NVG toggle, which is
