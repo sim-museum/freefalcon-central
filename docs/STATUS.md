@@ -4867,6 +4867,20 @@ halves matter — this script exists precisely because Instant Action and TE-02
 reported clean for a whole session while nine memory errors sat in the campaign
 path neither could reach. A clean soak that never enters the sim proves nothing.
 
+**Confirmed exercised, not just clean.** A second soak with
+`FF_DEBUG_RESNAP=1` shows the new queue actually running under ASAN, at campaign
+scale:
+
+```
+[RESNAP] moved=1208 settled=231 dropped=0 pending=987
+[RESNAP] moved=0    settled=0   dropped=987 pending=0
+```
+
+1208 features re-snapped off the streaming transient in one campaign flight
+(TE-02 moved 500), 231 settling at fine LOD immediately and the rest dropping out
+as they left the bubble — the designed behaviour. 0 ASAN errors on that run too.
+Without this, "0 errors" would not have distinguished *clean* from *never ran*.
+
 **What this does and does not cover.** ASAN checks memory safety, not data
 races: it does *not* validate the re-snap queue's locking. That queue is written
 from the sim thread (`Wake`) and drained from the sim loop, with a
