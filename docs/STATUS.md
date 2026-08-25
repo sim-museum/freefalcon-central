@@ -4972,3 +4972,48 @@ first suggested.
 Recorded because the natural instinct after finding a bug class is to assume more
 instances exist; here the audit says otherwise, and that is worth knowing before
 someone spends a sprint looking.
+
+---
+
+## TERRAIN-Z — the PO's sea-level experiment: no constant offset, the gap is slope-dependent
+
+The epic was framed as "the physics engine terrain seems to be a few meters below
+the graphics engine terrain". The PO designed the experiment that settles it:
+**use water as the reference**, because sea level is a known truth of exactly 0 —
+unlike land, where neither model can be checked against anything absolute.
+
+Two flights, instrumented with `FF_DEBUG_GROUND`:
+
+| terrain | `vpAccurate` vs `vpApprox` | visible behaviour |
+|---|---|---|
+| **water** (flat, truth = 0) | **0.00 ft — every one of 23 samples** | aircraft flown into the sea explodes **at the surface** |
+| **land** (sloped) | mean **7.0 ft**, max **59.7 ft**, 10% of samples >20 ft | bomb sinks in, pause, explosion heard but not seen |
+
+`vpAccurate` is the interpolated triangle height physics uses; `vpApprox` is the
+nearest-post height. Over water both read 0.00 and agree with the known truth.
+
+**This kills the constant-offset theory.** If the physics model sat uniformly
+below the graphics model, water would show the same offset — and water is exact
+to the last decimal. The disagreement appears *only* where terrain has relief.
+That is the signature of interpolation across post spacing (a triangle mid-face
+sits below the posts that bound it on a ridge, above them in a bowl), not a
+systematic z error in either model.
+
+It also explains the PO's original symptom without any appeal to a global offset:
+a bomb landing on sloped ground detonates at the interpolated height while the
+eye sees the drawn mesh, so the fireball spawns inside the hillside. On flat
+water there is nothing to interpolate, so the explosion is visible — which is
+exactly what the PO observed.
+
+**Corrections this supersedes.** The retracted "11 ft" figure earlier in this file
+was a cross-location subtraction and should be ignored; these numbers are
+same-point, same-sample comparisons from live flights. And the feature re-snap
+(TERRAIN-Z sprint 1) fixed a real but *different* bug — statics baking the
+streaming transient — which is why the PO's bombing symptom was unchanged by it.
+Both facts were established by the PO flying, not by inference.
+
+**Where this points next.** The remaining question is which height the *renderer*
+draws at a given point versus which the physics query returns, at the same LOD.
+`FF_DEBUG_LODZ` is in place at bomb impact for exactly that, and has not yet
+caught an impact. That measurement, on sloped ground, should size the gap the PO
+sees.
