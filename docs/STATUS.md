@@ -4850,3 +4850,26 @@ actually run. That is a substantial piece of compat-layer work and should be
 scoped as its own item rather than bolted onto NVG-3.
 
 `DX_NVG` remains skipped by default (BLUE-1), so none of this reaches the PO.
+
+---
+
+## ASAN-2 — campaign flight soak against this session's changes: clean
+
+The ASAN build was a day stale while this session changed campaign threading
+(THEATER-1's `Resume` now clears two flags), added a **mutex-protected
+cross-thread queue** serviced from the sim loop (TERRAIN-Z's feature re-snap),
+enlarged a struct and rewrote its copies (MISSEVAL-1), and changed a UI resource
+path helper (THEATER-2). Rebuilt (0 errors) and soaked.
+
+**Result: 0 AddressSanitizer errors over a 420 s campaign flight, and the run
+reached 3D** (`RunningGraphics` present, `rc=124` = ran to its timeout). Both
+halves matter — this script exists precisely because Instant Action and TE-02
+reported clean for a whole session while nine memory errors sat in the campaign
+path neither could reach. A clean soak that never enters the sim proves nothing.
+
+**What this does and does not cover.** ASAN checks memory safety, not data
+races: it does *not* validate the re-snap queue's locking. That queue is written
+from the sim thread (`Wake`) and drained from the sim loop, with a
+`std::mutex` held across both, but "no ASAN findings" is not evidence the
+locking is right — only ThreadSanitizer would speak to that. Recorded as a known
+gap rather than implied coverage.
