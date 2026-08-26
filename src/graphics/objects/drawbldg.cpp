@@ -134,6 +134,32 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
                             gl, ap, gl - ap, decal, gl - decal, position.x, position.y);
                 }
             }
+            // FF_LINUX (TERRAIN-Z): FF_DEBUG_MESHZ=1 reports the terrain post height at
+            // every LOD next to the accurate and coarse queries, so which surface the
+            // DRAWN mesh actually corresponds to can be identified instead of assumed.
+            if (getenv("FF_DEBUG_MESHZ"))
+            {
+                static long m = 0;
+
+                if ((m++ % 240) == 0)
+                {
+                    extern float FF_GroundLevelAtLOD(class TViewPoint *vp, float x, float y, int lod);
+                    char buf[192];
+                    int o = 0;
+
+                    for (int L = 0; L <= 5 and o < (int)sizeof(buf) - 24; ++L)
+                        o += snprintf(buf + o, sizeof(buf) - o, "L%d=%.1f ", L,
+                                      FF_GroundLevelAtLOD((class TViewPoint *)renderer->viewpoint,
+                                                          position.x, position.y, L));
+
+                    fprintf(stderr, "[MESHZ] pos=(%.0f,%.0f) accurate=%.1f approx=%.1f | %s\n",
+                            position.x, position.y, gl,
+                            renderer->viewpoint->GetGroundLevelApproximation(position.x, position.y),
+                            buf);
+                    fflush(stderr);
+                }
+            }
+
             position.z = gl - decal;
             previousLOD = LOD;
         }

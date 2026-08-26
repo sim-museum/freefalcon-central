@@ -5247,3 +5247,57 @@ default configuration the PO actually runs:
 - With `DX_NVG` skipped, `GreenMode` tints via the colour-bank palette swap
   (`ColorPool = GreenTVBuffer`), which reaches colour-indexed geometry but not
   textured surfaces — consistent with the tarmac staying grey.
+
+### TERRAIN-Z — measured: the runway is drawn against an interpolated COARSE surface that loses the airbase plateau
+
+The previous entry left one thing explicitly unclaimed: which height the drawn
+mesh corresponds to. Instrumented it (`FF_DEBUG_MESHZ=1`, `drawbldg.cpp`) to print
+the terrain post at every LOD beside both queries, and ran the two missions.
+
+**TE-09, airfield seen from the approach — fine LODs absent:**
+```
+pos=(779855,1307200) accurate=-18.3 approx=-26.0 | L0=-99999 L1=-99999 L2=-26.0 L3=-26.0 L4=-0.0
+pos=(781101,1307747) accurate=-24.1 approx=-26.0 | L0=-99999 L1=-99999 L2=-99999 L3=-26.0 L4=-0.0
+pos=(779451,1311341) accurate=-19.6 approx=-26.0 | L0=-99999 L1=-99999 L2=-26.0 L3=-26.0 L4=-0.0
+```
+
+**TE-02, player parked on the field — fine LODs present:**
+```
+pos=(1044231,1270905) accurate=-26.0 approx=-26.0 | L0=-26.0 L1=-26.0 L2=-26.0 L3=-26.0 L4=-0.0
+```
+**Zero** of 707 TE-02 samples have `accurate != approx`.
+
+**The pattern is exact.** When `L0`/`L1` are streamed in, every source agrees at
+`-26.0`. When they are not, `GetGroundLevel` returns a value that matches **no
+available post** — `L2` and `L3` both read `-26.0` while it answers `-18.3`. It is
+interpolating between widely-spaced coarse posts, and that interpolation does not
+preserve the flattened airbase plateau, which at L2 spacing is only a post or two
+across. The nearest-post approximation returns `-26.0` and is, at those moments,
+the *more* faithful answer.
+
+Flat surfaces are drawn at `gl - decal` against the **accurate** value, so on an
+approach the strip is drawn warped across a ~9 ft range and only snaps flat once
+the fine LOD streams in. Magnitude (9.5 ft = 2.9 m) and mission (the landing TE)
+both match the PO's report.
+
+**Note the irony**: the original non-`FF_LINUX` path used
+`GetGroundLevelApproximation`. The Linux change to a per-frame *accurate* refetch
+fixed the frozen-value bug it was written for and introduced this one, because
+"accurate" is only accurate where fine posts exist.
+
+**Correction to a previously recorded conclusion.** The streaming-transient family
+was recorded as *bounded at exactly one member* (statics baking z at `Wake`). That
+is wrong: this is a second, distinct member — a live per-frame query returning
+coarse-interpolated values that misrepresent flattened terrain. The audit that
+bounded the family only asked "does this caller re-query?", and a caller that
+re-queries every frame still gets a wrong answer while the fine LOD is missing.
+Re-querying is not sufficient; the *answer's provenance* has to be checked too,
+which is the rule that came out of the first member and was not applied here.
+
+**Not yet claimed**: that this is *the* cause of the half-submerged airstrip. The
+mechanism, magnitude and mission all line up, but the touchdown itself has not
+been observed — that still needs the PO to fly TE-09.
+
+**Candidate fix, not yet implemented**: gate the accurate refetch on fine-LOD
+availability and fall back to the nearest-post approximation otherwise. To be built
+opt-in behind an env var and measured before anything changes by default.
