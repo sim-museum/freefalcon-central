@@ -5301,3 +5301,42 @@ been observed — that still needs the PO to fly TE-09.
 **Candidate fix, not yet implemented**: gate the accurate refetch on fine-LOD
 availability and fall back to the nearest-post approximation otherwise. To be built
 opt-in behind an env var and measured before anything changes by default.
+
+### TERRAIN-Z — FF_RUNWAY_LODGATE: gate the accurate refetch on answer provenance
+
+Built the candidate fix from the previous entry, opt-in behind
+`FF_RUNWAY_LODGATE=1`. `GetGroundLevel` already reports which LOD answered via its
+`lod` out-param, so the gate uses that rather than probing LODs separately: when a
+**coarse** LOD answered (`lod > 1`), prefer `GetGroundLevelApproximation`, which
+returns the flattened airbase plateau; otherwise keep the accurate value. This is
+the provenance rule from the first streaming-transient member, applied to the
+second.
+
+**TE-09 (landing approach), divergence of the drawn surface from the plateau:**
+
+| configuration | samples | mean | max |
+|---|---|---|---|
+| gate off (default) | 883 | 1.75 ft | **9.60 ft** |
+| `FF_RUNWAY_LODGATE=1` | 709 | **0.00 ft** | **0.00 ft** |
+
+The row that previously read `accurate=-18.3` at pos=(779855,1307200) now reads
+`used=-26.0`. 603 of the gated run's samples were coarse-answered, so the gate is
+doing real work rather than being a no-op.
+
+**TE-02 regression check — the case that already worked.** Player-area rows all
+answer at `glLod=0` with `used = approx = -26.0`, so the gate does not touch them;
+only 74 of 773 rows are coarse-answered, and those are the far airbase 90,000 ft
+away. Zero assertions. Orbit captures with and without the gate are visually
+indistinguishable in the runway and aircraft; whole-frame RMSE is 0.08, accounted
+for by cloud/sky and camera phase, not by the surface. So the fix is inert exactly
+where the existing behaviour was already correct.
+
+**Deliberately left OFF by default.** The measurement shows the drawn surface now
+tracks the plateau, but the symptom this is meant to cure — the half-submerged
+airstrip on landing — has still never been observed by the harness, because TE-09
+starts airborne and the aircraft does not land itself. Flipping the default on a
+mechanism argument plus a geometry metric, without once seeing the symptom clear,
+is the pattern that produced the reverts earlier in this project.
+
+**For the PO**: fly TE-09 with `FF_RUNWAY_LODGATE=1` and compare against a run
+without it. That single observation is what the default flip is waiting on.

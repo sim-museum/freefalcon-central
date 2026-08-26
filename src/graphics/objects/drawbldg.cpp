@@ -99,7 +99,32 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
         extern int g_ffRunwayDbg;
         if (g_ffRunwayDbg && !getenv("FF_RUNWAY_OLD"))
         {
-            float gl = renderer->viewpoint->GetGroundLevel(position.x, position.y);
+            int glLod = 99;
+            float gl = renderer->viewpoint->GetGroundLevel(position.x, position.y, NULL, &glLod);
+
+            // FF_LINUX (TERRAIN-Z): the per-frame ACCURATE refetch is only accurate
+            // where fine posts exist. On a landing approach L0/L1 are not streamed at
+            // the airfield, and GetGroundLevel then interpolates between widely-spaced
+            // COARSE posts -- returning values matching no available post (measured:
+            // L2=L3=-26.0 while it answers -18.3). That interpolation does not preserve
+            // the flattened airbase plateau, so the strip is drawn warped by up to 9.5ft
+            // until the fine LOD arrives.
+            //
+            // Gate on the answer's PROVENANCE, not on whether we re-queried: when a
+            // coarse LOD answered, prefer the nearest-post approximation, which does
+            // return the plateau. Opt-in via FF_RUNWAY_LODGATE=1 while it is measured.
+            {
+                static int gate = -1;
+
+                if (gate < 0) gate = getenv("FF_RUNWAY_LODGATE") ? 1 : 0;
+
+                if (gate and glLod > 1)
+                {
+                    float ap = renderer->viewpoint->GetGroundLevelApproximation(position.x, position.y);
+
+                    if (ap > -99000.0f) gl = ap;
+                }
+            }
             // FF_LINUX: lift the flat runway/tarmac surface slightly ABOVE the terrain
             // (a decal) so it wins the depth test against the terrain mesh.
             //
@@ -152,8 +177,8 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
                                       FF_GroundLevelAtLOD((class TViewPoint *)renderer->viewpoint,
                                                           position.x, position.y, L));
 
-                    fprintf(stderr, "[MESHZ] pos=(%.0f,%.0f) accurate=%.1f approx=%.1f | %s\n",
-                            position.x, position.y, gl,
+                    fprintf(stderr, "[MESHZ] pos=(%.0f,%.0f) glLod=%d used=%.1f approx=%.1f | %s\n",
+                            position.x, position.y, glLod, gl,
                             renderer->viewpoint->GetGroundLevelApproximation(position.x, position.y),
                             buf);
                     fflush(stderr);
