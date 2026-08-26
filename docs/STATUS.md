@@ -6256,3 +6256,30 @@ the aircraft — either a weapon/target view during the fall, or a release from 
 altitude so the detonation is in frame. The FX spawn call itself is confirmed executing
 (`[MSLEND] spawning SFX_GROUND_EXPLOSION`), so what is untested is purely whether it is
 drawn and visible.
+
+### BOMB-1 — fireball visibility still INCONCLUSIVE; six frames prove nothing yet
+
+Captured six frames spanning the detonation (`FF_SIM_SCREENSHOT` at 92/95/98/101/104/107 s,
+forward HUD view, `[MSLEND] spawning SFX_GROUND_EXPLOSION` confirmed in the same run). **No
+fireball appears in any of them.**
+
+**That is not evidence the effect fails to render**, and it must not be logged as such. The
+impact is at (1730134, 1209380) while the aircraft continues in level flight at altitude;
+by the time of these captures the detonation is plausibly far behind and below the nose,
+outside the field of view entirely. A frame that could not have shown the effect says
+nothing about whether the effect exists.
+
+This is the same trap as the earlier sampling errors — reading a value without first
+establishing that the instrument could have observed the thing being measured.
+
+**What would actually settle it**, in order of preference:
+1. A camera that follows the weapon or looks at the impact point, so the detonation is
+   guaranteed in frame.
+2. Failing that, log the aircraft position and heading at each capture and compute whether
+   the impact point lay within the view frustum — only then does an empty frame count as a
+   negative result.
+3. A low-altitude release, so the aircraft is close enough that the impact stays in view.
+
+**Confirmed so far and not in doubt**: release works, impact occurs, and the FX spawn call
+executes (which is the fix that had never been observed running). Only "is it drawn where
+the pilot can see it" is open.
