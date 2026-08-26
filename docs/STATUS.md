@@ -6510,3 +6510,35 @@ now surfaced in two sessions, and *every one* was in code that no soak had delib
 exercised. "We ran a soak" was being treated as "we have coverage" when the two are
 unrelated — the soak's reach was whatever path its click script happened to walk. A screen
 list is a weak form of coverage, but it is a stated one, and it paid immediately.
+
+### Self-review of this session's changes — one hot-path getenv missed by my own cleanup
+
+Reviewed the session's ten changed source files, separating behaviour changes from
+debug-only additions. One real finding, in code I had already been editing:
+
+`drawbldg.cpp:104` gated the **entire per-frame accurate-refetch block** on an uncached
+`getenv("FF_RUNWAY_OLD")`:
+
+```c
+if (g_ffRunwayDbg && !getenv("FF_RUNWAY_OLD"))   // every flat surface, every frame
+```
+
+Earlier in the session I cached three `FF_DEBUG_RUNWAY` `getenv` calls in this same file
+and walked straight past the one guarding the whole block — the most expensive of the four,
+and on the exact path `FF_RUNWAY_LODGATE` now uses by default. Now cached like the rest.
+
+**The pattern is worth naming**: I fixed instances of a defect while missing the instance
+that mattered most, because I was matching on the *string* (`FF_DEBUG_RUNWAY`) rather than
+on the *property* (uncached `getenv` in a per-frame path). Searching for the property found
+it immediately.
+
+Split of the session's source changes, for the record:
+- **Behaviour**: `drawbldg.cpp` (LOD gate default ON + getenv caching), `cimagerc.cpp`,
+  `airframe.h`, `missile.h`, `digimain.cpp`, `readin.cpp`, `ooutput.cpp` (six memory-safety
+  fixes).
+- **Debug/test only, all behind cached env flags**: `surface.cpp` (`FF_DEBUG_GEAR`,
+  `FF_TEST_GEARDOWN`), `eom.cpp` (`FF_DEBUG_CHKHT`, `[GEAROVR]`), `missileendmsg.cpp`
+  (`[LODZ]` interpolated ground).
+
+`missileendmsg.cpp:351,379` still use uncached `getenv`, deliberately left: they run once per
+missile impact, not per frame.

@@ -101,7 +101,15 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
     // and matches where the jet touches down. FF_RUNWAY_OLD=1 reverts to old behavior.
     {
         extern int g_ffRunwayDbg;
-        if (g_ffRunwayDbg && !getenv("FF_RUNWAY_OLD"))
+        // FF_LINUX: cached -- this gates the per-frame accurate-refetch block for every
+        // flat surface, so an uncached getenv here costs on every runway draw of every
+        // frame. (Missed on the first pass through this file, which cached the three
+        // FF_DEBUG_RUNWAY sites but not the one guarding the whole block.)
+        static int s_rwyOld = -1;
+
+        if (s_rwyOld < 0) s_rwyOld = getenv("FF_RUNWAY_OLD") ? 1 : 0;
+
+        if (g_ffRunwayDbg && not s_rwyOld)
         {
             int glLod = 99;
             float gl = renderer->viewpoint->GetGroundLevel(position.x, position.y, NULL, &glLod);
