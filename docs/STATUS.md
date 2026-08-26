@@ -6542,3 +6542,44 @@ Split of the session's source changes, for the record:
 
 `missileendmsg.cpp:351,379` still use uncached `getenv`, deliberately left: they run once per
 missile impact, not per frame.
+
+### ASAN-5 — sim-mode pass: 7/8 clean, and a heap-buffer-overflow READ in the weapon path
+
+TESWEEP-4 covered all 34 missions in the **release** build (functional only). This is the
+memory-safety half, over a spread chosen for distinct subsystems rather than for count.
+
+```
+row  1 basic-handling   asan=0      row 15 aim9         asan=0
+row  2 takeoff          asan=0      row 19 bombs-ccrp   asan=0
+row  9 landing          asan=0      row 22 guns-ag      asan=0
+row 11 flameout-landing asan=0      row 26 harms        asan=1   <--
+```
+
+**TE-26 HARMs: heap-buffer-overflow READ of size 8**, `DrawableBSP::AttachChild`
+(`drawbsp.cpp:108`), via `SMSBaseClass::AddWeaponGraphics` -> `GroundClass::Wake` ->
+`UnitClass::Deaggregate`.
+
+**The cause is sequencing, not a missing check:**
+
+```c
+ShiAssert(slotNumber < instance.ParentObject->nSlots);
+ShiAssert((instance.SlotChildren) and (instance.SlotChildren[slotNumber] == NULL)); // reads here
+if ( not instance.SlotChildren) return;
+if (slotNumber >= instance.ParentObject->nSlots) return;   // guard, too late
+```
+
+The bounds test already existed — it was simply placed *after* the dereference, so the
+assertion meant to catch the bad state performed the illegal read itself. `sms.cpp:727`
+passes a hardpoint index the model has no slot for, which HARM stations exceed. Fixed by
+moving the guards ahead of the indexing assertion; the check is preserved, just sequenced
+correctly. **Re-ran TE-26: 0 errors.**
+
+**Severity is higher than tonight's other finds and worth distinguishing.** The five
+allocator mismatches were mismatched *frees* — undefined behaviour, but on memory we
+owned. This reads *past the end of a heap buffer*, in a path that runs whenever ground
+units deaggregate with HARMs loaded. That is a credible source of hard-to-attribute
+instability.
+
+**Seven of eight clean means this is not systemic** — it is one weapon path nothing had
+exercised. Third time this session that deliberate coverage found what incidental coverage
+walked past.

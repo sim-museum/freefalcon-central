@@ -104,16 +104,20 @@ void DrawableBSP::AttachChild(DrawableBSP *child, int slotNumber)
     ShiAssert(id >= 0);
     ShiAssert(child);
     ShiAssert(slotNumber >= 0);
-    ShiAssert(slotNumber < instance.ParentObject->nSlots);
-    ShiAssert((instance.SlotChildren) and (instance.SlotChildren[slotNumber] == NULL));
 
-    // THIS IS A HACK TO TOLERATE OBJECTS WHICH DON'T YET HAVE SLOTS
-    // THIS SHOULD BE REMOVED IN THE LATE BETA AND SHIPPING VERSIONS
+    // FF_LINUX: the guards below must come BEFORE any assertion that indexes
+    // SlotChildren. Previously ShiAssert(SlotChildren[slotNumber] == NULL) ran first
+    // and performed the out-of-bounds read itself whenever slotNumber >= nSlots --
+    // ASAN: heap-buffer-overflow READ of size 8, from SMSBaseClass::AddWeaponGraphics
+    // passing a hardpoint index the model has no slot for (seen on TE-26 HARMs).
+    // The bounds test existed; it was simply sequenced after the dereference.
     if ( not instance.SlotChildren) return;
 
     if (slotNumber >= instance.ParentObject->nSlots) return;
 
     if ( not child) return;
+
+    ShiAssert(instance.SlotChildren[slotNumber] == NULL);
 
     instance.SetSlotChild(slotNumber, &child->instance);
 }
