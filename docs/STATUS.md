@@ -5487,3 +5487,56 @@ buried direction, and it is unexplained.
 
 Still gated on one PO answer: was the gear down? That selects between "no bug in this
 run, plus a residual visual offset to chase" and "gear DOF failed on this approach".
+
+### TERRAIN-Z — ROOT CAUSE for the TE-09 flight: hard-landing gear collapse, not terrain
+
+PO confirmed the gear **was** down on the approach ("the landing marker in the HUD
+only appears if the gear is down" — `hud.cpp:1605` keys the marker on
+`gearPos > 0.5F`, so that is independent corroboration from the avionics side).
+That rules out the belly-landing-by-omission reading in the previous entry.
+
+**Everything observed comes from one code path**, `gndhndl.cpp:336`:
+
+```c
+else if (af->vt * impactAngle < sinkRate * 3.0F * (...) and af->gearPos > 0.8F)
+{   //we hit too hard for the landing gear, crunch
+    af->SetFlag(AirframeClass::EngineOff);
+    mFaults->SetFault(FaultClass::eng_fault, ...);
+    af->gearPos = 0.2F;
+    for (int i = 0; i < af->NumGear(); i++) {
+        af->gear[i].flags or_eq GearData::GearProblem;
+        SetDOF(ComplexGearDOF[i], 0.0F);       // gear DOF explicitly zeroed
+    }
+```
+
+Each symptom follows directly:
+- `SetDOF(..., 0.0F)` -> gear not drawn (PO video: no struts or wheels).
+- DOF 0 -> `CheckHeight()`'s gear term collapses to `FusRadius`, giving
+  `aboveGround = 2.33` instead of the gear term's 5.99.
+- `gearPos = 0.2` -> HUD landing marker extinguishes *after* touchdown, having been
+  lit throughout the approach, exactly as the PO described.
+
+**The trigger is not inverted** — checked, because this project has a history of
+precedence and comparison bugs. It is an escalating ladder of `<` tests: the earlier
+branch (`< sinkRate * 1.75`) is the normal landing and returns FALSE; this one
+catches the band above it. With `sinkRate 15` (`f16cbk40.dat`) and the on-runway
+factor of 1.0, the crunch band is **26.25 to 45 ft/s vertical, i.e. ~1600-2700
+ft/min**. That is a genuinely hard arrival, and the PO's `aboveGround` trace shows a
+bounce (3.40 -> 8.34 -> 14.75 -> 4.88) consistent with one.
+
+**So for this flight the simulator is behaving correctly**: gear down, hard touchdown,
+gear collapses, aircraft ends up on its belly. Not a terrain bug, not a rendering
+bug, and not the physics/graphics split the epic was named after.
+
+**What remains genuinely open:**
+1. Whether landings in this port are *unduly* hard — i.e. whether the flight model or
+   ground handling makes a normally-flyable approach exceed 26 ft/s here but not under
+   Wine. The PO has reported the buried-airstrip symptom repeatedly, and "every landing
+   collapses the gear" would be a real defect even with correct collapse logic.
+2. The unexplained ~1.8 ft: with the origin drawn 4.33 ft above the drawn runway and a
+   2.5 ft fuselage radius, a belly-resting jet should sit slightly *above* the tarmac,
+   not buried. The collapse explains the physics number, not the visual offset.
+
+**Next**: instrument the touchdown decision — print `vt * impactAngle`, the computed
+threshold and which branch is taken — so the PO's next landing says whether the sink
+rate was genuinely out of limits or the band is being entered on a reasonable approach.
