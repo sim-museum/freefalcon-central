@@ -6474,3 +6474,39 @@ all — a leak rather than a mismatch, invisible here because the repro runs wit
 which were separately diagnosed and fixed. But ~5200 mismatched frees on every theater
 switch is a real corruption source removed from exactly the operation the PO reported
 misbehaving.
+
+### ASAN-4 — deliberate UI-screen pass: found a sixth defect, now clean
+
+ASAN-3's five defects were found by accident: one soak's click script happened to route
+through the THEATER screen. That is not coverage, so this walks **every** main-menu screen
+in one run — LOGBOOK, TACTICAL REFERENCE, ACMI, SETUP, COMMS, THEATER, TACTICAL
+ENGAGEMENT, INSTANT ACTION, DOGFIGHT — returning toward the menu between visits.
+
+**It found a sixth defect on the first pass:**
+
+```
+ERROR: AddressSanitizer: strncpy-param-overlap
+  ranges [0x70a1e6c2d590,0x70a1e6c2d596) and [0x70a1e6c2d590,0x70a1e6c2d596) overlap
+  #2 O_Output::SetText     ui95/ooutput.cpp:217
+  #3 C_EditBox::SetText    ui95/ceditbox.cpp:629
+  #4 SaveControlValues     ui/src/logbook/ui_lgbk.cpp:2042
+```
+
+`ui_lgbk.cpp:2042` calls `ebox->SetText(callsign)` where `callsign` is that same edit
+box's own buffer, so `_tcsncpy` runs with `src == dst` — undefined behaviour — every time
+the logbook is saved.
+
+Fixed with a `txt not_eq Label_` guard **inside `O_Output::SetText`** rather than at the
+call site, so every caller is covered; handing an object its own string back is unlikely
+to be unique to the logbook.
+
+**Severity is low and worth saying so**: a self-copy is effectively a no-op in practice.
+It is still UB, and the fix is one comparison.
+
+**Re-ran the full pass after the fix: 0 errors.**
+
+**The finding that matters is about method, not this bug.** Six memory-safety defects have
+now surfaced in two sessions, and *every one* was in code that no soak had deliberately
+exercised. "We ran a soak" was being treated as "we have coverage" when the two are
+unrelated — the soak's reach was whatever path its click script happened to walk. A screen
+list is a weak form of coverage, but it is a stated one, and it paid immediately.

@@ -212,7 +212,12 @@ void O_Output::SetText(_TCHAR *txt)
             // FF_LINUX: Label_ is still NULL here whenever LabelLen_ <= 0, because
             // the allocation above is conditional on it -- _tcsncpy(NULL, ...) then
             // segfaults. Seen from UI_Refresher::UpdateMapItem on the campaign map.
-            if (Label_ and LabelLen_ > 0)
+            // FF_LINUX: callers can pass this object's own buffer straight back --
+            // ui_lgbk.cpp:2042 does ebox->SetText(callsign) where callsign came from
+            // the same edit box. strncpy with overlapping src/dst is undefined
+            // behaviour (ASAN: strncpy-param-overlap), so skip the self-copy; the
+            // terminator is already in place in that case.
+            if (Label_ and LabelLen_ > 0 and txt not_eq Label_)
             {
                 _tcsncpy(Label_, txt, LabelLen_ - 1);
                 Label_[LabelLen_ - 1] = 0;
