@@ -6044,3 +6044,46 @@ hours. **A refutation is scoped to the symptom it was tested against.**
 
 `FF_NO_RUNWAY_LODGATE=1` reverts. Full 34-mission regression sweep running against the
 new default; the flag comes back off if anything regresses.
+
+### GEAR-5 follow-ups — analysis only, NOT applied (these are PO decisions)
+
+Two known defects remain in the gear overspeed trip. Both are real; **neither would have
+saved the 307 KIAS landing**, so neither is a fix for the reported symptom and both are
+balance decisions rather than corrections. Recording the analysis so the choice is
+informed, and deliberately changing nothing.
+
+**1. There is no gear-limit constant in the data.** `f16cbk40.dat` carries only
+`Min Vcas 250`, `Max Vcas 850`, `Corner Vcas 420` — no landing-gear speed limit. So
+`eom.cpp:1608` improvises one from the *minimum* comfortable speed:
+
+```c
+gearLimitSpeed = minVcas * KNOTS_TO_FTPSEC * 1.1f;   // 250 * 1.1 = 275 kt
+```
+
+Using a *minimum* speed scaled by 1.1 as a *structural* limit is a heuristic, not a
+modelled value. Options, in increasing order of intrusiveness:
+- leave 275 (harsh by ~25 kt against the commonly-cited F-16 gear limit of 300 KIAS);
+- change the multiplier `1.1 -> 1.2`, which yields **exactly 300** for the F-16 and
+  scales sensibly for other airframes since each carries its own `MinVcas`;
+- add a real per-aircraft gear-limit field to the aero data — most correct, most
+  invasive, touches every `.dat`.
+
+The middle option is attractive precisely because it is data-derived rather than a magic
+number, but it *is* a flight-model change and raises the speed at which players can
+safely drop gear across every aircraft.
+
+**2. The comparison mixes airspeed types.** `gearLimitSpeed` is derived from `MinVcas`, a
+**calibrated** speed, but is compared against `vt`, **true** airspeed:
+
+```c
+if (gearPos >= 0.9F and vt > gearLimitSpeed)
+```
+
+Measured at the trip: `vt=315.5 kt` vs `vcas=307.1 kt` — a ratio of 1.027, correct for
+~2000 ft. So the effective indicated limit is ~8 kt lower than intended at that altitude,
+and falls further the higher the aircraft is. Comparing `vcas` would be correct on its
+own terms and is a one-token change, but it does slightly relax the limit.
+
+**Recommendation**: fix (2) on correctness grounds — it is unambiguously wrong to compare
+true against calibrated — and leave (1) alone unless the PO wants gear-down speeds
+loosened. Not applied pending that decision.
