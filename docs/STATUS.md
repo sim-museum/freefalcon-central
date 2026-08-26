@@ -5837,3 +5837,42 @@ raising a threshold to mask a wrong airspeed would be the same mistake as the LO
 `FF_DEBUG_GEAR=1` now logs `[GEAROVR]` at the trip with vt in knots, the limit, MinVcas,
 gearPos and altitude, so the next flight records the actual numbers rather than inviting
 another inference.
+
+### GEAR-5 — trip confirmed on Linux, and Wine does NOT trip on the same mission
+
+**Linux, reproduced three times** (TE-09, gear commanded down by `FF_TEST_GEARDOWN`):
+
+```
+[GEAROVR] gear[2] broken: vt=316.1 kt (533.5 ft/s) limit=274.9 kt minVcas=250.0 gearPos=0.90 alt=1984
+[GEAROVR] gear[2] broken: vt=315.9 kt ...
+[GEAROVR] gear[1] broken: vt=315.7 kt ...
+```
+
+Fires at exactly `gearPos = 0.90`, at ~316 kt true against the 274.9 kt limit, breaking a
+**different random gear each run** (`rand() % NumGear()`) — matching the code and
+matching the PO's asymmetric, tilting aircraft.
+
+**Wine, same mission, same gear command: the gear deploys FULLY.** Drove the Wine build
+to TE-09, pressed G (`DIK_G` = 0x22), and captured the orbit view: all three gears down
+and locked, nose and both mains clearly extended. So the Linux build breaks a gear where
+the gold standard does not — even though `eom.cpp:1608` is **not** `FF_LINUX`-gated and
+both builds read the same `MinVcas = 250` from the same `f16cbk40.dat`.
+
+**Two candidate explanations, neither yet established:**
+1. `vt` is inflated in the Linux build, so the same mission state reports a higher speed
+   and crosses a limit Wine stays under.
+2. The Linux aircraft genuinely starts or holds the approach faster (flight-model or
+   drag difference), so it is really at 316 kt where Wine is slower.
+
+**Not measured, and I am not guessing it**: Wine's airspeed at that moment. The Wine
+capture path is H.264 video and the HUD digits are too blurred to read honestly; the
+Linux side kept returning a fly-by camera instead of the HUD view, so the matched
+comparison failed. That comparison is the next step and needs a sharper Wine capture or
+a direct `vt`/`vcas` log rather than a screenshot.
+
+**Why this matters before touching the threshold**: raising the 275 kt limit would make
+the symptom disappear on Linux without establishing whether the airspeed feeding it is
+correct. That is precisely the LOD-gate error — driving a metric to zero without
+confirming it was the cause. The limit is also compared against `vt` (TRUE airspeed)
+while being derived from `MinVcas` (a calibrated speed), which is wrong on its own terms
+and worth fixing independently of the magnitude question.
