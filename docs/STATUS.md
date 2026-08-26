@@ -6583,3 +6583,36 @@ instability.
 **Seven of eight clean means this is not systemic** — it is one weapon path nothing had
 exercised. Third time this session that deliberate coverage found what incidental coverage
 walked past.
+
+### ASAN-6 — campaign soak clean under heavy deaggregation (3424 events, 0 errors)
+
+Ran the campaign flight soak on the current build (all seven of this session's memory fixes
+in place). Reached 3D, ran to the 420 s timeout.
+
+```
+reached sim: 1        ASAN errors: 0
+deaggregation/unit-wake trace hits: 3424
+```
+
+**The path was genuinely exercised**, which is the check that matters: 3424 deaggregation
+events means the entity-lifecycle code — the family the HARMs overflow lived in — ran hard
+and stayed clean. A zero from code that never executed would be worthless, and that
+distinction has bitten four times this session.
+
+**Prediction was wrong, and that is informative.** I expected finds to cluster in entity
+lifecycle, on the reasoning that campaign runs far more deaggregation than any TE. It came
+back clean, which supports the HARMs overflow having been a **one-off slot-index case**
+(a hardpoint index exceeding the model's `nSlots`) rather than the tip of a systemic
+lifecycle problem.
+
+**One of my own checks was worthless and is called out rather than quietly dropped**:
+grepping the log for `AddWeaponGraphics` / `CreateVisualObject` returned 0, but those
+functions emit no logging, so the grep measured nothing at all. It cannot show the specific
+HARM-armed-unit condition was reached. So this run does **not** independently re-verify the
+`AttachChild` fix — TE-26 does that, and did.
+
+**Coverage now stated rather than incidental**, four scripts:
+- `te-sweep.sh` — 34 TE missions, functional, release build
+- UI-screen pass — every main-menu screen, ASAN
+- `asan-sim-pass.sh` — 8 missions across distinct subsystems, ASAN
+- `camp-fly-asan.sh` — campaign flight with entity churn, ASAN
