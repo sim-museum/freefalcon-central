@@ -2089,6 +2089,35 @@ float AirframeClass::CheckHeight(void) const
         deltz = deltzBody;
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX (TERRAIN-Z): the resting height above terrain is NOT constant --
+    // measured 5.99ft at a TE-02 ground start but 2.33ft after a TE-09 landing, and
+    // that 3.66ft is exactly how far the jet sinks into the drawn runway. For complex
+    // platforms the gear contact point is scaled by the gear animation DOF, so a DOF
+    // reading zero collapses the standoff to FusRadius -- the belly. FF_DEBUG_CHKHT=1
+    // prints the components so the collapsed term can be identified rather than guessed.
+    {
+        static int s_dbg = -1;
+
+        if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_CHKHT") ? 1 : 0;
+
+        if (s_dbg)
+        {
+            static long c = 0;
+
+            if ((c++ % 120) == 0)
+            {
+                fprintf(stderr,
+                        "[CHKHT] radius=%.2f gearHt=%.2f | nose=%.2f wing=%.2f gear=%.2f body=%.2f -> deltz=%.2f minHeight=%.2f complex=%d\n",
+                        radius, gearHt, deltzNose, deltzWing, deltzGear, deltzBody,
+                        deltz, deltz - GROUND_TOLERANCE,
+                        platform ? (int)platform->IsComplex() : -1);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     return deltz - GROUND_TOLERANCE;
 }
 

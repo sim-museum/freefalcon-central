@@ -5415,3 +5415,47 @@ the wrong half of the split.
 **Gate disposition**: `FF_RUNWAY_LODGATE` stays opt-in and OFF. It corrects a real
 approach-range inaccuracy and is inert at touchdown; it is not this bug and must not
 be sold as one.
+
+### TERRAIN-Z — correction: the settle is not varying arbitrarily, the aircraft is GEAR-UP
+
+The previous entry concluded the aircraft's "physics resting height is not constant
+between a ground start and a landing" and pointed at the settle as the bug. That
+framing was wrong, and the aero data plus the PO's own video say so.
+
+**Both readings are exact contact points, not drift.** From `sim/ACDATA/f16cbk40.dat`:
+`Gear Z = 6.1`, `Fus Radius = 2.5`, and `GROUND_TOLERANCE = 0.1` (`eom.cpp:54`):
+
+| observed `aboveGround` | = | contact point |
+|---|---|---|
+| **5.99** (TE-02 parked) | 6.1 - 0.1 | **landing gear** |
+| **2.33** (TE-09 landed) | 2.5 - 0.1 (residual from pitch) | **fuselage belly** |
+
+`CheckHeight()` takes the max of the nose/wing/gear/body contact terms. Nothing is
+drifting: in one case the gear term wins, in the other the gear term is absent and
+the body term wins. That is the code behaving exactly as written.
+
+**The PO's video shows why: there is no landing gear on the aircraft.** At t=175 and
+t=190 the jet is on the runway with no struts and no wheels visible — fuselage and
+engine nozzle directly on the tarmac. It is gear-up, in the visuals *and* in the
+physics, consistently. So this is **not** a physics/graphics split, which is what the
+whole epic has been chasing.
+
+**Two candidate readings, and I cannot yet separate them:**
+1. The PO never lowered the gear, and this flight is simply a belly landing. Then
+   `2.33` is correct, the geometry is correct, and there is no bug in this run at all.
+2. The gear failed to deploy or animate — the DOF (`ComplexGearDOF`, driven from
+   `surface.cpp:1614`) never reaching its commanded value. That would be a real bug,
+   and it would corrupt both the visual and the contact term together, exactly as
+   observed. It would also line up with the PO's *earlier, separate* report on a
+   different flight: **"Gear never went up."**
+
+**Loose end, recorded rather than smoothed over**: with `zPos=-28.33` drawn at
+`-33.33` and the runway surface at `-29.0`, the aircraft origin is 4.33 ft above the
+drawn surface and a 2.5 ft fuselage radius puts the belly ~1.8 ft *above* the tarmac,
+i.e. slightly floating — yet the PO reports buried. So the drawn model's belly sits
+further below its origin than `FusRadius`, or the lift stack is not applying as
+computed. That discrepancy is unexplained and must not be glossed.
+
+**Decisive next step is one question to the PO, not more instrumentation**: was the
+gear down on that approach? The answer selects between "no bug here" and "the gear
+DOF is broken", and no amount of further measurement on my side substitutes for it.
