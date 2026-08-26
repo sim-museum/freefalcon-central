@@ -112,11 +112,13 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
             //
             // Gate on the answer's PROVENANCE, not on whether we re-queried: when a
             // coarse LOD answered, prefer the nearest-post approximation, which does
-            // return the plateau. Opt-in via FF_RUNWAY_LODGATE=1 while it is measured.
+            // return the plateau. DEFAULT ON since 2026-08-26: PO confirmed it cures the
+            // aircraft sinking into the drawn runway and emerging again during rollout
+            // and takeoff. FF_NO_RUNWAY_LODGATE=1 reverts.
             {
                 static int gate = -1;
 
-                if (gate < 0) gate = getenv("FF_RUNWAY_LODGATE") ? 1 : 0;
+                if (gate < 0) gate = getenv("FF_NO_RUNWAY_LODGATE") ? 0 : 1;  // DEFAULT ON
 
                 if (gate and glLod > 1)
                 {

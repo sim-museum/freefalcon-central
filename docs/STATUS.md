@@ -6009,3 +6009,38 @@ fault is elsewhere.
 also gates the DOF write, so those gears stop tracking `gearPos` and park at
 `NosGearRng * 0.6`. Cosmetic here since they were already fully extended, but it is the
 same flag-gates-animation coupling as GEAR-5 and should be looked at.
+
+### FF_RUNWAY_LODGATE — DEFAULT ON. PO-confirmed fix for the sinking runway surface
+
+**PO flew TE-09 with the gate on: "no, the jet did not sink in and come back out."** The
+symptom the gate was re-scoped against is gone.
+
+The same flight also ended with a hard landing that broke the rear gear, and the log
+reads correctly once the probe's own guard is accounted for: the last `[GEAR2]` line is
+`gearPos=1.000 DOF=1.570 brk=0,0,0 stk=0,0,0 agl=-6` — healthy, fully-extended gear six
+feet up — and then the probe **goes silent** while `[GROUND]` continues to the end. The
+probe sits inside `if (not GearStuck and not GearBroken)`, so its silence *is* the flag
+being set at touchdown. Final rest at `aboveGround = 2.33` is fuselage contact, i.e. the
+collapsed gear. That is the hard-landing path behaving correctly, not a regression, and
+not the GEAR-5 bug returning: no `[GEAROVR]` fired and the gear was fully deployed on
+approach.
+
+**The near-miss worth recording.** This gate was refuted by a PO flight earlier and I
+recorded it as refuted *without qualification*. It had only ever been tested against the
+belly landing, where terrain at touchdown was already self-consistent (`lod=0`, both
+queries `-26.00`) so the gate had nothing to act on. The sinking-and-emerging symptom is
+a **warped drawn surface under a smoothly-rolling aircraft** — exactly what the gate
+corrects. Generalising one negative result across every symptom buried a working fix for
+hours. **A refutation is scoped to the symptom it was tested against.**
+
+**Why it is safe to default on:**
+- Measured divergence of the drawn surface from the plateau: mean 1.75 ft / max 9.60 ft
+  -> **0.00 / 0.00**.
+- **Inert where fine LODs are present**: on TE-02 every player-area row answers at
+  `glLod=0`, so the gate never fires there; only the far airbase 90,000 ft away is
+  affected.
+- No tarmac disappearance reported, which was the live failure mode when the whole
+  compensation stack was disabled earlier.
+
+`FF_NO_RUNWAY_LODGATE=1` reverts. Full 34-mission regression sweep running against the
+new default; the flag comes back off if anything regresses.
