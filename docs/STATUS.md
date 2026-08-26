@@ -5171,3 +5171,43 @@ needs either a mesh-height probe at a fixed point or an observed touchdown.
 aircraft does not land itself, so the half-submerged-on-landing geometry cannot
 be captured by the scripted harness. Four scripted approach frames show the jet
 still airborne over water at t=78..108s.
+
+### NVG-4 unblocked: the Wine NVG reference finally exists — and it rescopes the ticket
+
+NVG-4 was blocked on one thing: *"it needs the Wine build driven into the sim with
+NVG toggled — a larger automation job than the menu capture already done."* That
+automation now exists (see the Wayland driving note: XSendEvent input,
+gpu-screen-recorder capture, window repositioning after the 3D transition), so the
+oracle frame was captured instead of guessed.
+
+NVG toggle is **N** — `keystrokes.key` binds `ToggleNVGMode` to `0x31`, which is
+the DirectInput scancode `DIK_N`, not the ASCII '1'.
+
+**What Wine actually produces** (Korea, TE-02, 2D pit, NVG on): the whole frame is
+green — terrain, sky, cockpit panels, MFDs and instruments alike — with **full
+detail preserved**. Frame mean drops 0.319 -> 0.088 on toggle.
+
+**This kills the wash-out branch outright.** The open design question was what
+`D3DTA_TEXTURE` yields on a stage with no texture bound, feeding
+`ADDSIGNED(TEXTURE, CURRENT)`. If it yielded white, the result would be
+`current + 0.5` — a bright wash. The reference frame is dark and detailed, so
+whatever the semantics are, the pipeline's net effect is a contrast-preserving
+green tint, not a wash. That was the specific guess the ticket refused to make,
+and it no longer has to be made.
+
+**And the ticket's framing does not survive the comparison.** NVG-4 assumed the
+2D pit fails to participate in the NVG pipeline. Side by side, the Linux pit
+*is* green, with panel and MFD detail comparable to Wine. The visible gap runs the
+other way: on Linux the **runway/tarmac surface is not tinted** — it renders grey
+against a green world — while Wine tints it with everything else.
+
+Worth being exact about what the Linux side of that comparison is: `DX_NVG` is
+**skipped by default** (BLUE-1, `otwloop.cpp:2654`, `FF_NVG_DXSTATE=1` restores
+it), and the green comes from `SetGreenMode` / `ColorBankClass::GreenMode`, which
+are independent of the DX state. So the capture is Linux-*without*-the-multistage-
+pipeline against Wine-*with*-it — and it still lands close. The BLUE-1 comment's
+claim of a "green world" is right for the world and wrong for the tarmac.
+
+**Rescoped**: the remaining NVG gap is flat runway/tarmac surfaces missing the
+green tint, not the 2D pit path. Those are the same surfaces that carry the
+Linux-only decal/depth handling in TERRAIN-Z, which is where to look first.
