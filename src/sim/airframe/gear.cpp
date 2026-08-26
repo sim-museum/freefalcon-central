@@ -48,6 +48,50 @@ extern VU_TIME vuxGameTime;
 // this code provides the animations for gear strut compression and rolling wheels.
 void AirframeClass::RunLandingGear(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (GEAR-2): the landing gear extend/retract animation -- the only
+    // continuous write to gearPos in the codebase -- lives in
+    // AirframeClass::RemoteUpdate() (airframe.cpp:876). RemoteUpdate is called
+    // per frame ONLY from aircraft.cpp:2213, under "if (not IsLocal())", so the
+    // player's own aircraft never has its gear animated: gearPos advances while
+    // the jet is still on the remote path and then freezes wherever it happens to
+    // be. Measured on a PO flight: gearPos rose 0.000 -> 0.869 at the correct
+    // 0.3/sec and stopped there permanently.
+    //
+    // Everything downstream follows from that frozen value. The gear DOF is
+    // (gearPos - 0.5) * 2, so it never reaches full extension and the gear is drawn
+    // part-way stowed; and CheckHeight()'s gear contact term never wins, leaving
+    // deltzGear = 0.00 with the fuselage term at 2.44 -- the aircraft rests on its
+    // belly (measured aboveGround 2.33 instead of the gear's 5.99) and appears sunk
+    // into a runway that is itself drawn 3ft above the terrain. That is the
+    // "aircraft half-buried in the airstrip" report.
+    //
+    // Fix: run the same animation on the local path. RunLandingGear() is called from
+    // both Exec() (local) and RemoteUpdate() (remote), so the IsLocal() guard gives
+    // the player the animation without double-stepping remote aircraft, which keep
+    // using the existing RemoteUpdate step. NOTE: measured rate is 0.62/sec, ~2x the
+    // coded 0.3 -- RunLandingGear has 3 call sites and is not once-per-frame, so this
+    // needs a single-call-site home before it can be default-on. gearHandle is NOT written
+    // here -- it is the pilot's command (AFGearToggle) and the status bit is already
+    // derived from it in RunGearSurfaces. FF_NO_GEAR_ANIM_FIX=1 reverts.
+    if (platform and platform->IsLocal())
+    {
+        static int ffNoFix = -1;
+
+        if (ffNoFix < 0) ffNoFix = getenv("FF_GEAR_ANIM_FIX") ? 0 : 1;  // OPT-IN until validated
+
+        if ( not ffNoFix)
+        {
+            if (platform->IsAcStatusBitsSet(AircraftClass::ACSTATUS_GEAR_DOWN))
+                gearPos += 0.3F * SimLibMajorFrameTime;
+            else
+                gearPos -= 0.3F * SimLibMajorFrameTime;
+
+            gearPos = min(max(gearPos, 0.0F), 1.0F);
+        }
+    }
+#endif
+
     if (auxaeroData->animWheelRadius[0] and platform->drawPointer)
     {
         // MLR 2003-10-04 code to support spinning landing wheels

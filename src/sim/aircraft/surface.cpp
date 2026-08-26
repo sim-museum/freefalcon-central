@@ -1622,6 +1622,28 @@ void AircraftClass::RunGearSurfaces(void)
             // answered by data instead of inference. FF_DEBUG_GEAR=1.
             if (i == 0 and IsPlayer())
             {
+                // FF_LINUX (GEAR-2): FF_TEST_GEARDOWN=<sec> drops the gear handle at a
+                // fixed time so the extend animation can be verified by script instead
+                // of requiring the PO to fly. Mirrors FF_TEST_NVG.
+                {
+                    static int s_at = -2;
+                    static bool s_done = false;
+
+                    if (s_at == -2)
+                    {
+                        const char *e = getenv("FF_TEST_GEARDOWN");
+                        s_at = e ? atoi(e) : -1;
+                    }
+
+                    if (s_at > 0 and not s_done and (int)(GetTickCount() / 1000) >= s_at)
+                    {
+                        s_done = true;
+                        af->gearHandle = 1.0F;
+                        fprintf(stderr, "[GEAR2] TEST: gear handle DOWN at %ds\n", s_at);
+                        fflush(stderr);
+                    }
+                }
+
                 static int s_dbg = -1;
 
                 if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_GEAR") ? 1 : 0;

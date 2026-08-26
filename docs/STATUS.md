@@ -5689,3 +5689,50 @@ too — the honest options are to move the increment into `RunLandingGear()` (ca
 both `Exec()` and the remote path) or to add the equivalent step to `Exec()`. To be
 built opt-in and measured before any default change, per the pattern that has repeatedly
 saved this project from speculative rendering/physics edits.
+
+### GEAR-3 — all three gears read GearBroken, which is why the gear never touches the ground
+
+The GEAR-2 animation fix (gearPos not driven on the local path) is real but is **not**
+the cause of the PO's symptom. With it applied and the gear extended to `DOF = 1.326`
+(84% of the 90 deg range), `CheckHeight()` still reports `gear = 0.00` and
+`minHeight = 2.33` — the belly. Measured, not assumed.
+
+**The reason, from a probe inside the contact loop:**
+
+```
+[GEARZ] numGear=3 drawPtr=1 complex=1 brk=1,1,1 best=0.00 -> deltzGear=0.00
+```
+
+`brk=1,1,1` — **all three gears carry `GearData::GearBroken`**, from the earliest
+sample. The loop body is guarded by `if (not (gear[i].flags bitand GearBroken))`, so it
+never executes for any gear; `best` stays at its 0.0F seed and `deltzGear` is 0. The
+fuselage term (2.44) then wins `CheckHeight()` and the aircraft rests on its belly
+regardless of gear position. Zero per-gear probe lines were emitted, confirming the
+body never runs rather than running and computing zero.
+
+**A latent bug found while tracing it** (`airframe.h:527`):
+
+```c
+GearStuck = 0x01, GearBroken = 0x02, DoorStuck = 0x04, DoorBroken = 0x08,
+GearProblem = 0x0F,      // a MASK of all four, not a distinct flag
+```
+
+`GearProblem` is every bit, so `flags or_eq GearData::GearProblem` (`gndhndl.cpp:358`
+and `423`) sets **GearBroken** as a side effect of flagging a "problem". Reads use it
+correctly as a mask (`cblights.cpp`), so the enum is doing double duty as flag and
+mask. Both write sites are landing-time, so this does not explain gears already broken
+at mission start — but it will break the gear on any hard landing and is worth fixing
+on its own.
+
+**Not yet identified: what sets GearBroken before the first sample.** Ruled out by
+measurement: the water/river branch (`eom.cpp:1332`) — a one-shot probe placed at that
+exact site **never fired**. Initialisation is correct (`readin.cpp:151-158` allocates
+`NumGear` entries and zeroes `flags`, and it is the only `new GearData` in the tree).
+Remaining candidates: `eom.cpp:1505`, and whether `readin.cpp`'s init actually runs for
+the player's airframe instance. That is the next measurement.
+
+**Status of the GEAR-2 animation fix**: switched to **opt-in** (`FF_GEAR_ANIM_FIX=1`).
+It is correct in direction but measured at 0.62/sec against the coded 0.3 — as
+`RunLandingGear()` has three call sites and is not once-per-frame — and it does not
+cure the symptom. It will not go default-on until it has a single-call-site home and a
+flown validation.
