@@ -5340,3 +5340,26 @@ is the pattern that produced the reverts earlier in this project.
 
 **For the PO**: fly TE-09 with `FF_RUNWAY_LODGATE=1` and compare against a run
 without it. That single observation is what the default flip is waiting on.
+
+### TERRAIN-Z — the gate is confirmed live in the PO's own flight
+
+During the PO's TE-09 flight with `FF_RUNWAY_LODGATE=1`, **399 of 399** `[MESHZ]`
+samples were coarse-answered (`glLod=2`) with `used == approx` on every one. So the
+gate is not a scripted-harness artefact: in the real approach the fine LODs are
+never present at the airfield, the gate fires continuously, and the drawn surface
+takes the nearest-post value throughout.
+
+Worth noting the approximation is not a single plateau value everywhere —
+e.g. `pos=(780980,1309143)` reads `L2=-16.0` while `L3=-26.0`, and the gate used
+`-16.0`. The gate makes the drawn surface agree with the **nearest post at the
+answering LOD**; it does not impose a constant.
+
+Also fixed on review: the `FF_DEBUG_MESHZ` probe called `getenv` on every
+flat-surface draw, every frame, in the runway rendering path, while the same
+function caches its other env lookups in statics (`FF_RunwayDecal`, the gate
+itself). Now cached the same way. Not a correctness bug and invisible to every
+measurement taken — the kind of thing only a reread catches.
+
+**Still open, and deliberately so**: whether the *symptom* clears. The geometry
+metric went to zero and the gate demonstrably fires, but neither of those is the
+PO seeing the jet sit on the strip. Awaiting that report before any default flip.

@@ -159,10 +159,15 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
                             gl, ap, gl - ap, decal, gl - decal, position.x, position.y);
                 }
             }
+
             // FF_LINUX (TERRAIN-Z): FF_DEBUG_MESHZ=1 reports the terrain post height at
             // every LOD next to the accurate and coarse queries, so which surface the
             // DRAWN mesh actually corresponds to can be identified instead of assumed.
-            if (getenv("FF_DEBUG_MESHZ"))
+            static int meshDbg = -1;
+
+            if (meshDbg < 0) meshDbg = getenv("FF_DEBUG_MESHZ") ? 1 : 0;
+
+            if (meshDbg)
             {
                 static long m = 0;
 
