@@ -6122,3 +6122,33 @@ shift where other code samples) cannot be excluded from a single sample. Planned
 re-run row 12 twice with the gate on and twice with it off once the sweep finishes. If the
 count varies within either configuration, it is variance; if it tracks the flag, it is the
 gate and the default comes back off.
+
+### TESWEEP-4 RESULT — 34/34 clean with the LOD gate default ON, and row 12 settled
+
+**Full sweep: 34/34 reaching sim, 0 crashes, 62 assertion lines** (TESWEEP-2 baseline was
+64 — slightly *fewer*, not more).
+
+**Row 12's assertion delta was variance, proven by the right experiment.** Re-ran row 12
+twice per configuration:
+
+| config | run 1 | run 2 | sites |
+|---|---|---|---|
+| gate ON | 8 | 8 | 180, 314, 358, 359 |
+| gate OFF | **12** | **4** | 180,258,314,358,359,367 / 180,314 |
+
+The count varies **4 -> 12 within the gate-off configuration alone**, so it does not track
+the flag. `GetGroundType`'s bounds assertions are position-dependent one-shots and TE-12
+flies unpiloted to timeout, crashing somewhere slightly different each run; the impact
+particles then sample ground type wherever that was.
+
+**The method point is the reusable part.** Comparing a single gate-on run against a single
+gate-off run would have "confirmed" a regression that does not exist. **Two runs per
+configuration is what separates a real effect from noise**, and it is cheap. The same
+discipline applied earlier would have caught that the LOD gate's 0.00 divergence metric
+was not evidence about the belly landing.
+
+`FF_RUNWAY_LODGATE` stays **default ON**: PO-confirmed against the symptom, 34/34 clean,
+assertion total no worse than baseline, and the one anomaly disproved.
+
+**Probe cleanup built and verified** — the five probes for refuted theories are gone and
+the tree builds clean.
