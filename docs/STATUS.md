@@ -5120,3 +5120,54 @@ note; XTEST and X11 grabs both fail silently here).
 **Still open**: the PO's half-submerged report was on the **landing** TE, not
 takeoff. TE-02 parked geometry now looks close to Wine, so the landing case is
 the next measurement, not a re-run of this one.
+
+### TERRAIN-Z — the landing airfield: coarse and accurate ground level disagree by up to 9.5 ft
+
+TE-02 (takeoff) showed `delta = 0.0` between `GetGroundLevel` (accurate,
+interpolated) and `GetGroundLevelApproximation` (coarse, nearest post) on every
+sample. **TE-09 "Landing Final Approach" does not.** Over 2230 flat-surface
+samples:
+
+```
+delta   count        delta   count
+ 0.0     1478         6.3      48
+ 2.2       50         7.6      48
+ 1.6       49         8.1      48
+ 0.5       49         9.5      48
+ 5.1       48         4.9      44
+```
+
+The non-zero rows cluster at a *second* airfield (pos ~779000,1308000), distinct
+from the 772-773k cluster which reads a clean `-26.0 / -26.0 / delta=0.0`:
+
+```
+GetGroundLevel=-16.4  approx=-26.0  delta=9.5  -> z=-19.4  pos=(780494,1310476)
+GetGroundLevel=-17.8  approx=-26.0  delta=8.1  -> z=-20.8  pos=(780036,1305443)
+GetGroundLevel=-20.8  approx=-26.0  delta=5.1  -> z=-23.8  pos=(779057,1308036)
+GetGroundLevel=-25.3  approx=-26.0  delta=0.6  -> z=-28.3  pos=(777575,1311983)
+```
+
+**`approx` is pinned at exactly `-26.0` across the whole field while the accurate
+value ranges `-16.4 .. -25.3`.** Negative z is up, so the accurate surface sits up
+to 9.5 ft *below* the coarse one. A constant coarse value over a wide area is what
+a flattened airbase plateau looks like; the accurate interpolation is not flat
+there.
+
+**Magnitude matches the PO's report.** 9.5 ft = 2.9 m, against a reported "2-3 m",
+on the landing TE where the report was made — while the takeoff TE, which reads
+delta=0.0 throughout, looks close to Wine in side-by-side orbit captures. The
+symptom tracks the disagreement, not the theater or the aircraft.
+
+Runway surfaces are drawn at `gl - decal`, i.e. against the **accurate** value, so
+at this field the drawn strip is warped across a ~9 ft range instead of sitting on
+one plane -- on an airstrip that should be flat.
+
+**Not yet established**, and deliberately not claimed: which of the two heights
+the *rendered terrain mesh* uses, and therefore whether the visible gap is the
+runway following the accurate surface while the mesh draws the coarse one. That
+needs either a mesh-height probe at a fixed point or an observed touchdown.
+
+**Blocked on the PO for the touchdown case**: TE-09 starts airborne and the
+aircraft does not land itself, so the half-submerged-on-landing geometry cannot
+be captured by the scripted harness. Four scripted approach frames show the jet
+still airborne over water at t=78..108s.
