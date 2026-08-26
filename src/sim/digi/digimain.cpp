@@ -896,9 +896,12 @@ void DigitalBrain::FreeManeuverData(void)
     {
         for (j = 0; j < DigitalBrain::NumMnvrClasses; j++)
         {
-            delete maneuverData[i][j].intercept;
-            delete maneuverData[i][j].merge;
-            delete maneuverData[i][j].spikeReact;
+            // FF_LINUX: allocated with new BVRInterceptType[] / WVRMergeManeuverType[] /
+            // SpikeReactionType[] above (digimain.cpp:829,846,863), so these must be
+            // delete[]. ASAN reports alloc-dealloc-mismatch here on every theater switch.
+            delete[] maneuverData[i][j].intercept;
+            delete[] maneuverData[i][j].merge;
+            delete[] maneuverData[i][j].spikeReact;
             maneuverData[i][j].intercept  = NULL;
             maneuverData[i][j].merge      = NULL;
             maneuverData[i][j].spikeReact = NULL;

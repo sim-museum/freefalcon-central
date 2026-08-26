@@ -40,11 +40,11 @@ class AeroData
 public:
     ~AeroData(void)
     {
-        delete mach;
-        delete alpha;
-        delete clift;
-        delete cdrag;
-        delete cy;
+        delete[] mach;
+        delete[] alpha;
+        delete[] clift;
+        delete[] cdrag;
+        delete[] cy;
     };
     int numMach;
     int numAlpha;
@@ -498,9 +498,9 @@ class RollData
 public:
     ~RollData(void)
     {
-        delete alpha;
-        delete qbar;
-        delete roll;
+        delete[] alpha;
+        delete[] qbar;
+        delete[] roll;
     };
     int numAlpha;
     int numQbar;

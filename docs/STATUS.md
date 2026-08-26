@@ -6395,3 +6395,44 @@ diagnosed and fixed — but if theater art misbehaves again, this is now a known
 
 **Verification pending**: ASAN tree rebuilding; both soaks to be re-run to confirm the
 count drops to 0. Committing the fix now with that status stated rather than after.
+
+### ASAN-3 — four distinct allocator mismatches, all on the theater-switch teardown path
+
+The soak that was meant to validate the LOD gate found four pre-existing memory-safety
+defects instead. The gate itself is clean (TE-09, 0 errors). Every one of these fires
+through `TheaterList::SetNewTheater` -> `FreeAllMissileData` / `FreeAllAirframeData` /
+`FreeManeuverData`, i.e. **on every theater switch**.
+
+| site | mismatch | count | fix |
+|---|---|---|---|
+| `cimagerc.cpp:604,698` | `new[]` vs `delete` | ~2 | `delete[]` — **verified gone** |
+| `airframe.h` (AeroData, RollData), `missile.h` (Missile{Aero,Range,Engine}Data) — 18 sites | `new[]` vs `delete` | ~2500 | `delete[]` |
+| `MissileAuxData` — 6 `SAFE_DELETE` sites | **`malloc` vs `delete`** | 1218 | `free()` |
+| `digimain.cpp:899` FreeManeuverData — 3 sites | `new[]` vs `delete` | 215 | `delete[]` |
+
+**The MissileAuxData one nearly got the wrong fix.** Having just corrected eighteen
+`new[]`/`delete` sites, the obvious move was `delete[]` here too. Reading what ASAN
+actually reported — `alloc-dealloc-mismatch (malloc vs operator delete)` — shows those are
+`ID_STRING` fields allocated with `malloc()` (`datafile.cpp:58`). `delete[]` would have
+replaced one undefined behaviour with another *and changed the error text*, so the fix
+would have looked like it worked. Pattern-matching a fix across similar-looking sites is
+how that happens.
+
+**Verification discipline applied**: each member was confirmed array-allocated before its
+`delete` was changed — `clift`, `times`, `thrust`, `velBreakpoints` were each checked
+individually, and `theaterdef.cpp:179` was examined and **left alone** because it frees a
+single linked-list node correctly. `Missile.h` is a 9-byte symlink to `missile.h`, so the
+18 sites are 18, not 28.
+
+**Possible bearing on THEATER-1/THEATER-2**: thousands of mismatched-allocator frees during
+theater teardown is a plausible mechanism for the PO's original reports of missing
+missions, stale landing-page art and Korea terrain under Balkans unit placement. Not
+claimed — those were separately diagnosed and fixed — but recorded as a prior.
+
+**How it was found is not a credit to method**: TE-09 and the earlier campaign soak walk
+straight into the mission; only the TE-20 click script happens to route through the THEATER
+screen. Soak coverage is decided by whichever UI path the script walks, and this one had
+never been walked. A deliberate UI-screen pass is warranted.
+
+**Verification pending**: ASAN tree rebuilding with all four fixes; the theater-path soak
+will be re-run and the count reported as measured, zero or not.

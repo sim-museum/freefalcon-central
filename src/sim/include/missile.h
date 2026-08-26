@@ -116,10 +116,10 @@ class MissileAeroData
 public:
     ~MissileAeroData(void)
     {
-        delete mach;
-        delete alpha;
-        delete cx;
-        delete cz;
+        delete[] mach;
+        delete[] alpha;
+        delete[] cx;
+        delete[] cz;
     } ;
     int numMach;
     int numAlpha;
@@ -134,8 +134,8 @@ class MissileEngineData
 public:
     ~MissileEngineData(void)
     {
-        delete times;
-        delete thrust;
+        delete[] times;
+        delete[] thrust;
     };
     int numBreaks;
     float *times;
@@ -148,10 +148,10 @@ class MissileRangeData
 public:
     ~MissileRangeData(void)
     {
-        delete altBreakpoints;
-        delete velBreakpoints;
-        delete aspectBreakpoints;
-        delete data;
+        delete[] altBreakpoints;
+        delete[] velBreakpoints;
+        delete[] aspectBreakpoints;
+        delete[] data;
     } ;
     int numAltBreakpoints;
     int numVelBreakpoints;
@@ -214,12 +214,19 @@ public:
     }
     ~MissileAuxData()
     {
-        SAFE_DELETE(psGroundImpact);
-        SAFE_DELETE(psMissileKill);
-        SAFE_DELETE(psFeatureImpact);
-        SAFE_DELETE(psBombImpact);
-        SAFE_DELETE(psArmingDelay);
-        SAFE_DELETE(psExceedFOV);
+        // FF_LINUX: these are ID_STRING fields, allocated with malloc() by
+        // datafile.cpp:58 -- not new. SAFE_DELETE (scalar delete) on a malloc'd
+        // pointer is undefined behaviour; ASAN reports
+        // "alloc-dealloc-mismatch (malloc vs operator delete)" here 1218 times on a
+        // single theater switch, via FreeAllMissileData().
+#define FF_SAFE_FREE(p) do { if (p) { free(p); (p) = NULL; } } while (0)
+        FF_SAFE_FREE(psGroundImpact);
+        FF_SAFE_FREE(psMissileKill);
+        FF_SAFE_FREE(psFeatureImpact);
+        FF_SAFE_FREE(psBombImpact);
+        FF_SAFE_FREE(psArmingDelay);
+        FF_SAFE_FREE(psExceedFOV);
+#undef FF_SAFE_FREE
     }
 
     // RV - Biker - FOV data from missile FMs
