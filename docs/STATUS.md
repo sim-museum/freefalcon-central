@@ -5639,3 +5639,53 @@ flight and must not be conflated with the contact-term fault.
 **Next**: instrument the complex loop itself — `NumGear()`, `drawPointer`, and each
 gear's `PtRelPos.z` and `PtWorldPos.z` — to establish whether the loop runs at all and
 which term collapses. No more predictions ahead of that.
+
+### GEAR-2 ROOT CAUSE — gearPos is animated only in RemoteUpdate(), never for the local player
+
+PO: "the gear gets stuck partially deployed" (video `260825_gear.mp4`), and the probe
+froze at `gearPos = 0.869` with the game still running. Traced to a single structural
+fault.
+
+**Verified by exhaustive grep of every write to `gearPos`:**
+
+| site | file | what it does |
+|---|---|---|
+| `gearPos = 0.0F` | `airframe.cpp:147` | construction |
+| `gearPos = 1.0F / 0.0F` | `airframe.cpp:470,573,593` | discrete set at init / in-air / on-ground |
+| `gearPos = 1.0f` | `gndhndl.cpp:54` | ground start |
+| `gearPos = 0.2F` | `gndhndl.cpp:354,419` | hard-landing collapse |
+| **`gearPos += / -= 0.3F * SimLibMinorFrameTime`** | **`airframe.cpp:876,881`** | **the only continuous animation** |
+
+Lines 876/881 are inside **`AirframeClass::RemoteUpdate()`** (function begins at 717).
+And `RemoteUpdate()` has exactly two callers:
+
+```c
+if ( not IsLocal()) { ShowDamage(); af->RemoteUpdate(); return FALSE; }  // aircraft.cpp:2213
+void AircraftClass::MakeLocal(void) { ...; af->RemoteUpdate(); ... }     // virtuals.cpp:810 (one-shot)
+```
+
+**So the per-frame gear animation runs only for aircraft that are NOT local.** For the
+player's own aircraft it is never driven. `Exec()` (the local path) calls
+`RunLandingGear()`, but that function only handles wheel spin and strut compression
+(`gear.cpp:49`) — it does not touch `gearPos`.
+
+That is why the gear freezes part-way: it advances only while the aircraft is still
+being updated on the remote path, then stops permanently the moment it is not.
+
+**Everything else follows from the frozen value.** With `gearPos` stuck below 1.0 the
+gear DOF `(gearPos - 0.5) * 2` never reaches full, the gear is drawn partly stowed, and
+`CheckHeight()`'s gear contact term does not win — leaving `deltzGear = 0.00` and the
+body term at 2.44, i.e. `minHeight = 2.34`, the `aboveGround = 2.33` measured at
+touchdown. One frozen float explains the partly-deployed gear, the belly contact, and
+the "aircraft half-buried in the runway" symptom that named this entire epic.
+
+**Confidence**: the code facts are verified by grep and by reading both call sites. The
+causal link from "aircraft stops being remote" to the observed freeze is inference
+consistent with the trace, and the fix must be validated against a flown landing rather
+than assumed.
+
+**Fix direction (not yet implemented)**: drive the gear animation from the local path
+too — the honest options are to move the increment into `RunLandingGear()` (called from
+both `Exec()` and the remote path) or to add the equivalent step to `Exec()`. To be
+built opt-in and measured before any default change, per the pattern that has repeatedly
+saved this project from speculative rendering/physics edits.
