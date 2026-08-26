@@ -17,6 +17,33 @@ approach through touchdown (the Sprint-8 depth-bias fix, default-ON).
 
 Rebuild: `cd /home/admin/free-falcon/build && ninja` (ASAN variant in `build-asan/`).
 
+## Behaviour-changing flags and how to revert them
+
+Most `FF_*` environment variables are diagnostics. A few **change how the sim behaves by
+default** — these are the ones to reach for if something looks wrong after an update.
+
+| flag | effect |
+|---|---|
+| `FF_NO_RUNWAY_LODGATE=1` | Reverts the runway LOD-provenance gate (**default ON** since 2026-08-26). The gate makes the drawn runway take the nearest terrain post when a coarse LOD answers the ground query, instead of an interpolation that does not preserve the flattened airbase plateau. It fixes the aircraft appearing to sink into the runway and emerge again while rolling. Revert if runway surfaces look wrong or the tarmac disappears. |
+| `FF_NO_FEATURE_RESNAP=1` | Reverts the static-feature ground re-snap (airbase objects baking a ground height sampled before terrain streamed in). |
+| `FF_NO_GEAR_LIFT=1`, `FF_RUNWAY_ZLIFT=<ft>`, `FF_GEAR_LIFT=<ft>` | The runway decal / aircraft visual-lift stack. Flat surfaces are drawn ~3 ft above terrain to win the depth test, and the aircraft drawable is lifted to match. Setting these to 0 makes the tarmac disappear — see docs/STATUS.md. |
+| `FF_NO_SEEKER_TTG_FIX=1`, `FF_FCC_HANDOFF_RADAR=1` | Revert the SEEKER-1 and HANDOFF-2 fixes. |
+
+### Useful diagnostics
+
+| flag | prints |
+|---|---|
+| `FF_DEBUG_GEAR=1` | `[GEAR2]` gear position/DOF/flags twice a second, and `[GEAROVR]` if the gear-overspeed trip fires |
+| `FF_DEBUG_GROUND=1` | `[GROUND]` aircraft vs terrain height, and which LOD answered |
+| `FF_DEBUG_MESHZ=1` | `[MESHZ]` terrain post height at every LOD beside both ground queries |
+| `FF_DEBUG_CHKHT=1` | `[CHKHT]` the nose/wing/gear/body ground-contact terms |
+| `FF_TEST_GEARDOWN=<sec>` | drops the gear handle at a fixed time, so gear behaviour can be tested by script |
+
+**Known gotcha, not a bug:** lowering the landing gear above ~275 kt breaks a random gear
+(`eom.cpp:1608`), which then parks part-deployed and leaves the aircraft resting on its
+fuselage — it looks "half-buried in the airstrip". Slow below 250 KIAS before lowering
+the gear. See `docs/STATUS.md` (GEAR-5).
+
 ## Check progress
 
 | What | Where |
