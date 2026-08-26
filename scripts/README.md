@@ -43,3 +43,35 @@ guarantee it can record on another machine.
 Launch and drive the Windows build under Wine for side-by-side comparison
 (see WINE-1/WINE-2 in `docs/STATUS.md`). Use `~/sgl/SAT/freeFalcon/freeFalcon.sh`
 for the supported launch path — these wrap capture and input on top of it.
+
+## Driving the Wine gold standard (`wine-drive.sh`, `wine-capture.sh`)
+
+The Windows build under Wine is the reference the Linux port is checked against.
+Driving and capturing it on this machine needs three non-obvious workarounds, each
+of which fails **silently** if you get it wrong:
+
+| what | naive approach | why it fails | what works |
+|---|---|---|---|
+| launch | `wine` / `wine32` | cannot boot this 32-bit prefix at all | pinned `lutris-GE-Proton8-26-x86_64` |
+| input | `xdotool click` (XTEST) | GNOME **Wayland** silently discards fake input | `xdotool click --window` (XSendEvent) |
+| capture | `import`, `ffmpeg -f x11grab` | X11 grabs return an **all-black** image under Wayland | `gpu-screen-recorder` on a monitor, cropped |
+
+Two further traps:
+
+* The game window **spawns outside its own virtual desktop** (fixed `+3815,-62`),
+  so the desktop looks empty while the game runs and plays audio. It is also
+  **recreated when the sim loads**, so it must be repositioned again after entering
+  3D — use a `p:` step in the timeline.
+* gsr's *window* capture (`-w <id>`) is unsupported under XWayland; only monitor
+  capture works. Default H.264 blurs HUD digits past legibility, hence
+  `-q ultra -tune quality -cr full`.
+
+Example — Korea TE-09, drop the gear, capture the orbit view:
+
+```sh
+scripts/wine-drive.sh "c:674,750@5;c:140,247@10;c:822,748@16;c:984,748@22;p:@75;k:g@80;k:0@86;s:gear@92"
+```
+
+Theater is **per build**: the Linux port reads `config/registry.ini`
+(`curTheater=1,<hex>`), Wine reads its prefix `system.reg` (`"curTheater"="Korea"`).
+Setting the file directly is far more reliable than clicking the THEATER UI.
