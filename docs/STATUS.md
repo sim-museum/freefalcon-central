@@ -5363,3 +5363,55 @@ measurement taken — the kind of thing only a reread catches.
 **Still open, and deliberately so**: whether the *symptom* clears. The geometry
 metric went to zero and the gate demonstrably fires, but neither of those is the
 PO seeing the jet sit on the strip. Awaiting that report before any default flip.
+
+### TERRAIN-Z — LOD gate REFUTED as the fix; the real split is the physics settle height
+
+**PO flew TE-09 with `FF_RUNWAY_LODGATE=1` and the jet is still buried 2-3 m.**
+The gate is not the fix. Recorded plainly because the geometry metric it was built
+against went to zero while the symptom did not move.
+
+**Why it could not have worked.** At touchdown the PO's own log shows terrain
+already fully resolved and self-consistent:
+```
+acZ=-28.33 groundZ=-26.00 aboveGround=2.33 vpAccurate=-26.00 vpApprox=-26.00 lod=0
+[LIFT] zPos=-28.33 drawZ=-33.33      (fixed 5ft visual lift: 3 decal + 2 gear)
+```
+`lod=0`, both queries agree at `-26.00`. There is **no coarse-LOD disagreement at
+the touchdown point at all**, so the gate had nothing to bite on. The 9.5 ft
+divergence it removes is real but happens *elsewhere* — on the approach, at range —
+and is simply not this symptom. A mechanism can be genuine, measurable, and
+irrelevant; this one is.
+
+**What the numbers actually say.** Comparing the working case against the broken one:
+
+| | runway drawn | aircraft drawn | origin above surface | `aboveGround` |
+|---|---|---|---|---|
+| TE-02 parked (looks right) | -29.0 | -36.99 | 7.99 ft | **5.99** |
+| TE-09 landed (buried) | -29.0 | -33.33 | 4.33 ft | **2.33** |
+
+Same airframe, same model, same gear, drawn **3.66 ft lower** — and 3.66 is exactly
+the `aboveGround` difference. The aircraft's *physics resting height above terrain*
+is not constant between a ground start and a landing, while the visual compensation
+that hides the runway decal **is** a fixed 5 ft, empirically A/B-tuned against the
+5.99 case (`FF_GEAR_LIFT` default 2, see `otwdrive.cpp`). A constant correction
+cannot cover a variable error.
+
+The PO's video (`260825_TE9_ON_still_half_buried_on_runway.mp4`, t=209s) confirms it
+visually: the runway surface cuts through the jet at the gear line, struts and
+wheels entirely below the tarmac.
+
+**This also re-reads the PO's original words correctly.** "The physics engine
+terrain seems to be a few meters below the graphics engine terrain" — the physics
+is letting the aircraft settle ~3.7 ft too low relative to where the same aircraft
+rests when parked. The terrain queries agree with each other; the *settle* does not
+agree with itself across mission types.
+
+**Next, and specifically**: the ground-contact settle in `src/sim/airframe/eom.cpp`
+(`gearHt = GetAeroData(AeroDataSet::NosGearZ) - radius`, lines 243 and 1966) is what
+determines resting height. The question is why it lands on 2.33 ft after a touchdown
+and 5.99 ft at a ground start. Chasing the *drawn* surface any further is chasing
+the wrong half of the split.
+
+**Gate disposition**: `FF_RUNWAY_LODGATE` stays opt-in and OFF. It corrects a real
+approach-range inaccuracy and is inert at touchdown; it is not this bug and must not
+be sold as one.
