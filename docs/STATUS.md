@@ -5459,3 +5459,31 @@ computed. That discrepancy is unexplained and must not be glossed.
 **Decisive next step is one question to the PO, not more instrumentation**: was the
 gear down on that approach? The answer selects between "no bug here" and "the gear
 DOF is broken", and no amount of further measurement on my side substitutes for it.
+
+### TERRAIN-Z — TE-09 starts 10 nm out on final, so gear-down was a pilot action
+
+Static check, no run needed. `campaign/SAVE/09 Landing Final Approach.trn` describes
+itself as **"Landing From 10 nm out on Final"** — the aircraft starts airborne at a
+range where an F-16 is normally still clean. Combined with the PO's video showing no
+struts or wheels at t=175, t=190 *or* t=209, the likeliest reading is that the gear
+was never lowered and this was a belly landing.
+
+If so, `aboveGround = 2.33` is the correct fuselage contact for a gear-up aircraft,
+and **that run contains no bug at all** — the epic would have spent two sprints
+investigating a correctly-behaving simulator. Worth stating in those terms rather
+than softening it.
+
+Supporting evidence that the gear system is *not* globally broken: on TE-02 the
+ground start reads `aboveGround = 5.99`, which is the gear contact term at full
+extension (`Gear Z 6.1 - GROUND_TOLERANCE 0.1`). So `ComplexGearDOF` does reach its
+commanded value there. A universally dead gear DOF is inconsistent with that.
+
+**What this still does NOT explain**, and the reason the question stays open: with
+the drawn origin 4.33 ft above the drawn runway and a 2.5 ft fuselage radius, a
+gear-up jet should sit ~1.8 ft *above* the tarmac. The PO sees it buried. A belly
+landing accounts for the physics number but not for the ~1.8 ft the visual is low.
+So even under the innocent reading there is a residual visual discrepancy in the
+buried direction, and it is unexplained.
+
+Still gated on one PO answer: was the gear down? That selects between "no bug in this
+run, plus a residual visual offset to chase" and "gear DOF failed on this approach".
