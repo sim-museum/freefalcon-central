@@ -5211,3 +5211,39 @@ claim of a "green world" is right for the world and wrong for the tarmac.
 **Rescoped**: the remaining NVG gap is flat runway/tarmac surfaces missing the
 green tint, not the 2D pit path. Those are the same surfaces that carry the
 Linux-only decal/depth handling in TERRAIN-Z, which is where to look first.
+
+### NVG-4 correction: the previous entry's rescoping was measured in the wrong configuration
+
+The entry above rescoped NVG-4 away from the 2D pit on the strength of a Linux/Wine
+side-by-side. **That comparison was run with `DX_NVG` skipped**, i.e. with the
+multi-stage pipeline never executing — so it could not exercise the 2D pit path the
+ticket is about, and the conclusion drawn from it does not hold. NVG-4 stands as
+originally scoped.
+
+Re-running TE-02 with `FF_NVG_DXSTATE=1` (the pipeline restored) shows the BLUE-1
+symptom is **still present**: the world is replaced by flat blue and blue patches
+appear across the MFDs. NVG-2 (ADDSMOOTH / ADDSIGNED / DOTPRODUCT3) and NVG-3
+(`m_AlphaTextureStage`) were each necessary but together are **not sufficient** —
+the 2D cockpit panel still inherits a stage configuration it cannot execute and
+loses its chroma key. The skip at `otwloop.cpp:2654` stays.
+
+| configuration | frame mean | result |
+|---|---|---|
+| Linux, `DX_NVG` skipped (default) | 0.234 | green pit + world, tarmac untinted grey |
+| Linux, `FF_NVG_DXSTATE=1` | 0.168 | **blue fill returns** — world and MFD patches |
+| Wine (gold) | 0.088 | green throughout, detail preserved |
+
+**A methodological note against myself**: I read the 0.234 -> 0.168 drop as movement
+*toward* Wine's 0.088 before looking at the frame. It is nothing of the kind — the
+mean fell because flat blue is dark. Frame mean is not a similarity metric, and
+using it as a proxy for "closer to the reference" is exactly the kind of shortcut
+that produced the retracted TERRAIN-Z figures. The image decided it, not the number.
+
+**What does survive** from the previous entry, because it was measured in the
+default configuration the PO actually runs:
+- The Wine reference frame itself — green throughout with detail preserved, which
+  still rules out the wash-out branch (`D3DTA_TEXTURE` yielding white).
+- NVG toggle is `N` (`DIK_N` = 0x31).
+- With `DX_NVG` skipped, `GreenMode` tints via the colour-bank palette swap
+  (`ColorPool = GreenTVBuffer`), which reaches colour-indexed geometry but not
+  textured surfaces — consistent with the tarmac staying grey.
