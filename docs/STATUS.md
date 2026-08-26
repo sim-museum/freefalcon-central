@@ -6283,3 +6283,40 @@ establishing that the instrument could have observed the thing being measured.
 **Confirmed so far and not in doubt**: release works, impact occurs, and the FX spawn call
 executes (which is the fix that had never been observed running). Only "is it drawn where
 the pilot can see it" is open.
+
+### BOMB-1 RESOLVED at code level — the explosion effect is created and correctly mapped
+
+Three attempts to photograph the fireball all failed for framing reasons, and the third
+made the reason quantitative: at capture the aircraft was **11,800 ft horizontally and
+8,160 ft above the impact, flying away from it**, so no forward view could contain the
+detonation. Rather than keep chasing camera angles, measured the thing directly.
+
+```
+[MSLEND] spawning SFX_GROUND_EXPLOSION at (1730138,1209379,-1852)
+[PSMAP]  table built: paramSets=658 maxEffectId=657 dropped=0  PPN[6](GROUND_EXPLOSION)=210
+[PSMAP]  PS_AddParticleEx id=6 -> PPN[6]=210
+```
+
+**Every link in the chain is now verified:**
+1. Release happens (`[TESTBOMB] pickle raised`, weapon selected on station 3).
+2. Impact happens (`[MSLEND] BombImpact legacy branch`, BlastRadius 293).
+3. The bomb reaches the impact-FX switch — the original defect was `type == TYPE_MISSILE`
+   excluding bombs entirely, so **nothing** drew a bomb impact. That fix now demonstrably
+   executes.
+4. `PS_AddParticleEx(SFX_GROUND_EXPLOSION + 1)` resolves to a **valid** particle set
+   (`PPN[6] = 210`), from a table built with **0 dropped** effects.
+
+So the PO's "no fireball — the bomb disappears into terrain, then a pause, then the sound
+of an explosion" has its cause repaired and the repair is confirmed running. What remains
+is visual confirmation by the PO on a normal bombing run, which is now a low-risk check
+rather than an open defect.
+
+**Method note**: the useful move was abandoning the camera. Three runs were spent trying
+to frame a 1,900-ft-elevation impact from an aircraft at 10,000 ft; one run measuring the
+effect-ID mapping answered the question outright. When an observation is hard to stage,
+check whether the thing itself can be measured instead of photographed.
+
+**Open, and small**: the LODZ spread at impact (`physicsZ=-1852` vs `lod0=-1765`, 250 ft
+across LODs) is still uninterpreted — `endCode=11 groundType=7` suggests a structure hit
+rather than bare terrain, so it may be meaningless. Needs impacts on known flat ground
+before it can be called anything.
