@@ -5917,3 +5917,51 @@ calibrated speed compared against a true one) but at 2000 ft it accounts for onl
 of the 32 kt exceedance, so fixing it would not change this outcome either. Both are
 worth doing on their own merits, neither is the cause, and neither should be presented as
 a fix for the PO's landing.
+
+### GEAR-5 CONFIRMED — gear deploys fully when lowered below 250 KIAS
+
+PO flew TE-09 slowing below 250 KIAS before dropping the gear. From the PO's own
+flight log:
+
+```
+[GEAR2] gearPos=1.000 handle=1.00 DOF=1.570 brk=0,0,0 stk=0,0,0 onGnd=0 agl=-1332
+[GEAROVR]  -- did not fire
+```
+
+`gearPos` reaches **1.000**, the DOF reaches **1.570 rad** (the full 90 deg
+`NosGearRng`), no gear is broken or stuck, and the overspeed trip never fires. Against
+the earlier runs at ~307 KIAS, where a random gear broke at exactly `gearPos 0.90` and
+its DOF parked at 60%, this is a clean controlled comparison with one variable changed.
+
+**The chain is now confirmed end to end, every link measured:**
+
+1. Gear lowered above ~275 kt -> `eom.cpp:1608` flags one **random** gear
+   `DoorStuck|GearStuck|DoorBroken|GearBroken`.
+2. `RunGearSurfaces` guards its DOF write on those flags, so that gear's DOF parks at
+   `NosGearRng * 0.6` — permanently part-deployed, asymmetric (hence the PO's tilt).
+3. `CheckHeight()` skips broken gears, losing that contact point; the fuselage term
+   (2.44) wins and `minHeight` becomes 2.33 instead of the gear's 5.99.
+4. The aircraft rests ~3.6 ft too low on a runway itself drawn 3 ft above terrain — the
+   "physics terrain a few meters below graphics terrain" that named this epic.
+
+Lower the gear below 250 KIAS and none of it happens.
+
+**What this retires.** The TERRAIN-Z epic was misnamed from the start: no terrain defect
+was ever involved. Refuted along the way, each by a measurement rather than an argument:
+the feature re-snap, the coarse/accurate LOD gate (`FF_RUNWAY_LODGATE`, driven to 0.00
+divergence and still not the cause), the hard-landing collapse, the gearPos animation
+path, and "all three gears broken at mission start". The surviving explanation is a
+single `rand()` call behind a speed threshold.
+
+**What remains open, and is now small:**
+- The limit is **275 kt** (`MinVcas 250 * 1.1`) against a real F-16 gear limit of ~300
+  KIAS — ~25 kt harsh.
+- It compares `vt` (**true** airspeed) against a limit derived from `MinVcas` (a
+  **calibrated** speed). Wrong on its own terms; worth ~8 kt at 2000 ft.
+- Wine did not trip on the same mission. With Linux's `vt` now proven correct
+  (`vt/vcas = 1.027`), the likely answer is simply that the Wine approach was flown
+  slower — but it is unmeasured, and the improved capture path (`-q ultra`) exists to
+  settle it.
+
+Neither threshold change would have saved the 307 KIAS landing, so neither is a fix for
+the reported symptom and neither will be presented as one.
