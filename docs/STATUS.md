@@ -5876,3 +5876,44 @@ correct. That is precisely the LOD-gate error — driving a metric to zero witho
 confirming it was the cause. The limit is also compared against `vt` (TRUE airspeed)
 while being derived from `MinVcas` (a calibrated speed), which is wrong on its own terms
 and worth fixing independently of the magnitude question.
+
+### GEAR-5 — `vt` is NOT inflated; the aircraft really is at 307 KIAS
+
+Measured at the trip:
+
+```
+[GEAROVR] gear[2] broken: vt=315.5 kt vcas=307.1 kt limit=274.9 kt minVcas=250.0
+          gearPos=0.90 alt=1984 mach=0.48
+```
+
+`vt / vcas = 1.027`, which is exactly the true-to-calibrated ratio for ~2000 ft. **So the
+Linux airspeed is not inflated** — candidate (1) from the previous entry is dead. The
+aircraft is genuinely flying the approach at **307 knots indicated**.
+
+**That reframes the item.** A real F-16's landing-gear limit is ~300 KIAS, so lowering
+the gear at 307 KIAS *should* damage it. The simulator is behaving approximately
+correctly, and the code's 275 kt limit (MinVcas 250 x 1.1) is merely ~25 kt harsher than
+the real airframe rather than being the cause. Raising 275 -> 300 would **not** have
+saved this landing, which is exactly why it was worth measuring before changing.
+
+**What remains genuinely unexplained** is the Wine divergence: the same mission, driven
+the same way, deploys the gear fully under Wine. Since `vt` is correct on Linux, the
+remaining possibilities are that the Wine aircraft is slower at the moment the gear
+passes `gearPos 0.9` (different drag, throttle state, or simply more elapsed time
+decelerating before the command), or that something else suppresses the trip there.
+Measuring Wine's airspeed is still the open task and still needs a capture path that can
+resolve HUD digits.
+
+**Practical consequence for the PO, and the likeliest whole story**: the approach is
+being flown at ~300+ KIAS with the gear coming down. Slowing below ~250 KIAS before
+lowering the gear should let it deploy fully, and would confirm the entire chain from the
+PO's side in one flight. The `FF_RUNWAY_LODGATE`, hard-landing-collapse and
+gearPos-animation theories are all dead; this one is measured end to end except for the
+Wine leg.
+
+**Left unchanged deliberately**: the 275 kt threshold, and the `vt`-vs-`MinVcas`
+true/calibrated mismatch. The mismatch is a genuine defect (a limit derived from a
+calibrated speed compared against a true one) but at 2000 ft it accounts for only ~8 kt
+of the 32 kt exceedance, so fixing it would not change this outcome either. Both are
+worth doing on their own merits, neither is the cause, and neither should be presented as
+a fix for the PO's landing.

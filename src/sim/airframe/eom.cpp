@@ -1639,9 +1639,9 @@ float AirframeClass::CalculateVt(float dt)
                         if ( not s_o)
                         {
                             s_o = true;
-                            fprintf(stderr, "[GEAROVR] gear[%d] broken: vt=%.1f kt (%.1f ft/s) limit=%.1f kt minVcas=%.1f gearPos=%.2f alt=%.0f\n",
-                                    which, vt * FTPSEC_TO_KNOTS, vt,
-                                    gearLimitSpeed * FTPSEC_TO_KNOTS, minVcas, gearPos, -z);
+                            fprintf(stderr, "[GEAROVR] gear[%d] broken: vt=%.1f kt vcas=%.1f kt limit=%.1f kt minVcas=%.1f gearPos=%.2f alt=%.0f mach=%.2f\n",
+                                    which, vt * FTPSEC_TO_KNOTS, vcas,
+                                    gearLimitSpeed * FTPSEC_TO_KNOTS, minVcas, gearPos, -z, mach);
                             fflush(stderr);
                         }
                     }
