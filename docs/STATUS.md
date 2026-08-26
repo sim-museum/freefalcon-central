@@ -5585,3 +5585,57 @@ guard on the setter) or `SimLibMinorFrameTime` being wrong. `FF_DEBUG_GEAR=1` pr
 
 Instrumented build is running and waiting on the PO. TESWEEP-3 paused at **21/34, all
 clean**, to free the machine; it resumes afterwards.
+
+### GEAR-2 — prediction REFUTED by its own probe; the real fault is deltzGear == 0
+
+The previous entry predicted `gearPos` would stall just above 0.5. **Wrong**, and the
+probe I wrote to test it says so:
+
+```
+gearPos=0.000 handle=-1.00 DOF=0.000
+gearPos=0.100 handle= 1.00 DOF=0.000     <- PO commands gear down
+gearPos=0.254 handle= 1.00 DOF=0.000
+gearPos=0.405 handle= 1.00 DOF=0.000
+gearPos=0.559 handle= 1.00 DOF=0.186
+gearPos=0.714 handle= 1.00 DOF=0.675
+gearPos=0.869 handle= 1.00 DOF=1.161
+```
+
+`gearPos` advances 0.154 per half-second = **0.308/sec**, exactly the coded 0.3 rate,
+and the DOF follows it correctly once past 0.5. Deployment works. The two-threshold
+mismatch is real but is a ~1.7 s transient, not the bug.
+
+**What the probe caught instead is decisive:**
+
+```
+[CHKHT] radius=2.50 gearHt=3.59 | nose=-3.20 wing=0.00 gear=0.00 body=2.44
+        -> deltz=2.44 minHeight=2.34 complex=1
+```
+
+**`deltzGear = 0.00` while the gear is 87% deployed.** `CheckHeight()` takes the max
+of the contact terms, so the body term (2.44) wins and `minHeight = 2.34` — which is
+the `aboveGround = 2.33` measured at the TE-09 touchdown. The aircraft rests on its
+belly *irrespective of gear position*, because the gear simply does not participate in
+ground contact on this path.
+
+That single fact explains the whole epic's symptom without any terrain involvement:
+the jet sits `FusRadius` above the ground instead of `NosGearZ`, i.e. ~3.6 ft too low,
+while the runway is drawn 3 ft *above* terrain — so it appears sunk into the tarmac.
+
+**Where it goes wrong**: the complex branch (`eom.cpp:1981`) is gated on
+`NumGear() > 1 and platform->drawPointer`, seeds `float best = 0.0F`, computes each
+gear's contact point, transforms it by the orientation matrix, and keeps
+`if (PtWorldPos.z > best) best = PtWorldPos.z`. A `best` of exactly 0.0 means **no
+gear produced a positive transformed z** — either the loop did not run (null
+`drawPointer`) or every `PtWorldPos.z` came out <= 0. The non-complex fallback
+(`eom.cpp:2023`) uses `gearHt * gearPos + radius` and would have given ~5.6 here, so
+the two paths disagree by the entire gear length.
+
+**Also observed**: the PO reports the gear "got stuck" part-way, and the probe stopped
+emitting at `gearPos = 0.869` while the game kept running — `RunGearSurfaces` ceased
+being called for the player aircraft. That is a second, separate anomaly on the same
+flight and must not be conflated with the contact-term fault.
+
+**Next**: instrument the complex loop itself — `NumGear()`, `drawPointer`, and each
+gear's `PtRelPos.z` and `PtWorldPos.z` — to establish whether the loop runs at all and
+which term collapses. No more predictions ahead of that.
