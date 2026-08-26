@@ -6152,3 +6152,44 @@ assertion total no worse than baseline, and the one anomaly disproved.
 
 **Probe cleanup built and verified** — the five probes for refuted theories are gone and
 the tree builds clean.
+
+### GEAR-6 — unreachable gear-break branch in the ground-roll damage path
+
+`eom.cpp:1485`:
+
+```c
+if (gear[which].strength < 50.0F)
+{
+    mFaults->SetFault(gear_fault, ldgr, fail, FALSE);
+    gear[which].flags or_eq GearData::GearStuck;
+    ... SetDOF(ComplexGearDOF[which], newpos);   // random, up to 50 deg
+}
+else if (gear[which].strength < 0.0F)            // <-- UNREACHABLE
+{
+    platform->SetDOF(ComplexGearDOF[which], 0.0F);
+    gear[which].flags or_eq GearData::GearBroken bitor GearData::DoorBroken;
+    ... sndWheelBrakes
+}
+```
+
+**Any `strength < 0.0F` also satisfies `strength < 50.0F`, so the first branch always
+wins and the second can never execute.** Gear damaged during ground roll can therefore
+only ever become *stuck*, never *broken*, and the "gear snaps off" sound and full DOF
+collapse are dead code. The tests are simply ordered wrong: `< 0.0F` must be checked
+first.
+
+**Observed consequence**, from the PO's successful landing: `stk=0,1,1` — two gears
+stuck, none broken, exactly as this ordering forces. Once `GearStuck` is set,
+`RunGearSurfaces` stops tracking `gearPos` for that gear (it is the same guard as GEAR-5)
+and the DOF is left at the random `newpos`, up to 50 deg — a gear frozen part-deployed.
+
+**Deliberately NOT applied**, because the correct fix makes the sim *harsher*: swapping
+the order means heavily-damaged gear breaks off instead of merely sticking. That is what
+the code intends and what the sound effect and DOF-to-zero clearly expect, but it is a
+balance change and belongs to the PO alongside the other two gear decisions.
+
+**Also reconsidered and NOT called a bug**: `GearProblem = 0x0F` being a mask of all four
+flags. Both write sites (`gndhndl.cpp:358,423`) are in the hard-landing collapse path,
+which already sets `gearPos = 0.2` and zeroes the DOF — marking every gear flag there is
+plausibly deliberate shorthand for "everything is wrong", not an accident. Reads use it
+correctly as a mask. Flagging it as a bug earlier was premature.
