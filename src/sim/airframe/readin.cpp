@@ -158,21 +158,6 @@ int AirframeClass::ReadData(int idx)
         gear[i].flags = 0;
     }
 
-#ifdef FF_LINUX
-    // FF_LINUX (GEAR-3): confirm this init actually runs for the player's airframe and
-    // leaves every gear unflagged. GearBroken has been observed set from the earliest
-    // in-flight sample, and this is the only allocation site. FF_DEBUG_GEARZ=1.
-    if (getenv("FF_DEBUG_GEARZ"))
-    {
-        int ng = FloatToInt32(aeroDataset[idx].inputData[AeroDataSet::NumGear]);
-        fprintf(stderr, "[GEARINIT] idx=%d numGear=%d flags=", idx, ng);
-
-        for (int i = 0; i < ng; i++) fprintf(stderr, "%d,", gear[i].flags);
-
-        fprintf(stderr, "\n");
-        fflush(stderr);
-    }
-#endif
 
     if (aeroDataset[idx].inputData[AeroDataSet::NumGear] > 1)
         SetFlag(HasComplexGear);

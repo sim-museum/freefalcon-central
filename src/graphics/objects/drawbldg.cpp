@@ -76,7 +76,11 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
 #ifdef FF_LINUX
     {
         extern int g_ffRunwayDbg;
-        if (g_ffRunwayDbg && previousLOD == -1 && getenv("FF_DEBUG_RUNWAY"))
+        static int s_rwyDbg = -1;
+
+        if (s_rwyDbg < 0) s_rwyDbg = getenv("FF_DEBUG_RUNWAY") ? 1 : 0;
+
+        if (g_ffRunwayDbg && previousLOD == -1 && s_rwyDbg)
         {
             static int n = 0;
             if (n++ < 20)
@@ -145,7 +149,11 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
             // That visual/collision split is TE2-5; fixing it means making ground contact
             // use the drawn surface, not shrinking this lift.
             const float decal = FF_RunwayDecal();
-            if (getenv("FF_DEBUG_RUNWAY"))
+            static int s_rwyDbg2 = -1;
+
+            if (s_rwyDbg2 < 0) s_rwyDbg2 = getenv("FF_DEBUG_RUNWAY") ? 1 : 0;
+
+            if (s_rwyDbg2)
             {
                 static long c = 0;
                 if ((c++ % 120) == 0)
@@ -227,7 +235,11 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
         {
             float gl = renderer->viewpoint->GetGroundLevel(position.x, position.y);
             position.z = gl - s_off;
-            if (getenv("FF_DEBUG_RUNWAY"))
+            static int s_rwyDbg2 = -1;
+
+            if (s_rwyDbg2 < 0) s_rwyDbg2 = getenv("FF_DEBUG_RUNWAY") ? 1 : 0;
+
+            if (s_rwyDbg2)
             {
                 static int n = 0;
                 if (n++ < 20)

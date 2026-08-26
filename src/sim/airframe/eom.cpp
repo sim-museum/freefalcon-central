@@ -1344,23 +1344,6 @@ float AirframeClass::CalculateVt(float dt)
                         gear[i].flags or_eq GearData::GearBroken bitor GearData::DoorBroken;
                     }
 
-#ifdef FF_LINUX
-                    // FF_LINUX (GEAR-3): this water/river branch breaks ALL gears and
-                    // zeroes their DOF. Measured brk=1,1,1 on a TE-09 approach, which
-                    // runs over ocean -- so establish exactly when and why it fires.
-                    {
-                        static bool s_once = false;
-
-                        if ( not s_once)
-                        {
-                            s_once = true;
-                            fprintf(stderr, "[GEARBRK] ALL GEAR BROKEN: groundType=%d z=%.1f groundZ=%.1f vt=%.1f onObject=%d player=%d\n",
-                                    groundType, z, groundZ, vt, (int)IsSet(OnObject),
-                                    platform ? (int)platform->IsPlayer() : -1);
-                            fflush(stderr);
-                        }
-                    }
-#endif
 
                     SetFlag(GearBroken);
                 }
@@ -1520,19 +1503,6 @@ float AirframeClass::CalculateVt(float dt)
                         if (NumGear() > 1 and platform->IsComplex())
                         {
                             platform->SetDOF(ComplexGearDOF[which] /*COMP_NOS_GEAR + which*/, 0.0F);
-#ifdef FF_LINUX
-                            {
-                                static bool s_o = false;
-
-                                if ( not s_o)
-                                {
-                                    s_o = true;
-                                    fprintf(stderr, "[GEARBRK2] gear[%d] broken via eom overstress path: vt=%.1f z=%.1f groundZ=%.1f\n",
-                                            which, vt, z, groundZ);
-                                    fflush(stderr);
-                                }
-                            }
-#endif
                             gear[which].flags or_eq GearData::GearBroken bitor GearData::DoorBroken;
                         }
 
@@ -2061,22 +2031,6 @@ float AirframeClass::CheckHeight(void) const
 
                 MatrixMult(&((DrawableBSP*)platform->drawPointer)->orientation, &PtRelPos, &PtWorldPos);
 
-#ifdef FF_LINUX
-                {
-                    static int s_gz2 = -1;
-
-                    if (s_gz2 < 0) s_gz2 = getenv("FF_DEBUG_GEARZ") ? 1 : 0;
-
-                    if (s_gz2 and platform and platform->IsPlayer())
-                    {
-                        static long c2 = 0;
-
-                        if ((c2++ % 30) == 0)
-                            fprintf(stderr, "[GEARZ]   gear[%d] rel=(%.2f,%.2f,%.2f) world.z=%.2f best=%.2f\n",
-                                    i, PtRelPos.x, PtRelPos.y, PtRelPos.z, PtWorldPos.z, best);
-                    }
-                }
-#endif
 
                 if (PtWorldPos.z > best)
                 {
@@ -2087,32 +2041,6 @@ float AirframeClass::CheckHeight(void) const
 
         deltzGear = best;
 
-#ifdef FF_LINUX
-        // FF_LINUX (GEAR-3): deltzGear measured as 0.00 with the gear 84% extended,
-        // so the gear never wins ground contact and the fuselage term takes over --
-        // the aircraft rests on its belly. `best` seeds at 0.0F and only rises on
-        // PtWorldPos.z > best, so 0.00 means no gear produced a positive transformed
-        // z. Print the per-gear values to find which. FF_DEBUG_GEARZ=1.
-        {
-            static int s_gz = -1;
-
-            if (s_gz < 0) s_gz = getenv("FF_DEBUG_GEARZ") ? 1 : 0;
-
-            if (s_gz and platform and platform->IsPlayer())
-            {
-                static long c = 0;
-
-                if ((c++ % 10) == 0)
-                    fprintf(stderr, "[GEARZ] numGear=%d drawPtr=%d complex=%d brk=%d,%d,%d best=%.2f -> deltzGear=%.2f\n",
-                            NumGear(), platform->drawPointer ? 1 : 0,
-                            (int)platform->IsComplex(),
-                            (int)((gear[0].flags bitand GearData::GearBroken) not_eq 0),
-                            (int)((gear[1].flags bitand GearData::GearBroken) not_eq 0),
-                            (int)((gear[2].flags bitand GearData::GearBroken) not_eq 0),
-                            best, deltzGear);
-            }
-        }
-#endif
     }
     else
     {

@@ -431,34 +431,6 @@ void AircraftClass::DeployDragChute(int type)
 
 void AircraftClass::MoveSurfaces(void)
 {
-#ifdef FF_LINUX
-    // FF_LINUX (GEAR-4): RunGearSurfaces() -- which drives the gear DOF -- sits inside
-    // "if (IsComplex())" in this function. If IsComplex() ever goes false the gear DOF
-    // freezes at its last value and the gear appears stuck part-deployed, which is the
-    // PO's report. This probe sits OUTSIDE that gate so a false reading is visible.
-    if (IsPlayer())
-    {
-        static int s_c = -1;
-
-        if (s_c < 0) s_c = getenv("FF_DEBUG_GEAR") ? 1 : 0;
-
-        if (s_c)
-        {
-            static DWORD s_l = 0;
-            static int s_prev = -1;
-            DWORD now = GetTickCount();
-            int cx = (int)IsComplex();
-
-            if (cx not_eq s_prev or now - s_l > 2000)
-            {
-                s_prev = cx; s_l = now;
-                fprintf(stderr, "[GEAR4] MoveSurfaces: IsComplex=%d drawPtr=%d gearPos=%.3f\n",
-                        cx, drawPointer ? 1 : 0, af ? af->gearPos : -1.0f);
-                fflush(stderr);
-            }
-        }
-    }
-#endif
 
     float qFactor, stabAngle;
     int gFact;
