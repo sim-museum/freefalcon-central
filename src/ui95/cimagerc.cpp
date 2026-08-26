@@ -601,7 +601,11 @@ C_Resmgr *C_Image::LoadImage(long ID, char *file, short x, short y)
     }
 
 #endif
-    delete cptr;
+    // FF_LINUX: LoadTargaFile allocates with "new char[bytesToRead]" (targa.cpp:92),
+    // so this must be delete[]. Scalar delete on a new[] buffer is undefined behaviour;
+    // ASAN reports alloc-dealloc-mismatch here 5245 times on a single theater-screen
+    // visit, once per image loaded.
+    delete[] cptr;
     newres->AddIndex(ID, newentry);
     newres->ConvertToScreen();
 
@@ -695,7 +699,11 @@ C_Resmgr *C_Image::LoadFile(long ID, char *file, short x, short y)
     }
 
 #endif
-    delete cptr;
+    // FF_LINUX: LoadTargaFile allocates with "new char[bytesToRead]" (targa.cpp:92),
+    // so this must be delete[]. Scalar delete on a new[] buffer is undefined behaviour;
+    // ASAN reports alloc-dealloc-mismatch here 5245 times on a single theater-screen
+    // visit, once per image loaded.
+    delete[] cptr;
     newres->AddIndex(ID, newentry);
     newres->ConvertToScreen();
 

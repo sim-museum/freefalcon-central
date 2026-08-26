@@ -6355,3 +6355,43 @@ entirely — is repaired and the repair confirmed executing.
 - *takeoff/landing sinking into the runway* — fixed, `FF_RUNWAY_LODGATE` default ON, PO-confirmed
 - *aircraft half-buried in the airstrip* — the gear overspeed trip; workaround confirmed by the PO (gear below 250 KIAS); three tuning decisions left with the PO
 - *bombing, no fireball* — repaired and verified
+
+### ASAN-3 — LOD gate is clean; found a pre-existing new[]/delete mismatch in the UI image loader
+
+**The gate itself is memory-clean.** TE-09 "Landing Final Approach" under ASAN — the
+mission where `FF_RUNWAY_LODGATE` fires hardest (603 coarse-answered samples measured
+earlier) — reached sim with **0 ASAN errors**. The default flip is safe on the path that
+exercises it most.
+
+**But a second soak on TE-20 reported 5245 errors**, all the same defect and none of it
+mine:
+
+```
+ERROR: AddressSanitizer: alloc-dealloc-mismatch (operator new [] vs operator delete)
+    #1 C_Image::LoadImage(long, char*, short, short)  src/ui95/cimagerc.cpp:604
+    #2 SelectTheater  src/ui/src/ui_main.cpp:2368
+    #3 LoadAllTheaters / TheaterButtonCB
+```
+
+`LoadTargaFile` allocates with `data = new char[bytesToRead]` (`targa.cpp:92`), and both
+call sites freed it with **scalar `delete`** (`cimagerc.cpp:604` and `:698`). That is
+undefined behaviour once per image loaded, which is why a single visit to the theater
+screen produces thousands of reports. Fixed to `delete[]` at both sites.
+
+Checked the third scalar delete in the tree (`theaterdef.cpp:179`): it frees a single
+`TheaterDef` from a linked list and is correct as-is. Left alone.
+
+**Why it only appeared now, which is the uncomfortable part.** The TE-09 soak walks
+straight into the mission; the TE-20 click script happens to route through the THEATER
+screen first. ASAN-2 earlier used a campaign path and never touched it either. This was
+not thoroughness — soak coverage is entirely determined by which UI path the click script
+walks, and this one had never been covered. Worth a deliberate pass over the UI screens
+rather than relying on incidental routing.
+
+**Possible connection to THEATER-1/THEATER-2**: heap corruption during theater image
+loading is consistent with the PO's original reports of stale landing-page art and map
+imagery not updating after a theater switch. Not claimed — those were separately
+diagnosed and fixed — but if theater art misbehaves again, this is now a known prior.
+
+**Verification pending**: ASAN tree rebuilding; both soaks to be re-run to confirm the
+count drops to 0. Committing the fix now with that status stated rather than after.
