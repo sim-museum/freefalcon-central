@@ -6235,3 +6235,24 @@ capture written was a stale loadout screen. So there is no visual of the firebal
 "does the explosion render where the PO can see it" remains unanswered. Fixing that
 capture is a prerequisite for closing the bombing item, since the PO's report is
 explicitly visual ("no fireball ... then the sound of an explosion").
+
+### BOMB-1 correction — the impact capture DOES work; the camera is the problem
+
+The previous entry claimed `FF_SHOT_ON_IMPACT` "did not produce a sim frame". **Wrong** —
+it writes `/tmp/ff_impact_<N>.bmp`, not `/tmp/ff_view_<N>.bmp`, and I checked the wrong
+filename. `/tmp/ff_impact_0.bmp` exists, 1024x768, `mean=0.438`, with the log line
+`[IMPACTSHOT] requested /tmp/ff_impact_0.bmp` sitting in plain view in the same log I had
+already grepped. A file-not-found conclusion drawn without checking what the code
+actually writes.
+
+**What the frame shows**: the aircraft in level flight over terrain, viewed by the orbit
+camera pointed *at the jet*. The impact is on the ground some distance away and simply
+out of frame — so the fireball's visibility is still unverified, but for a camera-framing
+reason, not a broken capture.
+
+**The remaining question is narrow and unchanged**: does the bomb explosion render where
+the pilot can see it? Answering it needs the camera looking at the impact point, not at
+the aircraft — either a weapon/target view during the fall, or a release from low
+altitude so the detonation is in frame. The FX spawn call itself is confirmed executing
+(`[MSLEND] spawning SFX_GROUND_EXPLOSION`), so what is untested is purely whether it is
+drawn and visible.
