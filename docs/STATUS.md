@@ -6087,3 +6087,38 @@ own terms and is a one-token change, but it does slightly relax the limit.
 **Recommendation**: fix (2) on correctness grounds — it is unambiguously wrong to compare
 true against calibrated — and leave (1) alone unless the PO wants gear-down speeds
 loosened. Not applied pending that decision.
+
+### TESWEEP-4 triage — row 12's assertion delta is NOT the LOD gate
+
+The gate-on sweep matches the gate-off baseline row for row, with one exception: **row 12
+"Nav and Timing"** reads `asserts=8` against `asserts=4`. ShiAssert fires once per site
+per process and prints two lines, so that is **2 sites -> 4 sites**, and it deserved
+checking before the default flip was allowed to stand.
+
+The two extra sites are:
+
+```
+tviewpnt.cpp:358  [Failed: (xPos >= -0.5f) and (xPos <= LEVEL_POST_TO_WORLD(1, LOD) + 0.5f)]
+tviewpnt.cpp:359  [Failed: (yPos >= -0.5f) and (yPos <= ...)]
+```
+
+**Both are inside `TViewPoint::GetGroundType()` (line 333), not
+`GetGroundLevelApproximation()` (line 515).** The LOD gate calls the latter and never the
+former, so it is not the direct cause. `GetGroundType` is called only from
+`drawparticlesys.cpp` — explosion/smoke particles sampling the ground type under
+themselves.
+
+**Most likely explanation**: TE-12 flies unpiloted to timeout and crashes somewhere; the
+impact spawns particles which query ground type at the impact point. A slightly different
+flight path puts that impact somewhere else, lighting different assertion sites. These are
+position-dependent one-shot warnings, so run-to-run variance moves them.
+
+**Also worth noting the assertion is over-eager**: it fires *before* the availability
+check, and the function then returns 0 safely without dereferencing the post. So it warns
+about querying an unstreamed position rather than reporting a bad read.
+
+**Not concluded** — an indirect path (the gate changes drawn surface heights, which could
+shift where other code samples) cannot be excluded from a single sample. Planned check:
+re-run row 12 twice with the gate on and twice with it off once the sweep finishes. If the
+count varies within either configuration, it is variance; if it tracks the flag, it is the
+gate and the default comes back off.
