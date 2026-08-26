@@ -5056,3 +5056,67 @@ that class ever assigns a real elevation.
 terrain files, same airbase, same platform data — so the divergence is in how
 this port places or draws those surfaces, with a working oracle beside it. The
 next step is the same ground start captured in both builds.
+
+### TERRAIN-Z — RETRACTION of the "constant sea-level runway" finding, and why the decal stays
+
+**The previous entry's headline finding is wrong and is retracted.** I reported
+that every runway drawable sits at a constant `z = -3.0` regardless of position,
+and blamed `DrawablePlatform`'s `position.z = 0.0f` sort key. Both halves are
+false.
+
+**What `-3.0` actually was.** `drawbldg.cpp` computes `position.z = gl - decal`
+for flat surfaces, with `decal = FF_RunwayDecal() = 3.0`. So `z = -3.0` means
+`gl = 0.0` — the ground query answering zero, not a sea-level placement. Running
+TE-02 again with the full trace:
+
+```
+[RUNWAY] flat GetGroundLevel=-26.0 approx=-26.0 delta=0.0 decal=3.0 -> z=-29.0 pos=(1043420,1270614)
+[RUNWAY] flat GetGroundLevel=-26.0 approx=-26.0 delta=0.0 decal=3.0 -> z=-29.0 pos=(1044231,1270905)
+[RUNWAY] flat GetGroundLevel=  0.0 approx=  0.0 delta=0.0 decal=3.0 -> z= -3.0 pos=(1087165,1362720)
+```
+
+The player's airbase reads `-26.0 -> z=-29.0`. Only the **far** airbase, ~90,000 ft
+away and outside streamed terrain, reads `gl=0 -> z=-3.0`. My earlier probe had
+sampled only those far-field rows and I read their shared value as a global
+constant. Same error class as the retracted "11 ft" figure: a conclusion drawn
+from an unrepresentative subset.
+
+**`DrawablePlatform` was never the placement path.** It is a *container* ("large
+flat objects which can lie beneath other objects"), holding `flatStaticObjects` /
+`tallStaticObjects` / `dynamicObjects`. Its `position.z = 0` is a display-list
+sort key that never reaches the screen. The drawn surface is the child
+`DrawableBuilding`, which under `FF_LINUX` re-fetches the **accurate** ground
+level *every frame*. Runway surfaces are terrain-following, contrary to what I
+reported.
+
+**What actually differs from Wine** is a three-part compensation stack, every
+part `#ifdef FF_LINUX`, i.e. absent from the Windows/Wine build:
+1. `drawbldg.cpp` — flat surfaces drawn `FF_RunwayDecal()` = **3 ft** above terrain
+   so they win the depth test against the terrain mesh;
+2. `otwdrive.cpp` — the aircraft *drawable* lifted the same 3 ft (visual only;
+   `ZPos()` untouched) because aircraft are *placed* with wheels at terrain height;
+3. `otwdrive.cpp` — a further empirical **2 ft** `FF_GEAR_LIFT`.
+
+That stack, not a placement bug, is the answer to "why Linux and not Wine".
+
+**Tested the retirement condition the code names, and it fails.** The comment at
+`drawbldg.cpp:121` says the workaround is obsolete if the coarse approximation
+ever agrees with the accurate value. It now does — `delta=0.0` on **every**
+sample at the player's airfield. But disabling the stack
+(`FF_RUNWAY_ZLIFT=0 FF_NO_GEAR_LIFT=1`) makes TE-02 **worse**, not equal to Wine:
+the tarmac disappears (grass in the foreground) and the jet sinks with its gear
+hidden. Side-by-side orbit captures vs the Wine gold standard confirm the ON
+configuration is the closer of the two.
+
+**So the prediction in that comment is falsified**: the decal's job is winning the
+depth test, not correcting placement, and fixing placement does not retire it.
+`delta=0` is necessary but not sufficient. The stack stays until the depth-test
+problem is solved on its own terms.
+
+Gold standard for this comparison: Wine, Korea, TE-02, orbit view — captured
+under Wayland via XSendEvent input + gpu-screen-recorder (see the session memory
+note; XTEST and X11 grabs both fail silently here).
+
+**Still open**: the PO's half-submerged report was on the **landing** TE, not
+takeoff. TE-02 parked geometry now looks close to Wine, so the landing case is
+the next measurement, not a re-run of this one.
