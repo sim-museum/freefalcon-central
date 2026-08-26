@@ -1229,8 +1229,11 @@ AuxAeroData *AirframeAuxAeroRead(SimlibFileClass* inputFile)
 
 EngineData::~EngineData()
 {
-    delete mach;
-    delete alt;
+    // FF_LINUX: mach and alt are new float[] (readin.cpp), like thrust/fuelflow below
+    // which already use delete[]. The inconsistency inside this one destructor was the
+    // last alloc-dealloc-mismatch on the theater-switch teardown path.
+    delete[] mach;
+    delete[] alt;
     delete[] thrust[0];
     delete[] thrust[1];
     delete[] thrust[2];

@@ -6436,3 +6436,41 @@ never been walked. A deliberate UI-screen pass is warranted.
 
 **Verification pending**: ASAN tree rebuilding with all four fixes; the theater-path soak
 will be re-run and the count reported as measured, zero or not.
+
+### ASAN-3 VERIFIED — theater-switch teardown is now clean: 5243 -> 0
+
+Re-ran the theater-path soak (TE-20, click script routing through the THEATER screen) on a
+rebuilt ASAN tree with all five fixes:
+
+```
+mission: 20 Bombs with CCIP   reached sim: 1   ALL ASAN errors: 0
+```
+
+| stage | errors |
+|---|---|
+| baseline | 5243 |
+| after cimagerc + airframe/missile headers + MissileAuxData + FreeManeuverData | 356 |
+| after `EngineData::~EngineData` | **0** |
+
+**Five defects, ~5200 undefined-behaviour events per theater switch, all pre-existing.**
+Every one fired through `TheaterList::SetNewTheater`.
+
+**`EngineData` is the one worth remembering.** Its destructor lives in `readin.cpp`, not
+in the header, so a header-only search missed it — and it was *internally inconsistent*,
+with `thrust[]`/`fuelflow[]` already using `delete[]` while `mach`/`alt` used scalar
+`delete` three lines above. Someone had fixed half of it previously. The lesson is to
+search implementation files for destructors too, which is what finally caught it.
+
+**Proactive scan done rather than assuming five was the set**: enumerated every `ID_STRING`
+field in the tree (these are `malloc`'d by `datafile.cpp:58`) and checked each for a
+`delete`/`SAFE_DELETE`. Only the `MissileAuxData` group was affected, and it is fixed. The
+`malloc`-vs-`delete` class is closed.
+
+**Noted, not chased**: `TheaterDef`'s ~16 `ID_STRING` fields appear never to be freed at
+all — a leak rather than a mismatch, invisible here because the repro runs with
+`detect_leaks=0`.
+
+**Bearing on the PO's theater reports**: this does not retroactively explain THEATER-1/2,
+which were separately diagnosed and fixed. But ~5200 mismatched frees on every theater
+switch is a real corruption source removed from exactly the operation the PO reported
+misbehaving.
