@@ -364,8 +364,15 @@ int FalconMissileEndMessage::Process(uchar autodisp)
                                 if (ffN >= (int)sizeof(ffBuf) - 24) break;
                             }
 
-                            fprintf(stderr, "[LODZ] impact (%.0f,%.0f) physicsZ=%.1f | %s\n",
-                                    pos.x, pos.y, (double)pos.z, ffBuf);
+                            // FF_LINUX: also report the INTERPOLATED ground level, which
+                            // is what physics actually collides against. FFPostZAtLOD gives
+                            // the NEAREST POST, and on sloped terrain the two differ
+                            // legitimately -- comparing physicsZ against a post alone
+                            // cannot distinguish a real gap from ordinary slope.
+                            float ffInterp = OTWDriver.GetGroundLevel(pos.x, pos.y);
+                            fprintf(stderr, "[LODZ] impact (%.0f,%.0f) physicsZ=%.1f interp=%.1f delta=%.1f | %s\n",
+                                    pos.x, pos.y, (double)pos.z, (double)ffInterp,
+                                    (double)(pos.z - ffInterp), ffBuf);
                             fflush(stderr);
                         }
 

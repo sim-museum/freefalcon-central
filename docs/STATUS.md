@@ -6320,3 +6320,38 @@ check whether the thing itself can be measured instead of photographed.
 across LODs) is still uninterpreted — `endCode=11 groundType=7` suggests a structure hit
 rather than bare terrain, so it may be meaningless. Needs impacts on known flat ground
 before it can be called anything.
+
+### BOMB-1 CLOSED — bomb impacts land within 0.3 ft of the ground; the "87 ft gap" was my probe
+
+```
+[LODZ] impact (1730136,1209380) physicsZ=-1852.3 interp=-1851.9 delta=-0.3
+       | lod0=-1765.0 lod1=-1753.0 lod2=-1763.0 lod3=-1601.0 lod4=-1607.0
+groundType=7 = COVERAGE_THICKFOREST   (bare terrain, NOT a structure)
+```
+
+**The detonation is 0.3 ft from the interpolated ground level.** There is no
+physics-vs-terrain gap at bomb impact.
+
+**Two of my own errors, both corrected by this one measurement:**
+1. I hypothesised the impact hit a *structure* (`endCode=11 groundType=7`). Decoding the
+   enum shows `7 = COVERAGE_THICKFOREST` — bare terrain. The hypothesis was wrong and was
+   never checked before being written down.
+2. The "86-87 ft above terrain" figure came from comparing `physicsZ` against
+   `FFPostZAtLOD`, which returns the **nearest post**. Physics collides against the
+   **interpolated** surface. On terrain steep enough that the LOD posts span 164 ft, the
+   nearest post and the interpolated height legitimately differ by tens of feet. The probe
+   was measuring the wrong quantity, and the "gap" was an artefact of the instrument.
+
+That is the fourth instance this session of a conclusion drawn from a measurement that
+could not support it. The pattern is consistent enough to state as a rule: **before
+believing a delta, confirm both sides of it are the same kind of quantity.**
+
+**BOMB-1 is closed.** Release, impact, the impact-FX switch, and a valid particle system
+(`PPN[6]=210`, 0 dropped) are all verified, and impacts land on the ground to within a
+foot. The PO's original "no fireball" defect — bombs excluded from the impact switch
+entirely — is repaired and the repair confirmed executing.
+
+**EPIC TERRAIN-Z is now fully accounted for:**
+- *takeoff/landing sinking into the runway* — fixed, `FF_RUNWAY_LODGATE` default ON, PO-confirmed
+- *aircraft half-buried in the airstrip* — the gear overspeed trip; workaround confirmed by the PO (gear below 250 KIAS); three tuning decisions left with the PO
+- *bombing, no fireball* — repaired and verified
