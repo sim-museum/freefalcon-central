@@ -5540,3 +5540,48 @@ bug, and not the physics/graphics split the epic was named after.
 **Next**: instrument the touchdown decision — print `vt * impactAngle`, the computed
 threshold and which branch is taken — so the PO's next landing says whether the sink
 rate was genuinely out of limits or the band is being entered on a reasonable approach.
+
+### GEAR-2 — the gear command chain, mapped end to end, with a falsifiable prediction
+
+PO supplied a second screenshot, timestamped **2:48, before touchdown**: landing
+marker lit, no gear visible. That **kills the hard-landing-collapse root cause** from
+two entries ago — the collapse happens *at* touchdown and sets `gearPos = 0.2`, which
+would extinguish the marker, not light it. An effect cannot precede its cause. The
+timestamp did the work my reasoning did not.
+
+**The chain, verified by reading every link:**
+
+| step | file | effect |
+|---|---|---|
+| pilot presses G | `commands.cpp:2355` `AFGearToggle` | `gearHandle = 1.0F` |
+| per frame, if local | `surface.cpp:1560` | `gearHandle > 0 or OnGround()` -> `SetAcStatusBits(ACSTATUS_GEAR_DOWN)` |
+| per frame | `airframe.cpp:873` | status set -> `gearPos += 0.3F * SimLibMinorFrameTime` |
+| per frame | `surface.cpp:1608` | `DOF = (gearPos - 0.5) * 2 * NosGearRng` |
+
+Note `gearHandle` and `ACSTATUS_GEAR_DOWN` are mutually reinforcing once set; the
+pilot command is what breaks into the loop.
+
+**The two thresholds do not agree, and that is the whole shape of the bug.** The HUD
+element the PO reads as the landing marker is the **AOA bracket** (`hud.cpp:1605`),
+gated on `gearPos > 0.5F`. The gear DOF is `(gearPos - 0.5) * 2`, i.e. **zero at 0.5**
+and only fully extended at `gearPos == 1.0`. So across the entire band
+`0.5 < gearPos < 1.0` the aircraft displays "configured to land" while the gear is
+anywhere from stowed to partly out. Doors animate over `0..0.5`
+(`surface.cpp:1594`, `gearPos * 2`), gear over `0.5..1.0` — a two-phase animation
+whose *annunciation* fires at the phase boundary rather than at completion.
+
+**Prediction, recorded before the measurement so it can fail:** the probe will show
+`gearPos` sitting just above **0.5** and not advancing to 1.0. Marker on, DOF ~0, no
+gear drawn, contact term collapsed to `FusRadius` -> `aboveGround = 2.33`. Every
+observed number falls out of that single value.
+
+If instead `gearPos` reaches 1.0, the prediction is wrong: the gear would be deploying
+in the model and failing to be *drawn*, which is a different bug in a different place.
+
+At 0.3/sec the travel should complete in ~3.3 s, so a stall requires the increment to
+stop — either `ACSTATUS_GEAR_DOWN` being cleared each frame (note the `IsLocal()`
+guard on the setter) or `SimLibMinorFrameTime` being wrong. `FF_DEBUG_GEAR=1` prints
+`gearPos`, `gearHandle`, the DOF argument and the stuck/broken flags twice a second.
+
+Instrumented build is running and waiting on the PO. TESWEEP-3 paused at **21/34, all
+clean**, to free the machine; it resumes afterwards.

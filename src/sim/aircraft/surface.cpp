@@ -1612,6 +1612,41 @@ void AircraftClass::RunGearSurfaces(void)
 
             // MLR 2/22/2004 -
             SetDOF(ComplexGearDOF[i], pos * af->GetAeroData(AeroDataSet::NosGearRng + i * 4) * DTR);
+
+#ifdef FF_LINUX
+            // FF_LINUX (GEAR-2): the HUD landing marker lights at gearPos > 0.5
+            // (hud.cpp:1605) while the gear DOF only *starts* moving there and is
+            // fully out at gearPos == 1.0 -- so a gearPos that stalls anywhere in
+            // that band shows the marker with the gear still stowed, which is what
+            // the PO reports. Print the actual values so "did it reach 1.0" is
+            // answered by data instead of inference. FF_DEBUG_GEAR=1.
+            if (i == 0 and IsPlayer())
+            {
+                static int s_dbg = -1;
+
+                if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_GEAR") ? 1 : 0;
+
+                if (s_dbg)
+                {
+                    static DWORD s_last = 0;
+                    DWORD now = GetTickCount();
+
+                    if (now - s_last > 500)
+                    {
+                        s_last = now;
+                        fprintf(stderr,
+                                "[GEAR2] gearPos=%.3f gearHandle=%.2f dofArg=%.3f DOF=%.3f rng=%.1f stuck=%d broken=%d onGnd=%d\n",
+                                af->gearPos, af->gearHandle, pos,
+                                GetDOFValue(ComplexGearDOF[i]),
+                                af->GetAeroData(AeroDataSet::NosGearRng + i * 4),
+                                (int)((af->gear[i].flags bitand GearData::GearStuck) not_eq 0),
+                                (int)((af->gear[i].flags bitand GearData::GearBroken) not_eq 0),
+                                (int)OnGround());
+                        fflush(stderr);
+                    }
+                }
+            }
+#endif
         }
         else
             SetDOF(ComplexGearDOF[i], af->GetAeroData(AeroDataSet::NosGearRng) * 0.6f * DTR);
