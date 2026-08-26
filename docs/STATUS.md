@@ -6193,3 +6193,45 @@ flags. Both write sites (`gndhndl.cpp:358,423`) are in the hard-landing collapse
 which already sets `gearPos = 0.2` and zeroes the DOF — marking every gear flag there is
 plausibly deliberate shorthand for "everything is wrong", not an accident. Reads use it
 correctly as a mask. Flagging it as a bug earlier was premature.
+
+### BOMB-1 — first scripted bomb impact captured; FX path confirmed executing
+
+The bombing half of the epic had never been exercised: both PO attempts ended in the
+INPUT-1 and CRASH-8 crashes, and the impact probe never caught a detonation. Driven
+scripted at last (TE-20 "Bombs with CCIP", `FF_TEST_BOMB=35`).
+
+**A release and an impact both happened:**
+
+```
+[TESTBOMB] bomb at station 3 weaponId=5 -> SetCurrentWeapon: hardpoint=3
+[TESTBOMB] mode->AirGroundBomb, pickle raised at t=35.0
+[MSLEND] Process: endCode=11 pos=(1730125,1209373,-1851) groundType=7 type=2 stype=3
+[MSLEND] BombImpact legacy branch: DamageType=2 BlastRadius=293
+[MSLEND] spawning SFX_GROUND_EXPLOSION at (1730125,1209373,-1851)
+```
+
+**The impact-FX fix works at code level.** The earlier repair — bombs were excluded from
+the impact switch by `type == TYPE_MISSILE`, so nothing drew a bomb impact at all — now
+reaches `spawning SFX_GROUND_EXPLOSION`. That had been committed but never observed
+executing; it now has been.
+
+**Height at impact, first measurement of the bombing case:**
+
+```
+[LODZ] impact physicsZ=-1851.1 | lod0=-1765.0 lod1=-1753.0 lod2=-1763.0 lod3=-1601.0 lod4=-1607.0
+```
+
+Negative z is up, so the detonation is **86 ft above the finest terrain post**, and the
+posts themselves span **250 ft across LODs** at that spot.
+
+**Not concluded, and specifically not claimed as the PO's symptom.** `endCode=11` with
+`groundType=7` suggests this bomb may have struck a *structure* rather than bare terrain,
+in which case detonating above the terrain post is correct and the 86 ft means nothing.
+A single impact on unknown geometry cannot distinguish that from a genuine
+physics-vs-drawn-terrain gap. Needs impacts on known flat bare ground, repeated.
+
+**Harness gap found**: `FF_SHOT_ON_IMPACT=1` did not produce a sim frame — the only
+capture written was a stale loadout screen. So there is no visual of the fireball, and
+"does the explosion render where the PO can see it" remains unanswered. Fixing that
+capture is a prerequisite for closing the bombing item, since the PO's report is
+explicitly visual ("no fireball ... then the sound of an explosion").
