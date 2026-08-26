@@ -1625,6 +1625,27 @@ float AirframeClass::CalculateVt(float dt)
             {
                 if ( not IsSet(IsDigital))
                 {
+#ifdef FF_LINUX
+                    // FF_LINUX (GEAR-5): this is the gear-overspeed trip. It breaks a
+                    // RANDOM gear (DoorStuck|GearStuck|DoorBroken|GearBroken), after
+                    // which RunGearSurfaces stops tracking gearPos for that gear and
+                    // parks its DOF at 0.6 * range -- a permanently part-deployed gear,
+                    // which is the PO's report. Limit derives from MinVcas (250 for the
+                    // F-16) * 1.1 = 275 kt, and is compared against vt, which is TRUE
+                    // airspeed. Log the actual numbers at the trip. FF_DEBUG_GEAR=1.
+                    {
+                        static bool s_o = false;
+
+                        if ( not s_o)
+                        {
+                            s_o = true;
+                            fprintf(stderr, "[GEAROVR] gear[%d] broken: vt=%.1f kt (%.1f ft/s) limit=%.1f kt minVcas=%.1f gearPos=%.2f alt=%.0f\n",
+                                    which, vt * FTPSEC_TO_KNOTS, vt,
+                                    gearLimitSpeed * FTPSEC_TO_KNOTS, minVcas, gearPos, -z);
+                            fflush(stderr);
+                        }
+                    }
+#endif
                     gear[which].flags or_eq (GearData::DoorStuck bitor GearData::GearStuck
                                           bitor GearData::DoorBroken bitor GearData::GearBroken);
                     ((AircraftClass*)platform)->mFaults->SetFault(FaultClass::gear_fault,

@@ -5782,3 +5782,58 @@ the stuck gear, the belly contact and the half-buried appearance.
 `if (af->auxaeroData->animWheelRadius[0])` (`surface.cpp:1571`) after an `IsLocal()`
 block. Establish which condition stops holding — probe each gate separately rather than
 inferring, given three theories have already died this way.
+
+### GEAR-5 ROOT CAUSE — gear overspeed trip breaks a random gear and parks its DOF at 60%
+
+**The PO called this one**: "what is the max speed at which gear can be safely deployed?
+If we're deploying at too high a speed, the result is stuck gear."
+
+`eom.cpp:1608`, the airborne branch:
+
+```c
+// FRB - gear damage when flying too fast with gear down
+gearLimitSpeed = minVcas * KNOTS_TO_FTPSEC * 1.1f;
+if (minVcas < 220.0f) gearLimitSpeed = 220.0f * KNOTS_TO_FTPSEC;
+
+if (gearPos >= 0.9F and vt > gearLimitSpeed)
+{
+    int which = rand() % NumGear();
+    ...
+    gear[which].flags or_eq (DoorStuck bitor GearStuck bitor DoorBroken bitor GearBroken);
+    mFaults->SetFault(FaultClass::gear_fault, ldgr, fail, TRUE);
+}
+```
+
+`MinVcas` for the F-16 is **250** (`f16cbk40.dat`), so the limit is
+**250 x 1.1 = 275 knots**. The PO reported being "under 300" — which is *over* 275.
+
+**The full causal chain, every link measured or read directly:**
+
+1. Gear commanded down; `gearPos` animates correctly at 0.3/sec (measured) and reaches
+   `0.9`.
+2. At `gearPos >= 0.9`, if `vt` exceeds 275 kt, **one random gear** (`rand() % NumGear()`)
+   is flagged `DoorStuck|GearStuck|DoorBroken|GearBroken`.
+3. `RunGearSurfaces` guards its DOF write on `not GearStuck and not GearBroken`
+   (`surface.cpp:1606`). For the flagged gear it takes the `else` and parks the DOF at
+   **`NosGearRng * 0.6f * DTR`** — 60% of travel, frozen, no longer tracking `gearPos`.
+   That is the "gear comes out part way and gets stuck".
+4. `CheckHeight()`'s complex loop skips broken gears entirely, so that gear contributes
+   no contact point; with the contact term lost the fuselage term (2.44) wins and
+   `minHeight` becomes 2.33 instead of the gear's 5.99.
+5. The aircraft rests ~3.6 ft too low, on a runway itself drawn 3 ft above terrain —
+   the "aircraft half-buried in the airstrip" that named this epic.
+
+**Two design faults worth separating:**
+- **The limit is low.** 275 kt against a real F-16 gear limit of ~300 KIAS.
+- **The comparison uses `vt`, TRUE airspeed**, against a limit derived from a *calibrated*
+  speed (`MinVcas`). TAS exceeds CAS with altitude, so the effective indicated limit is
+  lower still, and lower the higher you are.
+
+**Not yet established, and it matters**: this code is **not** `FF_LINUX`-gated, so the
+Wine build runs the same rule. Either the PO flies the approach slower under Wine, or
+`vt` differs between the builds. Before changing the limit, that has to be measured —
+raising a threshold to mask a wrong airspeed would be the same mistake as the LOD gate.
+
+`FF_DEBUG_GEAR=1` now logs `[GEAROVR]` at the trip with vt in knots, the limit, MinVcas,
+gearPos and altitude, so the next flight records the actual numbers rather than inviting
+another inference.
