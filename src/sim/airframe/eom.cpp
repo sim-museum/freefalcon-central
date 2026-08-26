@@ -1520,6 +1520,19 @@ float AirframeClass::CalculateVt(float dt)
                         if (NumGear() > 1 and platform->IsComplex())
                         {
                             platform->SetDOF(ComplexGearDOF[which] /*COMP_NOS_GEAR + which*/, 0.0F);
+#ifdef FF_LINUX
+                            {
+                                static bool s_o = false;
+
+                                if ( not s_o)
+                                {
+                                    s_o = true;
+                                    fprintf(stderr, "[GEARBRK2] gear[%d] broken via eom overstress path: vt=%.1f z=%.1f groundZ=%.1f\n",
+                                            which, vt, z, groundZ);
+                                    fflush(stderr);
+                                }
+                            }
+#endif
                             gear[which].flags or_eq GearData::GearBroken bitor GearData::DoorBroken;
                         }
 

@@ -5736,3 +5736,49 @@ It is correct in direction but measured at 0.62/sec against the coded 0.3 — as
 `RunLandingGear()` has three call sites and is not once-per-frame — and it does not
 cure the symptom. It will not go default-on until it has a single-call-site home and a
 flown validation.
+
+### GEAR-4 — the gear DOF loop stops running; gearPos is fine and the GEAR-2 fix is REMOVED
+
+Two of my own conclusions die here, both to measurement.
+
+**1. "gearPos is only animated in RemoteUpdate, never for the local player" — REFUTED.**
+A/B with the fix off and on:
+
+```
+fix OFF : gearPos 0.000 -> 0.245 -> 0.399 -> 0.550 -> 0.700 -> 0.852   brk=0,0,0
+fix ON  : gearPos 0.000 -> 0.306 -> 0.613                              brk=0,0,0
+```
+
+`gearPos` already advances at the correct 0.3/sec **without** the fix; the fix merely
+double-stepped it to 0.6/sec. And a probe placed outside the animation shows it reaching
+**`gearPos=1.000`**. The fix addressed a problem that did not exist and has been
+**removed from the tree**, not left as dead opt-in code.
+
+**2. "All three gears are GearBroken" — a SAMPLING ARTEFACT.** `[GEARZ]` lives in
+`CheckHeight()`, which only runs near the ground, so every `brk=1,1,1` sample was taken
+*after* ground contact. The continuously-running probe reports `brk=0,0,0` throughout
+the approach and deployment. Gears are not broken in flight. This is the same
+unrepresentative-subset error as the retracted runway-z and "11 ft" figures — the third
+time this session, and the tell each time was reading a value without first asking when
+and where the probe fires.
+
+**What is actually happening**, from probes on both sides of the gate:
+
+```
+[GEAR4] MoveSurfaces: IsComplex=1 drawPtr=1 gearPos=1.000    <- outside RunGearSurfaces
+[GEAR2] gearPos=0.871 DOF=1.168 brk=0,0,0 stk=0,0,0          <- inside, then silence
+```
+
+`gearPos` reaches 1.000 and `MoveSurfaces` keeps running with `IsComplex=1` and a valid
+`drawPointer` — but the **gear DOF loop inside `RunGearSurfaces` stops executing**. The
+DOF freezes at 1.168 of the 1.571 rad (90 deg) range: **74% deployed, permanently**.
+That is exactly the PO's "gear comes out part way and gets stuck".
+
+Since that same loop is the only writer of `ComplexGearDOF`, and the DOF is what both
+the visual and `CheckHeight()`'s complex contact term read, one stalled loop produces
+the stuck gear, the belly contact and the half-buried appearance.
+
+**Next, and narrow**: `RunGearSurfaces` runs its per-gear work inside
+`if (af->auxaeroData->animWheelRadius[0])` (`surface.cpp:1571`) after an `IsLocal()`
+block. Establish which condition stops holding — probe each gate separately rather than
+inferring, given three theories have already died this way.
