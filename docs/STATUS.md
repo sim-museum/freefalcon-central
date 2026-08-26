@@ -5965,3 +5965,47 @@ single `rand()` call behind a speed threshold.
 
 Neither threshold change would have saved the 307 KIAS landing, so neither is a fix for
 the reported symptom and neither will be presented as one.
+
+### GEAR-5 CLOSED, and a separate runway-surface defect isolated
+
+**PO flight, gear dropped at 250 KIAS.** Gear deployed correctly; at rest
+`aboveGround` settles at **5.89-6.03**, i.e. the **gear** contact term
+(`NosGearZ 6.1 - GROUND_TOLERANCE 0.1`), not the 2.33 fuselage term. The aircraft is on
+its wheels — PO confirms all three visible. GEAR-5 is closed.
+
+**The remaining symptom is different and was masked by the gear bug.** PO: "the jet went
+up and down sinking below the surface but then coming out again, like it does when it
+takes off (due to an early attempt to fix the can't-see-the-landing-gear-on-the-runway
+problem). Finally comes to a stop past the runway in terrain, all 3 wheels clearly
+visible."
+
+**Physics is not what is moving.** From the same flight:
+- `onGround` makes **one** transition (156 airborne samples, then 53 on-ground) — the
+  `OnGround()`-gated 5 ft visual lift is *not* flickering, which was my first guess.
+- `groundZ` ramps smoothly `-17.08 -> -14.60 -> -12.39 -> ... -> -3.63` as the aircraft
+  rolls up a slope, with `acZ` tracking it and `aboveGround` steady near 6.
+
+So the aircraft is moving smoothly over smoothly-varying ground. What oscillates must be
+the **drawn runway surface** — which is exactly the warping measured under TERRAIN-Z:
+flat surfaces are drawn at `gl - decal` against a `GetGroundLevel` that, where it answers
+from coarse posts, does not preserve the flattened airbase plateau, spanning up to 9.5 ft
+across one field.
+
+**This re-opens `FF_RUNWAY_LODGATE` for the symptom it actually fits.** The gate was
+built to make the drawn surface agree with the nearest post at the answering LOD, drove
+the divergence from mean 1.75 ft / max 9.60 ft to **0.00/0.00**, and was correctly
+rejected as the cause of the belly landing — the terrain at *touchdown* was already
+self-consistent (`lod=0`, both queries -26.00). But a warped drawn strip under a
+smoothly-rolling aircraft is precisely "sinking below the surface then coming out again".
+Refuting it for one symptom did not refute it for this one, and I nearly left it buried
+because of that.
+
+**Test, cheap and decisive**: fly the same landing with `FF_RUNWAY_LODGATE=1`. If the
+sinking stops, the gate earns its default; if not, it stays off and the drawn-surface
+fault is elsewhere.
+
+**Minor, logged for later**: `stk=0,1,1` appears during rollout — gears 1 and 2 pick up
+`GearStuck` (not broken) from the ground-roll damage path (`eom.cpp:1505`). `GearStuck`
+also gates the DOF write, so those gears stop tracking `gearPos` and park at
+`NosGearRng * 0.6`. Cosmetic here since they were already fully extended, but it is the
+same flag-gates-animation coupling as GEAR-5 and should be looked at.
