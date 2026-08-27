@@ -7893,3 +7893,9 @@ costs more than an accurate note.
 the working tree.** This session runs sweeps and batches in the background as a
 matter of course, so a blanket add is a live hazard, not a theoretical one. Stage
 explicit paths (`git add docs/STATUS.md`) when anything is running.
+
+**Moving-target caveat resolved.** Rows 1–5, re-run against the final binary (with
+the restored assertion and ORDER-3's `division.cpp` fix), reproduce their original
+results exactly: row 1 = 2, row 2 = 0, rows 3–5 = 2, every one `team.cpp:1800`. The
+mid-sweep relink introduced no discrepancy, so the 34/34 ORDER-1 result stands
+without qualification.
