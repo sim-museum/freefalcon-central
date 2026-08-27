@@ -6758,3 +6758,34 @@ different kinds of quantity. In each case the measurement was silently incapable
 supporting the conclusion drawn from it. An instrument that can saturate should say so.
 
 Run pending: the ASAN sim pass currently holds the machine.
+
+### ASAN-7 — `PilotInfo[-1]` read during campaign load (TE-25), and a prediction corrected
+
+`row 25 Laser-Guided Bombs  asan=1` — the only hit in the resumed pass so far.
+
+**It is not a weapon bug.** The stack runs
+`CampaignClass::LoadCampaign` -> `LoadUnits` -> `NewUnit` -> `SquadronClass` ctor ->
+`InitPilots` -> `GetAvailablePilot`, i.e. **campaign pilot assignment during load**. My
+stated prediction — that remaining finds would cluster in weapon-specific paths, as HARMs
+did — is wrong. Mavericks, Rockets, Dive-Toss, CCIP, AMRAAM and Sparrow all came back clean;
+the one hit is in campaign data loading that this mission happens to exercise.
+
+**The defect** (`pilot.cpp:246`):
+
+```c
+if (best_pilot > -1)
+    PilotInfo[best_pilot].usage++;          // guarded
+
+if (PilotInfo[best_pilot].voice_id == 255)  // NOT guarded -> PilotInfo[-1]
+    PilotInfo[best_pilot].AssignVoice(owner);
+```
+
+`best_pilot` is initialised to -1 and stays there when the loop finds no candidate, so the
+`voice_id` test reads one element *before* the array — ASAN: heap-buffer-overflow READ of
+size 1. Worse, had the read returned 255, `AssignVoice` would have **written** through the
+same out-of-range index. Fixed by extending the existing guard to cover both accesses.
+
+**Third instance this session of the same shape**: a bounds/validity check that exists but
+does not extend to the access beside it — `AttachChild`, `DetachChild`, and now
+`GetAvailablePilot`. Worth a targeted scan of its own: guarded statement followed by an
+unguarded use of the same index.

@@ -245,12 +245,20 @@ int GetAvailablePilot(int first, int last, int owner)
         }
     }
 
+    // FF_LINUX: the voice_id check below was outside the "best_pilot > -1" guard, so
+    // when no pilot is available (best_pilot stays -1) it read PilotInfo[-1].voice_id --
+    // ASAN: heap-buffer-overflow READ of size 1, from SquadronClass::InitPilots during
+    // CampaignClass::LoadCampaign. AssignVoice would then have WRITTEN through the same
+    // out-of-range index. The guard existed; it simply did not extend to the adjacent
+    // access. Same shape as the DrawableBSP::AttachChild defect fixed this session.
     if (best_pilot > -1)
+    {
         PilotInfo[best_pilot].usage++;
 
-    if (PilotInfo[best_pilot].voice_id == 255)
-    {
-        PilotInfo[best_pilot].AssignVoice(owner);
+        if (PilotInfo[best_pilot].voice_id == 255)
+        {
+            PilotInfo[best_pilot].AssignVoice(owner);
+        }
     }
 
     return best_pilot;
