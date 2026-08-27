@@ -8039,3 +8039,11 @@ and a scripted flight with no combat input does not kill anything.
 
 So the hypothesis is at this point **neither confirmed nor refuted**, and is recorded
 that way rather than as a result. A full-length ASAN run on TE-29 is in progress.
+
+**Probe coverage verified.** A zero result is only meaningful if the probe sits on
+*every* path that destroys an entity, so that was checked rather than assumed:
+`src/vu2/src/vuentity.cpp` contains exactly **one** `delete ent;` (line 227, inside
+`VuDeReferenceEntity`, the only such function), and it is the instrumented site.
+There is no second destruction path for `VuEntity`. So a zero from a run that *does*
+exercise deaths would be a real refutation, not a blind spot — which is what makes
+the pending ASAN run worth running at all.
