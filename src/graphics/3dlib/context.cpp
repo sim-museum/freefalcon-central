@@ -2220,6 +2220,28 @@ void ContextMPR::ApplyStateBlock(GLint state)
 
     if (s_noCache < 0) s_noCache = getenv("FF_MPR_NOSTATECACHE") ? 1 : 0;
 
+    // FF_LINUX (NVG-5): MPR's per-state blocks configure STAGE 0 ONLY (context.cpp:591+),
+    // while DX_NVG configures STAGE 3 (COLOROP ADDSIGNED, COLORARG2 TFACTOR) and moves the
+    // alpha source there (dxengine.cpp:740-760). Stages 1-7 are disabled once at init
+    // (context.cpp:248) and never again -- so once NVG has enabled stage 3, no MPR state
+    // block turns it off, and the panel is drawn through NVG's math and loses its chroma
+    // key. That is why forcing reapplication (FF_MPR_NOSTATECACHE) changed nothing: a
+    // stage-0 block cannot undo a stage-3 setup. FF_MPR_DISABLE_STAGES=1 tests it.
+    {
+        static int s_disStages = -1;
+
+        if (s_disStages < 0) s_disStages = getenv("FF_MPR_DISABLE_STAGES") ? 1 : 0;
+
+        if (s_disStages)
+        {
+            for (int st = 1; st < 8; st++)
+            {
+                m_pD3DD->SetTextureStageState(st, D3DTSS_COLOROP, D3DTOP_DISABLE);
+                m_pD3DD->SetTextureStageState(st, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+            }
+        }
+    }
+
     if (state not_eq lastState or s_noCache)
     {
         lastState = state;

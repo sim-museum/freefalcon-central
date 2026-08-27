@@ -7018,3 +7018,42 @@ MPR state block does not restore?
 
 Sixth theory refuted, but in one run rather than a sprint — because the measurement was on
 the correct renderer and the symptom is deterministic.
+
+### NVG-5 — seventh theory refuted, and the symptom is probably framed wrong
+
+Tested the strongest remaining stage-state theory: MPR's per-state blocks configure **stage
+0 only** (`context.cpp:591+`), while `DX_NVG` configures **stage 3** (`COLOROP ADDSIGNED`,
+`COLORARG2 TFACTOR`) and moves the alpha source there (`dxengine.cpp:740-760`). Stages 1-7
+are disabled once at init (`context.cpp:248`) and never again — so once NVG enables stage 3,
+nothing in MPR turns it off. That also explained why forcing reapplication changed nothing:
+a stage-0 block cannot undo a stage-3 setup.
+
+`FF_MPR_DISABLE_STAGES=1` disables stages 1-7 before every state-block application:
+
+```
+FF_NVG_DXSTATE=1                            mean=0.168049 blueish=1
+FF_NVG_DXSTATE=1 FF_MPR_NOSTATECACHE=1      mean=0.168049 blueish=1
+FF_NVG_DXSTATE=1 FF_MPR_DISABLE_STAGES=1    mean=0.168134 blueish=1
+```
+
+**No effect.** Seventh theory refuted.
+
+**The reframing this forces, which is the useful output.** Every theory so far has assumed
+the symptom is *"the 2D panel loses its chroma key and its blue backdrop shows"*. But the
+earlier census established that **the key-blue backdrop is drawn in both configurations** —
+what differs must be the draw that normally **covers** it. That is the *world*, not the
+panel.
+
+So the question may not be "why does the panel lose its key" but **"why does the 3D world
+stop covering the backdrop when DX_NVG is live"** — a world-rendering failure showing the
+pit's blue through, rather than a panel-transparency failure. The `[3DCENSUS]` data shows 3D
+draws *happen* under NVG (`units=3`), but happening is not the same as producing visible
+output: if the NVG stage math yields black or fully-transparent fragments, the world would be
+invisible and the backdrop would show.
+
+**Next**: verify whether the world renders at all under `DX_NVG` — capture with the pit
+hidden, or compare a world-only region of the frame between configurations. That
+distinguishes "panel transparent" from "world invisible", which seven theories have not.
+
+Recorded because after seven refutations the problem is more likely in the framing than in
+the next hypothesis.
