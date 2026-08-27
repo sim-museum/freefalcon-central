@@ -7128,3 +7128,40 @@ would have gone into the record as evidence against vertex tinting, and the next
 would have skipped it. A negative result from a lever that does not move is not a negative
 result. Cheap rule: **before believing that turning something off changed nothing, prove the
 switch is connected** — test it where its effect should be visible.
+
+### NVG-5 — the NVG texture ops are not what blanks the world (verified lever this time)
+
+After `FF_NVG_NOVTX` turned out to be a dead switch, the next lever was checked *before* use.
+Added `FF_DEBUG_NVGOPS=1`, a one-shot trace per op arm:
+
+```
+with FF_NVG_DXSTATE=1 :  ADDSMOOTH (stage 0), ADDSIGNED (stage 1), DOTPRODUCT3 (stage 1)
+without               :  none
+```
+
+All three ops execute, and only under NVG — so `FF_NO_TEXOP_FIX=1` (which falls them back to
+`MODULATE`) has something real to act on, and the control is clean.
+
+**Result — the lever acted, and the theory is refuted:**
+
+| config | WORLD region |
+|---|---|
+| `FF_NVG_DXSTATE=1` | sd=0.059  b=0.472  g=0.139 |
+| `+ FF_NO_TEXOP_FIX=1` | sd=0.094  **b=0.950**  g=0.013 |
+| default (world visible) | sd=0.192  g=0.424 |
+
+Bypassing the ops made the world **more** blue, not less. The output changed materially, so
+this is a trustworthy negative rather than another disconnected switch — and the world still
+does not come back. If anything the NVG ops are partially *helping*; with them replaced by
+`MODULATE` the world region is nearly saturated backdrop blue.
+
+**So the blanking is upstream of the texture-environment stage configuration.** The ops
+execute, changing them changes the picture, and no setting of them restores the world. That
+points at what is *fed into* the stages — geometry, vertex data, or the draw being culled or
+depth-rejected — rather than at how the stages combine it.
+
+**Next**: check whether world geometry is reaching the rasteriser at all under `DX_NVG` — a
+depth/blend/cull state difference would blank it regardless of texture-env setup, and
+`3DCENSUS` counts draws submitted, not fragments produced.
+
+Eighth NVG theory, but the first refuted with a lever proven connected beforehand.

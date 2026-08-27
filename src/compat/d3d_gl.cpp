@@ -3455,6 +3455,29 @@ static DWORD ffLastColorArg[8][2];
 
 // FF_LINUX (NVG-2): one place to ask whether the texture-op implementations are
 // enabled, so the revert switch cannot drift between call sites.
+// FF_LINUX (NVG-5): one-shot per-op trace, so "the bypass changed nothing" can be
+// distinguished from "the op never executed".
+static void ffNvgOpSeen(const char *name, unsigned long stage)
+{
+    static int dbg = -1;
+
+    if (dbg < 0) dbg = getenv("FF_DEBUG_NVGOPS") ? 1 : 0;
+
+    if ( not dbg) return;
+
+    static const char *seen[8] = { 0 };
+    static int nSeen = 0;
+
+    for (int i = 0; i < nSeen; i++)
+        if (seen[i] == name) return;
+
+    if (nSeen < 8) seen[nSeen++] = name;
+
+    fprintf(stderr, "[NVGOP] %s reached on stage %lu\n", name, stage);
+    fflush(stderr);
+}
+#define FF_NVGOP_SEEN(n, s) ffNvgOpSeen((n), (unsigned long)(s))
+
 static bool ffTexOpFixEnabled(void)
 {
     static int cached = -1;
@@ -3873,6 +3896,12 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                 //
                 // FF_NO_TEXOP_FIX=1 restores the MODULATE fallback.
                 case D3DTOP_ADDSMOOTH:
+                    // FF_LINUX (NVG-5): FF_DEBUG_NVGOPS=1 reports, once per op, that this
+                    // arm was actually reached. Needed before testing FF_NO_TEXOP_FIX:
+                    // "bypassing the op changed nothing" means nothing if the op never
+                    // ran. A dead lever produced a false negative here already
+                    // (FF_NVG_NOVTX).
+                    FF_NVGOP_SEEN("ADDSMOOTH", stage);
                     // FF_LINUX (NVG-2): A1 + A2 - A1*A2, which is exactly
                     // GL_INTERPOLATE (S0*S2 + S1*(1-S2)) with S2=A1, S1=A2 and
                     // S0 held at white. White has to come from GL_CONSTANT, the
@@ -3910,8 +3939,10 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
                     break;
                 case D3DTOP_ADDSIGNED:
+                    FF_NVGOP_SEEN("ADDSIGNED", stage);
                 case D3DTOP_ADDSIGNED2X:
                 case D3DTOP_DOTPRODUCT3:
+                    FF_NVGOP_SEEN("DOTPRODUCT3", stage);
                     if (ffTexOpFixEnabled()) {
                         glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
 
