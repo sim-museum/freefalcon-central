@@ -179,6 +179,50 @@ int VuDeReferenceEntity(VuEntity* ent)
 
     if (ret == 0)
     {
+        // FF_DEBUG_VUDEL=1 (UAF-1): direct test of the root-cause hypothesis. Collections
+        // index entities by RAW POINTER (VuGridTree::Insert takes no reference), while this
+        // path deletes purely on refcount. Removal from collections happens elsewhere, via
+        // VuDatabase -> AddToGc -> CreateEntitiesAndRunGc -> ReallyRemove, and the GC only
+        // calls ReallyRemove for entities whose state is already not VU_MEM_ACTIVE.
+        // Therefore: an entity reaching refcount 0 while STILL VU_MEM_ACTIVE was never taken
+        // through removal, so it is still reachable from the collections that index it --
+        // exactly the dangling pointer VuGridTree::Move later walks.
+        {
+            // control: count EVERY refcount-zero delete, so that "0 active-state deletes"
+            // can be distinguished from "this probe never executed" -- those look identical
+            // otherwise, and that trap has bitten this project before.
+            static int ffDbgVuDel0 = -1;
+            if (ffDbgVuDel0 < 0) ffDbgVuDel0 = getenv("FF_DEBUG_VUDEL") ? 1 : 0;
+
+            if (ffDbgVuDel0)
+            {
+                static int tot = 0;
+                tot++;
+
+                if (tot <= 3 or (tot % 2000) == 0)
+                    fprintf(stderr, "[VUDEL-ALL] refcount-zero delete #%d state=%d\n",
+                            tot, (int)ent->VuState());
+            }
+        }
+
+        if (ent->VuState() == VU_MEM_ACTIVE)
+        {
+            static int ffDbgVuDel = -1;
+            if (ffDbgVuDel < 0) ffDbgVuDel = getenv("FF_DEBUG_VUDEL") ? 1 : 0;
+
+            if (ffDbgVuDel)
+            {
+                static int n = 0;
+                n++;
+
+                if (n <= 10 or (n % 500) == 0)
+                    fprintf(stderr, "[VUDEL] deleting entity %p while still VU_MEM_ACTIVE "
+                            "(never removed from collections) #%d\n", (void*)ent, n);
+
+                fflush(stderr);
+            }
+        }
+
         ent->SetVuState(VU_MEM_DELETED);
         delete ent;
     }

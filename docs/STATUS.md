@@ -8010,3 +8010,32 @@ assertion counts measure *which* assertions fired, never *how often*. This confi
 the existing note that ShiAssert counts are coverage, not frequency, and it means the
 "62 assertion lines" baseline says nothing about volume. Diagnostic capped at 5
 backtraces with a progress line every 1000.
+
+### UAF-1 — a direct test of the root-cause hypothesis (result pending)
+
+The recorded root cause is a *candidate*: collections index entities by raw pointer
+(`VuGridTree::Insert` takes no reference) while deletion is refcount-driven, so an
+entity could be freed while still indexed. That was argued from source, never
+measured. Reading further makes it testable:
+
+* `AddToGc` is called **only** from `VuDatabase` (`vu_database.cpp:196,464`).
+* `CreateEntitiesAndRunGc` calls `ReallyRemove` **only** for entities whose state is
+  already not `VU_MEM_ACTIVE`, and processes at most **5 per cycle**.
+* `gclist_` holds `VuEntityBin`, i.e. real references — so anything queued for GC is
+  protected from reaching refcount zero.
+
+Therefore an entity arriving at refcount zero **while still `VU_MEM_ACTIVE`** was
+never taken through removal, and is still reachable from the collections indexing it.
+That is precisely the dangling pointer `VuGridTree::Move` walks. `FF_DEBUG_VUDEL=1`
+reports exactly this case.
+
+**First run (release, TE-29, 110 s): 0 active-state deletes — and that proves nothing.**
+A control counter was added for *every* refcount-zero delete, because "no findings"
+and "the probe never executed" look identical and that trap has cost this project
+time before. The control fired **2** deletes in the whole run, both `state=1` (never
+inserted into the VU database, so safe to delete). Two deletions in 110 seconds means
+the run simply never exercised entity destruction: UAF-1 is a **death-path** defect,
+and a scripted flight with no combat input does not kill anything.
+
+So the hypothesis is at this point **neither confirmed nor refuted**, and is recorded
+that way rather than as a result. A full-length ASAN run on TE-29 is in progress.
