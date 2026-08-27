@@ -7669,3 +7669,38 @@ The only real divergence is **wire format vs Windows** (8-byte fields where the
 32-bit original put 4), which matters solely for cross-platform multiplayer. That
 is not a current goal and the PO has not raised it. Recorded so this does not get
 re-opened as a suspected defect.
+
+### ORDER-3 — assertions that perform the access they are checking
+
+ORDER-1's most serious find (`FarTexDB::Deactivate`) was an *assertion* doing the
+illegal access, as `AttachChild` had been. That is worth its own sweep here
+because **`ShiAssert` is live in this build** — CLAUDE.md records that
+`shi/assert.h` promotes `DEBUG`/`_DEBUG` to each other and CMake defines `_DEBUG`,
+so these are not dead debug lines. An assert that performs a bad access *is* the
+crash.
+
+Scanned all **2818 `ShiAssert` calls**: 197 contain an array index, 425 contain a
+`->` dereference. Narrowed each to the dangerous case — the *same function*
+validates the array, index, or pointer **later** (ORDER-1's pass 1 only looked ten
+lines back, so it could not see a guard further down).
+
+**Index half — 4 candidates, 1 real, fixed in both trees.**
+`division.cpp` has `ShiAssert(divels[t][d])` sitting directly above a bounds check
+tagged `// JB 010223 CTD` — *crash to desktop*. Someone added that check because
+these indices go out of range, and left the assert above it performing precisely
+the access the check exists to prevent. Hoisted the test into `divIdxOk`; this also
+guards the `USE_SH_POOLS` branch, which indexed `divels[t][d]` with **no** bounds
+check at all. Out-of-range behaviour is unchanged (`element` left unassigned,
+exactly as the existing `#else` path did). The other three: one commented out, one
+false positive (`objectlod.cpp` — the assert is inside `if (TheObjectLODs != NULL)`),
+one duplicate tree.
+
+**Dereference half — 3 candidates, 0 real.** `radardoppler.cpp`, `handoff.cpp` and
+`cbsplist.cpp` are each guarded by an enclosing condition (`if (… and lockedTarget
+and lastLocked)`, `while (simobj)`, `if (bspobj->object)`); the later NULL check the
+scanner matched belongs to a different branch. Recorded so this half is not
+re-scanned.
+
+**Note on the tool tree:** `camptool/camptask/division.cpp` carries the same defect
+in pre-`bitor` syntax and was fixed too, but `ninja` reports no work for it — that
+file is not compiled into FFViper. The shipped fix is the `camptask` one.
