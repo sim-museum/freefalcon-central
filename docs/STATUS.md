@@ -8931,3 +8931,33 @@ robust alternatives: match on a marker that cannot appear in the caller (e.g. `p
 'ffviper.*-w$'`), or drop the process search entirely and wait on the job the way the
 harness already provides. Six occurrences in this project now; the idiom keeps failing
 because each new context looks different from the last.
+
+### UCNULL-1 — ANSWERED by measurement: never NULL in practice. Probe removed.
+
+| row | mission focus | probe live | NULL returns |
+|---|---|---|---|
+| 1 | basic handling | ✔ | **0** |
+| 12 | nav and timing | ✔ | **0** |
+| 19 | CCRP bombing | ✔ | **0** |
+| 22 | A-G guns | ✔ | **0** |
+| 26 | HARMs | ✔ | **0** |
+| 34 | carrier landing | ✔ | **0** |
+
+**Zero NULL returns across six missions, every row carrying first-call liveness proof.**
+`GetUnitClassData()` is a single accessor, so one probe covered all 47 call sites at
+once — a far better instrumentation point than 37 speculative guards.
+
+**So the 25 unguarded call sites stay untouched, with evidence rather than assumption.**
+They are latent, not live: each would need a different fallback (`return 0`? `Tracked`?
+skip the iteration?), and 37 mechanical edits to campaign code carry more risk than a
+defect that does not occur. That was the call made when the ticket opened; it is now
+backed by measurement instead of judgement.
+
+**Coverage limit, stated:** TE missions exercise fewer unit types than a campaign. This
+bounds TE paths only. A campaign soak with `FF_DEBUG_UCNULL` would extend it, and the
+probe is trivial to reinstate — the finding is recorded at the accessor itself so the
+next person sees it before re-deriving it.
+
+**Probe removed**, per the decision recorded *before* the result: it is a one-line
+accessor whose entire body was `return class_data;`, and a permanent branch there buys
+nothing once the question is answered. Verified gone from the binary (`strings` → 0).

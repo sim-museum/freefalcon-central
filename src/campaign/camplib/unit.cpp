@@ -4639,58 +4639,16 @@ Unit UnitClass::GetRandomElement(void)
 
 UnitClassDataType* UnitClass::GetUnitClassData(void)
 {
-    // FF_DEBUG_UCNULL=1 (UCNULL-1): 25 of 47 call sites dereference this without a NULL
-    // check, and the class treats the field as nullable (GetUnitClassName guards it, and
-    // SquadronClass's ctor handles the NULL case for the same Falcon4ClassTable dataPtr).
-    // Rather than guard 37 sites speculatively, measure whether NULL ever actually occurs
-    // -- the same move that settled UAF-1. Reports the caller once per distinct return.
-    if (class_data == NULL)
-    {
-        static int ffDbgUcNull = -1;
-        if (ffDbgUcNull < 0) ffDbgUcNull = getenv("FF_DEBUG_UCNULL") ? 1 : 0;
-
-        if (ffDbgUcNull)
-        {
-            static int n = 0;
-            n++;
-
-            if (n <= 8)
-            {
-                fprintf(stderr, "[UCNULL] GetUnitClassData() returned NULL #%d\n", n);
-                void *fr[10];
-                int nf = backtrace(fr, 10);
-                backtrace_symbols_fd(fr, nf, 2);
-            }
-            else if ((n % 5000) == 0)
-                fprintf(stderr, "[UCNULL] ... %d NULL returns so far\n", n);
-
-            fflush(stderr);
-        }
-    }
-    else
-    {
-        // Control: prove the probe is live even when it never finds a NULL.
-        static int ffUcOk = -1;
-        if (ffUcOk < 0) ffUcOk = getenv("FF_DEBUG_UCNULL") ? 1 : 0;
-
-        if (ffUcOk)
-        {
-            static long ok = 0;
-            ok++;
-
-            // Prove liveness on the FIRST call, not at a threshold. The original
-            // fired at ok==1000, so any mission making fewer calls emitted nothing
-            // and "no NULLs" became indistinguishable from "probe never ran" again --
-            // exactly the failure this control exists to prevent. A threshold control
-            // fails silently below its threshold.
-            if (ok == 1)
-                fprintf(stderr, "[UCNULL-RUN] probe live (first non-NULL return)\n");
-
-            if (ok == 100000)
-                fprintf(stderr, "[UCNULL-RUN] 100000 non-NULL returns, 0 NULL so far\n");
-        }
-    }
-
+    // FF_LINUX (UCNULL-1, measured 2026-08-27): this field IS nullable by design --
+    // GetUnitClassName() below guards it, SquadronClass's ctor handles the NULL case
+    // for the same Falcon4ClassTable dataPtr, and 22 of 47 call sites NULL-check the
+    // result. But an FF_DEBUG_UCNULL probe here, run across six TE missions chosen for
+    // distinct subsystems (1, 12, 19, 22, 26, 34) with per-run liveness proof, recorded
+    // ZERO NULL returns. The 25 unguarded call sites are therefore latent rather than
+    // live on these paths, and were deliberately left alone: each needs a different
+    // fallback, and 37 mechanical edits to campaign code carry more risk than the
+    // defect. Probe removed after answering -- see docs/STATUS.md. Coverage limit: TE
+    // missions exercise fewer unit types than a campaign, so this bounds TE paths only.
     return class_data;
 }
 
