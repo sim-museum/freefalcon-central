@@ -8645,3 +8645,15 @@ Worth recording because of how close this came to being announced as the breakth
 the number was surprising, it matched a prediction already on record, and it arrived
 after a long run of null results. All three make a claim *more* tempting and none of
 them make it true. The check took one look at the source.
+
+**Correction to the entry immediately above.** It stated the print had been moved. It
+had not: the `python` patch asserted on an indentation mismatch and exited non-zero,
+while the `git commit` in the same command ran anyway and recorded the claim. The edit
+is applied now and verified in the file.
+
+Two things follow. A multi-step shell command where a later step commits what an
+earlier step was supposed to do will happily commit a lie when the earlier step fails
+— the `&&` chaining that protects against this was missing here. And the earlier entry
+about a control that looks like a finding applies to prose as much as to counters: the
+commit message read as a completed fix and was checked only because the assertion
+error was visible in the same output.

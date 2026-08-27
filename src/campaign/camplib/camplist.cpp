@@ -334,18 +334,22 @@ VU_BOOL UnitProxFilter::RemoveTest(VuEntity *ent)
             static int reportRegistered = 0;
             nChecked++;
 
-            // One-shot control -- see the note in vu_grid_tree.cpp: _exit(0) means an
-            // atexit reporter never fires here.
-            if ( not reportRegistered and nChecked >= 1000)
-            {
-                reportRegistered = 1;
-                fprintf(stderr, "[TYPEPTR-RUN] probe live: %ld checked, %ld in range\n",
-                        nChecked, nInRange);
-            }
-
             if (lo and (tp >= lo) and (tp < hi))
             {
                 nInRange++;
+
+                // One-shot control -- see the note in vu_grid_tree.cpp: _exit(0) means
+                // an atexit reporter never fires here. Printed AFTER this call is
+                // classified: printing before it reported "1000 checked, 999 in range",
+                // which reads as one out-of-range pointer and is really just the current
+                // call not yet counted. A control that looks like a finding is worse
+                // than no control.
+                if ( not reportRegistered and nChecked >= 1000)
+                {
+                    reportRegistered = 1;
+                    fprintf(stderr, "[TYPEPTR-RUN] probe live: %ld checked, %ld in range\n",
+                            nChecked, nInRange);
+                }
             }
             else
             {
