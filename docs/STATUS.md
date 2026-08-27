@@ -8306,3 +8306,28 @@ grid with freed members is exactly a source of garbage `ent`.
 asymmetric predicates; type table freed under live entities). The pattern in every
 one: a mechanism that is *genuinely present in the code* but not *active at the time
 of the crash*. Presence is not timing, and only the log line numbers settled it.
+
+**Fifth refutation, of my own successor theory — and it points at the `~VuGridTree`
+fix.** I proposed that `ent` reaching `Move()` is a stale pointer. It cannot be:
+`VuEntity::SetPosition` calls `vuDatabase->HandleMove(this, x, y)`, so **`ent` *is*
+`this`** — the live entity executing the call. A search confirms there are no direct
+deletes of entity-derived objects anywhere in `sim/` or `campaign/`, and only 2
+refcount-zero deletes occur per run, so essentially no entity is destroyed during a
+mission at all.
+
+So `ent` is live, and with the class table alive too, `ent->EntityType()` should be
+valid. The remaining consistent explanation is that **the filter or the grid is the
+dangling object, not the entity**. `HandleMove` iterates `gridcoll_` and calls
+`g->Move(ent, …)`, which does `bkf->RemoveTest(ent)` via `GetBiKeyFilter()`. A grid
+that has been torn down but is still registered supplies exactly that: a freed
+`filter_` and a freed `table_`. `UnitProxFilter` reaches `Real(...)` and the filter
+carries a 1-byte `uchar real` member, so a garbage `this` yields ASAN's `READ of
+size 1` just as a bad `classInfo_` byte would — the two are indistinguishable in the
+report.
+
+**That is precisely the defect fixed in `287b71ea`** (`~VuGridTree` freed `table_`
+and `filter_` before `GridDeRegister`, and outside `gridsMutex_`). It was committed
+as an incidental find; on this reading it is the **leading candidate fix**, and the
+type-pointer refresh is the incidental one. Stated as a reading, not a conclusion —
+five theories have died here, and the honest position is that the mechanism is now
+narrowed, not settled.
