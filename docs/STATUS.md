@@ -8668,7 +8668,9 @@ error was visible in the same output.
 | probe build | on | yes | 0 / 14 |
 
 Refresh **on**: 0 failures in 20. Refresh **off**: 2 in 9. One-sided Fisher
-`p ≈ 0.06`; `P(0 in 20 | rate 0.22) ≈ 0.007`.
+`p ≈ 0.089`; `P(0 in 20 | rate 0.22) ≈ 0.007`. *(The 0.06 first written here was a
+guess typed before the calculation ran; the computed value is 0.089 — weaker, and
+still short of any conventional threshold.)*
 
 **This is a problem, and it is my problem.** I argued from log ordering — reload
 completes at line 386, `FM_LOAD_CAMPAIGN` starts at 604, only 2 long-lived session
