@@ -323,9 +323,19 @@ VU_BOOL UnitProxFilter::RemoveTest(VuEntity *ent)
 
             // A valid pointer is either inside the current class table, or into the
             // static vuTypeTable (which never moves and is not bounded here).
+            // Control: count every evaluation, so "0 out-of-range" can be told apart
+            // from "the probe never ran". Those look identical otherwise and that trap
+            // has already produced one false refutation this session.
+            static long nChecked = 0, nInRange = 0;
+            nChecked++;
+
             if (lo and (tp >= lo) and (tp < hi))
             {
-                // in-range: fine
+                nInRange++;
+
+                if ((nChecked % 20000) == 0)
+                    fprintf(stderr, "[TYPEPTR-OK] %ld checked, %ld in range, 0 outside\n",
+                            nChecked, nInRange);
             }
             else
             {

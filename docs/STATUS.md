@@ -8424,3 +8424,42 @@ That would leave UAF-1 with **five refuted theories and no surviving mechanism**
 an unsatisfying but accurate state, and a better one than a fix credited by a
 coin-flip. What remains solid: the reproducer (2 in 5), the harness, the per-arm
 data, and one genuine lock-scope defect fixed along the way.
+
+### UAF-1 — the type-pointer theory is dead, deterministically
+
+`FF_DEBUG_TYPEPTR=1`, TE-29, one run:
+
+```
+[TYPEPTR-OK] 20000 checked, 20000 in range, 0 outside
+```
+
+**20,000 evaluations, zero out-of-range.** Every `entityTypePtr_` reaching
+`UnitProxFilter::RemoveTest` — the exact function where the UAF lands — points inside
+the live `Falcon4ClassTable`. The control counter is what makes this a result rather
+than an absence: the first run reported "0 outside" with no evidence the probe had
+executed at all, which is the same shape as three earlier false readings this session.
+
+**Consequences, stated plainly:**
+
+* The **type-pointer refresh cannot be what produced the 0/6 result.** It is not the
+  fix, and the `0/6 vs 2/9` split is noise — arm A finished at **2 failures in 9**
+  (≈0.22) against a 0.40 baseline, entirely consistent.
+* **Neither committed fix is validated.** `~VuGridTree` is a genuine lock-scope defect
+  and stays on its own merits; arm A carried it and still failed twice, so it is not
+  sufficient either.
+* The refresh **stays**, relabelled: those 2 session entities really do hold pointers
+  into a freed block across the reload, so it closes a real if narrow hazard. It is
+  simply unrelated to this crash.
+
+**UAF-1 now has six refuted theories and no surviving mechanism.** That is the
+accurate state. The value delivered is a reproducer (2 in 5), a run harness, per-arm
+data, a deterministic probe that retires a whole class of explanation in one run
+instead of a dozen, one real defect fixed, and one startup crash caught before it
+shipped. The bug itself is not solved, and nothing here claims otherwise.
+
+**Next investigator should start here:** `ent` is provably `this` and live; its type
+pointer is provably in range; no entity is destroyed during a mission
+(`ACTIVEdeletes=0`). So the 1-byte read that faults is reached through something else
+in `RemoveTest`'s frame — the filter object (`UnitProxFilter` carries a 1-byte `uchar
+real`) or the grid supplying it. Instrument `GetBiKeyFilter()`'s return and `Move`'s
+grid pointer the same deterministic way.
