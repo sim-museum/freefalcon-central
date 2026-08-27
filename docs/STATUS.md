@@ -8383,3 +8383,26 @@ when that happens.
 runs to save space. That is exactly backwards — when a job is killed, a surviving log
 then reads as "a failure was kept" rather than "the deletion had not run yet". The
 deletion has been removed; all logs are retained.
+
+**Arm A, first data: A3 reproduced the UAF with the refresh disabled.** Same stack
+(`RemoveTest` ← `Move` ← `SetPosition` ← `SetRemoveFlag`), same `D3D7Surface` texture
+free attribution, and `UnloadClassTable` again at lines 57/335 with the crash at 1485
+— so the **timing refutation still holds**: the class table is not freed anywhere
+near the crash.
+
+Two conclusions, one of them against my own argument:
+
+1. **The `~VuGridTree` fix alone does not prevent the defect.** Arm A carries it and
+   still failed. It remains a real lock-scope defect worth fixing; it is not
+   sufficient.
+2. **My claim that the type-pointer refresh "demonstrably cannot" matter is now in
+   tension with the data.** Arm A (refresh off) is 1 failure in 3 — indistinguishable
+   from the 2-in-5 baseline — while both-fixes was 0 in 6. If more runs hold that
+   apart, the refresh is doing something my timing argument says it cannot, and the
+   mechanism would be unexplained rather than understood.
+
+**Neither conclusion is yet supported by the numbers.** 1/3 versus 0/6 is far too
+small to separate; the honest position is that arm A currently *looks like* baseline
+and nothing more. Collecting more runs before saying anything stronger — and if the
+split does hold up, the correct response is to find the mechanism, not to declare
+victory on a p-value.
