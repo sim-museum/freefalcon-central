@@ -7642,3 +7642,30 @@ deletion is refcount-driven — and are fixed only by fixing that.
 
 **No code change.** The value here is the negative result: 8 sites, 6 correct, 2
 known, none new.
+
+### SAVE-2 — remaining `sizeof(long)` in the campaign path: checked, no defect
+
+CLAUDE.md says the leftover `sizeof(long)` uses are "primarily in save functions
+… won't cause issues when reading existing Windows campaign files". Tested that,
+because the *read* side was later changed to 4-byte `int32_t` in places and a
+half-applied fix is exactly how a stream desyncs.
+
+**Result: the built path is self-consistent; nothing to fix.**
+
+* Almost every remaining site is in `src/campaign/camptool/`, the tool tree, not
+  the game. The built `camptask` copies were already converted and carry comments
+  explaining why.
+* `flight.cpp`'s `loadoutData` message still writes `lbsfuel` as `sizeof(long)`,
+  and this *looked* like a half-applied fix — the sibling `squadronStores` path in
+  `squadron.cpp` was converted to `int32_t` **and its decoder changed to match**.
+  But `falconflightplanmsg.cpp` reads `loadoutData` with `sizeof(long)` too, so
+  sender and receiver agree. `lbsfuel` is a genuine `long`, so there is no
+  overread of the variable either.
+* `dataBlock.size` is declared `long`, so the `sizeof(long)` encode/decode pair
+  around it writes 8 bytes into an 8-byte field. Not the "8 bytes out of a 4-byte
+  object" hazard that `squadron.cpp:1435` documents.
+
+The only real divergence is **wire format vs Windows** (8-byte fields where the
+32-bit original put 4), which matters solely for cross-platform multiplayer. That
+is not a current goal and the PO has not raised it. Recorded so this does not get
+re-opened as a suspected defect.
