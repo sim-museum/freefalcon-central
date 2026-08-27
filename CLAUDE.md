@@ -1228,9 +1228,16 @@ tBlockAddress union stores offset OR pointer (distinguished by low bit)
 **Files Modified:**
 - `src/ffviper/main_linux.cpp` - Removed redundant TheTimeManager.Setup() call
 
-### Known Issue: Texture Assertion Failures During Mission Start
+### ~~Known Issue~~ RESOLVED: Texture Assertion Failures During Mission Start
 
-**Status:** UNRESOLVED - Needs Investigation
+**Status:** **RESOLVED** — root cause was 64-bit pointer truncation, not texture
+lifetime. `NewImageBuffer()` took a `UInt` (32-bit) where a surface *pointer* was
+passed, and `DXContext::SelectTexture`/`SetRenderTarget` cast pointers through
+`GLint`/`DWORD`; the truncated handles are what tripped these asserts. See the
+January 2026 "64-bit Pointer Truncation" and "RTT Device Creation" sections. The
+"Cause" and "Next Steps" below are the *wrong* theory (texture reuse / refcounting)
+and are kept only as a record. **The workaround note is also stale**: `-test-ia`
+auto-launch works, and Instant Action runs end to end.
 
 **Symptom:** When launching Instant Action mission, texture assertions fail and crash occurs:
 ```
@@ -3882,7 +3889,16 @@ match the latest commit, check the title first (this resolved repeated
 7. ~~Exit-time SIGABRT after flying~~ **FIXED June 6** (commit 7114fc71): three-stage abort in exit cleanup — (a) resmgr.c `_say_error` sprintf'd long paths into char[255] (FORTIFY abort); (b) `res_detach_ex` walked `&archive->name[i]` for num_entries iterations = garbage non-terminated names overflowing hash_find_table's path buffer (per-entry hash unhooking now skipped on Linux — shut_down() destroys the tables right after anyway); (c) after cleanup() finished, global C++ destructors ran over torn-down state (~FarTexDB assert, D3D7Surface Release into destroyed deferred-GL-delete vectors → double free). main() now `_exit(0)` after "Goodbye!". Verified: Exit→OK exits with code 0.
 8. ~~**3-view cockpit doesn't match Windows reference**~~ **FIXED June 6** (commit 8bf8d85a): the Linux pit projection's `pitProj._44 = 10.0` "guard band" hack made clip_w = sim_x+10, dividing 1-ft panel geometry by ~11× — the whole pit shrank into the distance and read as "viewed from outside/above" (the visible airframe was the PIT MODEL's own spine/wings, not the ownship exterior — that is correctly inhibited per frame via SetInhibitFlag, verified with FF_DEBUG_VIEW). True perspective (w=sim_x) makes 3-view match the Wine reference exactly. Also fixed: stencil-clear write-mask (glClear honors glStencilMask — same class as the depth-clear bug) and the pit pass now honors STENCIL_WRITE/CHECK masking (FF_PIT_NO_STENCIL=1 reverts). FF_PIT_W_OFFSET=<n> restores the old offset. Camera chain verified correct: pilotEyePos loads (15.28,0,-3.46) from auxaero data; eye = AC + ownshipRot×pilotEyePos.
 9. ~~**radar shows no contacts**~~ **FIXED June 6** (commit 868827e4): NOT dogfight-specific — the detection roll `S >= 0.8 + 0.4*rand()/BIGGEST_RANDOM_NUMBER` used `BIGGEST_RANDOM_NUMBER=32767` (MSVC RAND_MAX) against glibc rand() (0..2^31-1) → threshold averaged ~13000 instead of ~1.0 → ObjectDetected() passed ~0.03% of beam crossings (the rare IA blip masked it). Fix: `(float)RAND_MAX` on Linux (phyconst.h). Same class+fix for `HALF_CHANCE` 16000→RAND_MAX/2 (cmpglobl.h, campaign air-defense spotting coin-flip). **Bug class: rand() scaled/compared against hardcoded 32767/16000 assumes MSVC RAND_MAX — all other sites audited (they use the RAND_MAX macro).** Diagnosed via FF_DEBUG_RADAR=1 traces ([RADAR-SCAN] FCR list+beam per 2s, [RADAR-X] per beam crossing with S/RCS): list populated ✓, beam sweeping ±60° ✓, crossings happening ✓, S=7-9 strong ✓, detected=0 ✗ → only the roll left. Post-fix: detected=1 every crossing, SensorTrack persists. Verified in automated 2-ship dogfight (roster popup automation: right-click roster (250,300), team Shark (510,318), aircraft F-15C (270,386), TAKEOFF (900,750)).
-10. **OPEN: terrain visible through 3D-pit MFD screens + lower panels** (issue #8 follow-up, commit 302c0aae has the full diagnostics): per-frame probe shows the MFD black-background quad draws EARLY (MPR VB batch, zwrite off), then main-scene far-terrain tile quads (textured POLYLIST — note it renders LIFO/newest-first, z=0.9999, fog on) paint the pit's chroma screen-holes as the LAST writer before swap (backtrace: RenderPolyList ← FlushPolyLists ← RenderFrame; two FlushPolyLists per frame, one carries ALL polys [plain≈772 tex≈3200], the other empty). The RTT instrument atlas is clean; DXT1 variant ruled out. NEXT: figure out what protects those pixels on Windows — candidates: (a) instrument quads should write near depth (our XYZRHW screen path leaves zwrite as-is = off), (b) flush ordering (the big flush may be the post-instrument one — check by tagging the two call sites otwloop.cpp:2594 vs 2655), (c) pit stencil over chroma holes. Use FF_PROBE_PIXEL="300,620" + FF_PROBE_BT=1 + FF_DEBUG_FLUSHES=1 + FF_VIEW_SCRIPT="4@14;s@18" with -test-ia.
+10. **~~OPEN~~ FIXED (MFD-THRU-1, Aug 2026) — terrain visible through 3D-pit MFD screens.**
+    The MFD screens are holes in the pit model filled only by the canvas composite, which
+    `3Dckpit.dat` asks to chroma-key — but the canvas background was written with alpha 0,
+    so the key discarded it and the world showed through. `SetRttCanvas` gained an
+    `opaqueCanvas` flag, passed true by the two MFD sites only, so the HUD stays keyed and
+    see-through (`FF_NO_OPAQUE_MFD=1` reverts). **Note also that the diagnosis in the
+    original entry below is refuted**: "the MFD black-background quad draws EARLY" is
+    wrong — backtracing that draw gives `RenderOTW::DrawSun`; there is no backdrop. Kept
+    as a record.
+    **~~OPEN~~: terrain visible through 3D-pit MFD screens + lower panels** (issue #8 follow-up, commit 302c0aae has the full diagnostics): per-frame probe shows the MFD black-background quad draws EARLY (MPR VB batch, zwrite off), then main-scene far-terrain tile quads (textured POLYLIST — note it renders LIFO/newest-first, z=0.9999, fog on) paint the pit's chroma screen-holes as the LAST writer before swap (backtrace: RenderPolyList ← FlushPolyLists ← RenderFrame; two FlushPolyLists per frame, one carries ALL polys [plain≈772 tex≈3200], the other empty). The RTT instrument atlas is clean; DXT1 variant ruled out. NEXT: figure out what protects those pixels on Windows — candidates: (a) instrument quads should write near depth (our XYZRHW screen path leaves zwrite as-is = off), (b) flush ordering (the big flush may be the post-instrument one — check by tagging the two call sites otwloop.cpp:2594 vs 2655), (c) pit stencil over chroma holes. Use FF_PROBE_PIXEL="300,620" + FF_PROBE_BT=1 + FF_DEBUG_FLUSHES=1 + FF_VIEW_SCRIPT="4@14;s@18" with -test-ia.
 11. ~~**Smoke/explosions render as black/yellow boxes**~~ **FIXED June 6** (commit 91951026): vertex-colored billboards over garbage texture content. `ReadDDS()` in graphics/3dlib/image.cpp still fread `sizeof(DDSURFACEDESC2)`=136 for the 124-byte on-disk DDS header → dwFourCC misread (no DXT subtype → wrong surface format) + image data consumed 12 bytes late. This loader feeds Texture::LoadImage → the DX2D SFX atlas (MainSFX.dds/.ITM) used by ALL particle effects. texbank.cpp and fartex.cpp were fixed earlier with DDS_FILE_HEADER; image.cpp was the missed third instance (audited: none remain). **When a DDS-sourced texture misbehaves, grep `sizeof(DDSURFACEDESC2)` file reads first.** FF_DEBUG_SFXTEX=1 traces atlas load + name resolution. Verified via FF_TEST_EXPLOSION=1: soft billowing smoke cloud instead of dark quad.
 
 #### Debugging Infrastructure (env vars)
@@ -4122,7 +4138,21 @@ A long session. All committed/pushed to origin/develop.
 - Runway-start spawn off the runway (207de9d7): FindBestSpawnPoint's START_RUNWAY
   case skipped TranslatePointData (later found to be a no-op - real cause below).
 
-**OPEN: runways/airstrips invisible + can't land (terrain elevation decoupling).**
+**~~OPEN~~ CLOSED 2026-08-26 — runways/airstrips invisible + can't land.** Read the
+correction before the entry: **the diagnosis below is wrong in both of its load-bearing
+claims, and the symptoms are fixed.** (a) Collision data is *not* flat z=0 — measured
+with `FF_DEBUG_GROUND`, a jet parked on a runway gets an answer at lod 0 of −26.00 ft and
+sits 5.99 ft above it; only a startup *transient* answers 0 while terrain streams in.
+(b) The "agent can't capture sim-mode frames" blocker is false — `FF_SIM_SCREENSHOT`
+works, and the whole PIT-1/NVG/TERRAIN-Z effort ran on it. What the symptoms actually
+were: *sinking into the runway* is a drawn-surface defect, fixed by `FF_RUNWAY_LODGATE`
+(**default ON**, `FF_NO_RUNWAY_LODGATE=1` reverts) which gates the per-frame ground
+refetch on the *answering LOD*; *half-buried jet* is not terrain at all but the landing-
+gear overspeed trip — drop gear below 250 KIAS (see `ff-gear-overspeed-trip` memory). Both
+PO-confirmed by flight. The original text is kept below only as a record of a sprint spent
+chasing the wrong layer.
+
+**~~OPEN~~: runways/airstrips invisible + can't land (terrain elevation decoupling).**
 See memory `runway-elevation-decoupling.md` + commit 84b6a8ab. The airfield renders
 as a ~20ft plateau but collision/elevation data is flat z=0 (GetGroundLevel returns
 0 - airfield post outside the loaded fine-terrain radius, RangeFromCenter 72-113 vs
