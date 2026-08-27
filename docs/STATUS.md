@@ -7165,3 +7165,33 @@ depth/blend/cull state difference would blank it regardless of texture-env setup
 `3DCENSUS` counts draws submitted, not fragments produced.
 
 Eighth NVG theory, but the first refuted with a lever proven connected beforehand.
+
+### NVG-5 — fog ruled out, with a note on what the control could and could not show
+
+`DX_NVG` sets `FOGENABLE = TRUE` (`dxengine.cpp:745`), and fog blends fragments toward a
+constant colour — exactly what "uniform, low variance" looks like. Strong candidate.
+
+```
+FF_NVG_DXSTATE=1                  WORLD sd=0.0591  b=0.4722
+FF_NVG_DXSTATE=1 + FF_NO_FOG=1    WORLD sd=0.0591  b=0.4722   (identical)
+default          + FF_NO_FOG=1    WORLD sd=0.1920  g=0.4242   (identical to default)
+```
+
+**The control could not demonstrate the lever acting** — `FF_NO_FOG` changed nothing in the
+default configuration either. But unlike `FF_NVG_NOVTX`, the implementation was **verified by
+reading**: `d3d_gl.cpp:3610` genuinely skips `glEnable(GL_FOG)` when the flag is set. The
+absence of visible change in the control is explained by fog being negligible in a clear
+daylight scene, not by a disconnected switch.
+
+**So this is a refutation, but on weaker footing than the texture-op one.** The reasoning is:
+if fog were blanking the world under `DX_NVG`, disabling fog would have changed that result;
+it did not, and the code path that disables it is correct. That is sound, but it rests on code
+inspection rather than on an observed control — worth stating plainly rather than filing
+alongside evidence of a different quality.
+
+**Two kinds of "nothing changed" now distinguished:**
+- `FF_NVG_NOVTX` — switch not connected, result **meaningless** (theory untested)
+- `FF_NO_FOG` — switch correct but effect invisible in this scene, result **valid but weaker**
+- `FF_NO_TEXOP_FIX` — switch connected *and* demonstrably moved the output, result **strong**
+
+Ninth NVG hypothesis. The blanking is still upstream: not texture-env, not fog.
