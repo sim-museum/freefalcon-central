@@ -7717,10 +7717,15 @@ the `camptask` ones.
 
 ### TEAMROE-1 — the assertion every mission fires, found by reading the sweep
 
-Every completed TESWEEP row reports `asserts=2`, and both lines are the same one:
-`team.cpp:1800`, `ShiAssert(TeamInfo[a])` inside `GetRoE`. Deterministic, every
-mission, at least since the Aug 23 build. It was sitting in plain sight in a
-metric we already collect.
+**Most** completed TESWEEP rows report `asserts=2`, and both lines are the same
+one: `team.cpp:1800`, `ShiAssert(TeamInfo[a])` inside `GetRoE`. It was sitting in
+plain sight in a metric we already collect.
+
+*(Corrected: I first wrote "every mission". Rows 2 and 11 report `asserts=0` and
+row 12 reports 8 from a different set entirely. I had sampled odd rows 1–9, which
+all happened to be 2 — the same sampling error as the `[GEARZ]` artefact earlier
+this session, where a probe that only ran near the ground made every sample
+post-impact.)*
 
 **It is not a crash.** The code below it is already correct — bounds-checks
 `a`/`b`/`type`, then `if (TeamInfo[a]) {…} else return ROE_ALLOWED`. The defect is
@@ -7742,3 +7747,25 @@ entity or message data that could be stale or inactive. **If a caller is asking
 about a team that was removed, this assert is reporting a real upstream bug and
 deleting it would hide it.** Next step needs a backtrace at the assert site, so it
 is queued behind the running sweep rather than guessed at.
+
+
+### BSPSLOT-1 — TE-12 fires a different assertion set, in the file ORDER-1 touched
+
+Row 12 "Nav and Timing" is the outlier at `asserts=8`, and **none of them are the
+`team.cpp` one**: 2× `drawbsp.cpp:87`, 2× `drawbsp.cpp:190`, 2× `texbank.cpp:314`,
+2× `objlist.cpp:268`.
+
+`drawbsp.cpp:190` is `ShiAssert(slotNumber < instance.ParentObject->nSlots)` in
+`GetChildOffset` — **exactly the out-of-range slot condition that `AttachChild` and
+`DetachChild` were silently overrunning** before the ASAN-5/ORDER-1 fixes. Directly
+beneath it is a guard the code labels *"THIS IS A HACK TO TOLERATE OBJECTS WHICH
+DON'T YET HAVE SLOTS — THIS SHOULD BE REMOVED IN THE LATE BETA AND SHIPPING
+VERSIONS"*. `drawbsp.cpp:87` is `ShiAssert(id >= 0)` in `Update`, firing on a
+negative id.
+
+**What is not established, and must not be assumed: whether these assertions are
+new.** It is tempting to read this as "the fixes converted a silent overflow into a
+visible assertion", which would be a satisfying story — but the TESWEEP-4 baseline
+was recorded only as an aggregate ("62 assertion lines vs 64"), not per row, so
+there is nothing to diff row 12 against. Settle it by running row 12 alone against
+the pre-fix commit before drawing either conclusion.
