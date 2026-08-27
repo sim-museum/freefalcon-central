@@ -766,6 +766,11 @@ protected:
     VU_KEY rowheight_;
     SM_SCALAR invrowheight_;
     VU_BOOL suspendUpdates_;
+    // FF_LINUX (UAF-1): liveness sentinel -- must exist in BOTH VuGridTree variants,
+    // because vu_grid_tree.cpp sets/poisons/checks it in both the #if VU_ALL_FILTERED
+    // and the #else branch. Declaring it only in the first would leave this variant
+    // uncompilable the moment anyone flips that flag.
+    unsigned int ffMagic_;
 
 private:
     VuGridTree *nextgrid_;
