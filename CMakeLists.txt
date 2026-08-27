@@ -44,6 +44,21 @@ if(FF_PLATFORM_LINUX)
         -fpermissive
         -fno-strict-aliasing
         -fcommon
+        # CRASH-8: this source uses the MSVC-era idiom of testing `this` for NULL
+        # inside a member function, e.g. FalconGameEntity::GetGameType():
+        #     // KCK Hack to avoid having to type "if (FalconLocalGame and ...)"
+        #     if ( not this) return game_PlayerPool;
+        # Calling a member function on NULL is UB, so at -O2+ GCC assumes `this`
+        # is non-NULL and DELETES those checks. They worked under MSVC; here they
+        # are dead code, and the pointer is dereferenced anyway. That is a real
+        # crash: hitting RESCUE from a campaign nulls the session's game via
+        # JoinGame(NULL), and the still-running voice thread then calls
+        # GetGameType() -> SIGSEGV (voicemanager.cpp:202 -> falcgame.cpp:266).
+        # This flag preserves the checks, restoring the semantics the code was
+        # written against, and covers all five `if (not this)` sites at once
+        # (objectiv.cpp, campwp.cpp, campbase.cpp, vu_collection_manager.cpp,
+        # falcgame.cpp) rather than rewriting each caller.
+        -fno-delete-null-pointer-checks
         $<$<COMPILE_LANGUAGE:CXX>:-Wno-write-strings>
     )
 
