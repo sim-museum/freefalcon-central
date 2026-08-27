@@ -2416,6 +2416,25 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             // upstream of texture-env (FF_NO_TEXOP_FIX moved the picture but did not
             // restore the world) and not fog. Report those states so the two
             // configurations can be diffed on what would actually discard geometry.
+            // FF_LINUX (NVG-5): report the world draw's DIFFUSE. Unit 0 is NVG's
+            // ADDSMOOTH(DIFFUSE, DIFFUSE) = D + D - D*D, so an untinted diffuse squares
+            // into a washed blue. FF_NVG_NOVTX (which suppresses the world's green vertex
+            // tint) was shown to do nothing, i.e. that tint path is never reached -- so
+            // the prediction is that DIFFUSE is NOT green here. Offsets differ from the
+            // 2D census: XYZRHW is 16 bytes before the colour, plain XYZ is 12, plus 12
+            // more if a normal is present.
+            DWORD wDiffuse = 0xDEADBEEF;
+
+            if ((fvf bitand D3DFVF_DIFFUSE) and vb->data and dwIndexCount >= 1) {
+                unsigned off = (fvf bitand D3DFVF_XYZRHW) ? 16u : 12u;
+
+                if ((fvf bitand D3DFVF_NORMAL) and not (fvf bitand D3DFVF_XYZRHW)) off += 12u;
+
+                const unsigned char* wv = (const unsigned char*)vb->data
+                    + (dwStartVertex + lpwIndices[0]) * GetVertexSize(fvf);
+                wDiffuse = *(const DWORD*)(wv + off);
+            }
+
             GLint dFunc = 0, aFunc = 0, bSrc = 0, bDst = 0, cullMode = 0;
             GLfloat aRef = 0.0f;
             glGetIntegerv(GL_DEPTH_FUNC, &dFunc);
@@ -2426,7 +2445,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             glGetIntegerv(GL_CULL_FACE_MODE, &cullMode);
             fprintf(stderr, "[3DCENSUS] units=%d texStage0=%s texStage1=%s n=%lu"
                             " zTest=%d zFunc=0x%x zWrite=%d blend=%d src=0x%x dst=0x%x"
-                            " aTest=%d aFunc=0x%x aRef=%.2f cull=%d mode=0x%x\n",
+                            " aTest=%d aFunc=0x%x aRef=%.2f cull=%d mode=0x%x diffuse=%08x\n",
                     u3,
                     dev->textures[0] ? "yes" : "NO",
                     dev->textures[1] ? "yes" : "NO",
@@ -2435,7 +2454,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
                     (int)({ GLboolean w = GL_FALSE; glGetBooleanv(GL_DEPTH_WRITEMASK, &w); w; }),
                     (int)glIsEnabled(GL_BLEND), (unsigned)bSrc, (unsigned)bDst,
                     (int)glIsEnabled(GL_ALPHA_TEST), (unsigned)aFunc, (double)aRef,
-                    (int)glIsEnabled(GL_CULL_FACE), (unsigned)cullMode);
+                    (int)glIsEnabled(GL_CULL_FACE), (unsigned)cullMode,
+                    (unsigned)wDiffuse);
             fflush(stderr);
         }
     }

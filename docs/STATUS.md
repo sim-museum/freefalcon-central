@@ -7270,3 +7270,39 @@ other, that is the defect.
 
 Two threads that each looked like dead ends — a lever that did nothing, and a combine that
 was not to blame — turn out to be the same finding from opposite directions.
+
+### NVG-5 — the untinted-DIFFUSE hypothesis is refuted; and a caveat on the sample
+
+Logged the world draw's `DIFFUSE` in both configurations:
+
+```
+A (world green, correct):  units=0 diffuse=ffffffff | units=1 diffuse=ffffffff
+B (world blue):            units=0 diffuse=ffffffff | units=1 diffuse=ffffffff | units=3 diffuse=ffffffff
+```
+
+**`DIFFUSE` is opaque white in both**, including the configuration where the world renders
+correctly green. So the world's green does not come from vertex colour at all — consistent
+with the earlier finding that `GreenMode` tints via the colour-bank palette swap
+(`ColorPool = GreenTVBuffer`), and with `FF_NVG_NOVTX` being a no-op.
+
+**That refutes the hypothesis from the previous entry.** With `D = white`,
+`ADDSMOOTH(D, D) = D + D - D*D = 1`, i.e. white — not blue. An untinted diffuse cannot be
+squaring into the blue result, because the diffuse is the same white in the working case.
+
+**Caveat, stated rather than glossed**: this probe samples the **first vertex of the first
+draw** in each census class. It does not establish that every world vertex carries white.
+A per-class single sample is exactly the shape of error that produced the retracted
+"every runway drawable is at z=-3.0" figure earlier this session, so the reading is
+"the sampled vertex is white in both" — not "all world diffuse is white".
+
+**Where that leaves it.** Unit 0's texture-env is NVG's `ADDSMOOTH` in B and plain
+`MODULATE` in A, both fed a white diffuse and the same terrain texture, yet one is green and
+one is blue. With the diffuse identical and the fragment-rejection state identical, the
+remaining difference is what unit 0 combines the texture *with* — the constant/`TFACTOR`
+slot, which `DX_NVG` sets to `0x0000a000` and which `ADDSMOOTH`'s GL implementation also
+needs for its white constant (`GL_TEXTURE_ENV_COLOR`).
+
+The NVG-2 implementation notes flag exactly this collision: *"a stage cannot be both
+ADDSMOOTH and a TFACTOR consumer"*. `DX_NVG` sets `TEXTUREFACTOR = 0x0000a000` and puts
+`ADDSMOOTH` on stage 0. **Next**: check whether stage 0's `GL_TEXTURE_ENV_COLOR` holds
+white (what `ADDSMOOTH` needs) or `0x0000a000` (what `TEXTUREFACTOR` set) at the world draw.
