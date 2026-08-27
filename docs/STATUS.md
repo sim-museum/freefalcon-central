@@ -94,7 +94,7 @@ documented-in-January `art/resource/mainbg.irc` (no visual effect).
 **Operational finds (recorded in the parity doc):** sim-mission load now takes
 ~80–100 s in this build, so process-relative `FF_SIM_SCREENSHOT` under ~110 s
 captures the load screen (the "white frame" here was timing, not the old
-RTT-readback bug); scripted TAKEOFF clicks that fire before FM_JOIN_SUCCEEDED
+RTT-readback bug); scripted TAKF clicks that fire before FM_JOIN_SUCCEEDED
 is processed silently no-op (dogfight flow needs the click ≥6 s after COMMIT,
 plus a backup click).
 
@@ -9195,3 +9195,25 @@ an assertion that indexes out of range **is** the crash. That fact is easy to fo
 and expensive to rediscover; encoding it in a runnable check preserves it better than
 a comment. The scanner is referenced from the `ff-guard-after-access` memory, so the
 next session inherits all three passes.
+
+**Correction to TRANSLATE-1 — the fix was inert and the finding was wrong.**
+Verifying the *binary* (not the source) after a full link showed
+`"Unhandled texture stage state"` absent from it. Cause: `D3DGL_DEBUG` is `0`, so
+`D3DGL_LOG` expands to `do {} while(0)`.
+
+Two consequences, both against my earlier entry:
+
+1. **My added logging did nothing.** It compiled away entirely.
+2. **The asymmetry I reported does not exist.** I described the render-state switch as
+   "already logging" unhandled cases and the texture-stage switch as the odd one out.
+   That render-state log uses the same dead macro. **Both switches silently drop
+   unhandled state**; there was no good example to copy, only two silent paths.
+
+Replaced with a runtime-gated `fprintf` under `FF_DEBUG_TSS=1`, matching the
+convention every other probe here uses, and **verified present in the linked binary**
+rather than in the source.
+
+The lesson is the session's own, re-learned: *a change verified by reading the diff is
+not verified.* A compile-only check proved my syntax; only the binary proved my
+semantics. And the "good example" I reasoned from was itself dead code — a reminder
+that consistency with neighbouring code is not evidence the neighbouring code works.

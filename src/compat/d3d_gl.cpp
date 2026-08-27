@@ -4388,8 +4388,23 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
             // anything else -- TEXCOORDINDEX, TEXTURETRANSFORMFLAGS, BUMPENV*, BORDERCOLOR
             // -- was invisible. Same class as the ALPHAOP=DISABLE no-op found in NVG-5:
             // the state GL ends up in is not the state D3D asked for, and nothing says so.
-            D3DGL_LOG("Unhandled texture stage state: stage %lu type %d = %lu",
-                      (unsigned long)stage, (int)type, (unsigned long)value);
+            // FF_LINUX: runtime-gated fprintf, NOT D3DGL_LOG. D3DGL_DEBUG is 0, so
+            // D3DGL_LOG compiles to do{}while(0) -- the first version of this line was
+            // inert, and the neighbouring "Unhandled render state" log it was modelled on
+            // is compiled out too. BOTH switches really do drop unhandled states silently.
+            {
+                static int dbgTss = -1;
+                if (dbgTss < 0) dbgTss = getenv("FF_DEBUG_TSS") ? 1 : 0;
+            
+                if (dbgTss)
+                {
+                    static int nTss = 0;
+            
+                    if (++nTss <= 16)
+                        fprintf(stderr, "[TSS-UNHANDLED] stage %lu type %d = %lu\n",
+                                (unsigned long)stage, (int)type, (unsigned long)value);
+                }
+            }
             break;
     }
 
