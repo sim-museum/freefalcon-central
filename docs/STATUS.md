@@ -8096,3 +8096,45 @@ case where its stored row and its key diverge.
 on, the "fix" — collections taking references globally, or enforcing
 removal-before-final-unref at every call site — would have been a large change to
 entity lifetime built on a theory that measurement disproves.
+
+### UAF-1 — a real defect found on the way: `~VuGridTree` tears down before deregistering
+
+Run 1 of the repeat attempts **reproduced the defect**, this time as a hard SIGSEGV
+rather than an ASAN report (unmapped memory rather than poisoned). Identical stack:
+
+```
+UnitProxFilter::RemoveTest <- VuGridTree::Move <- VuEntity::SetPosition
+  <- SimBaseClass::SetRemoveFlag <- AircraftClass::SetDead <- AircraftClass::Exec
+```
+
+**That run performed only 2 refcount-zero deletes, both `state=1`** (entities never
+inserted into the VU database). So **no `VuEntity` was destroyed at all** in the run
+that crashed — which independently confirms refutation #1 and means the dangling
+thing is not a freed entity.
+
+Following that led to a genuine defect in both `~VuGridTree` overloads:
+
+```c
+VuGridTree::~VuGridTree() {
+    Purge();
+    delete [] table_;
+    delete filter_;  filter_ = 0;              // second overload
+    vuCollectionManager->GridDeRegister(this); // ← only now unreachable
+}
+```
+
+The grid remains in `gridcoll_` with a freed `table_` and a freed `filter_`.
+`VuCollectionManager::HandleMove` iterates `gridcoll_` **under `gridsMutex_`** and
+calls `Move()`, which indexes `table_` and calls `filter_->RemoveTest(entity)` — and
+this teardown does **not** hold `gridsMutex_`, so the two can overlap. **Fixed by
+deregistering first.**
+
+This is the ORDER-1 family again, in the VU layer: *the step that makes an object
+unreachable was sequenced after the object had already been torn down.* That is now
+five instances this session (`AttachChild`, `DetachChild`, `GetAvailablePilot`,
+`FarTexDB::Deactivate`, and this).
+
+**Explicitly not claimed: that this fixes UAF-1.** The defect is real and the fix is
+correct on its own terms, but UAF-1 is intermittent, so the error ceasing would not
+be evidence — a point already recorded on the ticket before any fix existed. It is
+committed as a defect fix, not as a UAF-1 resolution.

@@ -19,9 +19,16 @@ VuGridTree::VuGridTree(VuBiKeyFilter* filter, unsigned int res) :
 
 VuGridTree::~VuGridTree()
 {
+    // FF_LINUX: deregister FIRST. This used to free table_ and only afterwards call
+    // GridDeRegister, leaving a window in which a grid still reachable from
+    // gridcoll_ had a dangling table_. VuCollectionManager::HandleMove iterates
+    // gridcoll_ under gridsMutex_ and calls Move(), which indexes table_ and calls
+    // filter_->RemoveTest() -- and the teardown below does NOT hold gridsMutex_, so
+    // the two can overlap. Same shape as the ORDER-1 family: the step that makes the
+    // object unreachable was sequenced after the object had already been torn down.
+    vuCollectionManager->GridDeRegister(this);
     Purge();
     delete [] table_;
-    vuCollectionManager->GridDeRegister(this);
 }
 
 VU_ERRCODE VuGridTree::PrivateInsert(VuEntity* entity)
@@ -104,11 +111,14 @@ VuGridTree::VuGridTree(
 
 VuGridTree::~VuGridTree()
 {
+    // FF_LINUX: deregister FIRST -- see the sibling destructor above. This variant is
+    // worse: it also freed filter_ and nulled it while the grid was still registered,
+    // and VuGridTree::Move calls filter_->RemoveTest(entity) on every visited grid.
+    vuCollectionManager->GridDeRegister(this);
     Purge();
     delete [] table_;
     delete filter_;
     filter_ = 0;
-    vuCollectionManager->GridDeRegister(this);
 }
 
 unsigned int VuGridTree::Row(VU_KEY key1) const
