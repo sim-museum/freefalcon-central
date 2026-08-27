@@ -7769,3 +7769,32 @@ visible assertion", which would be a satisfying story — but the TESWEEP-4 base
 was recorded only as an aggregate ("62 assertion lines vs 64"), not per row, so
 there is nothing to diff row 12 against. Settle it by running row 12 alone against
 the pre-fix commit before drawing either conclusion.
+
+**BSPSLOT-1, part settled statically — and a defect in my own ORDER-1 fix.**
+
+Diffing `drawbsp.cpp` across `bb8935e0^..HEAD` shows the ASAN-5/ORDER-1 work
+touched **only** `AttachChild` and `DetachChild`. `Update` (:87) and
+`GetChildOffset` (:190) were never modified, so my fixes cannot have introduced
+row 12's assertions. The satisfying story — "the fix turned a silent overflow into
+a visible assertion" — is wrong for those two sites, and it did not need a test run
+to rule out; the diff was enough.
+
+The same diff shows `AttachChild` **lost** this line:
+
+```c
+ShiAssert(slotNumber < instance.ParentObject->nSlots);
+```
+
+That assertion is a pure **comparison**. It never indexed `SlotChildren`, so it was
+always safe where it stood — only the `SlotChildren[slotNumber]` assertion had to
+move. Deleting it silenced the diagnostic reporting the exact state ASAN originally
+caught (`SMSBaseClass::AddWeaponGraphics` passing a hardpoint index the model has no
+slot for), which is the very condition the rest of this ticket is chasing.
+`DetachChild` **kept** its copy at `drawbsp.cpp:136`, so two sibling fixes to the
+same shape in the same file ended up inconsistent.
+
+This is precisely the error TEAMROE-1 was written to avoid three commits earlier —
+*deleting an assertion hides the upstream bug it reports*. Restoring it, immediately
+before the existing bounds guard so it matches `DetachChild`. Queued for the
+post-sweep batch: rebuilding `FFViper` mid-sweep already made the running sweep a
+moving target once, and once is enough.
