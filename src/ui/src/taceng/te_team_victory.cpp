@@ -807,9 +807,10 @@ void VCChangeActionCB(long, short hittype, C_Base *control)
                     btn = win->FindControl(SET_VC);
 
                     if (btn)
+                    {
                         btn->SetFlagBitOff(C_BIT_INVISIBLE);
-
-                    btn->Refresh();
+                        btn->Refresh();
+                    }
                 }
 
                 SelectToolTypeCB(TARGET_VC, C_TYPE_LMOUSEUP, vctrl);
@@ -864,9 +865,10 @@ void VCSetTargetCB(long, short hittype, C_Base *control)
                 btn = win->FindControl(SET_VC);
 
                 if (btn)
+                {
                     btn->SetFlagBitOff(C_BIT_INVISIBLE);
-
-                btn->Refresh();
+                    btn->Refresh();
+                }
                 BuildSpecificTargetList(vc->get_vu_id());
             }
         }
@@ -1036,9 +1038,10 @@ void SetVCTargetInfo(CampEntity ent)
             btn = win->FindControl(SET_VC);
 
             if (btn)
+            {
                 btn->SetFlagBitOff(C_BIT_INVISIBLE);
-
-            btn->Refresh();
+                btn->Refresh();
+            }
             BuildSpecificTargetList(ent->Id());
         }
     }

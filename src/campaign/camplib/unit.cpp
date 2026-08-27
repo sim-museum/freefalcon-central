@@ -5816,12 +5816,13 @@ Unit NewUnit(int domain, int type, int stype, int sptype, Unit parent)
 Unit NewUnit(short tid, VU_BYTE **stream, long *rem)
 {
     Unit cur = NULL;
-    Falcon4EntityClassType* classPtr = &(Falcon4ClassTable[tid - VU_LAST_ENTITY_TYPE]);
 
     if ( not tid)
     {
         return NULL;
     }
+
+    Falcon4EntityClassType* classPtr = &(Falcon4ClassTable[tid - VU_LAST_ENTITY_TYPE]);
 
     CampEnterCriticalSection();
 

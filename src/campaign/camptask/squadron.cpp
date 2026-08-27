@@ -152,11 +152,15 @@ SquadronClass::SquadronClass(ushort type) :
     uc = (UnitClassDataType*) Falcon4ClassTable[type - VU_LAST_ENTITY_TYPE].dataPtr;
 
     if (uc)
+    {
         memcpy(stores, SquadronStoresDataTable[uc->SpecialIndex].Stores, MAXIMUM_WEAPTYPES);
+        fuel = uc->Fuel * 24 * SQUADRON_MISSIONS_PER_HOUR * MIN_RESUPPLY * 2 / 60;
+    }
     else
+    {
         memset(stores, 0, MAXIMUM_WEAPTYPES);
-
-    fuel = uc->Fuel * 24 * SQUADRON_MISSIONS_PER_HOUR * MIN_RESUPPLY * 2 / 60;
+        fuel = 0;
+    }
     memset(schedule, 0, sizeof(long)*VEHICLE_GROUPS_PER_UNIT);
     airbase_id = FalconNullId;
     hot_spot = FalconNullId;

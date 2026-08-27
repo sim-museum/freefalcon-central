@@ -7563,3 +7563,51 @@ apart in different files.
 **Not attempting either tonight.** Both are architectural, the defect is intermittent at 1 in
 3, and a candidate fix cannot be validated by the error ceasing. Recorded on UAF-1 with the
 evidence so the decision can be made deliberately rather than under time pressure.
+
+### ORDER-1 — tree-wide audit: guards sequenced after the access they protect
+
+Four instances of this shape turned up incidentally this session, three of them
+live defects, so it got a dedicated scan. `scripts/qa/order-audit.py`, two passes:
+
+* **Pass 1 — guard after access.** `array[idx]` used before the bounds check on
+  `idx`, or a pointer dereferenced before its NULL check.
+* **Pass 2 — guard too narrow.** A correct validity guard whose body is a single
+  unbraced statement, with further accesses to the same name following it at the
+  same depth. This is what `GetAvailablePilot` was, and it is the more insidious
+  of the two: the guard is *there*, so the code reads as safe.
+
+**The scanner was validated against known positives before its output was
+trusted** — run against the pre-fix `drawbsp.cpp` and `pilot.cpp` from git, it
+must find `AttachChild`, `DetachChild` and `GetAvailablePilot`. It missed
+`pilot.cpp` on the first three attempts, which is what forced pass 2 into
+existence and then twice corrected its precedence. An audit tool that finds new
+things but would have missed the defects you already know about is not evidence
+of coverage.
+
+**Nine defects fixed** (76 raw candidates → 9 real, the rest triaged as false
+positives and each FP class fixed in the scanner rather than filtered by hand):
+
+| site | defect |
+|---|---|
+| `fartex.cpp:755` `FarTexDB::Deactivate` | `ShiAssert(texArray[offset]…)` indexes before `if (texArray == 0) return;` — **identical to the AttachChild overflow** |
+| `damage.cpp:1414` | nine dereferences of `orientation` before both `ShiAssert(orientation)` and its NULL guard |
+| `modes.cpp:1649` `HitsOnTrack` | `rdrData->rdrDetect` read in an initializer one line above `if (not rdrData) return 0;` |
+| `dogfight.cpp:1218` | `pilot->SetPlayer(0)` on a `MakePilot` result whose NULL guard sits after the block |
+| `unit.cpp:5819` `NewUnit` | `&Falcon4ClassTable[tid - VU_LAST_ENTITY_TYPE]` formed before `if (not tid)` — UB pointer arithmetic, no deref |
+| `squadron.cpp:159` (×2 trees) | `fuel = uc->Fuel…` immediately after an `else` branch that exists *because* `uc` can be NULL |
+| `ceditbox.cpp:631` `SetText` | guards `Text_` once, then dereferences it four more times |
+| `te_team_victory.cpp` (×3) | `btn->Refresh()` outside the `FindControl` NULL guard |
+| `munition.cpp:1272` | `win->RefreshWindow()` outside the `GetParent` NULL guard |
+
+**False-positive classes worth recording**, since each one initially looked like a
+finding: adjacent accessors (a flat backward window crosses function boundaries —
+fixed with brace-depth tracking); the list walk `p = p->next; if (!p) break;`
+(correct by construction); short-circuit guards `if (p and p->x)`; equality tests
+`if (a != this)` that are not validity guards at all; and a commented-out line
+between an `if` and its body, which made the real body look unguarded.
+
+**Known limit, stated rather than papered over:** neither pass detects the
+*safety-reference* shape — `VuGridTree::Move` taking `VuEntityBin safe(ent)`
+after the condition already dereferenced `ent`. That is the fourth known
+instance and this audit would not have found it. Detecting it needs
+reference-semantics knowledge, not textual ordering.

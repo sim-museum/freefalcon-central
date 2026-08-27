@@ -1646,10 +1646,11 @@ void RadarDopplerClass::SetHistory(SimObjectType* ptr, int sy)
 int RadarDopplerClass::HitsOnTrack(SimObjectLocalData* rdrData)
 {
     int totHits = 0, i = 0;
-    unsigned long detect = rdrData->rdrDetect;
 
     if ( not rdrData)
         return 0;
+
+    unsigned long detect = rdrData->rdrDetect;
 
     for (i = 0; i < 5; i++)
     {

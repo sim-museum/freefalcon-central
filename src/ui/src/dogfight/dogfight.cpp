@@ -1215,7 +1215,9 @@ C_Pilot *AddDogfightPilot(C_TreeList *list, Flight flight, int ac)
         // Add an AI pilot
 
         pilot = MakePilot(list, flight, NULL, ac, flight->pilots[ac]);
-        pilot->SetPlayer(0);
+
+        if (pilot)
+            pilot->SetPlayer(0);
     }
 
     if ( not pilot)

@@ -1409,14 +1409,14 @@ void AircraftClass::AddEngineTrails(int ttype, DWORD *tlist, DWORD *tlist_trail)
     float thry = 0;
     float thrz =  noz.sin ;
 
-    vec.x = orientation->M11 * thrx + orientation->M12 * thry + orientation->M13 * thrz;
-    vec.y = orientation->M21 * thrx + orientation->M22 * thry + orientation->M23 * thrz;
-    vec.z = orientation->M31 * thrx + orientation->M32 * thry + orientation->M33 * thrz;
-
     ShiAssert(orientation);
 
     if ( not orientation)
         return;
+
+    vec.x = orientation->M11 * thrx + orientation->M12 * thry + orientation->M13 * thrz;
+    vec.y = orientation->M21 * thrx + orientation->M22 * thry + orientation->M23 * thrz;
+    vec.z = orientation->M31 * thrx + orientation->M32 * thry + orientation->M33 * thrz;
 
     /*
     RV - I-Hawk

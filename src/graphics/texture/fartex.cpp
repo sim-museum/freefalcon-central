@@ -747,12 +747,12 @@ void FarTexDB::Activate(DWORD offset)
 // This function will release the MPR handle for the specified texture.
 void FarTexDB::Deactivate(DWORD offset)
 {
+    if (texArray == 0) return;
+
     ShiAssert(IsReady());
     ShiAssert(offset >= 0);
     ShiAssert(offset < (DWORD) texCount);
     ShiAssert(texArray[offset].refCount == 0);
-
-    if (texArray == 0) return;
 
     // Quit now if we've got nothing to do
     if (texArray[offset].handle)

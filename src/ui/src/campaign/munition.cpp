@@ -1267,9 +1267,10 @@ BOOL MuniTimeCB(C_Base *control)
                 win = txt->GetParent();
 
                 if (win)
+                {
                     win->DisableCluster(-100);
-
-                win->RefreshWindow();
+                    win->RefreshWindow();
+                }
             }
 
             if (ref)

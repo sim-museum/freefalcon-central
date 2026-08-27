@@ -625,9 +625,10 @@ void C_EditBox::SetMaxLen(short len)
 
 void C_EditBox::SetText(_TCHAR *str)
 {
-    if (Text_)
-        Text_->SetText(str);
+    if ( not Text_)
+        return;
 
+    Text_->SetText(str);
     Text_->SetFont(Font_);
     Text_->SetFlags(GetFlags()& compl C_BIT_OPAQUE);
 
