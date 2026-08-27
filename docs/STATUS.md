@@ -8911,3 +8911,23 @@ the ticket rather than leaving the instrument behind. Keeping a measurement rig
 installed after the measurement is how a codebase accumulates the kind of cruft this
 session has been removing (dead `atexit` reporters, write-only counters, a periodic
 `fprintf` in a 40,000-call path).
+
+**Sixth self-matching `pgrep` — and the bracket trick did not save it.** The waiter
+was `while pgrep -f 'build-relg/src/ffviper/[F]FViper'`, which is the correct idiom.
+But the *same command* also contained, in its echo line:
+
+```
+strings build-relg/src/ffviper/FFViper | grep -c 'probe live...'
+```
+
+— the **unbracketed** path. The regex `…/[F]FViper` matches the literal text
+`…/FFViper`, so it matched its own command line and waited forever. Meanwhile
+`pgrep -c` reported "3 FFViper running" which were all my own shells, making the stall
+look like a busy machine.
+
+**The real rule, which the bracket trick only approximates:** a `pgrep -f` pattern must
+not match *anything* in the command that issues it — not just the pattern literal. Two
+robust alternatives: match on a marker that cannot appear in the caller (e.g. `pgrep -f
+'ffviper.*-w$'`), or drop the process search entirely and wait on the job the way the
+harness already provides. Six occurrences in this project now; the idiom keeps failing
+because each new context looks different from the last.
