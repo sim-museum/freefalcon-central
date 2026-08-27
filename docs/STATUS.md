@@ -7714,3 +7714,31 @@ are `src/codelib/tools/lists` and `graphics/dxengine/dxtools.cpp`, which are
 unrelated.) So dismissing them was correct — but the fixes applied to the camptool
 copies of `squadron.cpp` and `division.cpp` ship nothing; the built-path fixes are
 the `camptask` ones.
+
+### TEAMROE-1 — the assertion every mission fires, found by reading the sweep
+
+Every completed TESWEEP row reports `asserts=2`, and both lines are the same one:
+`team.cpp:1800`, `ShiAssert(TeamInfo[a])` inside `GetRoE`. Deterministic, every
+mission, at least since the Aug 23 build. It was sitting in plain sight in a
+metric we already collect.
+
+**It is not a crash.** The code below it is already correct — bounds-checks
+`a`/`b`/`type`, then `if (TeamInfo[a]) {…} else return ROE_ALLOWED`. The defect is
+that **the assertion contradicts the code immediately beneath it**, asserting a
+condition the rest of the codebase treats as routine: `TeamClass::RemovalCallback`
+explicitly sets `TeamInfo[who] = NULL`, and `AddInitiative` tests
+`TeamInfo[who] == NULL or not TEAM_ACTIVE` as an ordinary case.
+
+**Why it is worth fixing rather than tolerating:** the sweep uses assertion *count*
+as its regression signal (the baseline is recorded as "62 assertion lines vs 64").
+A false positive firing twice per mission degrades the exact metric we use to
+detect regressions, and teaches everyone to skim past assertion output.
+
+**Deliberately not fixed yet.** The obvious move — delete the assert — is wrong
+until the caller is known. `misseval.cpp:1966` already guards its loop with
+`TeamInfo[d]`, so it is *not* the source. The remaining callers (`nofly.cpp:43`,
+`campmap.cpp:428/515`, `misseval.cpp:2560/2990`) all pass a team derived from
+entity or message data that could be stale or inactive. **If a caller is asking
+about a team that was removed, this assert is reporting a real upstream bug and
+deleting it would hide it.** Next step needs a backtrace at the assert site, so it
+is queued behind the running sweep rather than guessed at.
