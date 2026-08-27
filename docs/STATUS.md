@@ -6616,3 +6616,40 @@ HARM-armed-unit condition was reached. So this run does **not** independently re
 - UI-screen pass — every main-menu screen, ASAN
 - `asan-sim-pass.sh` — 8 missions across distinct subsystems, ASAN
 - `camp-fly-asan.sh` — campaign flight with entity churn, ASAN
+
+### STATIC-1 — tree-wide scan for this session's defect classes: no further in-game instances
+
+Scanned the whole tree for the `new[]`-allocated-member-freed-with-scalar-`delete` class
+that accounted for six of the seven memory fixes. 288 array-allocated member names, 53
+raw candidates, narrowed to 18 where the *same file* allocates that name with `new[]`.
+
+**Triage:**
+- 13 are in `src/tools/` (fontmunge, ui_tools) and `src/campaign/camptool/` — build tools,
+  not the shipped game. Real, but not in the binary the PO flies.
+- **5 were in-game, and all five are false positives.**
+
+**Four (`falcsess.cpp` `name`/`callSign`) are inside comment blocks** — note the `*/`
+terminating line 377, and one `// delete callSign;`. The grep matched dead code.
+
+**The fifth (`realweather.cpp:318` `delete metar`) needed real checking.** The `delete` is
+live, but its apparent array allocation at line 1676 sits inside a `/* */` opened at 1668
+and not closed until after. Enumerating every `metar =` assignment and testing each for
+comment enclosure:
+
+```
+line 294   live        metar = NULL;
+line 1672  COMMENTED   metar = NULL;
+line 1676  COMMENTED   metar = new METAR[numMETARS];
+```
+
+`metar` is only ever `NULL` in live code, so `delete metar` always deletes a null pointer —
+safe, and **not** a defect.
+
+**The method point**: a `grep` for a code pattern will happily match commented-out code, and
+this codebase has a great deal of it. Earlier this session I inserted two probes *into* a
+comment block for the same reason. Any static candidate list needs a comment-enclosure test
+before anything is called a finding — the check is cheap (`awk` tracking the last `/*` vs
+`*/` before the line) and it eliminated 5 of 5 here.
+
+**Result: the `new[]`/`delete` class is closed for the shipped game.** The tools instances
+are recorded above but not fixed, being outside the game binary.
