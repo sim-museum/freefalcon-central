@@ -8770,3 +8770,28 @@ so the narrative asserts what the computation is *expected* to show. The fix is
 mechanical — compute first, read the output, then write the prose — and it is worth
 more than any single corrected digit, because two of the three would have stood
 unchallenged if the tool output had scrolled past.
+
+### TESWEEP-5 — regression sweep after the UAF-1 fix
+
+The UAF-1 fix runs inside `SetNewTheater`, i.e. **on every mission load**, and adds a
+full `VuDatabaseIterator` walk plus a `SetEntityType()` call per live entity. That is a
+hot-ish path touched on a code route every mission takes, so it gets a full sweep
+rather than an argument that it is cheap.
+
+Baseline to compare against (recorded earlier today): **34/34 reach sim, 0 crashes,
+62 assertion lines**.
+
+Watching for three things specifically:
+
+1. **Crashes** — the walk runs while `vuDatabase` may hold entities in odd states
+   during a theater change; the NULL guard covers startup, not mid-life oddities.
+2. **Assertion count** — `SetEntityType()` rewrites six flag bits and `domain_` from
+   the type. If any entity's flags legitimately differed from its type's defaults,
+   re-deriving them changes behaviour, and an assertion is where that would surface.
+3. **Load time** — the walk is O(entities) per mission load. Two entities today, but
+   a campaign save with thousands would make this visible.
+
+Point 2 is the one I would not have thought to check a day ago: the fix's *stated*
+purpose is re-pointing `entityTypePtr_`, but `SetEntityType` does more than that, and
+that "more" is exactly what I dismissed without checking when arguing the fix could
+not matter.
