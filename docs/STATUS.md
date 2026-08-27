@@ -6953,3 +6953,35 @@ TE-02 re-run after both: reaches sim, 0 crashes.
 **Not changed, deliberately**: the 275 kt threshold, and there is still no gear-limit field
 in the aero data — the limit remains improvised from `MinVcas`, the *minimum* comfortable
 speed. Recorded so the next person does not rediscover it as a bug.
+
+### NVG-5 — MPR census works, and narrows the fault away from poly-list state
+
+Moved the census onto the path the cockpit panel actually uses
+(`ContextMPR::RenderPolyList`, `3dlib/context.cpp:2998`), keyed on distinct
+`(renderState, textured)` pairs, with a 512 cap that announces truncation.
+
+```
+A (DX_NVG skipped):   2 distinct, no truncation
+B (FF_NVG_DXSTATE=1): 2 distinct, no truncation
+diff: renderState=37 textured=1  in BOTH  (texID differs, but that is a raw
+      pointer value that varies per run and is not part of the dedup key)
+```
+
+**The poly-list state is identical between the two configurations.** The panel is submitted
+with the same `renderState` and the same textured/untextured classification whether the
+`DX_NVG` pipeline is live or skipped — yet the screen fills blue in one and not the other.
+
+**So the fault is not in *which* state the panel is drawn with.** That rules out a whole
+family of candidate explanations: it is not that NVG causes a different poly-list state to
+be selected, or that the panel loses its texture binding at submission. The difference must
+lie downstream — in how `ApplyStateBlock(renderState)` translates that same state into GL
+state while the NVG stage configuration is active, or in the texture's alpha content itself.
+
+That is a genuine narrowing rather than another theory: it is a *negative* established by
+measurement on the correct renderer, after five theories and one census that were all
+measuring the wrong one.
+
+**Next**: instrument `ApplyStateBlock` for `renderState=37` specifically and diff the
+resulting GL state (alpha test func/ref, blend, texture env) between the two
+configurations. The panel state is the same going in, so the divergence is in the
+translation.

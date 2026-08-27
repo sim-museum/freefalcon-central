@@ -2997,6 +2997,55 @@ void ContextMPR::RenderPolyList(SPolygon *&pHead)
 #endif
                 ApplyStateBlock(pCur->renderState);
 
+#ifdef FF_LINUX
+                // FF_LINUX (NVG-5): census of MPR poly-list draws. The earlier 2D census
+                // lived in DrawIndexedPrimitiveVB and saw ONE textured draw class in 100
+                // seconds while the screen visibly filled blue -- because the cockpit
+                // panel is drawn through THIS path (ContextMPR::FlushPolyLists ->
+                // RenderPolyList), not through the D3D vertex-buffer entry point. Five
+                // NVG theories and that census all measured the wrong renderer.
+                //
+                // Records DISTINCT (renderState, textured) pairs so the same frame can be
+                // diffed between FF_NVG_DXSTATE=1 and not. FF_DEBUG_MPRCENSUS=1.
+                {
+                    static int s_mprDbg = -1;
+
+                    if (s_mprDbg < 0) s_mprDbg = getenv("FF_DEBUG_MPRCENSUS") ? 1 : 0;
+
+                    if (s_mprDbg)
+                    {
+                        static unsigned s_seen[512];
+                        static int s_nSeen = 0;
+                        static bool s_capWarned = false;
+                        unsigned key = ((unsigned)pCur->renderState << 1)
+                                     | (unsigned)(pCur->textureID0 >= 0 ? 1 : 0);
+                        bool found = false;
+
+                        for (int q = 0; q < s_nSeen; q++)
+                            if (s_seen[q] == key) { found = true; break; }
+
+                        if ( not found)
+                        {
+                            if (s_nSeen < 512)
+                            {
+                                s_seen[s_nSeen++] = key;
+                                fprintf(stderr, "[MPRCENSUS] renderState=%d textured=%d texID=%d\n",
+                                        (int)pCur->renderState,
+                                        (int)(pCur->textureID0 >= 0), (int)pCur->textureID0);
+                                fflush(stderr);
+                            }
+                            else if ( not s_capWarned)
+                            {
+                                s_capWarned = true;
+                                fprintf(stderr, "[MPRCENSUS] *** CAP (512) REACHED -- TRUNCATED, "
+                                                "absence from this list proves nothing ***\n");
+                                fflush(stderr);
+                            }
+                        }
+                    }
+                }
+#endif
+
                 if (
                     (pCur->renderState > STATE_GOURAUD and pCur->renderState < STATE_ALPHA_SOLID)
                     or pCur->renderState > STATE_ALPHA_GOURAUD
