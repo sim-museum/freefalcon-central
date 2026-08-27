@@ -9359,3 +9359,30 @@ change is provably narrower than the crash it prevents.
 
 This is "fixed one of N" at project scale: a previous session fixed the two functions
 that had crashed and left the five that had not *yet*.
+
+**FARTEX-1 generalised: which other classes share the shape (catalogued, not fixed).**
+`ShiAssert(IsReady())` appears in 14 files. It is only a *latent crash* where
+`IsReady()` tests a pointer the function then dereferences — elsewhere it is an
+ordinary assumption-documenting assert.
+
+| file | asserts | real guards | `IsReady()` tests |
+|---|---|---|---|
+| `texture/fartex.cpp` | 9 | **7** | `texArray != NULL` — **fixed this session** |
+| `texture/terrtex.cpp` | 10 | **8** | pointer — fixed in an earlier session |
+| `terrain/tlevel.cpp` | 5 | 0 | **`blocks != NULL`** — same shape, unguarded |
+| `ddstuff/imagebuf.cpp` | 9 | 0 | (out-of-line; not checked) |
+| `renderer/rviewpnt.cpp` | 5 | 0 | (not checked) |
+| `terrain/tmap.cpp` | 1 | 0 | `initialized` — a **flag**, different shape |
+| 8 others | 1–3 each | 0 | not checked |
+
+**Deliberately not fixed beyond `fartex`.** The `fartex`/`terrtex` guards exist because
+those functions *actually crashed* — the ordering hazard is documented in CLAUDE.md
+(`DeviceDependentGraphicsCleanup` running before `...Setup`). For `tlevel.cpp` and the
+rest there is no such evidence, and adding guards on the strength of a shared idiom is
+the same speculative fix I declined for UCNULL-1's 25 call sites. **Consistency matters
+more than coverage here**: I don't get to demand evidence for one family and skip it
+for another because I happen to be in the file.
+
+**How to close them properly if it ever matters:** the UCNULL-1 method — probe on
+entry when `!IsReady()`, run a spread, and let the count decide. That converts fourteen
+files of idiom into a measured number, and costs one run.
