@@ -8961,3 +8961,28 @@ next person sees it before re-deriving it.
 **Probe removed**, per the decision recorded *before* the result: it is a one-line
 accessor whose entire body was `return class_data;`, and a permanent branch there buys
 nothing once the question is answered. Verified gone from the binary (`strings` → 0).
+
+### TEAMROE-1 — assertion removed on evidence; **the sweep baseline moves to ~38**
+
+`ShiAssert(TeamInfo[a])` is gone from `GetRoE`. Verified on the three rows that fired
+it (1, 3, 19): each now reports **0 assertion lines**, down from 2, and all still reach
+sim.
+
+**New assertion baseline: ~38 lines, down from 58.** The assertion fired in 10 of 34
+missions at 2 lines each, so removing it accounts for −20. **Record this before the next
+sweep**, or a 58 → 38 drop reads as a coverage regression rather than the intended
+effect — exactly the confusion the per-row map exists to prevent.
+
+Updated per-row expectation: rows 1, 3–10 and 19 should now be **silent** where they
+previously showed `team.cpp`. Everything else is unchanged: `atm.cpp:835` (21–24, 28),
+`texbank.cpp:314` (12, 14, 15, 22, 23, 27, 32–34), `objectiv.cpp:3663` (16, 17),
+`drawbsp` (12, 23, 26).
+
+**Why this removal is legitimate and the earlier refusal was not inconsistent.** When
+the assertion first surfaced I declined to delete it, because deleting a firing
+assertion converts an observable defect into a silent one — a principle proven twice
+today, once against my own dropped `AttachChild` assert. What changed is that the
+caller is now known: `RebuildFrontList` querying teams the mission never instantiated,
+which is normal TE data. The assertion was asserting something false about its own
+function's contract. That is the difference between removing a witness and removing a
+false alarm, and it required the trace to establish.

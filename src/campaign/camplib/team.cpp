@@ -1831,8 +1831,22 @@ int GetRoE(Team a, Team b, int type)
         }
     }
 
-    ShiAssert(TeamInfo[a]);
-
+    // FF_LINUX (TEAMROE-1): a ShiAssert(TeamInfo[a]) used to sit here. It was a false
+    // alarm and is removed on evidence, not convenience. Traced with FF_DEBUG_ROE: the
+    // caller is RebuildFrontList (camplist.cpp:943) via StandardRebuild <- DoTacticalLoop
+    // on the campaign thread, asking about neighbouring objectives whose owner team the
+    // mission never instantiated -- TE missions inherit the theater's FULL objective
+    // database, so objectives owned by uncreated teams are normal data, not a stale-team
+    // bug. It fired ~2849 times in one TE-01 run (printing twice, since ShiAssert output
+    // is once-per-site) in 10 of 34 missions, for a condition this function already
+    // handles below with an explicit else. An assertion that contradicts its own
+    // function's contract trains readers to skim assertion output and corrupts the
+    // sweep's assertion-count metric.
+    //
+    // NOT changed: the ROE_ALLOWED fallback below. ~120 call sites read it across
+    // ground/air/naval AI, base usability, RWR and mission evaluation; choosing between
+    // "unknown team is permissive" and "unknown team is forbidden" is a design decision
+    // with no evidence of intent in the code. Left for the PO -- see docs/STATUS.md.
     if (TeamInfo[a])
     {
         int stance = TeamInfo[a]->stance[b];
