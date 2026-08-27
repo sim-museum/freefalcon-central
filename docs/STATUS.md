@@ -9124,3 +9124,24 @@ Also re-ran the ORDER-1 detector across the whole tree as a check on this sessio
 rather than ceremonial — I introduced two defects this session (a NULL
 `VuDatabaseIterator` at startup, a latent build break), both caught by review rather
 than by tooling, so pointing the tooling at my own work was overdue.
+
+**TRANSLATE-1 (cont.) — state-sensitive GL calls: audited, no defect.** This port's
+dominant bug class is "a GL call honours state its D3D equivalent ignores" (three
+`glClear` instances already in CLAUDE.md). Checked whether other state-sensitive calls
+share it: `glBlitFramebuffer`, `glCopyTexImage2D`, `glCopyTexSubImage2D`, `glDrawPixels`
+and `glCopyPixels` are **not used at all** in the compat layer. Only `glReadPixels`
+appears, at 7 sites.
+
+A crude 14-line lookback suggested four of the seven lacked the documented capture
+guards (FBO 0, PBO unbound, `GL_BACK`, `PACK_ALIGNMENT 1`) — the configuration whose
+absence produces the historical "white frame". **Reading the context shows that is
+wrong and the guards would be actively incorrect there:** sites 1654/1655 are the
+`[DEPTHPROBE]` diagnostic and 1762 is `FF_PROBE_PIXEL`, mid-frame single-pixel reads
+that *deliberately* sample whatever is currently bound. Forcing FBO 0 / `GL_BACK` would
+make them read the wrong surface and silently invalidate the probe. Only the screenshot
+path (5525/5564/5570) needs the guards, and it has them.
+
+Recorded because the grep result *looked* like four unguarded sites, and reporting that
+would have been a false alarm of exactly the kind this session has been catching — the
+second time today a suspicious count dissolved on reading the code (after the
+`999 in range` control artefact).
