@@ -3605,6 +3605,32 @@ static void ffNvgOpSeen(const char *name, unsigned long stage)
 }
 #define FF_NVGOP_SEEN(n, s) ffNvgOpSeen((n), (unsigned long)(s))
 
+// FF_LINUX (NVG-5): the other half of the same question. FF_NVGOP_SEEN reports ops that
+// ARE implemented; this reports ops that are NOT, where the switch falls through to a
+// silent MODULATE. Without it, "the NVG pipeline is fully implemented" and "an op is
+// quietly mapped to the wrong thing" look identical from the outside -- the same
+// no-findings/never-ran ambiguity that cost this session four false readings.
+static void ffNvgUnhandledOp(const char *which, unsigned long op, unsigned long stage)
+{
+    static int dbg = -1;
+
+    if (dbg < 0) dbg = getenv("FF_DEBUG_NVGOPS") ? 1 : 0;
+
+    if ( not dbg) return;
+
+    static unsigned long seen[16] = { 0 };
+    static int nseen = 0;
+
+    for (int i = 0; i < nseen; i++)
+        if (seen[i] == op) return;
+
+    if (nseen < 16) seen[nseen++] = op;
+
+    fprintf(stderr, "[NVGOP-UNHANDLED] %s op=%lu on stage %lu -> silently MODULATE\n",
+            which, op, stage);
+    fflush(stderr);
+}
+
 static bool ffTexOpFixEnabled(void)
 {
     static int cached = -1;
@@ -4253,6 +4279,11 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                     }
                     break;
                 default:
+                    // FF_LINUX (NVG-5): an UNIMPLEMENTED alpha op silently becomes MODULATE
+                    // here. That is an invariant violation the renderer cannot see: the
+                    // state GL ends up in is not the state D3D asked for, and the result
+                    // is wrong colour rather than a failure. Report it once per op value.
+                    ffNvgUnhandledOp("ALPHAOP", (unsigned long)value, stage);
                     glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
                     break;
             }

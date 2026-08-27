@@ -8986,3 +8986,30 @@ caller is now known: `RebuildFrontList` querying teams the mission never instant
 which is normal TE data. The assertion was asserting something false about its own
 function's contract. That is the difference between removing a witness and removing a
 false alarm, and it required the trace to establish.
+
+### NVG-5 — instrument the silent failure mode (the UAF-1 technique, applied)
+
+NVG-5 has resisted every sprint and stayed parked. With everything else closed, it is
+worth one pass using what actually worked on UAF-1: **find the invariant and measure
+it, rather than theorising about the symptom.**
+
+The invariant for a D3D→GL translation layer is *the GL state that ends up set must be
+the state D3D asked for*. Reading `ApplyTextureStageState`, nine `D3DTOP_` ops are
+implemented (ADD, ADDSIGNED, ADDSIGNED2X, ADDSMOOTH, DISABLE, DOTPRODUCT3, MODULATE,
+MODULATE2X, SELECTARG1) — and there is still a **silent `default:` that maps anything
+else to `GL_MODULATE`**. Common ops with no case at all include `SELECTARG2`,
+`BLENDTEXTUREALPHA`, `BLENDDIFFUSEALPHA`, `SUBTRACT` and `MODULATE4X`.
+
+That is precisely the shape that produces "the world renders, but flat and the wrong
+colour": nothing fails, nothing asserts, the state is simply **not what was requested**.
+
+An `FF_DEBUG_NVGOPS` probe already existed, but it reports ops that **are** implemented.
+Added the other half — `[NVGOP-UNHANDLED]`, one line per distinct op value that falls
+through to the silent MODULATE. Without it, "the pipeline is fully implemented" and "an
+op is quietly mapped to the wrong thing" are indistinguishable from outside, which is
+the same no-findings/never-ran ambiguity that produced four false readings this session.
+
+**Verified by compiling the object file only**, so the running sweep keeps its binary —
+which immediately caught wrong variable names (`Value`/`dwStage` vs `value`/`stage`).
+A full build would have relinked `FFViper` mid-sweep and invalidated 34 missions to
+find a typo.
