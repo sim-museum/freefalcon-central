@@ -9284,3 +9284,26 @@ for other call sites of the same function.
 Other duplicates checked and cleared: the three `damage.cpp` files have distinct
 checksums and neither sibling contains the `orientation` code; `campaign/campupd/
 dogfight.cpp` has no `MakePilot` at all. Both fixes were correctly scoped.
+
+**Sibling audit of all nine ORDER-1 fixes — one real miss, everything else clean.**
+After finding that I had fixed one of two `MakePilot` call sites, I checked every fix
+the same way: for each edited file, look for duplicate files and for *other call sites
+of the same fallible getter*.
+
+| fix | sibling check | result |
+|---|---|---|
+| `dogfight.cpp` `MakePilot` | 2 call sites in the same function | **1 missed — fixed** |
+| `te_team_victory.cpp` `btn` | 6 `FindControl` sites | all guarded (3 were mine) |
+| `munition.cpp` `win` | 2nd `FindWindow` at 1539 | guarded (`if (win == NULL) return;`) |
+| `damage.cpp` `orientation` | 3 files named `damage.cpp` | distinct checksums; siblings have no `orientation` code |
+| `squadron.cpp`, `division.cpp` | `camptask` + `camptool` copies | both trees fixed |
+| `campaign/campupd/dogfight.cpp` | same filename, different file | no `MakePilot` at all |
+
+**The generalisable step, now recorded as the follow-up for any pass of this kind:**
+a scanner built around one shape is blind to *"one of N call sites left out"*, because
+the guard genuinely exists and genuinely follows the access — it just covers a
+different call. The cheap counter-measure is not a smarter scanner but a mechanical
+list: for every file you edit, enumerate siblings and other uses of the same getter.
+
+That check cost a few minutes and found a defect that had survived the scanner, the
+34-mission sweep, and my own review.
