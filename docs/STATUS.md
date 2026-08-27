@@ -6856,3 +6856,37 @@ anything.
 **Also worth noting against my earlier prediction**: this is the second find in the resumed
 pass, and neither was weapon-specific — TE-25 was campaign pilot loading and TE-29 is entity
 death handling. The weapon-path hypothesis from ASAN-5 has now been contradicted twice.
+
+### ASAN-7 COMPLETE — all 34 TE missions now covered under ASAN; UAF-1 is intermittent
+
+The resumed pass finished 20 missions. Combined with the earlier partial (rows 3–8) and
+ASAN-5 (rows 1, 2, 9, 11, 15, 19, 22, 26), **every one of the 34 TE missions has now been
+run under AddressSanitizer** — a stated coverage claim rather than an incidental one.
+
+**Findings across all 34:**
+
+| mission | finding |
+|---|---|
+| 26 HARMs | heap-buffer-overflow READ in `DrawableBSP::AttachChild` — **fixed** |
+| 25 Laser-Guided Bombs | `PilotInfo[-1]` read in `GetAvailablePilot` — **fixed** |
+| 29 Offensive BFM | 5× heap-use-after-free during aircraft death — **UAF-1, open** |
+
+The other 31 are clean.
+
+**UAF-1 does not reproduce on demand.** Re-ran row 29 twice with the *identical* binary —
+`build-asan` dates from 04:40, while the `pilot.cpp` and `drawbsp.cpp` fixes are 21:24 and
+20:44, so neither is in it and the comparison is clean:
+
+```
+original run: asan=5 (heap-use-after-free)
+run A:        asan=0
+run B:        asan=0
+```
+
+**One occurrence in three runs of the same mission with the same binary.** So it is
+timing-dependent — consistent with the reader being on thread **T15**, the VU thread, racing
+entity teardown. That materially changes how it must be chased: a fix cannot be validated by
+"the error went away", because the error is absent two runs in three anyway. Any candidate
+fix needs either many runs or a deterministic reproduction first.
+
+Recorded on UAF-1 rather than left as an assumption that it reproduces.
