@@ -9013,3 +9013,30 @@ the same no-findings/never-ran ambiguity that produced four false readings this 
 which immediately caught wrong variable names (`Value`/`dwStage` vs `value`/`stage`).
 A full build would have relinked `FFViper` mid-sweep and invalidated 34 missions to
 find a typo.
+
+**NVG-5 — a new, specific hypothesis from reading the 3D state block.** Two facts
+that narrow it, neither of which appears in the twelve earlier hypotheses:
+
+1. **Every COLOROP the 3D path requests is implemented.** Stages 0–3 use ADDSMOOTH,
+   ADDSIGNED, DOTPRODUCT3, ADDSIGNED — all four have real cases in the GL layer. So
+   "an unimplemented colour op is silently becoming MODULATE" is **not** the 3D
+   problem, whatever it may be for other paths. That eliminates a whole family.
+2. **The block sets no `D3DTSS_ALPHAOP` at all** — for any stage — yet ends with
+   `m_AlphaTextureStage = 3`. Stage 3's alpha operation is therefore whatever the
+   *previous* render state left behind, and NVG-3 exists precisely because
+   `m_AlphaTextureStage` drives the chroma key.
+
+**The hypothesis:** if the inherited alpha op at stage 3 is `DISABLE` (or anything
+that terminates the alpha chain early), the alpha the chroma key reads comes from a
+stage that is not producing it. That is a *state-inheritance* bug, not a missing
+feature — which fits a symptom that has survived twelve feature-shaped theories.
+
+**Testable without guessing:** read back `GL_COMBINE_ALPHA` and the alpha source for
+units 0–3 immediately after `DX_NVG` is applied, and compare against what stage 3
+needs. The readback machinery already exists (five `glGetTexEnviv` sites), and the new
+`[NVGOP-UNHANDLED]` line will separately flag any alpha op falling through to the
+silent MODULATE.
+
+Recorded rather than pursued further this sprint: NVG-5 has resisted repeatedly and
+the standing rule is to switch away. This is a lead with a concrete measurement
+attached, not another theory.
