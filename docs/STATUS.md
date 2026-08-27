@@ -7095,3 +7095,36 @@ implemented in NVG-2) producing black or transparent fragments for world geometr
 description and wrong as a diagnosis — exactly like "physics terrain sits below graphics
 terrain", which turned out to be landing gear. Measuring *regions* rather than the whole
 frame took one command and overturned seven sprints of hypotheses.
+
+### NVG-5 — a control saved a false negative: `FF_NVG_NOVTX` does nothing
+
+Next candidate after the re-scope: the world path masks vertex colour to green-only under
+NVG (`context.cpp:3364`, `color &= 0xFF00FF00; color |= 0x0000B400`), and `DX_NVG`'s stage 0
+is `ADDSMOOTH(DIFFUSE, DIFFUSE)` — so a diffuse with red and blue zeroed, fed through
+`ADDSMOOTH` and then `DOTPRODUCT3`, is a plausible way to blank the world. `FF_NVG_NOVTX=1`
+exists to suppress that tint.
+
+Tested it with `FF_NVG_DXSTATE=1`: world region **identical to six decimals**
+(`sd=0.0590981`, `b=0.472213`). That looked like a clean eighth refutation.
+
+**It was not a refutation. It was a broken test.** Ran the control — the same flag in the
+*default* configuration, where the world is green and clearly visible:
+
+```
+default, no flag:            r=0.275 g=0.424 b=0.243 sd=0.192
+default, FF_NVG_NOVTX=1:     r=0.275 g=0.424 b=0.243 sd=0.192
+```
+
+**Identical.** The flag has no effect in the configuration where its effect would be
+obvious, so that code path is not reached (or the tint is not what greens the world —
+consistent with the earlier finding that `GreenMode` tints via the colour-bank palette swap,
+`ColorPool = GreenTVBuffer`, not via vertex colour).
+
+So the vertex-tint hypothesis is **untested**, not refuted, and `FF_NVG_NOVTX` is a dead
+lever for this scenario.
+
+**Why this matters more than the theory**: without the control, "no change with the flag"
+would have gone into the record as evidence against vertex tinting, and the next person
+would have skipped it. A negative result from a lever that does not move is not a negative
+result. Cheap rule: **before believing that turning something off changed nothing, prove the
+switch is connected** — test it where its effect should be visible.
