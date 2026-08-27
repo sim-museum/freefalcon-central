@@ -2435,6 +2435,19 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
                 wDiffuse = *(const DWORD*)(wv + off);
             }
 
+            // FF_LINUX (NVG-5): read unit 0's GL_TEXTURE_ENV_COLOR. ADDSMOOTH's GL
+            // implementation needs WHITE there (it uses GL_CONSTANT as the S0 operand of
+            // GL_INTERPOLATE), while DX_NVG also sets TEXTUREFACTOR = 0x0000a000, which
+            // lands in the SAME per-unit slot. The NVG-2 notes warn that "a stage cannot
+            // be both ADDSMOOTH and a TFACTOR consumer" -- this checks whether that
+            // collision actually happens on the world draw.
+            GLfloat env0[4] = { -1.0f, -1.0f, -1.0f, -1.0f };
+            GLint combRGB0 = 0, src0RGB0 = 0;
+            glActiveTexture(GL_TEXTURE0);
+            glGetTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, env0);
+            glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_RGB, &combRGB0);
+            glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE0_RGB, &src0RGB0);
+
             GLint dFunc = 0, aFunc = 0, bSrc = 0, bDst = 0, cullMode = 0;
             GLfloat aRef = 0.0f;
             glGetIntegerv(GL_DEPTH_FUNC, &dFunc);
@@ -2445,7 +2458,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             glGetIntegerv(GL_CULL_FACE_MODE, &cullMode);
             fprintf(stderr, "[3DCENSUS] units=%d texStage0=%s texStage1=%s n=%lu"
                             " zTest=%d zFunc=0x%x zWrite=%d blend=%d src=0x%x dst=0x%x"
-                            " aTest=%d aFunc=0x%x aRef=%.2f cull=%d mode=0x%x diffuse=%08x\n",
+                            " aTest=%d aFunc=0x%x aRef=%.2f cull=%d mode=0x%x diffuse=%08x"
+                            " env0=(%.2f,%.2f,%.2f,%.2f) comb0=0x%x src0=0x%x\n",
                     u3,
                     dev->textures[0] ? "yes" : "NO",
                     dev->textures[1] ? "yes" : "NO",
@@ -2455,7 +2469,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
                     (int)glIsEnabled(GL_BLEND), (unsigned)bSrc, (unsigned)bDst,
                     (int)glIsEnabled(GL_ALPHA_TEST), (unsigned)aFunc, (double)aRef,
                     (int)glIsEnabled(GL_CULL_FACE), (unsigned)cullMode,
-                    (unsigned)wDiffuse);
+                    (unsigned)wDiffuse,
+                    (double)env0[0], (double)env0[1], (double)env0[2], (double)env0[3],
+                    (unsigned)combRGB0, (unsigned)src0RGB0);
             fflush(stderr);
         }
     }

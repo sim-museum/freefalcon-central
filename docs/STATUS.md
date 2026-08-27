@@ -7306,3 +7306,36 @@ The NVG-2 implementation notes flag exactly this collision: *"a stage cannot be 
 ADDSMOOTH and a TFACTOR consumer"*. `DX_NVG` sets `TEXTUREFACTOR = 0x0000a000` and puts
 `ADDSMOOTH` on stage 0. **Next**: check whether stage 0's `GL_TEXTURE_ENV_COLOR` holds
 white (what `ADDSMOOTH` needs) or `0x0000a000` (what `TEXTUREFACTOR` set) at the world draw.
+
+### NVG-5 — the ADDSMOOTH/TFACTOR collision does NOT occur; setup is correct at unit 0
+
+Read unit 0's `GL_TEXTURE_ENV_COLOR`, `GL_COMBINE_RGB` and `GL_SOURCE0_RGB` at the world draw:
+
+```
+A (green):  units=0/1   env0=(0,0,0,0)  comb0=0x2100 MODULATE     src0=0x1702 GL_TEXTURE
+B (blue):   units=0/1   env0=(0,0,0,0)  comb0=0x2100 MODULATE     src0=0x1702 GL_TEXTURE   (identical to A)
+            units=3     env0=(1,1,1,1)  comb0=0x8575 INTERPOLATE  src0=0x8576 GL_CONSTANT
+```
+
+**The constant slot holds white** — precisely what `ADDSMOOTH` requires for
+`GL_INTERPOLATE(S0=CONSTANT, S1=A2, S2=A1)` to compute `A1 + A2 - A1*A2`. It does **not**
+hold `TEXTUREFACTOR`'s `0x0000a000` (which would read `(0, 0.627, 0)`). So the collision the
+NVG-2 notes warned about — *"a stage cannot be both ADDSMOOTH and a TFACTOR consumer"* — is
+**not happening** on the world draw. Hypothesis refuted.
+
+Also worth recording: the `units=0` and `units=1` classes are **identical between
+configurations**, down to the env colour and combine mode. Only the extra `units=3` class
+differs, which is consistent with everything measured so far.
+
+**So at unit 0 the NVG combine is set up correctly**: right mode, right constant, right
+source-0. The blue is produced downstream of a correctly-configured first stage.
+
+**Next, and narrow**: log `GL_SOURCE1_RGB` / `GL_SOURCE2_RGB` and the corresponding
+`OPERAND*_RGB` for the `units=3` class. `ADDSMOOTH` requires `S2 = A1` and `S1 = A2`; if the
+operand mapping is transposed the arithmetic silently computes something else while every
+state read so far still looks right. `DX_NVG` sets stage 0 to `ADDSMOOTH(DIFFUSE, DIFFUSE)`,
+so with both args white the correct output is white — anything else means the operands are
+not what the implementation assumes.
+
+Eleventh hypothesis. Each of the last six has been refuted in a single run, and each has
+narrowed the target rather than merely eliminating a guess.
