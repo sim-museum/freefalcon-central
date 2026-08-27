@@ -2371,6 +2371,30 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     // before any claim about how many texture units the layer uses -- the
     // earlier "only ever one unit" statement was generalised from the 2D sample
     // alone and is not established for the world path.
+    // FF_LINUX (NVG-5): FF_NVG_MAXUNITS=<n> caps how many texture units a 3D (world)
+    // draw uses, by disabling units >= n immediately before the draw. The world is
+    // rasterised correctly under DX_NVG but comes out blue-dominant and flat
+    // (b=0.472, sd=0.059 vs 0.192) because it goes through the three-unit NVG combine.
+    // Capping units bisects that combine: if the world returns at n=1 or n=2, the unit
+    // above the cap is the one producing the blue.
+    if ( not isXYZRHW) {
+        static int s_maxUnits = -2;
+
+        if (s_maxUnits == -2) {
+            const char *e = getenv("FF_NVG_MAXUNITS");
+            s_maxUnits = e ? atoi(e) : -1;
+        }
+
+        if (s_maxUnits >= 0) {
+            for (int u = s_maxUnits; u < 4; u++) {
+                glActiveTexture(GL_TEXTURE0 + u);
+                glDisable(GL_TEXTURE_2D);
+            }
+
+            glActiveTexture(GL_TEXTURE0);
+        }
+    }
+
     if (!isXYZRHW and getenv("FF_DEBUG_2DCENSUS")) {
         static int s_seen3[8] = { 0 };
         int u3 = 0;

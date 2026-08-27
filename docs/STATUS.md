@@ -7231,3 +7231,42 @@ with changing a combine that is producing colour, not with restoring a draw that
 the blue-dominant result for world geometry? The Wine reference shows the correct output is
 green with detail preserved, so this is now a direct comparison of a colour pipeline against
 a known-good image rather than a hunt for a missing draw.
+
+### NVG-5 — not the multi-unit combine: the blue originates at unit 0 / the DIFFUSE input
+
+`FF_NVG_MAXUNITS=<n>` caps how many texture units a world draw uses, disabling the rest
+immediately before the draw:
+
+| cap | WORLD |
+|---|---|
+| 1 | sd=0.065  r=0.0004  g=0.139  b=0.473 |
+| 2 | sd=0.062  r=0.0003  g=0.139  b=0.472 |
+| 3 | sd=0.062  r=0.0003  g=0.139  b=0.472 |
+| uncapped | sd=0.059  r=0.000  g=0.139  b=0.472 |
+| **correct (default)** | **sd=0.192  r=0.275  g=0.424  b=0.243** |
+
+The lever acted (r moves off exactly zero, sd shifts) but **one texture unit is just as blue
+as three**. So the three-unit combine is not what produces the blue — ruled out.
+
+**Which leaves unit 0 and what feeds it.** In the working configuration the census also shows
+`units=1` draws and the world is green; capped to one unit under `DX_NVG` it is blue. The
+difference is that unit 0's texture-env is still configured as NVG's
+`ADDSMOOTH(DIFFUSE, DIFFUSE)`.
+
+**And this connects to the dead lever from earlier.** `FF_NVG_NOVTX` — which suppresses the
+world's green vertex tint (`color &= 0xFF00FF00; color |= 0x0000B400`) — was shown to do
+nothing, meaning **that tint path is never reached**. So under `DX_NVG` the world's `DIFFUSE`
+is *not* green-tinted, and `ADDSMOOTH(DIFFUSE, DIFFUSE) = D + D - D*D` on an untinted,
+sky-and-terrain-coloured diffuse produces exactly a washed blue-dominant result with detail
+flattened.
+
+That also explains the otherwise odd texture-op result: replacing the ops with `MODULATE`
+pushed it *further* blue (`b=0.950`), which is what squaring an untinted diffuse would do.
+
+**Hypothesis, now specific and testable**: the world's vertex colour is not being NVG-tinted
+on the path `DX_NVG` uses, so stage 0 combines an untinted diffuse. **Next**: log the actual
+`DIFFUSE` value on world draws in both configurations. If it is green in one and not the
+other, that is the defect.
+
+Two threads that each looked like dead ends — a lever that did nothing, and a combine that
+was not to blame — turn out to be the same finding from opposite directions.
