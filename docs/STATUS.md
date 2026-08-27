@@ -7839,3 +7839,43 @@ mission. Removing that line did not just lose a hypothetical diagnostic; it sile
 one that was firing on the exact mission that motivated the fix. (Caveat: ASAN ran
 in `build-asan` and the sweep runs release, so this is strong inference rather than
 a direct before/after measurement — the restore's re-run of row 26 will settle it.)
+
+### ORDER-1 — VERIFIED by the full 34-mission sweep
+
+| metric | result | baseline (TESWEEP-4) |
+|---|---|---|
+| rows reaching sim | **34 / 34** | 34 / 34 |
+| crashes | **0** | 0 |
+| assertion lines | **60** | 62 (vs 64 before) |
+
+No regression from the nine ORDER-1 fixes plus ORDER-3's `division.cpp` fix.
+
+**The −2 assertion delta is not noise and is fully accounted for:** it is the
+`ShiAssert(slotNumber < instance.ParentObject->nSlots)` that the `AttachChild` fix
+wrongly dropped (BSPSLOT-1 part B). Restoring it should return the count to ~62.
+That the metric moved by exactly the amount the mistake predicts is a small
+vindication of tracking assertion counts at all.
+
+**Two caveats recorded rather than buried.** (1) `FFViper` was relinked mid-sweep
+for ORDER-3, so rows 1–5 ran against the earlier binary — they are being re-run,
+with row 26, against the final one. (2) The baseline is an aggregate, so this
+compares totals, not per-row identity. That gap is now closed for the future: a
+**per-row assertion map** is recorded below.
+
+#### Per-row assertion baseline (this sweep) — the artefact the aggregate lacked
+
+| assertion | rows |
+|---|---|
+| `team.cpp:1800` `ShiAssert(TeamInfo[a])` | 1, 3, 4, 5, 6, 7, 8, 9, 10, 19 |
+| `atm.cpp:835` | 21, 22, 23, 24, 28 |
+| `texbank.cpp:314` (guarded, benign) | 12, 14, 15, 22, 23, 27 |
+| `objectiv.cpp:3663` (guarded, benign) | 16, 17 |
+| `drawbsp.cpp:87` / `:190` + `objlist.cpp:268` | 12 |
+| `drawbsp.cpp:120` | 23 |
+| silent | 2, 11, 13, 18, 20, 25, 26 |
+
+`drawbsp.cpp:120` is the assertion ORDER-1 **relocated** below the guards —
+`SlotChildren[slotNumber] == NULL`. It firing in row 23 means `AttachChild` was
+called for an already-occupied slot, and the fix means that state is now *reported*
+instead of being discovered by an out-of-bounds read. The relocation preserved the
+diagnostic; only the separate comparison assert was lost.

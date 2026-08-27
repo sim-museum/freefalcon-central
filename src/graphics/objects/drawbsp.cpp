@@ -113,6 +113,14 @@ void DrawableBSP::AttachChild(DrawableBSP *child, int slotNumber)
     // The bounds test existed; it was simply sequenced after the dereference.
     if ( not instance.SlotChildren) return;
 
+    // FF_LINUX: restored. This is a pure COMPARISON -- it never indexed SlotChildren,
+    // so it did not need to move with the indexing assertion below and should not have
+    // been dropped. It is the diagnostic that reports the exact state ASAN caught
+    // (AddWeaponGraphics passing a hardpoint index the model has no slot for, TE-26
+    // HARMs); without it that mission goes silent. DetachChild kept its copy, so the
+    // two sibling fixes had drifted apart.
+    ShiAssert(slotNumber < instance.ParentObject->nSlots);
+
     if (slotNumber >= instance.ParentObject->nSlots) return;
 
     if ( not child) return;
