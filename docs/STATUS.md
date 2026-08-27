@@ -8839,3 +8839,38 @@ already recorded: the weapon is created and owned, it simply is not parented to 
 slot, so it is not drawn on the vehicle. BSPSLOT-1 now has no unresolved sub-questions
 — root cause in game data (vehicle types 3337 and 711 claim hardpoint 2 visible while
 LOD 233 defines 2 slots), consequence cosmetic, no memory impact.
+
+### TESWEEP-5 — PASS, and the assertion count went *down* for a reason
+
+| metric | result | baseline |
+|---|---|---|
+| rows reaching sim | **34 / 34** | 34 / 34 |
+| crashes | **0** | 0 |
+| assertion lines | **58** | 62 |
+
+**−4 lines is 2 fewer distinct sites firing, and the per-row map identifies them
+exactly.** Everything is unchanged except row 12, which previously fired four sites
+and now fires two:
+
+| row 12 | baseline | now |
+|---|---|---|
+| `drawbsp.cpp:87` — `ShiAssert(id >= 0)` in `Update` | fired | **silent** |
+| `objlist.cpp:268` — `ShiAssert(not _isnan(p->distance))` | fired | **silent** |
+| `drawbsp` out-of-range slot (`:190` → `:219`) | fired | fires |
+| `texbank.cpp:314` | fired | fires |
+
+*(The `drawbsp` line numbers shifted because this session inserted probes into that
+file; `:123`, `:149` and `:219` were verified by reading the source to be the same
+three assertions as `:120`, `:87`→ and `:190` before. The map is only usable if line
+drift is checked rather than assumed.)*
+
+**The two that went silent are a negative object id and a NaN distance** — precisely
+the downstream garbage a stale `entityTypePtr_` would produce. `SetEntityType()`
+derives six flag bits and `domain_` from the type, so an entity pointing into a freed
+class table gets *garbage flags and a garbage domain*, and those feed object placement
+and list ordering. Fixing the pointer removed both.
+
+So the UAF-1 fix did not merely stop a crash: it eliminated two independent bad states
+in an unrelated subsystem, which is strong mechanistic corroboration that the diagnosis
+was right. Stated with its limit — this is one sweep, and the two sites going quiet is
+correlation plus a plausible mechanism, not a controlled test.
