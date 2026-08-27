@@ -8614,3 +8614,20 @@ and kept running — and my own command died before applying any edits, so the s
 believed I had was not the state on disk. Checking rather than assuming is what caught
 it. `pkill` has now caused trouble four times in this project; prefer letting a
 bounded loop finish.
+
+**Self-matching `pgrep`, fifth occurrence — this time in a wait condition.** The
+chained job began `while pgrep -f 'uaf-probe-loop' …; do sleep 20; done`. That shell's
+own command line *contains* the string, so the pattern matched the waiter itself and
+the loop could never exit: the rebuild and the runs never started, and the job would
+have sat there indefinitely looking busy.
+
+The tell was `orphan: 3` when at most one loop could exist. `pgrep -af` showed both
+matches were `/bin/bash -c source …snapshot…` — my own shells.
+
+**The fix is the same one already recorded twice in this project: a bracket class.**
+`pgrep -f '[u]af-probe-loop'` matches the process and not the pattern. Used everywhere
+else in this session's scripts; omitted here because the pattern was inside a `while`
+condition rather than a status check, which felt different and is not.
+
+Stopped via `TaskStop` rather than `pkill` — the previous `pkill` killed a task wrapper
+while its child survived as an orphan, and killed the issuing command too.
