@@ -2423,7 +2423,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             // the prediction is that DIFFUSE is NOT green here. Offsets differ from the
             // 2D census: XYZRHW is 16 bytes before the colour, plain XYZ is 12, plus 12
             // more if a normal is present.
-            DWORD wDiffuse = 0xDEADBEEF;
+            DWORD wDiffuse = 0xDEADBEEF, wDiffLo = 0, wDiffHi = 0;
+            int wDiffUniform = -1;
+            unsigned wDiffN = 0;
 
             if ((fvf bitand D3DFVF_DIFFUSE) and vb->data and dwIndexCount >= 1) {
                 unsigned off = (fvf bitand D3DFVF_XYZRHW) ? 16u : 12u;
@@ -2433,6 +2435,35 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
                 const unsigned char* wv = (const unsigned char*)vb->data
                     + (dwStartVertex + lpwIndices[0]) * GetVertexSize(fvf);
                 wDiffuse = *(const DWORD*)(wv + off);
+
+                // FF_LINUX (NVG-5): one vertex is not a sample. The previous reading of
+                // this field (ffffffff, from index 0 alone) was used to refute the
+                // untinted-diffuse hypothesis despite being explicitly flagged as a
+                // single sample. Scan up to 64 indices and report whether they are
+                // uniform, plus the min/max, so "the diffuse is white" can be asserted
+                // or denied on evidence.
+                {
+                    unsigned n = dwIndexCount < 64 ? dwIndexCount : 64;
+                    DWORD lo = 0xFFFFFFFFu, hi = 0u;
+                    bool uniform = true;
+
+                    for (unsigned k = 0; k < n; k++) {
+                        const unsigned char* vk = (const unsigned char*)vb->data
+                            + (dwStartVertex + lpwIndices[k]) * GetVertexSize(fvf);
+                        DWORD dk = *(const DWORD*)(vk + off);
+
+                        if (dk not_eq wDiffuse) uniform = false;
+
+                        if (dk < lo) lo = dk;
+
+                        if (dk > hi) hi = dk;
+                    }
+
+                    wDiffUniform = uniform ? 1 : 0;
+                    wDiffLo = lo;
+                    wDiffHi = hi;
+                    wDiffN  = n;
+                }
             }
 
             // FF_LINUX (NVG-5): read unit 0's GL_TEXTURE_ENV_COLOR. ADDSMOOTH's GL
@@ -2470,7 +2501,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
                             " zTest=%d zFunc=0x%x zWrite=%d blend=%d src=0x%x dst=0x%x"
                             " aTest=%d aFunc=0x%x aRef=%.2f cull=%d mode=0x%x diffuse=%08x"
                             " env0=(%.2f,%.2f,%.2f,%.2f) comb0=0x%x s0=0x%x s1=0x%x s2=0x%x"
-                            " op0=0x%x op1=0x%x op2=0x%x\n",
+                            " op0=0x%x op1=0x%x op2=0x%x diffN=%u uniform=%d lo=%08x hi=%08x\n",
                     u3,
                     dev->textures[0] ? "yes" : "NO",
                     dev->textures[1] ? "yes" : "NO",
@@ -2484,7 +2515,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
                     (double)env0[0], (double)env0[1], (double)env0[2], (double)env0[3],
                     (unsigned)combRGB0, (unsigned)src0RGB0,
                     (unsigned)src1RGB0, (unsigned)src2RGB0,
-                    (unsigned)op0RGB0, (unsigned)op1RGB0, (unsigned)op2RGB0);
+                    (unsigned)op0RGB0, (unsigned)op1RGB0, (unsigned)op2RGB0,
+                    wDiffN, wDiffUniform, (unsigned)wDiffLo, (unsigned)wDiffHi);
             fflush(stderr);
         }
     }

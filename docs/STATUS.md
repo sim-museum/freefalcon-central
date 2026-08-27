@@ -7376,3 +7376,36 @@ several draws, not one — before treating any diffuse claim as established.
 the sampling limitation accurately and then drew a conclusion the sample could not support,
 which is the same error as the retracted runway-z figure, one entry after warning myself
 about it.
+
+### NVG-5 — diffuse confirmed white across all sampled vertices; the contradiction stands
+
+Re-measured the world draw's diffuse across every index of the draw rather than index 0:
+
+```
+B (blue),  units=3:  diffN=6 uniform=1 lo=ffffffff hi=ffffffff
+A (green), units=1:  diffN=6 uniform=1 lo=ffffffff hi=ffffffff
+```
+
+**Uniformly white in both.** The original single-vertex reading was correct — but it is now
+established on evidence rather than assumed, which is the difference that matters after the
+previous entry.
+
+**So the contradiction is real and remains open.** Unit 0 is verifiably
+`INTERPOLATE(S0=CONSTANT white, S1=PRIMARY, S2=PRIMARY)` = `A1 + A2 - A1*A2` with both args
+white, which is **white**. Capping to one unit demonstrably removes the `units=3` class from
+the census. Yet the world is still blue at one unit. A correctly-configured stage fed white
+cannot output blue.
+
+**Sampling limit, stated again because it still applies**: the census reports at most two
+draws per unit-count class. "Diffuse is white" holds for the sampled draws — six vertices
+each — not for every world draw in the frame. That remains the most likely place for the
+contradiction to resolve.
+
+**Next, and it is a small check that should have come earlier**: when `FF_NVG_MAXUNITS=1`
+collapses the `units=3` draws into `units=1`, do those draws still show
+`comb0=INTERPOLATE` (NVG's ADDSMOOTH) or has unit 0 reverted to `MODULATE`? If the latter,
+the capped test never exercised the NVG combine at all, and the "one unit is as blue as
+three" result — used to rule out the multi-unit combine — is invalid.
+
+That would make it the third refutation this session built on a lever whose effect was
+assumed rather than checked at the point it mattered.
