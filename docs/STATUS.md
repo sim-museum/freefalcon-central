@@ -8657,3 +8657,37 @@ earlier step was supposed to do will happily commit a lie when the earlier step 
 about a control that looks like a finding applies to prose as much as to counters: the
 commit message read as a completed fix and was checked only because the assertion
 error was visible in the same output.
+
+### UAF-1 — the accumulated data now contradicts my own ordering argument
+
+| arm | refresh | probes | failures / runs |
+|---|---|---|---|
+| pre-fix baseline | — | no | **2 / 5** |
+| arm A | **off** | no | **2 / 9** |
+| post-fix | on | no | 0 / 6 |
+| probe build | on | yes | 0 / 14 |
+
+Refresh **on**: 0 failures in 20. Refresh **off**: 2 in 9. One-sided Fisher
+`p ≈ 0.06`; `P(0 in 20 | rate 0.22) ≈ 0.007`.
+
+**This is a problem, and it is my problem.** I argued from log ordering — reload
+completes at line 386, `FM_LOAD_CAMPAIGN` starts at 604, only 2 long-lived session
+entities get re-pointed — that the refresh **cannot** reach the entities involved in
+the crash. The accumulating failure rates weakly say otherwise. Both cannot be right.
+
+Three readings, none yet supported:
+
+1. **Coincidence.** 20 runs against a 0.22 rate is suggestive, not decisive, and the
+   arms were not randomised or interleaved — they ran at different times, on a machine
+   whose load varied.
+2. **The refresh does more than re-point.** `SetEntityType()` also rewrites six flag
+   bits and `domain_` from the type. For a *session* entity, `domain_` participates in
+   VU ownership decisions. That is a mechanism I dismissed without checking, because I
+   was focused on the pointer.
+3. **The probes suppress it**, and the pre-probe 0/6 was luck.
+
+**Next experiment, defined before running it:** extend arm A (refresh off, no probes)
+to ~20 runs. If refresh-off holds near 0.22 while refresh-on stays at 0, the effect is
+real and reading (2) is the thing to investigate — starting with what `domain_` and the
+flag rewrite do for the session entity. If arm A drifts toward 0, reading (1) wins and
+the whole comparison was noise.
