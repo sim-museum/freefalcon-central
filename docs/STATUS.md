@@ -7704,3 +7704,13 @@ re-scanned.
 **Note on the tool tree:** `camptool/camptask/division.cpp` carries the same defect
 in pre-`bitor` syntax and was fixed too, but `ninja` reports no work for it — that
 file is not compiled into FFViper. The shipped fix is the `camptask` one.
+
+**ORDER-1 triage footnote — build membership, verified not assumed.** Several
+pass-1 candidates were set aside as "separate tools". That was an assumption at
+the time, so it was checked: `src/tools/ui_tools/*`, `src/tools/bexpand/*`,
+`src/voicecomunication/*` and `src/campaign/camptool/*` produce **no object files
+in `build-relg`** and appear in no ninja target. (The ten targets matching "tools"
+are `src/codelib/tools/lists` and `graphics/dxengine/dxtools.cpp`, which are
+unrelated.) So dismissing them was correct — but the fixes applied to the camptool
+copies of `squadron.cpp` and `division.cpp` ship nothing; the built-path fixes are
+the `camptask` ones.
