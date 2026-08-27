@@ -220,3 +220,65 @@ for r in res2:
     print("      guard : %s" % r[7])
     print("      access: %s" % r[6])
 print("--- pass2: %d candidates ---" % len(res2), file=sys.stderr)
+
+# ---------------------------------------------------------------------------
+# Pass 3 -- ORDER-3: an assertion that performs the very access it is checking.
+# This matters here specifically because ShiAssert is LIVE in this build
+# (shi/assert.h promotes DEBUG/_DEBUG, CMake defines _DEBUG), so an assert that
+# indexes out of range IS the crash, not a debug-only annoyance. Found
+# FarTexDB::Deactivate and division.cpp, the latter sitting directly above a
+# bounds check tagged "// JB 010223 CTD" -- crash to desktop.
+# ---------------------------------------------------------------------------
+def scan3(path, out):
+    try:
+        with open(path, encoding="latin-1") as f:
+            lines = f.readlines()
+    except OSError:
+        return
+    for a, b in _funcs(lines):
+        body = lines[a:b+1]
+        for k, ln in enumerate(body):
+            if ln.lstrip().startswith("//"):
+                continue
+            m = re.search(r'\bShiAssert\s*\(([^;]*)\)\s*;', ln)
+            if not m:
+                continue
+            for arr, ix in re.findall(r'\b(\w+)\s*\[\s*([\w\.\->]+)\s*\]', m.group(1)):
+                rest = "".join(body[k+1:])
+                gv = re.search(r'if\s*\(\s*(?:not\s+|!)?\s*' + re.escape(arr)
+                               + r'\s*(?:==\s*(?:NULL|0|nullptr)\s*)?\)', rest)
+                gi = re.search(r'if\s*\(\s*' + re.escape(ix) + r'\s*(?:>=|<|>)\s*', rest)
+                if gv or gi:
+                    out.append((os.path.relpath(path, "/home/g/ff"), a + k + 1,
+                                "assert-indexes", "%s[%s]" % (arr, ix),
+                                "guard is LATER in the same function", "",
+                                ln.strip()[:100], ""))
+
+def _funcs(lines):
+    d, start = 0, None
+    for i, ln in enumerate(lines):
+        code = re.sub(r'//.*', '', ln)
+        code = re.sub(r'"(?:\\.|[^"\\])*"', '""', code)
+        o, c = code.count('{'), code.count('}')
+        if d == 0 and o:
+            start = i
+        d += o - c
+        if d <= 0 and start is not None:
+            yield start, i
+            start, d = None, 0
+
+res3 = []
+for dirpath, dirnames, filenames in os.walk(ROOT):
+    dirnames[:] = [d for d in dirnames if d not in ("extern", ".git")]
+    for fn in filenames:
+        if fn.endswith((".cpp", ".c")):
+            p = os.path.join(dirpath, fn)
+            if os.path.islink(p):
+                continue
+            scan3(p, res3)
+
+print("\n=== pass 3: assertion performs the access it checks (ShiAssert is LIVE here) ===")
+for r in res3:
+    print("%s:%d  %s %s -- %s" % (r[0], r[1], r[2], r[3], r[4]))
+    print("      %s" % r[6])
+print("--- pass3: %d candidates ---" % len(res3), file=sys.stderr)

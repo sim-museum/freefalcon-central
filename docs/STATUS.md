@@ -9170,3 +9170,28 @@ Prepared while the PO has the machine, so nothing needs iterating in front of th
 Also fixed en route: the existing `[NVGOP]` probe reported `DOTPRODUCT3` for every
 `ADDSIGNED` (a `case` fallthrough), which would have misattributed the op to stage 1.
 Debugging NVG-5 from that output would have been debugging fiction.
+
+### ORDER-3 folded into the saved scanner (pass 3)
+
+The ORDER-3 scan — *an assertion that performs the very access it is checking* — found
+two real defects (`FarTexDB::Deactivate`, `division.cpp`) but existed only as a
+throwaway inline script. It is now **pass 3 of `scripts/qa/order-audit.py`**, so the
+tool covers all three shapes this session found:
+
+1. guard sequenced after the access
+2. guard too narrow (single unbraced statement)
+3. **assertion performs its own access**
+
+**Validated against known positives before being trusted**, the same discipline that
+forced pass 2 into existence: run against the pre-fix `division.cpp` and `fartex.cpp`
+from git, pass 3 finds both. Against the current tree it reports **1 candidate**, the
+already-triaged `objectlod.cpp:205` false positive (its assert is inside
+`if (TheObjectLODs != NULL)`), and correctly does **not** report the two now-fixed
+defects.
+
+Why bother: pass 3's shape is only dangerous *in this codebase*, because `ShiAssert`
+is live here — `shi/assert.h` promotes `DEBUG`/`_DEBUG` and CMake defines `_DEBUG`, so
+an assertion that indexes out of range **is** the crash. That fact is easy to forget
+and expensive to rediscover; encoding it in a runnable check preserves it better than
+a comment. The scanner is referenced from the `ff-guard-after-access` memory, so the
+next session inherits all three passes.
