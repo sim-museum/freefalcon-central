@@ -8502,3 +8502,24 @@ Worth recording as a rule: **an intermittent defect has a reproducing configurat
 and instrumentation must be added to *that* one.** ASAN changes allocation layout and
 timing, which is very likely why it reproduces and release does not — the same
 property that makes it useful here makes results from the other build inapplicable.
+
+**Heisenbug risk in the probe build — named before the data comes in, not after.**
+The probes add work to `VuGridTree::Move`, which runs ~40,000 times per mission: a
+cached `getenv`, two counters, a compare, and a periodic `fprintf`. That is cheap, but
+it is not nothing, and this defect is timing-sensitive enough that ASAN reproduces it
+while release never has.
+
+So a long clean streak from the **instrumented** ASAN build would be ambiguous: it
+could mean both theories are dead, or it could mean the instrumentation perturbed the
+timing that produces the failure. The two are not distinguishable from clean runs
+alone.
+
+**The control already exists.** Plain ASAN (arm A) failed **2 in 9** ≈ 0.22. If the
+instrumented ASAN build reaches ~10 clean runs, that is `0.78^10 ≈ 0.08` — starting to
+look like perturbation rather than luck, and the right response would be to make the
+probes cheaper (drop the periodic `fprintf`, keep only the counters and report at
+exit) rather than to declare the theories refuted.
+
+Recording this now so the interpretation is fixed **before** the numbers arrive. It is
+easy to accept a clean streak as confirmation when it is the answer you were hoping
+for; harder once you have written down in advance what it would take to believe it.
