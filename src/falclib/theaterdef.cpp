@@ -7,6 +7,9 @@
 #include "codelib/resources/reslib/src/resmgr.h"
 #include "FalcSnd/voicemapper.h"
 #include "entity.h"
+#include "vu2/include/vuentity.h"   // FF_LINUX UAF-1: re-point entity type ptrs
+#include "vu2/include/vucoll.h"     // FF_LINUX UAF-1: VuDatabaseIterator
+
 #include "f4find.h"
 #include "tactics.h"
 #include "AIInput.h"
@@ -398,6 +401,35 @@ bool TheaterList::SetNewTheater(TheaterDef *td)
     UnloadClassTable();
     fprintf(stderr, "  [SetNewTheater] LoadClassTable...\n");
     LoadClassTable("Falcon4");
+
+    // FF_LINUX (UAF-1): every live entity caches entityTypePtr_, and for types beyond
+    // the static vuTypeTable that pointer is &Falcon4ClassTable[...] -- i.e. it points
+    // INTO the array UnloadClassTable() just freed above. LoadClassTable then allocates
+    // a new block at a different address, leaving every pre-existing entity holding a
+    // dangling type pointer. Any later ent->EntityType()->classInfo_[..] read is then a
+    // use-after-free; UnitProxFilter::RemoveTest via VuGridTree::Move during
+    // AircraftClass::SetDead is the reliable one (~2 in 5 runs of TE-29).
+    // SetEntityType() recomputes the pointer from the stored type id, so re-pointing
+    // every live entity here closes the window. FF_NO_TYPEPTR_REFRESH=1 reverts.
+    {
+        static int ffNoTypePtrRefresh = -1;
+        if (ffNoTypePtrRefresh < 0)
+            ffNoTypePtrRefresh = getenv("FF_NO_TYPEPTR_REFRESH") ? 1 : 0;
+
+        if ( not ffNoTypePtrRefresh)
+        {
+            VuDatabaseIterator iter;
+            int nRepointed = 0;
+
+            for (VuEntity *e = iter.GetFirst(); e not_eq NULL; e = iter.GetNext())
+            {
+                e->SetEntityType(e->Type());
+                nRepointed++;
+            }
+
+            fprintf(stderr, "  [SetNewTheater] re-pointed %d entity type pointers\n", nRepointed);
+        }
+    }
     fprintf(stderr, "  [SetNewTheater] ReadCampAIInputs...\n");
     ReadCampAIInputs("Falcon4");
     fprintf(stderr, "  [SetNewTheater] FreeTactics...\n");

@@ -8205,3 +8205,34 @@ Deliberately stopping here. Three UAF-1 theories died today, each after one furt
 check; the fourth is well-evidenced but the repair touches shutdown ordering in a
 codebase where this session has already fixed five sequencing defects. It gets its
 own sprint, with option 1 as the default and option 2 evaluated first for cost.
+
+### UAF-1 — fix implemented: re-point entity type pointers across the class-table reload
+
+**Option 2 chosen over the alternatives, on cost.** Only **14** direct uses of
+`entityTypePtr_` exist (nearly all inside `SetEntityType` itself), but **215** call
+sites go through the `EntityType()` accessor — so "stop caching, resolve on demand"
+would fix all 215 at a stroke. It was rejected: `VuxType()` is a cross-module call
+with an assert, and `EntityType()` sits in per-entity-per-grid-per-move hot paths
+like `UnitProxFilter::RemoveTest`. Paying that on every call to close a
+teardown-window bug is a bad trade in a flight sim.
+
+The chosen fix costs **nothing** on the hot path. In `SetNewTheater`, immediately
+after `LoadClassTable("Falcon4")`, walk the database with `VuDatabaseIterator` and
+call `SetEntityType(e->Type())` on every live entity, which recomputes
+`entityTypePtr_` against the table that now exists. `FF_NO_TYPEPTR_REFRESH=1` reverts.
+
+**Validation design, and its limits.** The pre-fix baseline is **2 failures in 5
+runs** of TE-29 under ASAN (one SIGSEGV, one UAF). Six post-fix runs are underway.
+Two things are being watched, not one:
+
+* the failure count, and
+* **the re-pointed entity count per run** — a fix that executes but touches zero
+  entities would produce exactly the same "clean" result as a working one. That
+  distinction has already caught one false conclusion this session (the
+  `FF_DEBUG_VUDEL` control), so it is instrumented rather than assumed.
+
+**This cannot prove the fix.** At a 2-in-5 base rate, six clean runs is suggestive,
+not conclusive, and the ticket has said from the start that an intermittent defect
+cannot be validated by absence. The post-fix build also carries the `~VuGridTree`
+deregistration fix, so a change in failure rate is **not attributable to either fix
+alone**.
