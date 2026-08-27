@@ -7611,3 +7611,34 @@ between an `if` and its body, which made the real body look unguarded.
 after the condition already dereferenced `ent`. That is the fourth known
 instance and this audit would not have found it. Detecting it needs
 reference-semantics knowledge, not textual ordering.
+
+### ORDER-2 — the safety-reference shape, exhaustively enumerated
+
+ORDER-1 recorded that neither of its passes could detect `VuGridTree::Move`'s
+"scoped reference taken after the dereferences it protects". Rather than build a
+third detector, the population was counted first: **10 textual matches tree-wide,
+of which 2 are function declarations in `hardpnt.h` and 8 are real
+constructions.** At that size a detector is the wrong tool — all 8 were read.
+
+**Exactly 2 take the reference late, and both are `VuGridTree::Move`** (the file
+carries two overloads, `vu_grid_tree.cpp:54/56` using `GetBiKeyFilter()` and
+`:216/218` using `filter_`). Both dereference `ent` twice in the `if` condition —
+`ent->VuState()` and `RemoveTest(ent)` — before constructing `VuEntityBin safe(ent)`
+inside the body.
+
+The other six take the reference **first**, correctly, including the instructive
+contrast already noted under UAF-1: `VuDatabase::ReallyRemove` (both overloads)
+opens with `VuBin<VuEntity> safe(entity)` before any removal or state change.
+`VuCollectionManager::Remove`, `InactivateUnit`, `AttachCamera` and
+`RemoveViewpoint` are all correct too — the last two even NULL-check before
+binding.
+
+**So the shape is not a spreading pattern; it is confined to one function.** That
+converts ORDER-1's "known limit" into a closed question, and it does not add work:
+hoisting those two references is *not* a fix, because taking a reference through
+an already-freed pointer is itself undefined behaviour. Both sites remain symptoms
+of UAF-1's root cause — collections indexing entities by raw pointer while
+deletion is refcount-driven — and are fixed only by fixing that.
+
+**No code change.** The value here is the negative result: 8 sites, 6 correct, 2
+known, none new.
