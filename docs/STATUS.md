@@ -8729,3 +8729,28 @@ count of 2 as equivalent to zero.**
   having, and remains *not* the UAF-1 fix — arm A carried it and still failed.
 * Of the "seven refuted theories", **theory 4 was not refuted**. It was correct, and I
   refuted it with an invalid inference from valid evidence.
+
+**Arm B complete — and the result is deterministic, not statistical.**
+
+| | stale pointer | crash |
+|---|---|---|
+| refresh **off** | **6 / 6 runs** | 2 / 6 |
+| refresh **on** | **0 / 15 runs** | 0 / 15 |
+
+The stale `entityTypePtr_` is present in **every** run without the fix and **no** run
+with it. That is not a p-value, it is a switch. The crash is the *probabilistic
+consequence*: whether the dangling pointer lands in memory that has been recycled into
+something unmapped.
+
+**That finally explains the intermittency that made this bug hard.** The defect is
+present 100% of the time; only the *symptom* is intermittent. Every experiment that
+counted crashes was measuring the wrong variable — including all of mine, for hours.
+Measuring the invariant instead turned a 1-in-3 coin flip into a clean on/off signal
+in six runs.
+
+**The lesson worth keeping from the whole investigation:** when a defect is
+intermittent, find the *invariant it violates* and measure that, not the crash. Seven
+theories and roughly forty runs went into counting crashes; one deterministic probe
+settled it. The probe was only trustworthy because it carried a control proving it had
+executed — the same control that, when I broke it with `atexit`, silently produced two
+uninterpretable runs.
