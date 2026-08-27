@@ -6890,3 +6890,37 @@ entity teardown. That materially changes how it must be chased: a fix cannot be 
 fix needs either many runs or a deterministic reproduction first.
 
 Recorded on UAF-1 rather than left as an assumption that it reproduces.
+
+### NVG-5 — the census was watching the wrong draw path, which explains the failed attempts
+
+Ran the prepared census A/B (`FF_DEBUG_2DCENSUS`, `DX_NVG` skipped vs `FF_NVG_DXSTATE=1`,
+NVG toggled at 70 s). Result:
+
+```
+A (default):        1 census line, no truncation
+B (pipeline live):  1 census line, no truncation   -- IDENTICAL
+```
+
+**That is not "no difference found".** The symptom demonstrably occurs in run B — captured
+frames either side of the toggle show `blue-ish=0` before and `blue-ish=1` after, with frame
+mean dropping 0.329 -> 0.168. The screen visibly fills blue while the census reports one
+identical signature in both configurations.
+
+**So the instrument is not observing the relevant draws.** The census sits in
+`DrawIndexedPrimitiveVB` and only records draws where `dev->textures[0]` is set (or the
+key-blue untextured backdrop). One textured 2D draw class in 100 seconds means the cockpit
+panel is not passing through that function at all.
+
+The BLUE-1 note said as much and it was read past: *"the 2D cockpit panel drawn afterwards
+through the **MPR path**"*. That path is `ContextMPR::FlushPolyLists -> RenderPolyList`
+(`3dlib/context.cpp:2649,2659`), a different renderer entirely from the D3D vertex-buffer
+entry point the census instruments.
+
+**This is why five theories and this census all failed**: every one of them measured or
+reasoned about the D3D stage-state path, while the draw that loses its chroma key goes
+through `RenderPolyList`. The measurement has to move to `context.cpp`, not be refined where
+it is.
+
+**Recorded as the concrete next step for NVG-5**, replacing "measure the per-stage state at
+the 2D draw" — which was right in intent and wrong about *which* draw. No further theories
+until the census is on the MPR path and produces a real diff.
