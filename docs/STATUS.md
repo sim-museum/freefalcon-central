@@ -7829,3 +7829,13 @@ when ASAN or a crash points at one, and when touching the surrounding code anywa
 
 The deliverable is knowing the family exists and that NULL is reachable, so the next
 crash here is diagnosed in minutes rather than hours.
+
+**BSPSLOT-1 part B — evidence that the dropped assertion was actually firing.**
+Sweep row 26 ("HARMs") now reports `asserts=0`. That is the mission whose
+`AttachChild` overflow ASAN caught, i.e. `slotNumber >= nSlots` is *proven* to occur
+there — so the pre-fix build, which contained
+`ShiAssert(slotNumber < instance.ParentObject->nSlots)`, must have fired it on that
+mission. Removing that line did not just lose a hypothetical diagnostic; it silenced
+one that was firing on the exact mission that motivated the fix. (Caveat: ASAN ran
+in `build-asan` and the sweep runs release, so this is strong inference rather than
+a direct before/after measurement — the restore's re-run of row 26 will settle it.)
