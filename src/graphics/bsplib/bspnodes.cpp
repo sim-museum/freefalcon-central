@@ -320,7 +320,11 @@ void BRoot::Draw(void)
     TheStateStack.SetTextureTable(pTexIDs + texOffset);
 #ifdef FF_LINUX
     extern int g_ffRunwayDbg;
-    if (g_ffRunwayDbg && getenv("FF_DEBUG_RUNWAY"))
+    static int s_rwyDbg = -1;
+
+    if (s_rwyDbg < 0) s_rwyDbg = getenv("FF_DEBUG_RUNWAY") ? 1 : 0;
+
+    if (g_ffRunwayDbg && s_rwyDbg)
     {
         static int s_rn = 0;
         if (s_rn++ < 20)

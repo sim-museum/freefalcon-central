@@ -6682,3 +6682,31 @@ assertion after.
 both useless. Narrowing from "an assertion containing brackets" to "an assertion whose index
 variable is bounds-checked later" cut it to one, and that one was real. A scan that returns
 a long list has not found anything; it has just moved the work.
+
+### STATIC-1 (c) — uncached getenv in per-draw paths: four cached, the rest deliberately left
+
+Third defect class from this session: `getenv` called on a hot path, which was found in
+`drawbldg.cpp` where one gated the entire per-frame accurate-refetch block.
+
+**Filtering mattered more than searching.** 116 uncached `getenv` calls tree-wide, 71 in
+`graphics/` or `sim/` — a list that size is not a finding, it is unreviewed work handed to
+the next person. Cost depends on **call frequency**, not on which directory the file lives
+in, so narrowing to `getenv` inside `Draw`/`Render`/`Exec`/`Update` functions gives 13, and
+flagging those additionally inside a loop gives the genuinely hot ones.
+
+**Cached (per-draw or per-object, every frame):**
+- `bspnodes.cpp:323` — `BRoot::Draw`
+- `drawplat.cpp:149,212` — both `DrawablePlatform::Draw` paths
+- `compat/d3d_gl.cpp:5089` — `DrawVertices`, the hottest path in the renderer
+
+**Deliberately not changed**: the remaining ~100. They sit in per-frame-once paths
+(`RenderFrame`, `RenderFirstFrame`), one-shot setup, or non-hot code, where a single
+`getenv` per frame is not worth the churn or the risk of touching working code. Listing
+them as "candidates" without that judgement would be the same mistake as reporting 195
+assertion hits.
+
+This closes STATIC-1. Of the three classes carried over from the ASAN work: the
+`new[]`/`delete` class is **closed for the shipped game** (all in-game candidates were false
+positives, four of them commented-out code); the assert-before-bounds-check class yielded
+**one real latent bug** (`DetachChild`); and the hot-path `getenv` class yielded **four**
+worth caching out of 116 candidates.

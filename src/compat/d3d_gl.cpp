@@ -5086,7 +5086,11 @@ extern "C" void FF_DumpSurfaceStats(IDirectDrawSurface7* s, const char* tag) {
 
     // FF_LINUX: FF_DUMP_PIT_TEX=1 - dump the decoded GL texture image to
     // /tmp/pit_tex_<tag>.bmp for visual inspection (issue #12).
-    if (getenv("FF_DUMP_PIT_TEX") && surf->glTexture) {
+    static int s_dumpPitTex = -1;
+
+    if (s_dumpPitTex < 0) s_dumpPitTex = getenv("FF_DUMP_PIT_TEX") ? 1 : 0;
+
+    if (s_dumpPitTex && surf->glTexture) {
         GLint prevTex = 0;
         glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTex);
         glBindTexture(GL_TEXTURE_2D, surf->glTexture);

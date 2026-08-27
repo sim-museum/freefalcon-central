@@ -146,7 +146,11 @@ void DrawablePlatform::Draw(class RenderOTW *renderer, int LOD)
     // surface creation/counts.
     extern int g_ffRunwayDbg;
     int ffFlatCount = 0;
-    bool ffDbg = getenv("FF_DEBUG_RUNWAY") != 0;
+    static int s_ffDbg = -1;
+
+    if (s_ffDbg < 0) s_ffDbg = getenv("FF_DEBUG_RUNWAY") ? 1 : 0;
+
+    bool ffDbg = s_ffDbg != 0;
     // FF_RUNWAY_SKIP=1: don't draw the flat surfaces at all - decisive test for
     // whether they contribute anything visible (if the airfield looks identical
     // with them skipped, they're already rendering invisibly).
@@ -209,7 +213,11 @@ void DrawablePlatform::Draw(class Render3D *renderer)
 
 #ifdef FF_LINUX
     int ffFlatCount = 0, ffTallCount = 0;
-    bool ffDbg = getenv("FF_DEBUG_RUNWAY") != 0;
+    static int s_ffDbg2 = -1;
+
+    if (s_ffDbg2 < 0) s_ffDbg2 = getenv("FF_DEBUG_RUNWAY") ? 1 : 0;
+
+    bool ffDbg = s_ffDbg2 != 0;
 #endif
     while (obj)
     {
