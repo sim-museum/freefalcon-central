@@ -9329,3 +9329,33 @@ without a previous `if`"*. `ShiAssert` expands to a statement whose trailing `;`
 terminates an unbraced `if`, orphaning the `else`. Any `if/else` around a `ShiAssert`
 in this codebase must brace both branches. The compiler caught it, but only because I
 built — a diff review would have passed it.
+
+### FARTEX-1 — `ShiAssert(IsReady())` is not a guard, and five functions relied on it
+
+Found by sibling-auditing the ORDER-1 fix in `FarTexDB::Deactivate`.
+
+`IsReady()` is literally `return (texArray != NULL);`, and **`ShiAssert` does not halt
+in this build** (`shiHardCrashOn = 0`, `main_linux.cpp:164`). So
+`ShiAssert(IsReady());` is a **non-halting check for precisely the condition that
+crashes the function** — it prints once and execution continues straight into
+`texArray[...]`.
+
+`Cleanup()` and `Select()` already carry the real guard, `if (!IsReady()) return;`,
+added in an earlier session after observed crashes: *"Cleanup may be called before
+Setup (DeviceDependentGraphicsCleanup runs before DeviceDependentGraphicsSetup)"* and
+*"Select may be called before Setup completes (race during sim startup)"*. So the
+ordering hazard is **documented and real** — and five siblings were left relying on an
+assertion that cannot stop anything.
+
+Guarded: `Request`, `Load`, `Activate`, `Free`, `DumpImageToFile`. (`Deactivate`
+already had an explicit `texArray == 0` check, which the ORDER-1 pass moved above its
+assertions.)
+
+**Why this is safe without runtime testing:** the guard tests exactly what the
+assertion tested, and the alternative on that path is dereferencing NULL. Early return
+cannot be worse than a null dereference, and it matches two established fixes in the
+same file. **Not runtime-verified** — the machine is the PO's — but it links, and the
+change is provably narrower than the crash it prevents.
+
+This is "fixed one of N" at project scale: a previous session fixed the two functions
+that had crashed and left the five that had not *yet*.

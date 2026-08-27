@@ -488,6 +488,17 @@ void FarTexDB::Request(TextureID texID)
 {
     BOOL needToLoad;
 
+    // FF_LINUX: IsReady() is literally 'texArray != NULL', and ShiAssert does NOT
+    // halt in this build (shiHardCrashOn = 0), so the assertion below was a
+    // non-halting check for exactly the condition that crashes this function.
+    // Cleanup() and Select() already carry this guard, added after real crashes
+    // from DeviceDependentGraphicsCleanup running before ...Setup; these siblings
+    // were left relying on the assert. Same pattern, same reason.
+    if (!IsReady())
+    {
+        return;
+    }
+
     ShiAssert(IsReady());
 
     if (texID == INVALID_TEXID) return;
@@ -629,6 +640,17 @@ void FarTexDB::Release(TextureID texID)
 // This function reads texel data from disk. Only the requested resolution level.
 void FarTexDB::Load(DWORD offset, bool forceNoDDS)
 {
+    // FF_LINUX: IsReady() is literally 'texArray != NULL', and ShiAssert does NOT
+    // halt in this build (shiHardCrashOn = 0), so the assertion below was a
+    // non-halting check for exactly the condition that crashes this function.
+    // Cleanup() and Select() already carry this guard, added after real crashes
+    // from DeviceDependentGraphicsCleanup running before ...Setup; these siblings
+    // were left relying on the assert. Same pattern, same reason.
+    if (!IsReady())
+    {
+        return;
+    }
+
     ShiAssert(IsReady());
     ShiAssert(offset >= 0);
     ShiAssert(offset < (DWORD) texCount);
@@ -697,6 +719,17 @@ void FarTexDB::Load(DWORD offset, bool forceNoDDS)
 // This function sends texture data to MPR
 void FarTexDB::Activate(DWORD offset)
 {
+    // FF_LINUX: IsReady() is literally 'texArray != NULL', and ShiAssert does NOT
+    // halt in this build (shiHardCrashOn = 0), so the assertion below was a
+    // non-halting check for exactly the condition that crashes this function.
+    // Cleanup() and Select() already carry this guard, added after real crashes
+    // from DeviceDependentGraphicsCleanup running before ...Setup; these siblings
+    // were left relying on the assert. Same pattern, same reason.
+    if (!IsReady())
+    {
+        return;
+    }
+
     ShiAssert(IsReady());
     ShiAssert(offset >= 0);
     ShiAssert(offset < (DWORD) texCount);
@@ -792,6 +825,17 @@ void FarTexDB::Deactivate(DWORD offset)
 // when the texture is moved into MPR and a local copy is no longer required.
 void FarTexDB::Free(DWORD offset)
 {
+    // FF_LINUX: IsReady() is literally 'texArray != NULL', and ShiAssert does NOT
+    // halt in this build (shiHardCrashOn = 0), so the assertion below was a
+    // non-halting check for exactly the condition that crashes this function.
+    // Cleanup() and Select() already carry this guard, added after real crashes
+    // from DeviceDependentGraphicsCleanup running before ...Setup; these siblings
+    // were left relying on the assert. Same pattern, same reason.
+    if (!IsReady())
+    {
+        return;
+    }
+
     ShiAssert(IsReady());
     ShiAssert(offset >= 0);
     ShiAssert(offset < (DWORD) texCount);
@@ -1011,6 +1055,17 @@ bool FarTexDB::DumpImageToFile(DWORD offset)
     char szFileName[256];
     FILE *fp;
 
+
+    // FF_LINUX: IsReady() is literally 'texArray != NULL', and ShiAssert does NOT
+    // halt in this build (shiHardCrashOn = 0), so the assertion below was a
+    // non-halting check for exactly the condition that crashes this function.
+    // Cleanup() and Select() already carry this guard, added after real crashes
+    // from DeviceDependentGraphicsCleanup running before ...Setup; these siblings
+    // were left relying on the assert. Same pattern, same reason.
+    if (!IsReady())
+    {
+        return false;
+    }
 
     ShiAssert(IsReady());
     ShiAssert(offset >= 0);
