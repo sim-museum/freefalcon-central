@@ -4012,10 +4012,18 @@ campweaponfiremsg). Iterated build→ASAN-run 3× until **zero**
 alloc-dealloc-mismatch / use-after-free / SEGV through the whole flow; release
 build now returns cleanly to the campaign-select screen.
 
-**Bug class to keep sweeping:** other `delete dataBlock.data` message dtors in
-`src/falclib/msgsrc/*` (FlightPlan, SendImage, SendEval, SimDirtyData, sendvc,
-requestcampaigndata, …) follow the same `new uchar[]`/`delete` pattern and are
-latent — fix as ASAN surfaces them in their flows (mostly multiplayer).
+**~~Bug class to keep sweeping~~ — DONE, verified 2026-08-27 (MSGDTOR-1).** This entry
+used to say the other `delete dataBlock.data` dtors in `src/falclib/msgsrc/*` were latent
+and should be fixed "as ASAN surfaces them". **Do not wait for that** — those destructors
+fire on multiplayer message teardown, and every ASAN pass we run (theater switch, UI
+screens, all 34 TE missions, campaign flight) is single-player, so the soaks cannot reach
+them. They were fixed by inspection instead: a sweep of all 78 unique files in `msgsrc`
+finds **0 remaining scalar deletes of a `new[]` buffer**. Two subtle cases worth knowing,
+both already handled in-tree: `delete[]` on a `void*` field (`sendchatmessage`,
+`sendobjdata`, `sendpersistantlist`) is **ill-formed**, and `-fpermissive` silently
+degrades it to a *scalar* operator delete — so it reads as correct while behaving as the
+bug; those sites cast to `VU_BYTE*` first. `campweaponfiremsg`'s `delete dtm` is correct:
+`dtm` is a scalar `new FalconDeathMessage`.
 
 **~~Left for later (benign)~~ — both FIXED in a later session (verified 2026-08-16):**
 the two 1-byte READ over-reads in objectiv.cpp. `GetFeatureStatus` now bounds the
