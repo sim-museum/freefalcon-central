@@ -8693,3 +8693,39 @@ to ~20 runs. If refresh-off holds near 0.22 while refresh-on stays at 0, the eff
 real and reading (2) is the thing to investigate — starting with what `domain_` and the
 flag rewrite do for the session entity. If arm A drifts toward 0, reading (1) wins and
 the whole comparison was noise.
+
+### UAF-1 — SOLVED. The type-pointer theory was right; my refutation of it was wrong.
+
+Arm B (same probe binary, `FF_NO_TYPEPTR_REFRESH=1` the only variable):
+
+```
+B1  crash=SIGSEGV  typeptr_bad=1   [TYPEPTR] ent=0x70e118a99c80 type=1144 typePtr=0x6f60ededd2a4 OUTSIDE table
+B2  clean          typeptr_bad=1   [TYPEPTR] ent=0x749213499c80 type=1144 typePtr=0x7311f1c4f2a4 OUTSIDE table
+B3  clean          typeptr_bad=1   [TYPEPTR] ent=0x6f0013c99c80 type=1144 typePtr=0x7311f9d2b800 OUTSIDE table
+```
+
+Against the identical binary with the refresh **on**: `typeptr_bad=0` across **15**
+runs. With it off: **exactly one stale pointer per run, every run**, always entity
+**type 1144**, and the run that crashed is the one that dereferenced it.
+
+**The prediction on record held.** It said a failing run *must* report
+`typeptr_bad > 0`. B1 failed and reported exactly that.
+
+**Where my reasoning went wrong, precisely.** The ordering evidence was correct —
+the class-table reload completes at log line 386, `FM_LOAD_CAMPAIGN` starts at 604,
+and every *mission* entity is created afterwards. I then drew an invalid conclusion
+from it: that because only 2 long-lived entities predate the reload, none of them
+could matter. One of them (type 1144) participates in grid moves and is precisely the
+entity whose stale `entityTypePtr_` faults. **"Few" is not "none", and I treated a
+count of 2 as equivalent to zero.**
+
+**Consequences for the record, all of which need correcting:**
+
+* The type-pointer refresh (`68ee6231`) **is the fix for UAF-1**, not an incidental
+  hazard closure. Every place it was described as "measured not to affect this crash"
+  is wrong.
+* The `0/6 vs 2/5` result was **real signal**, not noise. Dismissing it was wrong.
+* `~VuGridTree` deregister-before-teardown remains a genuine lock-scope defect worth
+  having, and remains *not* the UAF-1 fix — arm A carried it and still failed.
+* Of the "seven refuted theories", **theory 4 was not refuted**. It was correct, and I
+  refuted it with an invalid inference from valid evidence.
