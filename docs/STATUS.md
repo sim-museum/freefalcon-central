@@ -8236,3 +8236,16 @@ not conclusive, and the ticket has said from the start that an intermittent defe
 cannot be validated by absence. The post-fix build also carries the `~VuGridTree`
 deregistration fix, so a change in failure rate is **not attributable to either fix
 alone**.
+
+**Validation attempt 1 produced no data.** The combined rebuild-and-validate job was
+killed during the ASAN rebuild, before a single run started: no output, no
+`/tmp/uafpost-*.log` files, and the ASAN binary left stale at 03:06 — predating both
+the `~VuGridTree` and type-pointer fixes. The kill also corrupted ninja's build log
+(`premature end of file; recovering`).
+
+So **the UAF-1 fix is committed and completely unvalidated.** No failure-rate
+comparison exists yet, and none is implied. Recorded explicitly because a killed job
+and a clean run are easy to confuse in a log, and this session has already been
+caught twice by "the tool never ran" looking like "nothing was found". Rebuild
+relaunched as its own job so the build cannot silently consume the runs' budget again
+— which is what happened the first time, when 847 targets ate a 10-minute window.
