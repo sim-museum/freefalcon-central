@@ -8631,3 +8631,17 @@ condition rather than a status check, which felt different and is not.
 
 Stopped via `TaskStop` rather than `pkill` — the previous `pkill` killed a task wrapper
 while its child survived as an orphan, and killed the issuing command too.
+
+**A control that read as a finding.** The first run with the working control printed
+`[TYPEPTR-RUN] probe live: 1000 checked, 999 in range` — which looks exactly like one
+out-of-range type pointer, i.e. the very thing the probe exists to catch and the
+result my recorded prediction says a *failing* run must show.
+
+It is an artefact. The control printed **before** the current call was classified, so
+`nInRange` was one behind by construction. `grep` confirms **zero** actual `[TYPEPTR]`
+out-of-range reports in that run. Print moved after the classification.
+
+Worth recording because of how close this came to being announced as the breakthrough:
+the number was surprising, it matched a prediction already on record, and it arrived
+after a long run of null results. All three make a claim *more* tempting and none of
+them make it true. The check took one look at the source.
