@@ -8551,3 +8551,21 @@ does, the fault is *not* in `RemoveTest` at all, and the search moves to `Move`'
 memory: the filter's `Key1()`, `table_`, and the tree nodes. Those are exactly the
 structures the `~VuGridTree` teardown fix touched — which would make it relevant again
 for a reason quite different from the one it was committed under.
+
+**The inlining hypothesis is wrong — refuted in one turn.** `RemoveTest` is declared
+`virtual` (`camplist.h:32,55`) and reached through `bkf->RemoveTest(ent)`, a virtual
+call on a base pointer with multiple subclasses, so devirtualisation is unlikely. And
+decisively: ASAN reports `#0 RemoveTest` and `#1 Move` as **separate numbered frames**
+— inlined frames are marked as such. It was not inlined, so `camplist.cpp:304` is
+where the fault really is.
+
+**Prediction, recorded before the data.** Since the fault is genuinely one of the
+three `classInfo_` byte reads, and those are reached only through `entityTypePtr_`, a
+**failing** probe run must report `typeptr_bad > 0`. If a failing run instead reports
+`typeptr_bad = 0`, then something is wrong with my model of that function that seven
+theories have not surfaced, and the honest move is to stop theorising and dump the
+actual `ent`, `entityTypePtr_` and `classInfo_` bytes at the fault.
+
+Writing the prediction down first is the point. Six of the seven refuted theories were
+plausible *after* seeing evidence and worthless *before* it; committing to what the
+next observation must show is the only way to keep score.
