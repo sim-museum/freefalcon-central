@@ -34,15 +34,11 @@ VuGridTree::~VuGridTree()
     delete [] table_;
 }
 
-// FF_LINUX (UAF-1): probe counters, reported once at exit so the hot path does no I/O.
-long ffGridMoves_ = 0, ffGridLive_ = 0;
-static void ffGridReport(void)
-{
-    if (ffGridMoves_)
-        fprintf(stderr, "[GRIDMAGIC-EXIT] %ld Move() calls, %ld on live grids, %ld dangling\n",
-                ffGridMoves_, ffGridLive_, ffGridMoves_ - ffGridLive_);
-}
-static int ffGridReportOnce = (atexit(ffGridReport), 0);
+// FF_LINUX (UAF-1): probe counters. static -- these are file-local and were leaking
+// into the link as globals. An atexit reporter used to live here; it was dead code,
+// because main() ends with _exit(0) and runs are killed with SIGINT, so it never fired.
+// The live control is the one-shot print inside Move().
+static long ffGridMoves_ = 0, ffGridLive_ = 0;
 
 VU_ERRCODE VuGridTree::PrivateInsert(VuEntity* entity)
 {

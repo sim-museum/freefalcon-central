@@ -300,14 +300,9 @@ VU_BOOL UnitProxFilter::Test(VuEntity *ent)
     return TRUE;
 }
 
-// FF_LINUX (UAF-1): probe totals reported once at exit -- no I/O on this hot path.
-static long ffTypePtrChecked = 0, ffTypePtrInRange = 0;
-static void ffTypePtrReport(void)
-{
-    if (ffTypePtrChecked)
-        fprintf(stderr, "[TYPEPTR-EXIT] %ld checked, %ld in range, %ld outside\n",
-                ffTypePtrChecked, ffTypePtrInRange, ffTypePtrChecked - ffTypePtrInRange);
-}
+// FF_LINUX (UAF-1): the atexit reporter that used to live here was dead code --
+// main() ends with _exit(0), so it never fired, and the file-scope totals it read are
+// gone with it. The live control is the one-shot print inside RemoveTest().
 
 VU_BOOL UnitProxFilter::RemoveTest(VuEntity *ent)
 {
@@ -351,8 +346,6 @@ VU_BOOL UnitProxFilter::RemoveTest(VuEntity *ent)
             if (lo and (tp >= lo) and (tp < hi))
             {
                 nInRange++;
-                ffTypePtrChecked = nChecked;
-                ffTypePtrInRange = nInRange;
             }
             else
             {
