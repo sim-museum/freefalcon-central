@@ -3605,6 +3605,67 @@ static void ffNvgOpSeen(const char *name, unsigned long stage)
 }
 #define FF_NVGOP_SEEN(n, s) ffNvgOpSeen((n), (unsigned long)(s))
 
+// FF_LINUX (NVG-5): dump the ALPHA chain across texture units 0-3, once.
+// Tests the standing hypothesis directly: DX_NVG sets COLOROP for stages 0-3 but no
+// ALPHAOP for any of them, and dxengine.cpp:168 "resets" every stage with
+// ALPHAOP=DISABLE -- which this layer implements as a no-op. If the hypothesis holds,
+// units 0-2 will show stale GL_COMBINE_ALPHA values inherited from the previous render
+// state while only unit 3 (m_AlphaTextureStage) carries the chroma-key op, and units
+// 0-2 sit UPSTREAM of it. Enabled with FF_DEBUG_NVGALPHA=1.
+static const char *ffGlEnumName(GLint v)
+{
+    switch (v) {
+        case GL_REPLACE:       return "REPLACE";
+        case GL_MODULATE:      return "MODULATE";
+        case GL_ADD:           return "ADD";
+        case GL_ADD_SIGNED:    return "ADD_SIGNED";
+        case GL_INTERPOLATE:   return "INTERPOLATE";
+        case GL_SUBTRACT:      return "SUBTRACT";
+        case GL_TEXTURE:       return "TEXTURE";
+        case GL_PREVIOUS:      return "PREVIOUS";
+        case GL_PRIMARY_COLOR: return "PRIMARY_COLOR";
+        case GL_CONSTANT:      return "CONSTANT";
+        default:               return "?";
+    }
+}
+
+static void ffDumpNvgAlphaChain(void)
+{
+    static int dbg = -1;
+
+    if (dbg < 0) dbg = getenv("FF_DEBUG_NVGALPHA") ? 1 : 0;
+
+    if ( not dbg) return;
+
+    static int done = 0;
+
+    if (done) return;
+
+    done = 1;
+
+    GLint prevUnit = GL_TEXTURE0;
+    glGetIntegerv(GL_ACTIVE_TEXTURE, &prevUnit);
+
+    for (int u = 0; u < 4; u++)
+    {
+        glActiveTexture(GL_TEXTURE0 + u);
+        GLint envMode = 0, combA = 0, srcA = 0, opA = 0, combRGB = 0;
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &envMode);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_ALPHA,    &combA);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA,    &srcA);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA,   &opA);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_RGB,      &combRGB);
+        fprintf(stderr, "[NVGALPHA] unit %d  env=%s  combineRGB=%-11s "
+                        "combineALPHA=%-11s src0A=%-14s enabled=%d\n",
+                u, (envMode == GL_COMBINE ? "COMBINE" : "other"),
+                ffGlEnumName(combRGB), ffGlEnumName(combA), ffGlEnumName(srcA),
+                (int)glIsEnabled(GL_TEXTURE_2D));
+    }
+
+    glActiveTexture(prevUnit);
+    fflush(stderr);
+}
+
 // FF_LINUX (NVG-5): the other half of the same question. FF_NVGOP_SEEN reports ops that
 // ARE implemented; this reports ops that are NOT, where the switch falls through to a
 // silent MODULATE. Without it, "the NVG pipeline is fully implemented" and "an op is
@@ -4105,6 +4166,11 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                     FF_NVGOP_SEEN(value == D3DTOP_DOTPRODUCT3  ? "DOTPRODUCT3"
                                   : value == D3DTOP_ADDSIGNED2X ? "ADDSIGNED2X"
                                   : "ADDSIGNED", stage);
+
+                    // DOTPRODUCT3 appears only in the DX_NVG pipeline, so it is a
+                    // reliable one-shot trigger for dumping the alpha chain.
+                    if (value == D3DTOP_DOTPRODUCT3)
+                        ffDumpNvgAlphaChain();
                     if (ffTexOpFixEnabled()) {
                         glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
 

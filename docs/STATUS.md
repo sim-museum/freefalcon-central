@@ -9145,3 +9145,28 @@ Recorded because the grep result *looked* like four unguarded sites, and reporti
 would have been a false alarm of exactly the kind this session has been catching — the
 second time today a suspicious count dissolved on reading the code (after the
 `999 in range` control artefact).
+
+### NVG-5 — the experiment is now prepared, not just proposed
+
+`FF_DEBUG_NVGALPHA=1` dumps the alpha chain across texture units 0–3 — env mode,
+`GL_COMBINE_RGB`, `GL_COMBINE_ALPHA`, `GL_SOURCE0_ALPHA`, texture-enabled — once,
+triggered the first time `DOTPRODUCT3` is applied. That op appears only in the
+`DX_NVG` pipeline, so it is a reliable trigger with no cost on any other path.
+
+**What it decides, stated in advance:**
+
+* **Hypothesis holds** if units 0–2 show alpha combines that `DX_NVG` never set —
+  inherited from the previous render state, because `ALPHAOP = DISABLE` is a no-op
+  here while `dxengine.cpp:168` uses it to reset every stage. Those units sit
+  *upstream* of unit 3, so the alpha reaching the chroma key is already corrupted.
+* **Hypothesis dies** if units 0–2 come back neutral (pass-through) and unit 3 holds
+  the expected chroma-key op. Then the alpha chain is fine and the defect is
+  elsewhere — theory thirteen would be wrong like the twelve before it.
+
+**One machine-minute to run**: launch a TE mission, toggle NVG, read four lines.
+The A/B against the Wine oracle only matters if a fix follows.
+
+Prepared while the PO has the machine, so nothing needs iterating in front of them.
+Also fixed en route: the existing `[NVGOP]` probe reported `DOTPRODUCT3` for every
+`ADDSIGNED` (a `case` fallthrough), which would have misattributed the op to stage 1.
+Debugging NVG-5 from that output would have been debugging fiction.
