@@ -28,7 +28,7 @@ default** — these are the ones to reach for if something looks wrong after an 
 | `FF_NO_FEATURE_RESNAP=1` | Reverts the static-feature ground re-snap (airbase objects baking a ground height sampled before terrain streamed in). |
 | `FF_NO_GEAR_LIFT=1`, `FF_RUNWAY_ZLIFT=<ft>`, `FF_GEAR_LIFT=<ft>` | The runway decal / aircraft visual-lift stack. Flat surfaces are drawn ~3 ft above terrain to win the depth test, and the aircraft drawable is lifted to match. Setting these to 0 makes the tarmac disappear — see docs/STATUS.md. |
 | `FF_NO_SEEKER_TTG_FIX=1`, `FF_FCC_HANDOFF_RADAR=1` | Revert the SEEKER-1 and HANDOFF-2 fixes. |
-| `FF_NO_TYPEPTR_REFRESH=1` | Reverts the UAF-1 type-pointer refresh (re-points every live entity's cached `entityTypePtr_` after `SetNewTheater` reloads the class table). Closes a real but narrow hazard affecting ~2 long-lived session entities; **measured not to affect the UAF-1 crash**, see docs/STATUS.md. |
+| `FF_NO_TYPEPTR_REFRESH=1` | Reverts **the UAF-1 fix**: re-pointing every live entity's cached `entityTypePtr_` after `SetNewTheater` reloads the class table. Without it, entity type 1144 holds a pointer into the freed pre-reload table in **6 of 6** runs and the sim crashes in ~1 of 3; with it, **0 of 15** runs show a stale pointer. Only set this to reproduce the bug. |
 
 ### Useful diagnostics
 

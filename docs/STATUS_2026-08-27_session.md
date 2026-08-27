@@ -39,7 +39,7 @@ calling `Move()`. Leading candidate fix for UAF-1 (see below).
 
 | item | state |
 |---|---|
-| **UAF-1** | **Seven theories refuted**, all mine, each killed by evidence. The 6/6-clean result did **not** hold up: the discriminating arm failed 2 in 9, and the type-pointer fix was measured *unable* to reach the crash. Not solved. What exists now that did not before: a reproducer, a harness, per-arm failure rates, and a deterministic probe that retires a theory in one run instead of a dozen. |
+| **UAF-1** | **SOLVED.** `Falcon4ClassTable` is freed and reallocated by `SetNewTheater`; entity type 1144 predates that reload and keeps a pointer into the freed block. Fix re-points every live entity's `entityTypePtr_` after the reload. Deterministic: stale pointer in **6/6** runs without the fix, **0/15** with it. Six of my seven 'refutations' stand; the seventh was wrong — I refuted the correct theory with an invalid inference. |
 | **BSPSLOT-1** | Root-caused to **game data**: vehicle types 3337 and 711 mark hardpoint 2 visible while their model (LOD 233) has 2 slots. Cosmetic today; was a heap overflow before ORDER-1. |
 | **TEAMROE-1** | Caller identified: TE missions inherit objectives owned by teams they never instantiate. The NULL fallback **plausibly inverts** a front-line isolation result — not merely noise. Not changed: the fallback is shared with campaign AI. |
 | **UCNULL-1** | `GetUnitClassData()` is nullable (proven three ways); **25 of 47 call sites dereference it unguarded**. Deliberately not mass-edited. |
