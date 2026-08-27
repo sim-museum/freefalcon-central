@@ -83,6 +83,15 @@ VU_ERRCODE VuGridTree::Move(VuEntity *ent, BIG_SCALAR coord1, BIG_SCALAR coord2)
             // Totals are reported once, at exit.
             ffGridMoves_++;
             if (ffMagic_ == 0x56475254u) ffGridLive_++;
+
+            // One-shot control. atexit() is useless in this program: main() ends with
+            // _exit(0) (main_linux.cpp:3408) and runs are terminated with SIGINT, so an
+            // atexit reporter never fires -- which left two runs with NO evidence the
+            // probe had executed at all. One print per run costs nothing and restores
+            // the ability to tell "no findings" from "never ran".
+            if (ffGridMoves_ == 1000)
+                fprintf(stderr, "[GRIDMAGIC-RUN] probe live: 1000 Move() calls, %ld on live grids\n",
+                        ffGridLive_);
         }
     }
 
@@ -279,6 +288,15 @@ VU_ERRCODE VuGridTree::Move(VuEntity *ent, BIG_SCALAR coord1, BIG_SCALAR coord2)
             // Totals are reported once, at exit.
             ffGridMoves_++;
             if (ffMagic_ == 0x56475254u) ffGridLive_++;
+
+            // One-shot control. atexit() is useless in this program: main() ends with
+            // _exit(0) (main_linux.cpp:3408) and runs are terminated with SIGINT, so an
+            // atexit reporter never fires -- which left two runs with NO evidence the
+            // probe had executed at all. One print per run costs nothing and restores
+            // the ability to tell "no findings" from "never ran".
+            if (ffGridMoves_ == 1000)
+                fprintf(stderr, "[GRIDMAGIC-RUN] probe live: 1000 Move() calls, %ld on live grids\n",
+                        ffGridLive_);
         }
     }
 

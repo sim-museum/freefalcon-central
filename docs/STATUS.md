@@ -8595,3 +8595,22 @@ written the interpretation down in advance, that reading is not available: a cle
 streak from an instrumented build is exactly what perturbation looks like, and the
 distinction is only visible if you decide which you would believe *before* seeing the
 number. Re-running with the cheaper probes now.
+
+**The cheap-probe control was itself broken — and I introduced it.** Moving the probe
+totals to an `atexit` reporter looked like the obvious way to keep the counters while
+removing hot-path I/O. It does not work in this program: `main()` ends with
+`_exit(0)` (`main_linux.cpp:3408`), and the harness terminates runs with SIGINT.
+Neither path flushes an `atexit` handler. Runs P11 and P12 therefore emitted **no
+probe output at all** and are uninterpretable — I cannot say whether the probes ran.
+
+That is the fourth instance this session of "no findings" being indistinguishable
+from "the tool never ran", and the first one I created while explicitly trying to
+preserve a control. Replaced with a **one-shot print at 1000 calls**: one line of I/O
+per run, negligible against 40,000, and it proves the probe is live.
+
+**Also recorded: a `pkill` that killed the wrong thing.** Stopping the loop killed the
+task wrapper (exit 144) while the `bash uaf-probe-loop.sh` child survived as an orphan
+and kept running — and my own command died before applying any edits, so the state I
+believed I had was not the state on disk. Checking rather than assuming is what caught
+it. `pkill` has now caused trouble four times in this project; prefer letting a
+bounded loop finish.

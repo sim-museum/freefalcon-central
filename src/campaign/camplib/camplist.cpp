@@ -339,10 +339,13 @@ VU_BOOL UnitProxFilter::RemoveTest(VuEntity *ent)
             static int reportRegistered = 0;
             nChecked++;
 
-            if ( not reportRegistered)
+            // One-shot control -- see the note in vu_grid_tree.cpp: _exit(0) means an
+            // atexit reporter never fires here.
+            if ( not reportRegistered and nChecked >= 1000)
             {
                 reportRegistered = 1;
-                atexit(ffTypePtrReport);
+                fprintf(stderr, "[TYPEPTR-RUN] probe live: %ld checked, %ld in range\n",
+                        nChecked, nInRange);
             }
 
             if (lo and (tp >= lo) and (tp < hi))
