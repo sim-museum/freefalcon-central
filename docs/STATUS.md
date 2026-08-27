@@ -8178,3 +8178,30 @@ and it strikes at mission teardown on the sim thread.
 the sim thread stopped, before the class table is unloaded — and this session has
 already watched three confident UAF-1 theories collapse under one more check. The
 ordering question deserves its own sprint rather than a same-turn patch.
+
+**UAF-1 — where the free happens, and why the fix is not a one-liner.**
+`UnloadClassTable()` has exactly two callers: shutdown (`winmain.cpp:1405`) and
+**`SetNewTheater`** (`theaterdef.cpp:398`), which does
+`UnloadClassTable(); LoadClassTable("Falcon4");` — freeing the table and reallocating
+it **at a new address**, while every existing entity still holds `entityTypePtr_`
+into the old block.
+
+All five baseline runs execute this path (`[SetNewTheater]` markers present in each);
+only two crashed. That fits exactly: the hazard is created on *every* mission load,
+and whether a stale entity survives to dereference its type pointer is timing —
+hence the ~1-in-3 intermittency and the difficulty of "verifying" any fix by absence.
+
+**"Skip the reload when the theater is unchanged" is not a safe shortcut**, tempting
+as it looks: `LoadClassTable` resolves its data through `FalconObjectDataDir`, which
+`SetNewTheater` has just re-pointed, so the table's *contents* really are
+theater-specific even though the filename argument is always `"Falcon4"`.
+
+That leaves the honest options, all of them ordering work:
+1. **Destroy or quiesce all VU entities before unloading** — correct, and the largest change.
+2. **Re-point `entityTypePtr_` across the reload** for surviving entities — smaller, but needs a reliable enumeration of live entities and assumes type indices are stable across the reload.
+3. **Make the stale read loud rather than silent** — a debug-only guard; diagnostic value, no repair.
+
+Deliberately stopping here. Three UAF-1 theories died today, each after one further
+check; the fourth is well-evidenced but the repair touches shutdown ordering in a
+codebase where this session has already fixed five sequencing defects. It gets its
+own sprint, with option 1 as the default and option 2 evaluated first for cost.
