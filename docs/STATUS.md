@@ -8138,3 +8138,43 @@ five instances this session (`AttachChild`, `DetachChild`, `GetAvailablePilot`,
 correct on its own terms, but UAF-1 is intermittent, so the error ceasing would not
 be evidence — a point already recorded on the ticket before any fix existed. It is
 committed as a defect fix, not as a UAF-1 resolution.
+
+### UAF-1 — ROOT CAUSE: the entity **type table** is freed while entities still point into it
+
+The five-run baseline settled it: **2 of 5 runs failed** (run 1 SIGSEGV, run 4 UAF
+with 6 reports), matching the ~1-in-3 intermittency, and **every run reported
+`ACTIVEdeletes=0`** — including the two that failed.
+
+**The `freed by` stack is a red herring, and I had built a theory on it.** Run 1's
+free came from `D3D7Surface::~D3D7Surface` (cockpit texture teardown); run 4's came
+from inside `libnvidia-glcore.so`, the GPU driver's own heap. Two reproductions, two
+unrelated frees. ASAN names whoever last owned the *recycled* memory, not who freed
+the object. The "cockpit teardown" narrative built on run 1's stack was wrong.
+
+**What is invariant tells the real story.** ASAN reports `READ of size 1`.
+`EntityType()` returns the entity's `entityTypePtr_` member and `classInfo_` is
+`VU_BYTE[]`, so the faulting byte is `classInfo_[VU_DOMAIN]` reached *through*
+`entityTypePtr_`. The entity is readable; **its type object is freed.**
+
+Following that pointer home:
+
+```c
+VuxType(id)  ->  &Falcon4ClassTable[id - VU_LAST_ENTITY_TYPE]   // f4vu.cpp:370
+Falcon4ClassTable = new Falcon4EntityClassType[NumEntities];    // classtbl.cpp:126
+UnloadClassTable(): delete [] Falcon4ClassTable;                // entity.cpp:402
+```
+
+Every entity whose type is beyond the static `vuTypeTable` stores a pointer **into
+that heap array**. `UnloadClassTable()` frees it — along with ~17 sibling data tables
+— while entities are still alive and the sim thread is still running `Exec()`. Any
+later `ent->EntityType()->classInfo_[…]` is a use-after-free. `AircraftClass::SetDead`
+is simply a reliable place where one happens.
+
+This accounts for every observation: no entity is deleted (`ACTIVEdeletes=0`,
+correct); the free attribution varies by run (a large block, recycled by whoever);
+and it strikes at mission teardown on the sim thread.
+
+**Not fixed.** The correct repair is teardown *ordering* — entities must be gone, or
+the sim thread stopped, before the class table is unloaded — and this session has
+already watched three confident UAF-1 theories collapse under one more check. The
+ordering question deserves its own sprint rather than a same-turn patch.
