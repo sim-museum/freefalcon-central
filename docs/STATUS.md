@@ -8406,3 +8406,21 @@ small to separate; the honest position is that arm A currently *looks like* base
 and nothing more. Collecting more runs before saying anything stronger — and if the
 split does hold up, the correct response is to find the mechanism, not to declare
 victory on a p-value.
+
+**Ordering evidence closes the type-pointer question (pending the probe).** From the
+run logs: `UnloadClassTable`/reload finishes at line **386**, and `FM_LOAD_CAMPAIGN`
+does not begin until line **604**. Campaign objectives, units and every sim entity
+are therefore created *after* the reload, holding pointers into the table that now
+exists. The refresh's own count agrees: it re-points exactly **2** entities, the
+long-lived session objects that predate campaign load.
+
+So the type-pointer mechanism cannot reach the entities involved in the crash, and
+the honest projection is that **the 0/6 vs 1/5 split is noise** — neither committed
+fix is validated by it. `FF_DEBUG_TYPEPTR` will settle it deterministically: if every
+`entityTypePtr_` reaching `RemoveTest` is inside `Falcon4ClassTable`, the theory is
+dead and the refresh can be reverted on evidence rather than opinion.
+
+That would leave UAF-1 with **five refuted theories and no surviving mechanism** —
+an unsatisfying but accurate state, and a better one than a fix credited by a
+coin-flip. What remains solid: the reproducer (2 in 5), the harness, the per-arm
+data, and one genuine lock-scope defect fixed along the way.
