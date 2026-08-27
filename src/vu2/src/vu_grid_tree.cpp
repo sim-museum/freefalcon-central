@@ -14,6 +14,7 @@ VuGridTree::VuGridTree(VuBiKeyFilter* filter, unsigned int res) :
         table_[i] = new VuRedBlackTree(filter);
     }
 
+    ffMagic_ = 0x56475254u;   // 'VGRT' -- FF_LINUX UAF-1 liveness sentinel
     vuCollectionManager->GridRegister(this);
 }
 
@@ -26,6 +27,7 @@ VuGridTree::~VuGridTree()
     // filter_->RemoveTest() -- and the teardown below does NOT hold gridsMutex_, so
     // the two can overlap. Same shape as the ORDER-1 family: the step that makes the
     // object unreachable was sequenced after the object had already been torn down.
+    ffMagic_ = 0xDEADDEADu;   // FF_LINUX UAF-1: poison BEFORE any teardown
     vuCollectionManager->GridDeRegister(this);
     Purge();
     delete [] table_;
@@ -55,6 +57,35 @@ bool VuGridTree::PrivateFind(VuEntity* entity) const
 
 VU_ERRCODE VuGridTree::Move(VuEntity *ent, BIG_SCALAR coord1, BIG_SCALAR coord2)
 {
+    // FF_DEBUG_GRIDMAGIC=1 (UAF-1): is the grid we were handed still alive?
+    // Control counter first: "0 dangling grids" and "Move never ran" are otherwise
+    // indistinguishable, which has already produced a false reading this session.
+    {
+        static int dbgOk = -1;
+        if (dbgOk < 0) dbgOk = getenv("FF_DEBUG_GRIDMAGIC") ? 1 : 0;
+
+        if (dbgOk)
+        {
+            static long nMoves = 0, nLive = 0;
+            nMoves++;
+            if (ffMagic_ == 0x56475254u) nLive++;
+
+            if ((nMoves % 20000) == 0)
+                fprintf(stderr, "[GRIDMAGIC-OK] %ld Move() calls, %ld on live grids\n",
+                        nMoves, nLive);
+        }
+    }
+
+    if (ffMagic_ not_eq 0x56475254u)
+    {
+        static int dbg = -1;
+        if (dbg < 0) dbg = getenv("FF_DEBUG_GRIDMAGIC") ? 1 : 0;
+        static int n = 0;
+        if (dbg and ++n <= 8)
+            fprintf(stderr, "[GRIDMAGIC] Move() on grid %p with magic=0x%08x (expected 0x56475254)\n",
+                    (void*)this, ffMagic_);
+    }
+
     VuScopeLock l(GetMutex());
     VuBiKeyFilter *bkf = GetBiKeyFilter();
 
@@ -106,6 +137,7 @@ VuGridTree::VuGridTree(
         table_[i] = new VuRedBlackTree(filter_);
     }
 
+    ffMagic_ = 0x56475254u;   // 'VGRT' -- FF_LINUX UAF-1 liveness sentinel
     vuCollectionManager->GridRegister(this);
 }
 
@@ -114,6 +146,7 @@ VuGridTree::~VuGridTree()
     // FF_LINUX: deregister FIRST -- see the sibling destructor above. This variant is
     // worse: it also freed filter_ and nulled it while the grid was still registered,
     // and VuGridTree::Move calls filter_->RemoveTest(entity) on every visited grid.
+    ffMagic_ = 0xDEADDEADu;   // FF_LINUX UAF-1: poison BEFORE any teardown
     vuCollectionManager->GridDeRegister(this);
     Purge();
     delete [] table_;
@@ -221,6 +254,35 @@ VuEntity *VuGridTree::Find(VuEntity* ent) const
 
 VU_ERRCODE VuGridTree::Move(VuEntity *ent, BIG_SCALAR coord1, BIG_SCALAR coord2)
 {
+    // FF_DEBUG_GRIDMAGIC=1 (UAF-1): is the grid we were handed still alive?
+    // Control counter first: "0 dangling grids" and "Move never ran" are otherwise
+    // indistinguishable, which has already produced a false reading this session.
+    {
+        static int dbgOk = -1;
+        if (dbgOk < 0) dbgOk = getenv("FF_DEBUG_GRIDMAGIC") ? 1 : 0;
+
+        if (dbgOk)
+        {
+            static long nMoves = 0, nLive = 0;
+            nMoves++;
+            if (ffMagic_ == 0x56475254u) nLive++;
+
+            if ((nMoves % 20000) == 0)
+                fprintf(stderr, "[GRIDMAGIC-OK] %ld Move() calls, %ld on live grids\n",
+                        nMoves, nLive);
+        }
+    }
+
+    if (ffMagic_ not_eq 0x56475254u)
+    {
+        static int dbg = -1;
+        if (dbg < 0) dbg = getenv("FF_DEBUG_GRIDMAGIC") ? 1 : 0;
+        static int n = 0;
+        if (dbg and ++n <= 8)
+            fprintf(stderr, "[GRIDMAGIC] Move() on grid %p with magic=0x%08x (expected 0x56475254)\n",
+                    (void*)this, ffMagic_);
+    }
+
     VuScopeLock l(GetMutex());
 
     if ((ent not_eq NULL) and (ent->VuState() == VU_MEM_ACTIVE) and filter_->RemoveTest(ent))

@@ -8463,3 +8463,27 @@ pointer is provably in range; no entity is destroyed during a mission
 in `RemoveTest`'s frame — the filter object (`UnitProxFilter` carries a 1-byte `uchar
 real`) or the grid supplying it. Instrument `GetBiKeyFilter()`'s return and `Move`'s
 grid pointer the same deterministic way.
+
+### UAF-1 — the grid-liveness theory is also dead (clean runs), with the caveat named
+
+Added a liveness sentinel to `VuGridTree`: set to `'VGRT'` in both constructors,
+poisoned to `0xDEADDEAD` in both destructors **before anything is freed**, and checked
+in both `Move()` overloads under `FF_DEBUG_GRIDMAGIC=1`. If a torn-down grid were
+still reachable from `gridcoll_`, this catches it on the first visit rather than
+waiting for an intermittent crash.
+
+```
+[GRIDMAGIC-OK] 40000 Move() calls, 40000 on live grids     dangling: 0
+```
+
+**The caveat, stated rather than glossed:** that run did not crash, and neither did
+the type-pointer run. A clean run showing "0 dangling" says nothing about a *failing*
+run — the defect appears in roughly 2 of 9. Both deterministic results are therefore
+strong for the common case and **not yet conclusive for the failure case**.
+
+Removing that caveat is mechanical, so it is being done rather than argued around:
+the probe build now runs in a loop until it fails, with both checks active, so the
+invariants are measured **at the moment of the crash**. If a failing run also reports
+`0 dangling` and `0 out-of-range`, both theories are dead for good and the faulting
+byte is reached through something neither probe covers. If either fires, the bug is
+found.

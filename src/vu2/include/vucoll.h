@@ -709,6 +709,11 @@ protected:
     VuRedBlackTree **table_;
     unsigned int res_; ///< grid resolution (res x res)
     VU_BOOL suspendUpdates_;
+    // FF_LINUX (UAF-1): liveness sentinel. Set in the ctor, poisoned in the dtor
+    // BEFORE anything is freed. VuCollectionManager::HandleMove walks gridcoll_ and
+    // calls Move() on each grid; if a torn-down grid is still reachable there, this
+    // catches it deterministically instead of waiting for an intermittent crash.
+    unsigned int ffMagic_;
 
 private:
     VuGridTree *nextgrid_;
