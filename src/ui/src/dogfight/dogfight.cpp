@@ -1203,7 +1203,14 @@ C_Pilot *AddDogfightPilot(C_TreeList *list, Flight flight, int ac)
                 return(NULL);
 
             pilot = MakePilot(list, flight, session, ac, -1);
-            pilot->SetPlayer(1);
+
+            // FF_LINUX: same defect as the AI branch below -- MakePilot can return NULL,
+            // which is why "if (not pilot) return NULL" follows both branches, but
+            // SetPlayer was called on the result first. The ORDER-1 pass fixed only the
+            // AI branch; this human-player branch is the other half of the pair and was
+            // missed -- found by auditing my own fixes for exactly this shape.
+            if (pilot)
+                pilot->SetPlayer(1);
         }
         else
         {

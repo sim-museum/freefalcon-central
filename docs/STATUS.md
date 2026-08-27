@@ -9254,3 +9254,33 @@ build noisier without making any defect visible.
 
 Also worth knowing and not obvious: `D3DGL_DEBUG` at `d3d_gl.cpp:119` unlocks all 66
 traces for a rebuild-and-repro session.
+
+### ORDER-1 follow-up — I fixed one of a pair, and the audit caught it
+
+Auditing my own fixes for duplicated files turned up something better: a **second call
+site in the same function** that I missed.
+
+`dogfight.cpp` calls `MakePilot` twice — once for a human player (line 1205) and once
+for an AI pilot (1217) — and both flow into the same `if (not pilot) return NULL;`.
+The ORDER-1 pass guarded the **AI** branch and left the **human-player** branch
+dereferencing an unchecked `MakePilot` result:
+
+```c
+pilot = MakePilot(list, flight, session, ac, -1);
+pilot->SetPlayer(1);        // unguarded
+```
+
+Now guarded. This is the exact "fixed one of a pair" shape I found in *other people's*
+code twice this session (`squadronStores` fixed while `loadoutData` was left;
+`AttachChild` fixed while `DetachChild` was latent) — and I reproduced it myself, in
+the pass whose entire purpose was finding it.
+
+**Why the audit found it and the scanner did not:** `order-audit.py` looks for a guard
+*after* an access. Here the guard is genuinely after both accesses and covers one of
+them — the shape is "one of N call sites left out", which no pass models. The check
+that worked was mechanical and cheap: for every file I edited, look for siblings and
+for other call sites of the same function.
+
+Other duplicates checked and cleared: the three `damage.cpp` files have distinct
+checksums and neither sibling contains the `orientation` code; `campaign/campupd/
+dogfight.cpp` has no `MakePilot` at all. Both fixes were correctly scoped.
