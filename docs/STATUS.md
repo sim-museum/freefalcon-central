@@ -7409,3 +7409,38 @@ three" result — used to rule out the multi-unit combine — is invalid.
 
 That would make it the third refutation this session built on a lever whose effect was
 assumed rather than checked at the point it mattered.
+
+### NVG-5 — WITHDRAWN: "the multi-unit combine is ruled out" was not established
+
+Checked what unit 0's combine actually is under `FF_NVG_MAXUNITS=1`:
+
+```
+capped, units=1 draws:   env0=(0,0,0,0)  comb0=0x2100 MODULATE   s0=GL_TEXTURE
+uncapped, units=3 draws: env0=(1,1,1,1)  comb0=0x8575 INTERPOLATE s0=GL_CONSTANT
+```
+
+The sampled capped draws are ordinary `MODULATE` draws — **not** the NVG combine collapsed to
+one unit. The census reports at most two draws per unit-count class, so this does not prove
+the NVG draws reverted; it proves only that **I cannot establish the NVG combine was
+exercised under the cap**.
+
+**So the earlier conclusion is withdrawn.** "Capping to one unit is as blue as three,
+therefore the multi-unit combine is not the cause" required that the capped draws still ran
+the NVG combine. They may not have. The multi-unit combine is **back in scope**.
+
+**This is the third time this session** a result rested on a lever whose effect was assumed
+at the point it mattered:
+1. `FF_NVG_NOVTX` — switch not connected at all (caught by control)
+2. `diffuse=ffffffff` — single sample, flagged as insufficient, then reasoned from anyway
+3. `FF_NVG_MAXUNITS` — verified it changed the unit *count*, never that it preserved the
+   combine *mode*, then drew a conclusion that depended entirely on the mode
+
+Each time the lever *did something*, which is what made it convincing. Verifying that a
+switch has an effect is not the same as verifying it has **the effect the conclusion
+requires**. That is the sharper form of the rule and it is worth carrying: state what the
+conclusion depends on, then check that specific thing.
+
+**Standing NVG-5 position, honestly:** the world renders blue and flat under `DX_NVG`; it is
+rasterised, not missing; fragment-rejection state is identical; unit 0's ADDSMOOTH setup and
+operands are correct; diffuse is white on all sampled vertices. The multi-unit combine is
+un-eliminated. Twelve hypotheses examined, one withdrawn refutation, no fix.
