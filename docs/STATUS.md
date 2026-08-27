@@ -6812,3 +6812,47 @@ scanning is the weaker one — the reverse of the `new[]`/`delete` class, where 
 closed the question and ASAN had only ever found what it happened to execute. Neither tool
 dominates; they fail in different directions, and a clean result from the weaker one for a
 given class means very little.
+
+### ASAN-7 — heap-use-after-free during aircraft death (TE-29), logged not patched
+
+`row 29 Offensive BFM  asan=5` — five heap-use-after-free READs, the most serious class
+found this session.
+
+**Reader:**
+```
+UnitProxFilter::RemoveTest      camplib/camplist.cpp:304
+VuGridTree::Move                vu2/vu_grid_tree.cpp:54
+VuCollectionManager::HandleMove vu2/vu_collection_manager.cpp:123
+VuEntity::SetPosition           vu2/vuentity.cpp:395
+SimBaseClass::SetRemoveFlag     simlib/simbase.cpp:533
+AircraftClass::SetDead          aircraft/virtuals.cpp:856
+AircraftClass::Exec             aircraft/aircraft.cpp:1867
+```
+
+An aircraft dying triggers a grid-tree move whose proximity filter reads freed memory.
+
+**What makes it worth care rather than a quick patch**: ASAN says the freed chunk is a
+**texture pixel buffer** —
+
+```
+allocated: D3D7Surface::AllocatePixelBuffer <- DDS7_Lock <- TextureHandle::Reload <- PaletteHandle::Load
+freed:     D3D7Surface::~D3D7Surface <- DDS7_Release <- TextureHandle::~TextureHandle <- CPLight::DiscardLit
+```
+
+A campaign proximity filter reading into a freed *texture* buffer is not semantically
+sensible. Either a pointer in the VU/campaign layer is dangling into memory that was
+recycled, or something upstream is already corrupt and this is a symptom rather than the
+cause.
+
+**Deliberately not fixed in this sprint.** Adding a null/validity check at
+`camplist.cpp:304` would silence the ASAN report while leaving whatever produces the
+dangling pointer intact — converting a detectable fault into an invisible one. That is
+strictly worse than the current state.
+
+**Filed as UAF-1** with the next steps stated: reproduce row 29 to confirm it is not a
+one-off, then establish which object `RemoveTest` believes it is reading before touching
+anything.
+
+**Also worth noting against my earlier prediction**: this is the second find in the resumed
+pass, and neither was weapon-specific — TE-25 was campaign pilot loading and TE-29 is entity
+death handling. The weapon-path hypothesis from ASAN-5 has now been contradicted twice.
