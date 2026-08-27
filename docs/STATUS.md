@@ -7879,3 +7879,17 @@ compares totals, not per-row identity. That gap is now closed for the future: a
 called for an already-occupied slot, and the fix means that state is now *reported*
 instead of being discovered by an out-of-bounds read. The relocation preserved the
 diagnostic; only the separate comparison assert was lost.
+
+**Bookkeeping correction — the BSPSLOT-1 restore is in `902c0b03`, not its own commit.**
+The `ShiAssert(slotNumber < instance.ParentObject->nSlots)` restore was applied by
+the staged post-sweep batch running in the background, and a `git add -A` issued
+moments later for the ORDER-1 verification swept it into that commit. So
+`902c0b03`'s message describes only the sweep result while its diff also contains a
+source fix. The history is correct; the message is incomplete. Recorded here rather
+than rewritten — the commit is pushed, and amending shared history to tidy a message
+costs more than an accurate note.
+
+**Method note worth keeping: never `git add -A` while a background job can write to
+the working tree.** This session runs sweeps and batches in the background as a
+matter of course, so a blanket add is a live hazard, not a theoretical one. Stage
+explicit paths (`git add docs/STATUS.md`) when anything is running.
