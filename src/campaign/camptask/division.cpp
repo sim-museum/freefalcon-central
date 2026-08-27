@@ -281,15 +281,25 @@ void BuildDivisionData(void)
                         dc = new DivisionClass();
                         dc->nid = d;
                         dc->owner = u->GetOwner();
-                        ShiAssert(divels[t][d]);
+                        // FF_LINUX: the bounds check below carries a "JB 010223 CTD" comment --
+                        // it was added because these indices go out of range and crashed. But
+                        // ShiAssert(divels[t][d]) sat ABOVE it, performing the very access the
+                        // check exists to prevent, and ShiAssert is live in this build (see
+                        // CLAUDE.md on #ifdef DEBUG). Same shape as the AttachChild overflow.
+                        // Hoisting the test also guards the USE_SH_POOLS branch, which had no
+                        // bounds check at all.
+                        const bool divIdxOk = (t >= 0 and t < NUM_TEAMS and d >= 0 and d < MAX_DIVISION);
+                        ShiAssert(divIdxOk);
+
+                        if (divIdxOk)
+                        {
+                            ShiAssert(divels[t][d]);
 #ifdef USE_SH_POOLS
-                        dc->element = (VU_ID *)MemAllocPtr(gDivVUIDs, sizeof(VU_ID) * divels[t][d], FALSE);
+                            dc->element = (VU_ID *)MemAllocPtr(gDivVUIDs, sizeof(VU_ID) * divels[t][d], FALSE);
 #else
-
-                        if (t >= 0 and t < NUM_TEAMS and d >= 0 and d < MAX_DIVISION) // JB 010223 CTD
                             dc->element = new VU_ID[divels[t][d]];
-
 #endif
+                        }
                         dc->next = dd[t];
                         dd[t] = dc;
                     }

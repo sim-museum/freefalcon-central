@@ -280,15 +280,21 @@ void BuildDivisionData(void)
                     dc = new DivisionClass();
                     dc->nid = d;
                     dc->owner = u->GetOwner();
-                    ShiAssert(divels[t][d]);
+                    // FF_LINUX: see the matching fix in campaign/camptask/division.cpp --
+                    // the "JB 010223 CTD" bounds check was added because these indices go
+                    // out of range, but the assert above it performed that very access.
+                    const bool divIdxOk = (t >= 0 && t < NUM_TEAMS && d >= 0 && d < MAX_DIVISION);
+                    ShiAssert(divIdxOk);
+
+                    if (divIdxOk)
+                    {
+                        ShiAssert(divels[t][d]);
 #ifdef USE_SH_POOLS
-                    dc->element = (VU_ID *)MemAllocPtr(gDivVUIDs, sizeof(VU_ID) * divels[t][d], FALSE);
+                        dc->element = (VU_ID *)MemAllocPtr(gDivVUIDs, sizeof(VU_ID) * divels[t][d], FALSE);
 #else
-
-                    if (t >= 0 && t < NUM_TEAMS && d >= 0 && d < MAX_DIVISION) // JB 010223 CTD
                         dc->element = new VU_ID[divels[t][d]];
-
 #endif
+                    }
                     dc->next = dd[t];
                     dd[t] = dc;
                 }
