@@ -8795,3 +8795,33 @@ Point 2 is the one I would not have thought to check a day ago: the fix's *state
 purpose is re-pointing `entityTypePtr_`, but `SetEntityType` does more than that, and
 that "more" is exactly what I dismissed without checking when arguing the fix could
 not matter.
+
+### TEAMROE-1 — resolved into a fix I can justify and a decision I cannot
+
+`GetRoE` has ~120 call sites. Two separable questions:
+
+**1. The assertion — now demonstrably a false alarm, and removable.** Earlier I
+refused to delete `ShiAssert(TeamInfo[a])` on the grounds that it might be reporting a
+real upstream bug, and said I needed the caller before touching it. I have it:
+`RebuildFrontList` (`camplist.cpp:943`) asks about objectives whose owner team the TE
+mission never instantiated, because TE missions inherit the theater's full objective
+database. That is a legitimate data condition, not a stale-team bug, and `GetRoE`
+already handles it with an explicit `else` branch. The assertion contradicts its own
+function's contract and fires ~2849 times per TE mission while printing twice. Removing
+it is now evidence-backed rather than convenient.
+
+**2. The fallback value — a design decision I should not make silently.** When
+`TeamInfo[a]` is NULL the function returns `ROE_ALLOWED (1)`. `ROE_NOT_ALLOWED (0)`
+is arguably more defensible — a team that does not exist should not be permitted to
+capture, fire or use bases — and it would flip the `isolated` outcome in
+`RebuildFrontList`. But the same fallback is read by ~120 sites spanning ground/air/
+naval AI, base usability, RWR and mission evaluation. Choosing between "unknown team
+is permissive" and "unknown team is forbidden" changes TE AI behaviour in ways no test
+here would detect, and the code offers no evidence which was intended.
+
+**So: assertion removed, fallback untouched, decision written down.** Changing a
+default that ~120 sites read, on my own judgement, to fix log noise I have already
+explained, is not a trade worth making unattended.
+
+*(Edit deferred until TESWEEP-5 finishes — rebuilding `build-relg` mid-sweep would
+swap the binary under the running experiment.)*
