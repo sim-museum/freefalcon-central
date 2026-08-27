@@ -2385,11 +2385,33 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
 
         if (u3 < 8 && s_seen3[u3] < 2) {
             s_seen3[u3]++;
-            fprintf(stderr, "[3DCENSUS] units=%d texStage0=%s texStage1=%s n=%lu\n",
+            // FF_LINUX (NVG-5): units/texture alone cannot say whether the world
+            // reaches the rasteriser -- this census counts draws SUBMITTED, not
+            // fragments PRODUCED. Depth, blend, cull and alpha-test reject fragments
+            // regardless of texture-env setup, and the blanking has been shown to be
+            // upstream of texture-env (FF_NO_TEXOP_FIX moved the picture but did not
+            // restore the world) and not fog. Report those states so the two
+            // configurations can be diffed on what would actually discard geometry.
+            GLint dFunc = 0, aFunc = 0, bSrc = 0, bDst = 0, cullMode = 0;
+            GLfloat aRef = 0.0f;
+            glGetIntegerv(GL_DEPTH_FUNC, &dFunc);
+            glGetIntegerv(GL_ALPHA_TEST_FUNC, &aFunc);
+            glGetFloatv(GL_ALPHA_TEST_REF, &aRef);
+            glGetIntegerv(GL_BLEND_SRC, &bSrc);
+            glGetIntegerv(GL_BLEND_DST, &bDst);
+            glGetIntegerv(GL_CULL_FACE_MODE, &cullMode);
+            fprintf(stderr, "[3DCENSUS] units=%d texStage0=%s texStage1=%s n=%lu"
+                            " zTest=%d zFunc=0x%x zWrite=%d blend=%d src=0x%x dst=0x%x"
+                            " aTest=%d aFunc=0x%x aRef=%.2f cull=%d mode=0x%x\n",
                     u3,
                     dev->textures[0] ? "yes" : "NO",
                     dev->textures[1] ? "yes" : "NO",
-                    (unsigned long)dwIndexCount);
+                    (unsigned long)dwIndexCount,
+                    (int)glIsEnabled(GL_DEPTH_TEST), (unsigned)dFunc,
+                    (int)({ GLboolean w = GL_FALSE; glGetBooleanv(GL_DEPTH_WRITEMASK, &w); w; }),
+                    (int)glIsEnabled(GL_BLEND), (unsigned)bSrc, (unsigned)bDst,
+                    (int)glIsEnabled(GL_ALPHA_TEST), (unsigned)aFunc, (double)aRef,
+                    (int)glIsEnabled(GL_CULL_FACE), (unsigned)cullMode);
             fflush(stderr);
         }
     }

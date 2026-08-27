@@ -7195,3 +7195,39 @@ alongside evidence of a different quality.
 - `FF_NO_TEXOP_FIX` — switch connected *and* demonstrably moved the output, result **strong**
 
 Ninth NVG hypothesis. The blanking is still upstream: not texture-env, not fog.
+
+### NVG-5 — the world is NOT missing: it is rasterised and mis-coloured by the 3-unit combine
+
+Extended `[3DCENSUS]` to report the states that actually reject fragments — depth, blend,
+cull, alpha — since the census had only ever counted draws *submitted*.
+
+```
+A (world visible):  units=0 ...  |  units=1 ...
+B (world blank):    units=0 ...  |  units=1 ...  |  units=3 texStage0=yes texStage1=yes
+
+all classes, both configs:  zTest=1 zFunc=0x203 zWrite=1 blend=0 aTest=0 cull=0
+```
+
+**Every fragment-rejection state is identical.** Nothing is being depth-rejected,
+alpha-tested away, culled or blended out. And with `blend=0` and `zWrite=1`, whatever those
+draws produce is written **opaquely** into the framebuffer.
+
+**So the world is not missing — it is being drawn in the wrong colour.** The sole difference
+is the extra `units=3` draw class: under `DX_NVG` the world goes through the three-unit
+multitexture combine, and that combine yields a blue-dominant, low-variance result
+(`b=0.472`, `sd=0.059` against `0.192`). Low variance is the tell — `DOTPRODUCT3` collapses
+RGB to a scalar, which flattens terrain detail exactly as observed.
+
+**This corrects my own re-scope from earlier today.** I moved the ticket from "panel loses
+its chroma key" to "the world fails to render", on the reasoning that the blue was the pit's
+backdrop showing through. It is not: the world is rendering, over the top, in the wrong
+colour. The blue is world geometry rendered blue, not backdrop revealed.
+
+It also fits the texture-op result that looked odd at the time: bypassing the ops to
+`MODULATE` pushed the region *further* blue (`b=0.950`) rather than restoring it — consistent
+with changing a combine that is producing colour, not with restoring a draw that is absent.
+
+**Re-scoped again, and now narrowly**: which of the three units in the NVG combine produces
+the blue-dominant result for world geometry? The Wine reference shows the correct output is
+green with detail preserved, so this is now a direct comparison of a colour pipeline against
+a known-good image rather than a hunt for a missing draw.
