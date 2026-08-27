@@ -4092,10 +4092,19 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
                     break;
                 case D3DTOP_ADDSIGNED:
-                    FF_NVGOP_SEEN("ADDSIGNED", stage);
                 case D3DTOP_ADDSIGNED2X:
                 case D3DTOP_DOTPRODUCT3:
-                    FF_NVGOP_SEEN("DOTPRODUCT3", stage);
+                    // FF_LINUX: report the op that ACTUALLY ran. Previously
+                    // D3DTOP_ADDSIGNED reported "ADDSIGNED" and then fell through to
+                    // report "DOTPRODUCT3" as well, so every ADDSIGNED emitted both
+                    // labels. Because the probe is one-shot per name, DOTPRODUCT3 was
+                    // recorded as first seen on the stage where ADDSIGNED ran (stage 1
+                    // under DX_NVG) rather than its own (stage 2) -- a diagnostic
+                    // reporting an operation that never happened, in the exact tool
+                    // being used to debug NVG-5.
+                    FF_NVGOP_SEEN(value == D3DTOP_DOTPRODUCT3  ? "DOTPRODUCT3"
+                                  : value == D3DTOP_ADDSIGNED2X ? "ADDSIGNED2X"
+                                  : "ADDSIGNED", stage);
                     if (ffTexOpFixEnabled()) {
                         glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
 
