@@ -39,7 +39,7 @@ calling `Move()`. Leading candidate fix for UAF-1 (see below).
 
 | item | state |
 |---|---|
-| **UAF-1** | Five theories refuted, four of them mine. Post-fix **6/6 clean vs a 2/5 baseline** — `p ≈ 0.047`, suggestive only. Discriminating experiment running. |
+| **UAF-1** | **Seven theories refuted**, all mine, each killed by evidence. The 6/6-clean result did **not** hold up: the discriminating arm failed 2 in 9, and the type-pointer fix was measured *unable* to reach the crash. Not solved. What exists now that did not before: a reproducer, a harness, per-arm failure rates, and a deterministic probe that retires a theory in one run instead of a dozen. |
 | **BSPSLOT-1** | Root-caused to **game data**: vehicle types 3337 and 711 mark hardpoint 2 visible while their model (LOD 233) has 2 slots. Cosmetic today; was a heap overflow before ORDER-1. |
 | **TEAMROE-1** | Caller identified: TE missions inherit objectives owned by teams they never instantiate. The NULL fallback **plausibly inverts** a front-line isolation result — not merely noise. Not changed: the fallback is shared with campaign AI. |
 | **UCNULL-1** | `GetUnitClassData()` is nullable (proven three ways); **25 of 47 call sites dereference it unguarded**. Deliberately not mass-edited. |
@@ -74,3 +74,37 @@ CLAUDE.md is loaded every session, so a wrong claim there actively misdirects.
   `asserts=2` while the underlying condition fired **2849** times.
 * **Never delete an assertion that fires.** Deleting one converts an observable
   defect into a silent one — proven twice today, once against my own change.
+
+---
+
+## Addendum — UAF-1 in detail (added after the sprint continued)
+
+**Seven refuted theories**, in order: entities freed while `VU_MEM_ACTIVE`; `Remove`
+skipping grid trees; asymmetric insert/remove predicates; the class table freed under
+live entities; a stale `ent`; a dangling filter or grid; and ASAN's line attribution
+being wrong. Each was plausible when proposed and each died to a specific check —
+mostly a log line number or a counter, rarely an argument.
+
+**The recurring error was mine and it has a name.** Six of the seven described a
+mechanism *genuinely present in the code* but *not active at the time of the crash*.
+Reading source proves a hazard exists; only timing shows whether it could have fired.
+
+**Established facts** (so nobody re-derives them): `ent` **is** `this` and provably
+live; **no entity is destroyed during a mission**; `entityTypePtr_` is in range across
+20,000 checks; grids are live across 40,000 `Move()` calls; `RemoveTest` never touches
+the filter's `this` (`Real(int)` is a free function, pure comparison); and the fault is
+genuinely at `camplist.cpp:304` (virtual call, separate ASAN frames, not inlined).
+
+**Prediction on record:** a failing run must report `typeptr_bad > 0`. If it reports
+zero, stop theorising and dump the bytes at the fault.
+
+**Two fixes committed, neither claimed as the UAF-1 fix:** `~VuGridTree`
+deregister-before-teardown (a real lock-scope defect — the arm that carried it still
+failed twice), and the type-pointer refresh (closes a narrow real hazard for 2
+entities; `FF_NO_TYPEPTR_REFRESH=1` reverts).
+
+**Four measurement failures caught**, each where "no findings" was indistinguishable
+from "the tool never ran": a `nohup` exit code read as completion; a probe on a path
+the run never reached; a killed job that wrote nothing; and an `atexit` reporter that
+never fires because `main()` calls `_exit(0)`. Every probe now carries a control that
+proves it executed.
