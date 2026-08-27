@@ -7057,3 +7057,41 @@ distinguishes "panel transparent" from "world invisible", which seven theories h
 
 Recorded because after seven refutations the problem is more likely in the framing than in
 the next hypothesis.
+
+### NVG-5 RE-SCOPED — it is not the panel. The WORLD fails to render under DX_NVG.
+
+Measured the two regions of the frame separately instead of judging the whole image, with
+NVG on in both configurations:
+
+| region | `FF_NVG_DXSTATE=1` | default (DX_NVG skipped) |
+|---|---|---|
+| WORLD (top) | r=0.000 g=0.139 **b=0.472**, **sd=0.059** | r=0.275 g=0.424 b=0.243, **sd=0.192** |
+| PIT (bottom) | r=0.000 **g=0.300** b=0.076 | r=0.004 g=0.218 b=0.003 |
+
+**The cockpit panel is GREEN in the "blue screen" frame** — `g=0.300` against `b=0.076`. It
+renders correctly, NVG-green, chroma key intact. **The panel is not the problem and never
+was.**
+
+**The world region is blue and nearly featureless** — `sd=0.059` versus `0.192` normally.
+Low variance means no terrain detail: the world is not drawing, and the pit's key-blue
+backdrop shows through where it should be.
+
+**This invalidates the ticket's title and all seven theories.** NVG-5 has been recorded
+since the first sprint as *"2D cockpit panel loses its chroma key"*, and every hypothesis —
+the alpha stage, the chroma key, the alpha source, the missing covering draw, stage-0
+starvation, the `lastState` cache, the stage-3 configuration — targeted the panel or its
+state. The panel was rendering correctly the whole time.
+
+The earlier census said as much and was not followed through: *"the key-blue backdrop is
+drawn in both modes; what differs must be the draw that COVERS it."* The covering draw is
+the world.
+
+**Re-scoped**: why does the 3D world stop producing visible output when `DX_NVG` is live?
+`[3DCENSUS]` shows 3D draws still occur (`units=3`), so they execute but yield nothing
+visible — consistent with the NVG stage math (`ADDSMOOTH` / `ADDSIGNED` / `DOTPRODUCT3`
+implemented in NVG-2) producing black or transparent fragments for world geometry.
+
+**The method lesson, third time this session**: the symptom description was accurate as a
+description and wrong as a diagnosis — exactly like "physics terrain sits below graphics
+terrain", which turned out to be landing gear. Measuring *regions* rather than the whole
+frame took one command and overturned seven sprints of hypotheses.
