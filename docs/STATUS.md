@@ -9217,3 +9217,18 @@ The lesson is the session's own, re-learned: *a change verified by reading the d
 not verified.* A compile-only check proved my syntax; only the binary proved my
 semantics. And the "good example" I reasoned from was itself dead code — a reminder
 that consistency with neighbouring code is not evidence the neighbouring code works.
+
+**Both silent switches now report (`FF_DEBUG_RS`, `FF_DEBUG_TSS`).** Following the
+correction above: unhandled **render states** were dropped as silently as unhandled
+texture-stage states, because both used `D3DGL_LOG` and `D3DGL_DEBUG` is `0`. Both now
+use runtime-gated `fprintf`, capped, verified present in the linked binary.
+
+That matters more than a normal logging tweak in this codebase. Its dominant bug class
+is *"a D3D state the GL layer does not honour"* — three `glClear` instances in
+CLAUDE.md, the `ALPHAOP = DISABLE` no-op found this session, and NVG-5 itself. Until
+now the layer had **no way to say "D3D asked for something I do not implement"**. These
+two flags are the first-line diagnostic for anything that renders subtly wrong.
+
+The stale comment claiming the render-state switch was a working example has been
+corrected in place too — it was the reasoning that produced the wrong finding, so
+leaving it would have re-seeded the same error.

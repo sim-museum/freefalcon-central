@@ -4042,7 +4042,22 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
             break;
 
         default:
-            D3DGL_LOG("Unhandled render state: %d = %d", state, value);
+            // FF_LINUX: was D3DGL_LOG, which compiles to do{}while(0) because D3DGL_DEBUG
+            // is 0 -- so unhandled render states were silently dropped, in a port whose
+            // dominant bug class is 'a D3D state the GL layer does not honour'. Runtime-gated
+            // like every other probe here.
+            {
+                static int dbgRs = -1;
+                if (dbgRs < 0) dbgRs = getenv("FF_DEBUG_RS") ? 1 : 0;
+            
+                if (dbgRs)
+                {
+                    static int nRs = 0;
+            
+                    if (++nRs <= 24)
+                        fprintf(stderr, "[RS-UNHANDLED] state %d = %d\n", (int)state, (int)value);
+                }
+            }
             break;
     }
 }
@@ -4382,9 +4397,9 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
 
         default:
             // FF_LINUX: report unhandled texture-stage states instead of dropping them
-            // silently. The render-state switch above already does this
-            // (D3DGL_LOG "Unhandled render state"); this one did not, so a D3DTSS_*
-            // the layer does not implement simply vanished. Twelve types are handled;
+            // silently. NOTE: the render-state switch above was NOT a working example --
+            // its D3DGL_LOG is compiled out too, and has since been given the same
+            // runtime-gated treatment. Twelve types are handled;
             // anything else -- TEXCOORDINDEX, TEXTURETRANSFORMFLAGS, BUMPENV*, BORDERCOLOR
             // -- was invisible. Same class as the ALPHAOP=DISABLE no-op found in NVG-5:
             // the state GL ends up in is not the state D3D asked for, and nothing says so.
