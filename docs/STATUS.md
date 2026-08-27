@@ -6789,3 +6789,26 @@ same out-of-range index. Fixed by extending the existing guard to cover both acc
 does not extend to the access beside it — `AttachChild`, `DetachChild`, and now
 `GetAvailablePilot`. Worth a targeted scan of its own: guarded statement followed by an
 unguarded use of the same index.
+
+### Scan for "guard does not cover the adjacent access" — found nothing, and that is weak evidence
+
+Three defects this session shared one shape: a validity check that exists but does not
+extend to the access beside it — `AttachChild`, `DetachChild`, `GetAvailablePilot`. Three in
+one session warranted a targeted scan.
+
+**Result: 1 candidate, verified a false positive.** `munition.cpp:1839` looked like a
+single-statement guard followed by an unguarded use, but the guard's body is itself an `if`
+whose braces sit on the next line, so the "unguarded" use is nested two deep inside it.
+
+**This does not close the class, and should not be recorded as if it did.** The heuristic
+only matches *single-statement* guards with the access on the very next line — the narrowest
+possible form. The three real instances were each different: an assertion ahead of a bounds
+check (`AttachChild`), the same in a sibling function (`DetachChild`), and a guarded
+statement followed by a separate unguarded `if` block (`GetAvailablePilot`). A pattern that
+varies that much in surface form is not reliably greppable.
+
+**Conclusion worth keeping**: for this defect class, ASAN is the better detector and static
+scanning is the weaker one — the reverse of the `new[]`/`delete` class, where the static scan
+closed the question and ASAN had only ever found what it happened to execute. Neither tool
+dominates; they fail in different directions, and a clean result from the weaker one for a
+given class means very little.
