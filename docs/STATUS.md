@@ -9108,3 +9108,19 @@ fixed: unhandled texture-stage states are reported like unhandled render states.
 **Verdict: the layer is in better shape than the NVG-5 find suggested.** One silent
 no-op and one silent default across the whole file, both now visible. Compile-verified
 only (object file, no link) — the machine is the PO's.
+
+**Self-check on the restored `AttachChild` assertion — safe, verified not assumed.**
+The assertion I restored dereferences `instance.ParentObject`, and `drawbsp.cpp`
+dereferences that field in **eight places with no NULL check anywhere**, so it was
+worth confirming rather than trusting. `ParentObject` is assigned in
+`ObjectInstance`'s constructor from `TheObjectList[tid]` and set to `NULL` in exactly
+one other place — `~ObjectInstance`, immediately before destruction. A **live**
+instance therefore always has a valid `ParentObject`, and all eight dereferences are
+safe. The only way to reach a NULL there is use-after-destruction, which is a
+different defect class and not one this file creates.
+
+Also re-ran the ORDER-1 detector across the whole tree as a check on this session's
+~15 edits: **no new guard-after-access candidates in any file touched**. Motivated
+rather than ceremonial — I introduced two defects this session (a NULL
+`VuDatabaseIterator` at startup, a latent build break), both caught by review rather
+than by tooling, so pointing the tooling at my own work was overdue.
