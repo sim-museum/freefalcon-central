@@ -7339,3 +7339,40 @@ not what the implementation assumes.
 
 Eleventh hypothesis. Each of the last six has been refuted in a single run, and each has
 narrowed the target rather than merely eliminating a guess.
+
+### NVG-5 — operand mapping is correct, and my DIFFUSE refutation rested on a sample I had flagged
+
+Read the full `ADDSMOOTH` operand mapping on the world draw:
+
+```
+env0=(1,1,1,1)  comb0=INTERPOLATE  s0=GL_CONSTANT  s1=GL_PRIMARY_COLOR  s2=GL_PRIMARY_COLOR
+op0=op1=op2=GL_SRC_COLOR
+```
+
+That is exactly right: `GL_INTERPOLATE(S0=white, S1=A2, S2=A1)` computes `A1 + A2 - A1*A2`,
+with both args `PRIMARY_COLOR` as `ADDSMOOTH(DIFFUSE, DIFFUSE)` requires. **Unit 0 is
+correct.** Twelfth hypothesis refuted.
+
+**But that creates a contradiction I have to own.** If stage 0 outputs
+`A1 + A2 - A1*A2` with both args white, the result is white — so capping to one unit should
+have produced a *white* world, not a blue one. Verified the cap is genuinely connected:
+with `FF_NVG_MAXUNITS=1` the census reports only `units=0` and `units=1`, no `units=3`. The
+lever works.
+
+**So the diffuse is not white on the draws that matter.** Two entries ago I refuted the
+untinted-diffuse hypothesis on a reading of `diffuse=ffffffff` — and in the same entry I
+wrote that the probe *"samples the first vertex of the first draw in each census class"* and
+that the honest reading was "the sampled vertex is white", not "all world diffuse is white".
+I then reasoned from it as though it were the latter.
+
+`ADDSMOOTH(D, D) = 2D - D²` on a blue-dominant terrain/sky diffuse produces exactly the
+observed result: blue-dominant, brightened, with detail flattened. The hypothesis I discarded
+is back, and it was discarded on evidence I had already labelled insufficient.
+
+**Next**: measure the diffuse properly for the `units=3` class — several vertices across
+several draws, not one — before treating any diffuse claim as established.
+
+**The lesson is not about NVG.** Writing the caveat is not the same as heeding it. I recorded
+the sampling limitation accurately and then drew a conclusion the sample could not support,
+which is the same error as the retracted runway-z figure, one entry after warning myself
+about it.

@@ -2442,11 +2442,21 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             // be both ADDSMOOTH and a TFACTOR consumer" -- this checks whether that
             // collision actually happens on the world draw.
             GLfloat env0[4] = { -1.0f, -1.0f, -1.0f, -1.0f };
-            GLint combRGB0 = 0, src0RGB0 = 0;
+            GLint combRGB0 = 0, src0RGB0 = 0, src1RGB0 = 0, src2RGB0 = 0;
+            GLint op0RGB0 = 0, op1RGB0 = 0, op2RGB0 = 0;
             glActiveTexture(GL_TEXTURE0);
             glGetTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, env0);
             glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_RGB, &combRGB0);
             glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE0_RGB, &src0RGB0);
+            // FF_LINUX (NVG-5): ADDSMOOTH needs S2 = A1 and S1 = A2 for
+            // GL_INTERPOLATE to compute A1 + A2 - A1*A2. A transposed mapping computes
+            // something else while every other state read still looks correct, which is
+            // exactly the position eleven refuted hypotheses have left us in.
+            glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE1_RGB, &src1RGB0);
+            glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE2_RGB, &src2RGB0);
+            glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND0_RGB, &op0RGB0);
+            glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND1_RGB, &op1RGB0);
+            glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND2_RGB, &op2RGB0);
 
             GLint dFunc = 0, aFunc = 0, bSrc = 0, bDst = 0, cullMode = 0;
             GLfloat aRef = 0.0f;
@@ -2459,7 +2469,8 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             fprintf(stderr, "[3DCENSUS] units=%d texStage0=%s texStage1=%s n=%lu"
                             " zTest=%d zFunc=0x%x zWrite=%d blend=%d src=0x%x dst=0x%x"
                             " aTest=%d aFunc=0x%x aRef=%.2f cull=%d mode=0x%x diffuse=%08x"
-                            " env0=(%.2f,%.2f,%.2f,%.2f) comb0=0x%x src0=0x%x\n",
+                            " env0=(%.2f,%.2f,%.2f,%.2f) comb0=0x%x s0=0x%x s1=0x%x s2=0x%x"
+                            " op0=0x%x op1=0x%x op2=0x%x\n",
                     u3,
                     dev->textures[0] ? "yes" : "NO",
                     dev->textures[1] ? "yes" : "NO",
@@ -2471,7 +2482,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
                     (int)glIsEnabled(GL_CULL_FACE), (unsigned)cullMode,
                     (unsigned)wDiffuse,
                     (double)env0[0], (double)env0[1], (double)env0[2], (double)env0[3],
-                    (unsigned)combRGB0, (unsigned)src0RGB0);
+                    (unsigned)combRGB0, (unsigned)src0RGB0,
+                    (unsigned)src1RGB0, (unsigned)src2RGB0,
+                    (unsigned)op0RGB0, (unsigned)op1RGB0, (unsigned)op2RGB0);
             fflush(stderr);
         }
     }
