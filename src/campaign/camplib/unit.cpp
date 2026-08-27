@@ -4678,8 +4678,16 @@ UnitClassDataType* UnitClass::GetUnitClassData(void)
             static long ok = 0;
             ok++;
 
-            if (ok == 1000)
-                fprintf(stderr, "[UCNULL-RUN] probe live: 1000 non-NULL returns, 0 NULL so far\n");
+            // Prove liveness on the FIRST call, not at a threshold. The original
+            // fired at ok==1000, so any mission making fewer calls emitted nothing
+            // and "no NULLs" became indistinguishable from "probe never ran" again --
+            // exactly the failure this control exists to prevent. A threshold control
+            // fails silently below its threshold.
+            if (ok == 1)
+                fprintf(stderr, "[UCNULL-RUN] probe live (first non-NULL return)\n");
+
+            if (ok == 100000)
+                fprintf(stderr, "[UCNULL-RUN] 100000 non-NULL returns, 0 NULL so far\n");
         }
     }
 

@@ -8874,3 +8874,17 @@ So the UAF-1 fix did not merely stop a crash: it eliminated two independent bad 
 in an unrelated subsystem, which is strong mechanistic corroboration that the diagnosis
 was right. Stated with its limit — this is one sweep, and the two sites going quiet is
 correlation plus a plausible mechanism, not a controlled test.
+
+**A threshold control fails silently below its threshold.** The UCNULL probe proved
+liveness by printing at exactly 1000 non-NULL returns. TE-29 exceeded that and printed;
+rows 1 and 12 did not, reporting `probe_live=0` — which is *not* "the probe is dead",
+it is "this mission made fewer than 1000 calls". The ambiguity the control existed to
+remove came straight back for any run below the threshold.
+
+Fixed to print on the **first** call. Liveness should be proven at the earliest
+possible moment, not at a milestone chosen for tidiness.
+
+This is the fifth control-related defect this session, and the second I introduced
+while trying to build a good control (after the `atexit` reporter that can never fire
+because `main()` calls `_exit(0)`). The recurring shape: a control that answers "did
+this run a lot?" when the question is "did this run at all?".
