@@ -7528,3 +7528,38 @@ collections relative to `UnRef()` reaching zero.
 **Consistent with the intermittency** (1 in 3): the window between an entity being freed and
 the tree being walked is a race, which is also why it appears on thread T15 rather than the
 main thread.
+
+### UAF-1 ROOT CAUSE — collections index entities by raw pointer while deletion is refcounted
+
+Three facts, each read directly from the source:
+
+1. **Collections hold raw pointers.** `VuGridTree::Insert` (`vu_grid_tree.cpp:152`) inserts
+   the entity into a red-black tree row with no `Ref()`. Same for `PrivateInsert`.
+2. **Deletion is purely refcount-driven.** `VuDeleteEntity` (`vuentity.cpp:178`):
+   `ret = ent->UnRef(); if (ret == 0) { SetVuState(VU_MEM_DELETED); delete ent; }` — no
+   collection removal anywhere in that path.
+3. **Collection removal is a separate call.** `VuDatabase::ReallyRemove` removes from the
+   hash and the collection manager, and does so correctly — `VuBin<VuEntity> safe(entity)`
+   is taken **first**, before any removal or state change.
+
+**So if the last reference drops before `ReallyRemove` runs, the entity is freed while still
+reachable from the grid tree**, leaving a dangling raw pointer that the next `Move` walks
+into. That is the use-after-free, and it explains every observed property: the 1-in-3
+intermittency (it is a race on the ordering), thread T15 (the VU thread), and the freed chunk
+being recycled into a texture buffer (the storage is simply reused).
+
+**The contrast is instructive.** `ReallyRemove` takes its safety reference *before* the
+operations it protects; `VuGridTree::Move` takes its *after* the reads it protects. The same
+codebase contains both the correct and incorrect ordering of the identical idiom, twenty lines
+apart in different files.
+
+**Fix options, neither small:**
+- **(a) Collections take a reference on insert.** Correct by construction — an indexed entity
+  could not reach refcount zero. Changes lifetime semantics globally and would keep entities
+  alive until every collection drops them, which may expose ordering assumptions elsewhere.
+- **(b) Guarantee `ReallyRemove` precedes the final `UnRef`.** Less invasive but relies on
+  discipline at every call site, which is what already failed here.
+
+**Not attempting either tonight.** Both are architectural, the defect is intermittent at 1 in
+3, and a candidate fix cannot be validated by the error ceasing. Recorded on UAF-1 with the
+evidence so the decision can be made deliberately rather than under time pressure.
