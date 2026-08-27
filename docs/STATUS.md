@@ -7798,3 +7798,34 @@ This is precisely the error TEAMROE-1 was written to avoid three commits earlier
 before the existing bounds guard so it matches `DetachChild`. Queued for the
 post-sweep batch: rebuilding `FFViper` mid-sweep already made the running sweep a
 moving target once, and once is enough.
+
+### UCNULL-1 — `GetUnitClassData()` is nullable; 37 sites dereference it unguarded
+
+Reached by pulling on `atm.cpp:835`, one of the assertions the sweep reports.
+
+**NULL is genuinely reachable — three independent pieces of in-tree evidence:**
+
+1. `UnitClass::GetUnitClassData()` (`unit.cpp:4640`) just returns `class_data`. The
+   function **immediately below it**, `GetUnitClassName()`, guards
+   `if (class_data)` and returns `"Nothing"` otherwise. The class treats its own
+   field as nullable.
+2. `class_data` is assigned from `Falcon4ClassTable[type - VU_LAST_ENTITY_TYPE].dataPtr`
+   — the *same expression* whose NULL case `SquadronClass`'s constructor handles with
+   `if (uc) … else memset(…)`. That is the ORDER-1 defect fixed this session, where
+   the code went on to dereference `uc` anyway.
+3. `gndunit.cpp` carries three explicit `if (!uc) return …` guards on this call.
+
+**The split** (excluding `camptool`, which is not built): **22** call sites
+NULL-check the result, **25** assign-then-dereference without checking, plus **12**
+inline `GetUnitClassData()->field` dereferences. Roughly half the codebase believes
+this can be NULL and half does not. `unit.cpp:1313` dereferences `class_data`
+unguarded *inside `UnitClass` itself*.
+
+**Deliberately not mass-edited.** None of these is observed crashing, and a blanket
+`if (!uc) return` is the wrong fix — each site needs a context-appropriate fallback
+(`return 0`? `Tracked`? skip the iteration?), and 37 mechanical edits to campaign
+code carry more regression risk than the latent defect does. Fix opportunistically:
+when ASAN or a crash points at one, and when touching the surrounding code anyway.
+
+The deliverable is knowing the family exists and that NULL is reachable, so the next
+crash here is diagnosed in minutes rather than hours.
