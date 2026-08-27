@@ -8361,3 +8361,25 @@ would look identical to a working one.
 **Recommended next step for whoever takes this up:** run the pre-fix binary and a
 build with `FF_NO_TYPEPTR_REFRESH=1` against ~15 runs each. That separates the two
 fixes and tightens the interval enough to matter. The harness is `/tmp/uaf-post.sh`.
+
+### UAF-1 — discriminating experiment (arm A), in progress
+
+**Purpose.** The 6/6 post-fix result cannot credit either fix: the binary carries both
+`~VuGridTree` deregister-before-teardown and the type-pointer refresh. Arm A runs the
+**same binary** with `FF_NO_TYPEPTR_REFRESH=1`, isolating the grid fix as the single
+variable. Failures returning ⇒ the refresh mattered; still clean ⇒ the grid fix is
+doing the work, or neither is and 6/6 was luck.
+
+**Control verified.** Run A1 prints `repointed=[]` — empty — confirming the env var
+genuinely disables the refresh. The variable name was also checked against the source
+before launching, since a typo would silently invalidate the whole arm while looking
+like a clean result.
+
+**Running total: 1 clean of 1** with the refresh off. Batches of four from here;
+two long background jobs were killed mid-run earlier, and smaller batches lose less
+when that happens.
+
+**Harness correction:** the first version of this script `rm -f`'d logs for clean
+runs to save space. That is exactly backwards — when a job is killed, a surviving log
+then reads as "a failure was kept" rather than "the deletion had not run yet". The
+deletion has been removed; all logs are retained.
