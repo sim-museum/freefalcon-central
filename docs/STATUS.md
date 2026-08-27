@@ -9040,3 +9040,45 @@ silent MODULATE.
 Recorded rather than pursued further this sprint: NVG-5 has resisted repeatedly and
 the standing rule is to switch away. This is a lead with a concrete measurement
 attached, not another theory.
+
+### NVG-5 — a specific semantic mismatch, found by reading (no machine needed)
+
+`d3d_gl.cpp:4237`:
+
+```c
+case D3DTSS_ALPHAOP:
+    switch (value) {
+        case D3DTOP_DISABLE:
+            break;              // <-- does nothing
+```
+
+**`ALPHAOP = DISABLE` is a no-op in the GL layer.** In D3D7 it means *this stage and
+all later stages produce no alpha* — the alpha passes through from the last enabled
+stage. In GL the unit simply keeps whatever `GL_COMBINE_ALPHA` it had, which is **stale
+state, not disabled state**.
+
+Why that matters specifically for NVG:
+
+* `dxengine.cpp:168` initialises **every** stage to `ALPHAOP = D3DTOP_DISABLE`. On
+  Windows that resets the alpha chain; here it changes nothing.
+* `DX_NVG` sets `m_AlphaTextureStage = 3` and sets **no `ALPHAOP` at all** for stages
+  0–3, so the chroma-key path later writes `SELECTARG1`/`MODULATE` to unit **3** only.
+* Units 0–2 therefore run whatever alpha combine the *previous* render state left, and
+  they sit **upstream** of unit 3 — so the alpha reaching the chroma key has already
+  been transformed by state nobody intended.
+
+A prior session hit the adjacent symptom from the colour side; the comment at
+`d3d_gl.cpp:4241` reads *"a previous state's COLOROP=DISABLE may have left
+SOURCE0_ALPHA=GL_PRIMARY_COLOR … This breaks chroma key transparency."* Same disease,
+the alpha-op half is still unimplemented.
+
+**Proposed fix (NOT implemented — needs display verification, machine is the PO's):**
+make `ALPHAOP = DISABLE` set the unit's alpha combine to genuine pass-through
+(`GL_REPLACE` sourcing `GL_PREVIOUS` on units > 0, `GL_PRIMARY_COLOR` on unit 0)
+rather than leaving stale state. Verify with `FF_DEBUG_NVGOPS` plus a `GL_COMBINE_ALPHA`
+readback on units 0–3 after `DX_NVG` applies, and A/B a night-vision frame against the
+Wine oracle.
+
+**Confidence: this is a real semantic mismatch, established by reading both sides.
+Whether it is *the* cause of NVG-5 is unverified** — twelve theories have died here, and
+this one has not yet met a measurement.
