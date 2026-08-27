@@ -2210,7 +2210,17 @@ void ContextMPR::ApplyStateBlock(GLint state)
 
     ShiAssert(state >= 0 and state < MAXIMUM_MPR_STATE);
 
-    if (state not_eq lastState)
+    // FF_LINUX (NVG-5): this cache skips reapplying the state block when the requested
+    // state matches the last one MPR applied. But DX_NVG configures texture stages
+    // directly via SetTextureStageState, OUTSIDE this path -- so lastState still claims
+    // state N is current while the GL/stage config has been replaced underneath. The
+    // panel then draws with the NVG stage setup and loses its chroma key, which is the
+    // BLUE-1 symptom. FF_MPR_NOSTATECACHE=1 forces reapplication to test exactly that.
+    static int s_noCache = -1;
+
+    if (s_noCache < 0) s_noCache = getenv("FF_MPR_NOSTATECACHE") ? 1 : 0;
+
+    if (state not_eq lastState or s_noCache)
     {
         lastState = state;
 

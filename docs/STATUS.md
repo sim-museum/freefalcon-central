@@ -6985,3 +6985,36 @@ measuring the wrong one.
 resulting GL state (alpha test func/ref, blend, texture env) between the two
 configurations. The panel state is the same going in, so the divergence is in the
 translation.
+
+### NVG-5 — the `lastState` cache is NOT the cause (sixth theory, refuted in one run)
+
+`ContextMPR::ApplyStateBlock` skips reapplying when the requested state matches the last
+one MPR applied. Since `DX_NVG` configures texture stages directly via
+`SetTextureStageState` — outside that path — the cache looked like an excellent candidate:
+`lastState` would still claim state 37 is current while the stage config had been replaced
+underneath, and the panel would draw with NVG's setup and lose its chroma key. That is
+precisely the BLUE-1 description.
+
+Added `FF_MPR_NOSTATECACHE=1` to force reapplication and tested it:
+
+```
+FF_NVG_DXSTATE=1                          view1 mean=0.168049 blueish=1
+FF_NVG_DXSTATE=1 FF_MPR_NOSTATECACHE=1    view1 mean=0.168049 blueish=1
+```
+
+**Identical to six decimal places.** The runs are deterministic, so this is a genuine
+negative rather than noise. The cache is not the cause.
+
+**And the negative is informative.** Forcing the state block to be reapplied on *every*
+poly — which is the strongest possible version of "restore MPR's state" — still leaves the
+panel blue. So `StateTable[37]`, the captured D3D state block, **does not contain whatever
+`DX_NVG` changes**. Reapplying it cannot undo the NVG stage configuration because that
+configuration is not part of what the block captures.
+
+**Next**: determine what `StateTable[]` actually captures (`StateSetupCounter` /
+`StateTableInternal` in `context.cpp:80-82`) versus which stage states `DX_NVG` sets
+(`dxengine.cpp:708-817`). The question is now specific: which states does NVG set that the
+MPR state block does not restore?
+
+Sixth theory refuted, but in one run rather than a sprint — because the measurement was on
+the correct renderer and the symptom is deterministic.
