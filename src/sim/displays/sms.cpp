@@ -721,6 +721,17 @@ void SMSBaseClass::AddWeaponGraphics(void)
             if (visFlag bitand (1 << i))
             {
                 // This is a visible weapon, however, only the first one should get a drawPointer
+                // FF_DEBUG_SLOT (BSPSLOT-1): the hardpoint index i is passed straight through as
+                // the model SLOT number below, so this assumes VisibleFlags agrees with the LOD's
+                // slot count. On TE-26 it does not -- LOD 233 has nSlots=2 and i reaches 2.
+                {
+                    static int ffDbgSlot = -1;
+                    if (ffDbgSlot < 0) ffDbgSlot = getenv("FF_DEBUG_SLOT") ? 1 : 0;
+                    if (ffDbgSlot)
+                        fprintf(stderr, "[SLOT-SRC] AddWeaponGraphics: vehType=%d hardpoint=%d "
+                                "numHardpoints=%d visFlags=0x%x\n",
+                                (int)(ownship->Type() - VU_LAST_ENTITY_TYPE), i, numHardpoints, visFlag);
+                }
                 OTWDriver.CreateVisualObject(hardPoint[i]->weaponPointer.get());
                 OTWDriver.AttachObject(drawPtr, (DrawableBSP*)hardPoint[i]->weaponPointer->drawPointer, i);
             }

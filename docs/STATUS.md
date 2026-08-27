@@ -7925,3 +7925,40 @@ evidence: **deleting an assertion that fires does not fix anything, it removes t
 only remaining witness.** BSPSLOT-1 part A keeps a reliable reproducer — TE-26, two
 occurrences per run — so tracing which index `SMSBaseClass::AddWeaponGraphics` passes
 is a bounded task rather than a hunt.
+
+### BSPSLOT-1 part A — ROOT CAUSE: vehicle data disagrees with the visual model
+
+Traced with `FF_DEBUG_SLOT=1` on TE-26, which reproduces reliably.
+
+`SMSBaseClass::AddWeaponGraphics` (`sms.cpp:717`) — the caller ASAN originally named
+— passes the **hardpoint index straight through as the model slot number**:
+
+```c
+OTWDriver.AttachObject(drawPtr, …->weaponPointer->drawPointer, i);   // i == hardpoint
+```
+
+That silently assumes `VehicleClassDataType::VisibleFlags` agrees with the LOD's
+slot count. Measured on TE-26 it does not:
+
+| vehicle type | numHardpoints | visFlags | model | result |
+|---|---|---|---|---|
+| 16 | 3 | `0x7` | ≥3 slots | fine |
+| 3420 | 2 | `0x5` | — | fine (bit 1 clear) |
+| **3337** | 3 | `0x7` | **LOD 233, nSlots=2** | **slot 2 requested, refused** |
+| **711** | 3 | `0xf` | **LOD 233, nSlots=2** | **slot 2 requested, refused** |
+
+So it is a **data mismatch**, not a logic error: the class data marks hardpoint 2
+visible while the visual model defines only slots 0–1. The consequence today is
+cosmetic — that weapon is simply not drawn on the vehicle. Before ORDER-1 it was a
+heap-buffer-overflow READ, because the assertion indexed `SlotChildren[2]` to
+discover the problem.
+
+**Not "fixed", and deliberately so.** The guard in `AttachChild` already handles it
+correctly, so a duplicate check at the caller would be redundant; the real
+correction is in game data (either the model gains a third slot or `VisibleFlags`
+stops claiming one), which is not ours to change. **One genuine open question left:
+`CreateVisualObject` is called for that weapon *before* the attach is refused**, so
+a visual object may be created and orphaned each time. Whether that leaks or is
+reclaimed elsewhere is unverified — flagged rather than assumed.
+
+`FF_DEBUG_SLOT=1` is kept in-tree (both sites, cached `getenv`, repo convention).

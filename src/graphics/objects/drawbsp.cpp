@@ -5,6 +5,7 @@
 
     Derived class to handle interaction with the BSP object library.
 \***************************************************************************/
+#include <execinfo.h>   // FF_DEBUG_SLOT backtrace (BSPSLOT-1)
 #include "statestack.h"
 #include "PalBank.h"
 #include "matrix.h"
@@ -121,7 +122,27 @@ void DrawableBSP::AttachChild(DrawableBSP *child, int slotNumber)
     // two sibling fixes had drifted apart.
     ShiAssert(slotNumber < instance.ParentObject->nSlots);
 
-    if (slotNumber >= instance.ParentObject->nSlots) return;
+    if (slotNumber >= instance.ParentObject->nSlots)
+    {
+        // FF_DEBUG_SLOT=1 (BSPSLOT-1): this condition is LIVE -- it fires twice per run on
+        // TE-26 (HARMs) and is the same state ASAN caught as a heap-buffer-overflow READ
+        // before the guard was sequenced ahead of the indexing assertion. The guard makes
+        // it safe; it does not make it stop happening. Report who asks and for what.
+        static int ffDbgSlot = -1;
+        if (ffDbgSlot < 0) ffDbgSlot = getenv("FF_DEBUG_SLOT") ? 1 : 0;
+
+        if (ffDbgSlot)
+        {
+            fprintf(stderr, "[SLOT] AttachChild OOB: parent id=%d slot=%d nSlots=%d child id=%d\n",
+                    id, slotNumber, instance.ParentObject->nSlots, child ? child->id : -1);
+            void *fr[16];
+            int nf = backtrace(fr, 16);
+            backtrace_symbols_fd(fr, nf, 2);
+            fflush(stderr);
+        }
+
+        return;
+    }
 
     if ( not child) return;
 
