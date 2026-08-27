@@ -6,6 +6,7 @@
 
 #include "cmpglobl.h"
 #include "F4Vu.h"
+#include "entity.h"   // FF_DEBUG_TYPEPTR: Falcon4ClassTable bounds (UAF-1)
 #include "objectiv.h"
 #include "listadt.h"
 #include "CampList.h"
@@ -301,6 +302,45 @@ VU_BOOL UnitProxFilter::Test(VuEntity *ent)
 
 VU_BOOL UnitProxFilter::RemoveTest(VuEntity *ent)
 {
+    // FF_DEBUG_TYPEPTR=1 (UAF-1): DETERMINISTIC test of the type-pointer theory.
+    // This function is where the intermittent UAF lands, reading 1-byte classInfo_
+    // fields through ent->EntityType(). If that pointer is stale it must lie OUTSIDE
+    // the current Falcon4ClassTable, and we can see that on EVERY call rather than
+    // only when the freed page happens to be poisoned. Turning an intermittent crash
+    // into a checkable invariant beats accumulating run counts.
+    {
+        static int ffDbgTypePtr = -1;
+        if (ffDbgTypePtr < 0) ffDbgTypePtr = getenv("FF_DEBUG_TYPEPTR") ? 1 : 0;
+
+        // Only entities with type >= VU_LAST_ENTITY_TYPE get a Falcon4ClassTable
+        // pointer (VuxType asserts that range); lower ids point into the STATIC
+        // vuTypeTable, which never moves and would otherwise flood this as noise.
+        if (ffDbgTypePtr and ent and ent->Type() >= VU_LAST_ENTITY_TYPE)
+        {
+            const char *tp = (const char *)ent->EntityType();
+            const char *lo = (const char *)Falcon4ClassTable;
+            const char *hi = lo + (size_t)NumEntities * sizeof(Falcon4EntityClassType);
+
+            // A valid pointer is either inside the current class table, or into the
+            // static vuTypeTable (which never moves and is not bounded here).
+            if (lo and (tp >= lo) and (tp < hi))
+            {
+                // in-range: fine
+            }
+            else
+            {
+                static int n = 0;
+                n++;
+
+                if (n <= 8)
+                    fprintf(stderr, "[TYPEPTR] ent=%p type=%u typePtr=%p OUTSIDE table [%p,%p) #%d\n",
+                            (void*)ent, (unsigned)ent->Type(), (void*)tp, (void*)lo, (void*)hi, n);
+
+                fflush(stderr);
+            }
+        }
+    }
+
     if ( not ent->EntityType()->classInfo_[VU_DOMAIN] or ent->EntityType()->classInfo_[VU_CLASS] not_eq CLASS_UNIT)
     {
         return FALSE;
