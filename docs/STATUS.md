@@ -8523,3 +8523,31 @@ exit) rather than to declare the theories refuted.
 Recording this now so the interpretation is fixed **before** the numbers arrive. It is
 easy to accept a clean streak as confirmation when it is the answer you were hoping
 for; harder once you have written down in advance what it would take to believe it.
+
+### UAF-1 — `RemoveTest` is now exhaustively accounted for, which points outside it
+
+Every memory read inside `UnitProxFilter::RemoveTest` is now enumerated:
+
+* `ent->EntityType()->classInfo_[VU_DOMAIN | VU_CLASS | VU_TYPE]` — three 1-byte reads
+  through `entityTypePtr_`.
+* `Real(int type)` (`campbase.cpp:885`) — **pure comparison**, no memory access, and a
+  free function, so it never touches the filter's `this`. That kills the "dangling
+  filter read its `uchar real`" idea outright.
+
+Combined with the established facts — `ent` is `this` and provably live; no entity is
+destroyed during a mission; `entityTypePtr_` is in range across 20,000 checks — there
+is **nothing left in that function** that can fault.
+
+**Which makes the line attribution itself suspect.** These are optimised builds, and
+`RemoveTest` is a small function called from `VuGridTree::Move`. If it is inlined,
+reads belonging to `Move` — the `bkf->Key1(entity)` call, the `table_[Row(...)]`
+index, the red-black tree walk — can be attributed to `camplist.cpp:304` in the ASAN
+report. Every theory so far has taken that line number literally and hunted inside
+`RemoveTest`; that may be why all six failed.
+
+**This reframes the next experiment.** The probe loop should be read not only for
+"did the invariants hold" but for whether a failing run reports `typeptr_bad=0`. If it
+does, the fault is *not* in `RemoveTest` at all, and the search moves to `Move`'s own
+memory: the filter's `Key1()`, `table_`, and the tree nodes. Those are exactly the
+structures the `~VuGridTree` teardown fix touched — which would make it relevant again
+for a reason quite different from the one it was committed under.
