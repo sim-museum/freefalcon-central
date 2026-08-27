@@ -8569,3 +8569,29 @@ actual `ent`, `entityTypePtr_` and `classInfo_` bytes at the fault.
 Writing the prediction down first is the point. Six of the seven refuted theories were
 plausible *after* seeing evidence and worthless *before* it; committing to what the
 next observation must show is the only way to keep score.
+
+### UAF-1 — pre-registered threshold reached: probes made cheaper instead of concluding
+
+**10 instrumented ASAN runs, all clean.** `0.78^10 ≈ 0.084` against the uninstrumented
+2-in-9 baseline — exactly the threshold written down *before* the runs, where the
+agreed response was **not** "the theories are refuted" but "the probes are perturbing
+the timing; make them cheaper".
+
+That is what has been done. `VuGridTree::Move` runs ~40,000 times per mission and was
+doing a `%`-test and a periodic `fprintf` on that path; `RemoveTest` the same. Both now
+only increment counters, and totals are reported once via `atexit`:
+
+```
+[GRIDMAGIC-EXIT] <moves> Move() calls, <live> on live grids, <dangling> dangling
+[TYPEPTR-EXIT]   <checked> checked, <in range> in range, <outside> outside
+```
+
+The controls are preserved — the point of the counters was never the periodic print —
+while the hot path loses its I/O entirely.
+
+**Why this matters more than the result.** Ten clean runs is precisely the evidence
+that would have let me declare two theories dead and call UAF-1 understood. Having
+written the interpretation down in advance, that reading is not available: a clean
+streak from an instrumented build is exactly what perturbation looks like, and the
+distinction is only visible if you decide which you would believe *before* seeing the
+number. Re-running with the cheaper probes now.

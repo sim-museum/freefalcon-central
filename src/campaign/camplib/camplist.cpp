@@ -300,6 +300,15 @@ VU_BOOL UnitProxFilter::Test(VuEntity *ent)
     return TRUE;
 }
 
+// FF_LINUX (UAF-1): probe totals reported once at exit -- no I/O on this hot path.
+static long ffTypePtrChecked = 0, ffTypePtrInRange = 0;
+static void ffTypePtrReport(void)
+{
+    if (ffTypePtrChecked)
+        fprintf(stderr, "[TYPEPTR-EXIT] %ld checked, %ld in range, %ld outside\n",
+                ffTypePtrChecked, ffTypePtrInRange, ffTypePtrChecked - ffTypePtrInRange);
+}
+
 VU_BOOL UnitProxFilter::RemoveTest(VuEntity *ent)
 {
     // FF_DEBUG_TYPEPTR=1 (UAF-1): DETERMINISTIC test of the type-pointer theory.
@@ -327,15 +336,20 @@ VU_BOOL UnitProxFilter::RemoveTest(VuEntity *ent)
             // from "the probe never ran". Those look identical otherwise and that trap
             // has already produced one false refutation this session.
             static long nChecked = 0, nInRange = 0;
+            static int reportRegistered = 0;
             nChecked++;
+
+            if ( not reportRegistered)
+            {
+                reportRegistered = 1;
+                atexit(ffTypePtrReport);
+            }
 
             if (lo and (tp >= lo) and (tp < hi))
             {
                 nInRange++;
-
-                if ((nChecked % 20000) == 0)
-                    fprintf(stderr, "[TYPEPTR-OK] %ld checked, %ld in range, 0 outside\n",
-                            nChecked, nInRange);
+                ffTypePtrChecked = nChecked;
+                ffTypePtrInRange = nInRange;
             }
             else
             {

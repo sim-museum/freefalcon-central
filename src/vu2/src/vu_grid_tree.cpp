@@ -1,3 +1,4 @@
+#include <cstdlib>   // atexit (UAF-1 probe)
 #include <float.h>
 #include "vu_priv.h"
 #include "vu2.h"
@@ -33,6 +34,16 @@ VuGridTree::~VuGridTree()
     delete [] table_;
 }
 
+// FF_LINUX (UAF-1): probe counters, reported once at exit so the hot path does no I/O.
+long ffGridMoves_ = 0, ffGridLive_ = 0;
+static void ffGridReport(void)
+{
+    if (ffGridMoves_)
+        fprintf(stderr, "[GRIDMAGIC-EXIT] %ld Move() calls, %ld on live grids, %ld dangling\n",
+                ffGridMoves_, ffGridLive_, ffGridMoves_ - ffGridLive_);
+}
+static int ffGridReportOnce = (atexit(ffGridReport), 0);
+
 VU_ERRCODE VuGridTree::PrivateInsert(VuEntity* entity)
 {
     VuBiKeyFilter *bkf = GetBiKeyFilter();
@@ -66,13 +77,12 @@ VU_ERRCODE VuGridTree::Move(VuEntity *ent, BIG_SCALAR coord1, BIG_SCALAR coord2)
 
         if (dbgOk)
         {
-            static long nMoves = 0, nLive = 0;
-            nMoves++;
-            if (ffMagic_ == 0x56475254u) nLive++;
-
-            if ((nMoves % 20000) == 0)
-                fprintf(stderr, "[GRIDMAGIC-OK] %ld Move() calls, %ld on live grids\n",
-                        nMoves, nLive);
+            // Counters only -- no I/O on this path. It runs ~40,000 times per mission
+            // and the periodic fprintf was a plausible source of timing perturbation
+            // (10 instrumented runs clean against a 2-in-9 uninstrumented baseline).
+            // Totals are reported once, at exit.
+            ffGridMoves_++;
+            if (ffMagic_ == 0x56475254u) ffGridLive_++;
         }
     }
 
@@ -263,13 +273,12 @@ VU_ERRCODE VuGridTree::Move(VuEntity *ent, BIG_SCALAR coord1, BIG_SCALAR coord2)
 
         if (dbgOk)
         {
-            static long nMoves = 0, nLive = 0;
-            nMoves++;
-            if (ffMagic_ == 0x56475254u) nLive++;
-
-            if ((nMoves % 20000) == 0)
-                fprintf(stderr, "[GRIDMAGIC-OK] %ld Move() calls, %ld on live grids\n",
-                        nMoves, nLive);
+            // Counters only -- no I/O on this path. It runs ~40,000 times per mission
+            // and the periodic fprintf was a plausible source of timing perturbation
+            // (10 instrumented runs clean against a 2-in-9 uninstrumented baseline).
+            // Totals are reported once, at exit.
+            ffGridMoves_++;
+            if (ffMagic_ == 0x56475254u) ffGridLive_++;
         }
     }
 
