@@ -8249,3 +8249,22 @@ and a clean run are easy to confuse in a log, and this session has already been
 caught twice by "the tool never ran" looking like "nothing was found". Rebuild
 relaunched as its own job so the build cannot silently consume the runs' budget again
 — which is what happened the first time, when 847 targets ate a 10-minute window.
+
+**A startup crash I introduced, caught by reviewing my own fix.** The type-pointer
+refresh constructs a `VuDatabaseIterator`, whose constructor uses the global
+`vuDatabase` with **no null check** (and dereferences `vuDatabase->dbHash_` under
+`VU_ALL_FILTERED`). But `main_linux.cpp:1675` calls `SetNewTheater(td)` and line 1676
+logs *"SetNewTheater returned, calling InitVU..."* — so on the startup pass
+`vuDatabase` is NULL and the iterator would have faulted on **every launch**.
+
+Guarded with `vuDatabase not_eq NULL`; there are no entities to re-point before the
+database exists. Smoke-tested: the release build starts and reaches the UI with zero
+crashes, and the refresh correctly prints nothing on a UI-only run.
+
+Two things worth naming. First, this is the *same defect shape* this session has now
+fixed six times — an access sequenced ahead of the check that makes it safe — and I
+wrote it myself, in the fix for a bug of that exact family. Second, it would not have
+been caught by the validation that was about to run: the ASAN attempts would have
+crashed identically at startup on every run, which is easy to read as "the harness is
+broken again" rather than "the fix is broken", especially after a killed job an hour
+earlier.

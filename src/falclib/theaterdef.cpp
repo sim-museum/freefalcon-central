@@ -416,7 +416,12 @@ bool TheaterList::SetNewTheater(TheaterDef *td)
         if (ffNoTypePtrRefresh < 0)
             ffNoTypePtrRefresh = getenv("FF_NO_TYPEPTR_REFRESH") ? 1 : 0;
 
-        if ( not ffNoTypePtrRefresh)
+        // CRITICAL: main_linux.cpp calls SetNewTheater BEFORE InitVU, so vuDatabase is
+        // NULL on the startup pass. VuDatabaseIterator's constructor uses the global
+        // with no null check (and dereferences vuDatabase->dbHash_ under
+        // VU_ALL_FILTERED), so constructing one here would fault on every launch.
+        // There are no entities to re-point before the database exists anyway.
+        if ( not ffNoTypePtrRefresh and vuDatabase not_eq NULL)
         {
             VuDatabaseIterator iter;
             int nRepointed = 0;
