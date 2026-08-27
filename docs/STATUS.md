@@ -8487,3 +8487,18 @@ invariants are measured **at the moment of the crash**. If a failing run also re
 `0 dangling` and `0 out-of-range`, both theories are dead for good and the faulting
 byte is reached through something neither probe covers. If either fires, the bug is
 found.
+
+**Probe loop was running the wrong build.** Every failure observed this session —
+baseline run 1 (SIGSEGV), baseline run 4 (UAF), arm A3 (UAF), arm A9 (SIGSEGV) — was
+an **ASAN** build. The **release** build has never failed here: TE-29 was clean in the
+full 34-mission sweep, and probe runs P1–P3 are clean with `dangling_grid=0`,
+`typeptr_bad=0` across 20k–60k `Move()` calls each.
+
+So the release probe loop could have run all night without ever reaching a failure,
+and its clean results would have looked like confirmation. The probes are being
+rebuilt into the ASAN configuration, which is the only one demonstrated to reproduce.
+
+Worth recording as a rule: **an intermittent defect has a reproducing configuration,
+and instrumentation must be added to *that* one.** ASAN changes allocation layout and
+timing, which is very likely why it reproduces and release does not — the same
+property that makes it useful here makes results from the other build inapplicable.
