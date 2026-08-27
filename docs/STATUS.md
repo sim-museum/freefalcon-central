@@ -9232,3 +9232,25 @@ two flags are the first-line diagnostic for anything that renders subtly wrong.
 The stale comment claiming the render-state switch was a working example has been
 corrected in place too — it was the reasoning that produced the wrong finding, so
 leaving it would have re-seeded the same error.
+
+**The other 64 `D3DGL_LOG` sites should stay compile-time gated — a distinction worth
+recording so nobody "fixes" them.** There are 66 call sites and all are inert
+(`D3DGL_DEBUG 0`), but they divide cleanly:
+
+* **64 are per-call traces** — `SetTexture stage=%d tex=%p`, `SetRenderState %d = %d`,
+  `VB Lock flags=0x%x`, `SetViewport %dx%d`. These fire on every draw and would be
+  unusable at runtime; compile-time gating is correct, and enabling them means
+  rebuilding with `D3DGL_DEBUG 1`, which is a legitimate deep-debug workflow.
+* **2 reported an unsupported condition** — "Unhandled render state" and the
+  texture-stage equivalent. Those are *defect signals*, not traces: they fire rarely,
+  each one means "D3D asked for something this layer does not implement", and needing a
+  recompile to see them is why nobody ever has. Both are now runtime-gated
+  (`FF_DEBUG_RS`, `FF_DEBUG_TSS`).
+
+**The rule: trace volume decides the gate.** Something that fires per-draw belongs
+behind a compile-time switch; something that fires only when the layer is failing
+belongs behind a runtime one. Converting the other 64 would be churn that makes the
+build noisier without making any defect visible.
+
+Also worth knowing and not obvious: `D3DGL_DEBUG` at `d3d_gl.cpp:119` unlocks all 66
+traces for a rebuild-and-repro session.
