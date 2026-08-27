@@ -31,7 +31,21 @@ because it crashed; the assert above it performed the very access it prevents.
 
 **VU grid teardown.** `~VuGridTree` freed `table_` and `filter_` **before**
 `GridDeRegister`, and outside `gridsMutex_` — the lock `HandleMove` holds while
-calling `Move()`. Leading candidate fix for UAF-1 (see below).
+calling `Move()`. A real lock-scope defect; **not** the UAF-1 fix (an arm carrying it
+still failed twice).
+
+**UAF-1 — the intermittent heap-use-after-free, solved.** `SetNewTheater` frees and
+reallocates `Falcon4ClassTable`; `VuxType()` hands out interior pointers into it, so
+any entity created before the reload keeps a dangling one. Entity type 1144 is such an
+entity and participates in grid moves. Fix re-points every live entity's
+`entityTypePtr_` after the reload. **Deterministic: stale pointer in 6/6 runs without
+it, 0/15 with it.**
+
+**TESWEEP-5 — regression sweep after that fix: 34/34 reach sim, 0 crashes, and the
+assertion count *fell* from 62 to 58.** The two sites that went quiet are a negative
+object id and a NaN distance — exactly the downstream garbage a stale type pointer
+produces, since `SetEntityType()` also derives six flag bits and `domain_` from the
+type. The fix removed two bad states in an unrelated subsystem, not just a crash.
 
 ---
 
