@@ -2434,6 +2434,23 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         for (int q = 0; q < s_nSig; q++)
             if (s_sig[q] == sig) { seen = true; break; }
 
+        // FF_LINUX (NVG-5): announce saturation. This cap was hit twice while the
+        // census was being developed, and a saturated census reports ABSENCE as if
+        // it were data -- a draw missing from the list because the cap filled looks
+        // identical to a draw that never happened, which is exactly the comparison
+        // this instrument exists to make. Warn once so a truncated run is never
+        // mistaken for a clean diff.
+        if (!seen && s_nSig >= 256) {
+            static bool s_warned = false;
+
+            if (!s_warned) {
+                s_warned = true;
+                fprintf(stderr, "[2DCENSUS] *** SIGNATURE CAP (256) REACHED -- census is TRUNCATED, "
+                                "absence from this list proves nothing ***\n");
+                fflush(stderr);
+            }
+        }
+
         if (!seen && s_nSig < 256) {
             s_sig[s_nSig++] = sig;
             // How many texture units are actually live, and what the alpha test

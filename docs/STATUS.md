@@ -6728,3 +6728,33 @@ merely convenient.
 
 Worth checking because `camptool` sits *under* `campaign`, which **is** built — the path
 alone would have suggested it ships.
+
+### NVG-5 — instrument hardened before the run: the census now announces truncation
+
+NVG-5 has resisted five theories, and its own ticket prescribes the one approach never
+tried: **measure the per-stage state at the 2D draw** rather than propose a sixth
+hypothesis. The instrument for that already exists (`FF_DEBUG_2DCENSUS`), built in an
+earlier sprint precisely to "diff cleanly between `FF_NVG_DXSTATE=1` and not", and the
+insight it was built on still stands: *the key-blue backdrop is drawn in both modes, so
+what differs must be the draw that normally covers it.*
+
+**Before running it, one hazard was worth removing.** The census records up to 256 distinct
+draw signatures, and its own comments note it **saturated that cap twice** during
+development. A saturated census reports **absence as if it were data** — a draw missing
+from the list because the cap filled is indistinguishable from a draw that never happened,
+which is exactly the comparison the instrument exists to make. It would have produced a
+confident, wrong diff.
+
+Added a one-shot warning when the cap is reached, so a truncated run announces itself:
+
+```
+[2DCENSUS] *** SIGNATURE CAP (256) REACHED -- census is TRUNCATED,
+                absence from this list proves nothing ***
+```
+
+This is the same failure this session hit repeatedly in other forms — a probe that only
+runs near the ground, a frame the camera could not have contained, a delta between two
+different kinds of quantity. In each case the measurement was silently incapable of
+supporting the conclusion drawn from it. An instrument that can saturate should say so.
+
+Run pending: the ASAN sim pass currently holds the machine.
