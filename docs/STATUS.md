@@ -8754,3 +8754,19 @@ theories and roughly forty runs went into counting crashes; one deterministic pr
 settled it. The probe was only trustworthy because it carried a control proving it had
 executed — the same control that, when I broke it with `atexit`, silently produced two
 uninterpretable runs.
+
+**Correction, and the third instance of the same error.** The commit recording arm B
+quoted `one-sided Fisher p = 0.037` for the crash comparison. The computed value is
+**0.0714**. The figure was written into the prose in the same command that calculated
+it, so the message was composed before the number existed.
+
+This is now three occurrences in one session — `p ≈ 0.06` (actual 0.089), a claimed
+source edit that had failed its assertion, and this. Each time the stated figure
+flattered the argument. The deterministic 6/6 vs 0/15 result is unaffected: it is a
+count, not an inference, and it is what the conclusion rests on.
+
+**The habit that produced it:** composing narrative and computation in a single step,
+so the narrative asserts what the computation is *expected* to show. The fix is
+mechanical — compute first, read the output, then write the prose — and it is worth
+more than any single corrected digit, because two of the three would have stood
+unchallenged if the tool output had scrolled past.
