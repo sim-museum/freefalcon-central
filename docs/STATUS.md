@@ -6924,3 +6924,32 @@ it is.
 **Recorded as the concrete next step for NVG-5**, replacing "measure the per-stage state at
 the 2D draw" — which was right in intent and wrong about *which* draw. No further theories
 until the census is on the MPR path and produces a real diff.
+
+### GEAR-5 / GEAR-6 — PO decisions applied
+
+PO ruled on the three open balance questions (2026-08-26):
+
+| decision | ruling |
+|---|---|
+| 275 kt gear limit vs real ~300 KIAS | **leave 275** — no flight-model change |
+| `vt` (true) compared against a `MinVcas`-derived (calibrated) limit | **fix** — correctness, not balance |
+| GEAR-6 unreachable break branch | **fix** — accept harsher gear damage |
+
+**Airspeed type** (`eom.cpp:1618`): now compares `vcas * KNOTS_TO_FTPSEC` against
+`gearLimitSpeed` instead of `vt`. The threshold itself is untouched, per the PO. Verified
+the trip still fires where it should — at 307 KIAS it now reads
+`vcas=307.2 kt limit=274.9 kt` rather than testing `vt=315.6`. The practical effect is that
+the limit no longer tightens with altitude, which is what the mismatch was doing.
+
+**GEAR-6** (`eom.cpp:1485`): the strength tests were ordered `< 50 (stuck)` then
+`else if < 0 (broken)`, making the break branch unreachable — anything below 0 is also below
+50. Ground-roll damage could therefore only ever *stick* the gear, and the gear-snaps-off
+sound plus the DOF-to-zero collapse were dead code. Reordered most-severe-first. The gear
+now breaks when its strength is exhausted, which is plainly what the sound effect and the
+DOF collapse were written for.
+
+TE-02 re-run after both: reaches sim, 0 crashes.
+
+**Not changed, deliberately**: the 275 kt threshold, and there is still no gear-limit field
+in the aero data — the limit remains improvised from `MinVcas`, the *minimum* comfortable
+speed. Recorded so the next person does not rediscover it as a bug.

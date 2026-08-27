@@ -1482,7 +1482,26 @@ float AirframeClass::CalculateVt(float dt)
                         gear[which].strength -= dmg;
                     }
 
-                    if (gear[which].strength < 50.0F)
+                    // FF_LINUX (GEAR-6): tests were ordered "< 50 (stuck)" then
+                    // "else if < 0 (broken)", so the break branch was UNREACHABLE --
+                    // anything below 0 is also below 50. Ground-roll damage could only
+                    // ever stick the gear, and the gear-snaps-off sound plus the
+                    // DOF-to-zero collapse were dead code. Ordered most-severe-first so
+                    // the intent the sound effect makes obvious can actually happen.
+                    // PO decision 2026-08-26: fix it, accepting harsher gear damage.
+                    if (gear[which].strength < 0.0F)
+                    {
+                        if (NumGear() > 1 and platform->IsComplex())
+                        {
+                            platform->SetDOF(ComplexGearDOF[which] /*COMP_NOS_GEAR + which*/, 0.0F);
+                            gear[which].flags or_eq GearData::GearBroken bitor GearData::DoorBroken;
+                        }
+
+                        // gear breaks sound
+                        //F4SoundFXSetPos( auxaeroData->sndWheelBrakes, TRUE, x, y, z, 1.0f );
+                        platform->SoundPos.Sfx(auxaeroData->sndWheelBrakes); // MLR 5/16/2004 -
+                    }
+                    else if (gear[which].strength < 50.0F)
                     {
                         platform->mFaults->SetFault(FaultClass::gear_fault, FaultClass::ldgr, FaultClass::fail, FALSE);
                         gear[which].flags or_eq GearData::GearStuck;
@@ -1497,18 +1516,6 @@ float AirframeClass::CalculateVt(float dt)
                                 platform->SetDOF(ComplexGearDOF[which]/*COMP_NOS_GEAR + which*/, newpos);
                             }
                         }
-                    }
-                    else if (gear[which].strength < 0.0F)
-                    {
-                        if (NumGear() > 1 and platform->IsComplex())
-                        {
-                            platform->SetDOF(ComplexGearDOF[which] /*COMP_NOS_GEAR + which*/, 0.0F);
-                            gear[which].flags or_eq GearData::GearBroken bitor GearData::DoorBroken;
-                        }
-
-                        // gear breaks sound
-                        //F4SoundFXSetPos( auxaeroData->sndWheelBrakes, TRUE, x, y, z, 1.0f );
-                        platform->SoundPos.Sfx(auxaeroData->sndWheelBrakes); // MLR 5/16/2004 -
                     }
 
                     if (dmg > 2.0F)
@@ -1586,7 +1593,12 @@ float AirframeClass::CalculateVt(float dt)
             gearLimitSpeed = 220.0f * KNOTS_TO_FTPSEC;
 
         //if(gearPos >= 0.9F and not platform->IsSetFalcFlag(FEC_INVULNERABLE) and vt > gearLimitSpeed)
-        if (gearPos >= 0.9F and vt > gearLimitSpeed)
+        // FF_LINUX (GEAR-5): compare CALIBRATED airspeed. gearLimitSpeed derives from
+        // MinVcas -- a calibrated speed -- but this test used vt, TRUE airspeed, so the
+        // effective indicated limit ran tight and got tighter with altitude. Measured at
+        // a trip: vt=315.5 kt vs vcas=307.1 kt at 2000 ft, a ratio of 1.027. PO decision
+        // 2026-08-26: fix the type mismatch, leave the 275 kt threshold alone.
+        if (gearPos >= 0.9F and vcas * KNOTS_TO_FTPSEC > gearLimitSpeed)
         {
             int which = rand() % NumGear();
 
