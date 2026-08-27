@@ -8888,3 +8888,26 @@ This is the fifth control-related defect this session, and the second I introduc
 while trying to build a good control (after the `atexit` reporter that can never fire
 because `main()` calls `_exit(0)`). The recurring shape: a control that answers "did
 this run a lot?" when the question is "did this run at all?".
+
+**Probes in hot accessors are measurement tools, not permanent instrumentation.**
+Most `FF_DEBUG_*` flags in this tree sit in code that runs a few times per frame, so a
+cached-`getenv` load and a predictable branch cost nothing. Three of this session's
+probes are not like that:
+
+* `VuGridTree::Move` — ~40,000 calls per mission
+* `UnitProxFilter::RemoveTest` — ~20,000 calls per mission
+* `UnitClass::GetUnitClassData` — the **worst case**: a one-line accessor whose *entire
+  body* was `return class_data;`, now carrying a branch on every call, including the
+  control counter on the non-NULL path
+
+The first two earn their place: they are the deterministic tests that solved UAF-1 and
+are the fastest way to re-check those invariants after any VU or teardown change.
+**The `GetUnitClassData` probe does not.** It exists to answer one question — does this
+ever return NULL in practice — and once answered it is permanent overhead in a trivial
+accessor for no ongoing benefit.
+
+**Decision: remove the UCNULL probe once it has answered**, and record the answer in
+the ticket rather than leaving the instrument behind. Keeping a measurement rig
+installed after the measurement is how a codebase accumulates the kind of cruft this
+session has been removing (dead `atexit` reporters, write-only counters, a periodic
+`fprintf` in a 40,000-call path).
