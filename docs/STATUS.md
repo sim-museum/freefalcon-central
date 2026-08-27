@@ -8047,3 +8047,52 @@ that way rather than as a result. A full-length ASAN run on TE-29 is in progress
 There is no second destruction path for `VuEntity`. So a zero from a run that *does*
 exercise deaths would be a real refutation, not a blind spot — which is what makes
 the pending ASAN run worth running at all.
+
+### UAF-1 — my recorded root cause is REFUTED. Three theories down.
+
+Retrieving the **original** ASAN report (`/tmp/asan-rest-29.log`, preserved from
+ASAN-7) was worth more than everything derived from source. Its `freed by` stack is
+not an entity at all:
+
+```
+operator delete[]  <-  D3D7Surface::~D3D7Surface()      (a 416 KB texture buffer)
+                   <-  TextureHandle::~TextureHandle()
+                   <-  CPLight::DiscardLit() <- CPPanel::DiscardLitSurfaces()
+                   <-  CockpitManager::SetActivePanel() <- Cleanup2DCockpitMode()
+```
+
+and the faulting read lands **inside** that region, so `ent` itself points into
+recycled memory. Use and free are both on thread **T15**.
+
+**Refuted #1 — "collections index entities by raw pointer while deletion is
+refcount-driven".** This was recorded as the root cause and it is wrong as stated.
+`FF_DEBUG_VUDEL` instruments the *only* `delete ent;` in the codebase and reports
+**zero** entities deleted while still `VU_MEM_ACTIVE`. Entities are being removed
+properly before deletion.
+
+**Refuted #2 — "`VuCollectionManager::Remove` skips grid trees".** `Remove` does
+iterate only `collcoll_`, never `gridcoll_`, which looked decisive. But
+`VuGridTree : public VuCollection`, and both live grids — `RealUnitProxList` and
+`ObjProxList` — are explicitly `Register()`ed (`camplist.cpp:641,656`) *in addition*
+to `GridRegister`. So removal does reach them.
+
+**Refuted #3 — "asymmetric insert/remove predicates strand entities".** `Insert`
+gates on `filter_->Test()` while `Remove` gates on `filter_->RemoveTest()` — genuinely
+different predicates, which looked like the bug. But `UnitProxFilter::RemoveTest` is
+strictly **weaker** than `Test`: identical except it omits the `Inactive()` check.
+Everything insertable is removable. The asymmetry is deliberate and correct — do not
+index inactive units, but do allow removing a unit that went inactive while indexed.
+
+**Strongest surviving candidate, untested:** removal is **position-keyed**.
+`VuGridTree::Remove` computes `table_[Row(filter_->Key1(entity))]` and calls
+`row->Remove(entity)` on *that* row only. If an entity's key changes without the tree
+being re-indexed, `Remove` searches the wrong row and fails **silently** (`VU_NO_OP`),
+leaving the pointer in the row it actually occupies. `VuGridTree` has
+`SuspendUpdates()`/`ResumeUpdates()`, and `HandleMove` **skips grids with
+`suspendUpdates_` set** — so an entity that moves during a suspension is exactly the
+case where its stored row and its key diverge.
+
+**Nothing has been changed in the VU layer.** Had the recorded root cause been acted
+on, the "fix" — collections taking references globally, or enforcing
+removal-before-final-unref at every call site — would have been a large change to
+entity lifetime built on a theory that measurement disproves.
