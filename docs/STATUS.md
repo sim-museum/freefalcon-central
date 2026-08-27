@@ -8825,3 +8825,17 @@ explained, is not a trade worth making unattended.
 
 *(Edit deferred until TESWEEP-5 finishes — rebuilding `build-relg` mid-sweep would
 swap the binary under the running experiment.)*
+
+**BSPSLOT-1's open question closed: no leak.** I flagged that
+`OTWDriver.CreateVisualObject()` runs for the weapon *before* `AttachObject` is
+refused, and that the visual object might therefore be created and orphaned each time.
+It is not. `CreateVisualObject` assigns `theObject->drawPointer = new DrawableBSP(...)`
+— the drawable is **owned by the weapon entity**, not floating free — and
+`SimBaseClass::CleanupLocalData()` releases it via `OTWDriver.RemoveObject(drawPointer,
+TRUE)` and nulls the field when the weapon is cleaned up.
+
+So the consequence of the vehicle-data mismatch really is confined to the cosmetic one
+already recorded: the weapon is created and owned, it simply is not parented to a model
+slot, so it is not drawn on the vehicle. BSPSLOT-1 now has no unresolved sub-questions
+— root cause in game data (vehicle types 3337 and 711 claim hardpoint 2 visible while
+LOD 233 defines 2 slots), consequence cosmetic, no memory impact.
