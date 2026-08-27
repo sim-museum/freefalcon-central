@@ -179,6 +179,13 @@ def scan2(path, out):
         body = lines[b].strip()
         if body.startswith("{") or not accesses(body, name):
             continue                      # braced body, or body is not the use
+
+        # Nested unbraced guard: "if (cur)\n if (cur->Label_)\n return cur->..."
+        # The inner if is the outer's body, so the line after it is the INNER body and
+        # is still protected. Without this, correctly-nested guards read as violations
+        # -- cpopup.cpp:330 was flagged this way through every earlier run.
+        if re.match(r'\s*if\s*\(', body):
+            continue
         if BAILS.search(body):
             continue                      # early-out guard: inverse shape
         # further unguarded accesses at the guard's own depth?
