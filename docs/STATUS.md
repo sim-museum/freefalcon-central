@@ -9082,3 +9082,29 @@ Wine oracle.
 **Confidence: this is a real semantic mismatch, established by reading both sides.
 Whether it is *the* cause of NVG-5 is unverified** — twelve theories have died here, and
 this one has not yet met a measurement.
+
+### TRANSLATE-1 — audit the D3D→GL layer for silently ignored state (machine-free)
+
+The `ALPHAOP = DISABLE` no-op found for NVG-5 raised an obvious question: **how much
+else does the translation layer silently drop?** This port's recurring bug class is
+exactly that — CLAUDE.md already records three cases where `glClear` honoured GL state
+D3D's `Clear` ignores (depth mask, stencil mask, clear region).
+
+Audited `d3d_gl.cpp` for both silent-failure shapes:
+
+**Empty `case` bodies — 3 total, and only one undocumented:**
+`EMISSIVEMATERIALSOURCE` and `MIPFILTER` carry comments explaining why they are no-ops.
+The single undocumented one is `D3DTOP_DISABLE` for `ALPHAOP` — the NVG-5 finding. That
+it is *the only* silent no-op in the layer makes it considerably more interesting than
+one of a crowd.
+
+**`default:` fallthroughs — 6 total, 5 already report.** Transform state, render state,
+COLOROP and ALPHAOP all log or return an error. The exception was the **outer
+`D3DTSS_*` switch**: twelve stage-state types are handled and anything else —
+`TEXCOORDINDEX`, `TEXTURETRANSFORMFLAGS`, `BUMPENV*`, `BORDERCOLOR` — simply vanished,
+while the render-state switch beside it logs its unhandled cases. That asymmetry is now
+fixed: unhandled texture-stage states are reported like unhandled render states.
+
+**Verdict: the layer is in better shape than the NVG-5 find suggested.** One silent
+no-op and one silent default across the whole file, both now visible. Compile-verified
+only (object file, no link) — the machine is the PO's.

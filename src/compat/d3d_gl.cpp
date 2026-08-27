@@ -4306,6 +4306,15 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
             break;
 
         default:
+            // FF_LINUX: report unhandled texture-stage states instead of dropping them
+            // silently. The render-state switch above already does this
+            // (D3DGL_LOG "Unhandled render state"); this one did not, so a D3DTSS_*
+            // the layer does not implement simply vanished. Twelve types are handled;
+            // anything else -- TEXCOORDINDEX, TEXTURETRANSFORMFLAGS, BUMPENV*, BORDERCOLOR
+            // -- was invisible. Same class as the ALPHAOP=DISABLE no-op found in NVG-5:
+            // the state GL ends up in is not the state D3D asked for, and nothing says so.
+            D3DGL_LOG("Unhandled texture stage state: stage %lu type %d = %lu",
+                      (unsigned long)stage, (int)type, (unsigned long)value);
             break;
     }
 
