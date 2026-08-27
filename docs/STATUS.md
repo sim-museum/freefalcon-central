@@ -8331,3 +8331,33 @@ as an incidental find; on this reading it is the **leading candidate fix**, and 
 type-pointer refresh is the incidental one. Stated as a reading, not a conclusion —
 five theories have died here, and the honest position is that the mechanism is now
 narrowed, not settled.
+
+### UAF-1 — post-fix validation: 6 of 6 clean (suggestive, not proof)
+
+| | runs | failures | detail |
+|---|---|---|---|
+| **pre-fix baseline** | 5 | **2** | run 1 SIGSEGV, run 4 UAF (6 reports) |
+| **post-fix** | 6 | **0** | all reached sim; `re-pointed 2` every run |
+
+**What this is worth, stated numerically rather than rhetorically.** Under the
+baseline point estimate (failure rate 0.4), six consecutive clean runs has
+probability `0.6^6 ≈ 0.047` — about 5%. That is suggestive at roughly the
+conventional threshold and no more. Three things keep it short of proof:
+
+1. **The baseline is itself a 5-run sample**, so 0.4 is a rough point estimate with
+   wide error bars, not a known rate.
+2. **The binary carries both fixes** — `~VuGridTree` deregister-before-teardown and
+   the type-pointer refresh — so neither can be credited individually. On the current
+   reading the former is the likely one and the latter demonstrably cannot address
+   the observed crash (its 2 re-pointed entities are long-lived session objects, not
+   the dying aircraft).
+3. **The ticket said from the outset** that an intermittent defect cannot be
+   validated by absence, and that constraint binds this result too.
+
+`re-pointed 2` in all six runs also confirms the refresh executes and is not a no-op
+— the check that was instrumented specifically because a fix touching zero entities
+would look identical to a working one.
+
+**Recommended next step for whoever takes this up:** run the pre-fix binary and a
+build with `FF_NO_TYPEPTR_REFRESH=1` against ~15 runs each. That separates the two
+fixes and tightens the interval enough to matter. The harness is `/tmp/uaf-post.sh`.
