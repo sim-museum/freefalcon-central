@@ -6710,3 +6710,21 @@ This closes STATIC-1. Of the three classes carried over from the ASAN work: the
 positives, four of them commented-out code); the assert-before-bounds-check class yielded
 **one real latent bug** (`DetachChild`); and the hot-path `getenv` class yielded **four**
 worth caching out of 116 candidates.
+
+### STATIC-1 triage verified — `tools` and `camptool` really are out of the Linux build
+
+STATIC-1 dismissed 13 `new[]`/`delete` candidates as "build tools, not the shipped game".
+That was an assumption; now checked:
+
+```
+src/CMakeLists.txt:37       if(WIN32)  add_subdirectory(tools) ... endif()
+src/campaign/CMakeLists.txt:6  if(WIN32)  add_subdirectory(camptool)  endif()
+```
+
+Both are Windows-gated, so `src/tools/` (fontmunge, ui_tools) and
+`src/campaign/camptool/` are not compiled into the Linux binary. The 13 candidates are
+real defects in code that is not built here, and leaving them is correct rather than
+merely convenient.
+
+Worth checking because `camptool` sits *under* `campaign`, which **is** built — the path
+alone would have suggested it ships.
