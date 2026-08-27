@@ -5,6 +5,7 @@
 // ***************************************************************************
 
 #include <cISO646>
+#include <execinfo.h>   // FF_DEBUG_ROE backtrace (TEAMROE-1)
 #include <io.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -1796,6 +1797,39 @@ int GetRoE(Team a, Team b, int type)
     // walked off the RoEData global (caught by ASAN).
     if (a >= NUM_TEAMS || b >= NUM_TEAMS || type < 0 || type > ROE_NAVAL_BOMBARD)
         return ROE_ALLOWED;
+
+    // FF_DEBUG_ROE=1 (TEAMROE-1): this assertion fires in 10 of 34 TE missions while the
+    // code below treats a NULL team as routine. Report WHO asks about a team that is not
+    // there -- TeamClass::RemovalCallback sets TeamInfo[who] = NULL, so a caller holding a
+    // stale team index would be a real upstream bug rather than assertion noise.
+    if ( not TeamInfo[a])
+    {
+        static int ffDbgRoe = -1;
+        if (ffDbgRoe < 0) ffDbgRoe = getenv("FF_DEBUG_ROE") ? 1 : 0;
+
+        // Capped: this fires ~2849 times in a single TE-01 run (the campaign thread's
+        // tactical loop calls it per objective pair), so an uncapped backtrace is unusable.
+        static int ffRoeCount = 0;
+
+        if (ffDbgRoe and ffRoeCount < 5)
+        {
+            ffRoeCount++;
+            fprintf(stderr, "[ROE] GetRoE: TeamInfo[%d] is NULL (b=%d type=%d) [%d/5]\n",
+                    (int)a, (int)b, type, ffRoeCount);
+            void *fr[12];
+            int nf = backtrace(fr, 12);
+            backtrace_symbols_fd(fr, nf, 2);
+            fflush(stderr);
+        }
+        else if (ffDbgRoe)
+        {
+            ffRoeCount++;
+
+            if ((ffRoeCount % 1000) == 0)
+                fprintf(stderr, "[ROE] ... %d occurrences so far (backtrace capped at 5)\n",
+                        ffRoeCount);
+        }
+    }
 
     ShiAssert(TeamInfo[a]);
 

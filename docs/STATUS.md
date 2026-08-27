@@ -7962,3 +7962,51 @@ a visual object may be created and orphaned each time. Whether that leaks or is
 reclaimed elsewhere is unverified — flagged rather than assumed.
 
 `FF_DEBUG_SLOT=1` is kept in-tree (both sites, cached `getenv`, repo convention).
+
+### TEAMROE-1 — caller identified: TE objectives owned by teams the mission never creates
+
+`FF_DEBUG_ROE=1` on TE-01. **2849 occurrences in one run**, every one identical:
+`TeamInfo[2] is NULL (b=2 type=3)`.
+
+Backtrace (`addr2line` on the release build):
+
+```
+GetRoE(unsigned char, unsigned char, int)     team.cpp:1816
+RebuildFrontList(int, int)                    camplist.cpp:879
+StandardRebuild()                             camplist.cpp:1256
+DoTacticalLoop(int)                           campaign.cpp:2995
+HandleCampaignThread()                        campaign.cpp:2859
+```
+
+The call is `GetRoE(n->GetTeam(), o->GetTeam(), ROE_GROUND_CAPTURE)` with
+**a == b == 2** — two neighbouring objectives *both owned by team 2*, while team 2
+was never instantiated. TE missions inherit the theater's full objective database,
+whose owner fields reference teams the mission itself does not create.
+
+**This is not merely noise, which is why it was worth tracing rather than deleting.**
+`ROE_ALLOWED = 1`, and the caller reads:
+
+```c
+else if (isolated and not GetRoE(n->GetTeam(), o->GetTeam(), ROE_GROUND_CAPTURE))
+    isolated = 0;
+```
+
+So the NULL fallback returns **1** and leaves the objective flagged `isolated`. Had
+team 2 existed, the question "may team 2 capture team 2's territory" would very
+likely answer 0 and clear the flag. **The fallback plausibly inverts the outcome for
+same-team neighbours**, affecting front-line and isolation computation for those
+objectives.
+
+**Deliberately not changed.** `GetRoE`'s fallback is shared with campaign mode, where
+teams *are* instantiated and the AI depends on these answers; altering it to fix a TE
+artefact could shift campaign behaviour in ways no test here would catch. What is
+established is the caller, the condition, and that the consequence is behavioural
+rather than cosmetic. Whether the isolation flag matters to anything a player sees is
+**unverified** and stated as such.
+
+**Measurement recalibration worth keeping.** The sweep reported `asserts=2` for TE-01.
+The real event count is **2849** — `ShiAssert` output is rate-limited per site, so
+assertion counts measure *which* assertions fired, never *how often*. This confirms
+the existing note that ShiAssert counts are coverage, not frequency, and it means the
+"62 assertion lines" baseline says nothing about volume. Diagnostic capped at 5
+backtraces with a progress line every 1000.
