@@ -7899,3 +7899,29 @@ the restored assertion and ORDER-3's `division.cpp` fix), reproduce their origin
 results exactly: row 1 = 2, row 2 = 0, rows 3–5 = 2, every one `team.cpp:1800`. The
 mid-sweep relink introduced no discrepancy, so the 34/34 ORDER-1 result stands
 without qualification.
+
+### BSPSLOT-1 part B — CLOSED, and it proves the underlying bug is still live
+
+Re-running row 26 (HARMs) with the restored assertion: **`asserts=0` → `asserts=2`,
+both `drawbsp.cpp:122`**, the `ShiAssert(slotNumber < instance.ParentObject->nSlots)`
+that the `AttachChild` fix had wrongly dropped.
+
+Three things follow, and the third is the one that matters:
+
+1. **The inference was right, and is now measured.** I argued from ASAN's original
+   finding that the pre-fix build *must* have fired this assertion on TE-26. It did.
+2. **The sweep total returns to 62**, the recorded baseline, from 60. The metric
+   flagged my mistake and then confirmed its repair — which is the whole case for
+   tracking assertion counts rather than only crashes.
+3. **The out-of-range slot condition is still occurring, twice per run, on TE-26.**
+   The ORDER-1 fix made it *safe* — the guard returns instead of reading out of
+   bounds — but it did not make it *go away*. Something still passes `AttachChild` a
+   hardpoint index the model has no slot for. Had the assertion stayed deleted, that
+   live bug would have been permanently invisible: no ASAN error (the read is gone),
+   no crash, no assertion.
+
+That last point is the argument for TEAMROE-1's stance in miniature, now with
+evidence: **deleting an assertion that fires does not fix anything, it removes the
+only remaining witness.** BSPSLOT-1 part A keeps a reliable reproducer — TE-26, two
+occurrences per run — so tracing which index `SMSBaseClass::AddWeaponGraphics` passes
+is a bounded task rather than a hunt.
