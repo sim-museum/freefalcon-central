@@ -7444,3 +7444,43 @@ conclusion depends on, then check that specific thing.
 rasterised, not missing; fragment-rejection state is identical; unit 0's ADDSMOOTH setup and
 operands are correct; diffuse is white on all sampled vertices. The multi-unit combine is
 un-eliminated. Twelve hypotheses examined, one withdrawn refutation, no fix.
+
+### UAF-1 — the dangling pointer is the entity itself, read during removal
+
+`UnitProxFilter::RemoveTest` (`camplist.cpp:302`) does exactly one thing before returning:
+
+```c
+if ( not ent->EntityType()->classInfo_[VU_DOMAIN] or
+     ent->EntityType()->classInfo_[VU_CLASS] not_eq CLASS_UNIT)
+```
+
+A **1-byte read** through `ent->EntityType()` — matching ASAN's "READ of size 1" precisely.
+
+**So the dangling pointer is `ent`.** Entity *types* are static tables and are not freed;
+a type pointer landing inside a freed **texture pixel buffer** is only explicable if `ent`
+itself is stale and `EntityType()` is reading recycled memory. That resolves what looked
+nonsensical in the original report — a campaign proximity filter appearing to read freed
+texture memory. It is not reading texture memory on purpose; it is dereferencing a freed
+entity whose storage was recycled into a texture buffer.
+
+**The sequence**, from the stack:
+
+```
+AircraftClass::Exec -> SetDead -> SimBaseClass::SetRemoveFlag
+  -> VuEntity::SetPosition -> VuCollectionManager::HandleMove
+  -> VuGridTree::Move -> UnitProxFilter::RemoveTest(ent)   <-- ent already freed
+```
+
+An aircraft dying sets its remove flag, which repositions it, which walks the grid tree and
+runs the proximity filter over entities in the cell — and one of those entities has already
+been freed while still referenced by the tree. That is a **lifetime/ordering defect in the VU
+collection**, not a bug in the filter, which is doing nothing unreasonable.
+
+**Why a fix must not be rushed.** Adding a validity check inside `RemoveTest` would silence
+ASAN while leaving a freed entity in the grid tree — the corruption would continue, unreported.
+The real question is why an entity is destroyed without being removed from the collection that
+still indexes it, and answering that needs the VU ownership rules, not a guard.
+
+**Compounded by intermittency**: measured at 1 occurrence in 3 identical runs, so a candidate
+fix cannot be validated by "the error stopped happening". Any attempt needs many runs, or a
+deterministic reproduction first.
