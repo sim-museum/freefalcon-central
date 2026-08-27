@@ -7484,3 +7484,47 @@ still indexes it, and answering that needs the VU ownership rules, not a guard.
 **Compounded by intermittency**: measured at 1 occurrence in 3 identical runs, so a candidate
 fix cannot be validated by "the error stopped happening". Any attempt needs many runs, or a
 deterministic reproduction first.
+
+### UAF-1 — the protective reference is taken AFTER the reads it exists to protect
+
+`VuGridTree::Move` (`vu2/vu_grid_tree.cpp:49`):
+
+```c
+VU_ERRCODE VuGridTree::Move(VuEntity *ent, BIG_SCALAR coord1, BIG_SCALAR coord2)
+{
+    VuScopeLock l(GetMutex());
+    VuBiKeyFilter *bkf = GetBiKeyFilter();
+
+    if ((ent not_eq NULL) and (ent->VuState() == VU_MEM_ACTIVE) and bkf->RemoveTest(ent))
+    {
+        VuEntityBin safe(ent);      // <-- the safety reference, taken here
+```
+
+**The protective reference is acquired after the dereferences it is meant to protect.** The
+condition already reads `ent->VuState()` and calls `RemoveTest(ent)` — which reads
+`ent->EntityType()->classInfo_[...]`, exactly where ASAN reports the use-after-free.
+
+Note the `VuState() == VU_MEM_ACTIVE` test is itself a validity check: `VU_MEM_DELETED` is set
+immediately before `delete ent` (`vuentity.cpp:181`). But reading `vuState_` through an
+already-freed pointer is undefined behaviour, so the check meant to detect a dead entity is
+performed *by dereferencing it*.
+
+**Fourth instance this session of one shape** — a guard or safety measure sequenced after the
+access it should protect:
+
+| site | shape |
+|---|---|
+| `DrawableBSP::AttachChild` | assertion indexes the array before the bounds check below it |
+| `DrawableBSP::DetachChild` | same, sibling function (found by static scan, latent) |
+| `GetAvailablePilot` | `best_pilot > -1` guards one line, not the adjacent access |
+| `VuGridTree::Move` | reference-count protection taken after the reads |
+
+**Why the obvious fix is wrong.** Hoisting `VuEntityBin safe(ent)` above the condition does
+not fix it: taking a reference *through an already-freed pointer* is itself undefined
+behaviour. The protection cannot be made sound at this site — the entity must not be reachable
+from the grid tree after it is freed. That is upstream, in whatever removes entities from
+collections relative to `UnRef()` reaching zero.
+
+**Consistent with the intermittency** (1 in 3): the window between an entity being freed and
+the tree being walked is a race, which is also why it appears on thread T15 rather than the
+main thread.
