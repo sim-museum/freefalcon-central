@@ -28,6 +28,7 @@ default** — these are the ones to reach for if something looks wrong after an 
 | `FF_NO_FEATURE_RESNAP=1` | Reverts the static-feature ground re-snap (airbase objects baking a ground height sampled before terrain streamed in). |
 | `FF_NO_GEAR_LIFT=1`, `FF_RUNWAY_ZLIFT=<ft>`, `FF_GEAR_LIFT=<ft>` | The runway decal / aircraft visual-lift stack. Flat surfaces are drawn ~3 ft above terrain to win the depth test, and the aircraft drawable is lifted to match. Setting these to 0 makes the tarmac disappear — see docs/STATUS.md. |
 | `FF_NO_SEEKER_TTG_FIX=1`, `FF_FCC_HANDOFF_RADAR=1` | Revert the SEEKER-1 and HANDOFF-2 fixes. |
+| `FF_NO_TYPEPTR_REFRESH=1` | Reverts the UAF-1 type-pointer refresh (re-points every live entity's cached `entityTypePtr_` after `SetNewTheater` reloads the class table). Closes a real but narrow hazard affecting ~2 long-lived session entities; **measured not to affect the UAF-1 crash**, see docs/STATUS.md. |
 
 ### Useful diagnostics
 
@@ -37,6 +38,11 @@ default** — these are the ones to reach for if something looks wrong after an 
 | `FF_DEBUG_GROUND=1` | `[GROUND]` aircraft vs terrain height, and which LOD answered |
 | `FF_DEBUG_MESHZ=1` | `[MESHZ]` terrain post height at every LOD beside both ground queries |
 | `FF_DEBUG_CHKHT=1` | `[CHKHT]` the nose/wing/gear/body ground-contact terms |
+| `FF_DEBUG_SLOT=1` | `[SLOT]`/`[SLOT-SRC]` — a weapon attach asking for a model slot the LOD does not define. Reports parent LOD id, slot, `nSlots`, and on the caller side the vehicle type, hardpoint index and `VisibleFlags`. Reproduces on TE-26 (HARMs), twice per run. |
+| `FF_DEBUG_ROE=1` | `[ROE]` — `GetRoE` called for a team with no `TeamInfo` entry, with a backtrace. **Capped at 5 backtraces**: it fires ~2849 times in one TE-01 run. |
+| `FF_DEBUG_VUDEL=1` | `[VUDEL]` an entity deleted while still `VU_MEM_ACTIVE` (i.e. never removed from its collections), plus `[VUDEL-ALL]` counting **every** refcount-zero delete. The second is the control — without it, "no bad deletes" and "the probe never ran" are indistinguishable. |
+| `FF_DEBUG_TYPEPTR=1` | `[TYPEPTR]` an `entityTypePtr_` reaching `UnitProxFilter::RemoveTest` that lies **outside** the live `Falcon4ClassTable`, plus `[TYPEPTR-OK]` as the control. Deterministic test of the UAF-1 type-pointer theory. |
+| `FF_DEBUG_GRIDMAGIC=1` | `[GRIDMAGIC]` `VuGridTree::Move()` called on a grid whose liveness sentinel is poisoned (a torn-down grid still reachable from `gridcoll_`), plus `[GRIDMAGIC-OK]` control. |
 | `FF_TEST_GEARDOWN=<sec>` | drops the gear handle at a fixed time, so gear behaviour can be tested by script |
 
 **Known gotcha, not a bug:** lowering the landing gear above ~275 kt breaks a random gear
