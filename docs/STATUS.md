@@ -8268,3 +8268,41 @@ been caught by the validation that was about to run: the ASAN attempts would hav
 crashed identically at startup on every run, which is easy to read as "the harness is
 broken again" rather than "the fix is broken", especially after a killed job an hour
 earlier.
+
+### UAF-1 — the type-table root cause is REFUTED BY TIMING. Fourth theory down.
+
+The validation run answered a different question than intended, and the answer is
+negative. `FF_DEBUG_SLOT`-style instrumentation on the refresh reports
+**`re-pointed 2 entity type pointers`** — so the fix executes and is not a no-op. But
+the log positions are decisive:
+
+| event | line (post-fix run) | line (baseline crash run) |
+|---|---|---|
+| `UnloadClassTable` #1 (startup, guarded) | 57 | 57 |
+| `UnloadClassTable` #2 → re-points **2** entities | 335 / 386 | 335 |
+| sim enters `RunningGraphics` | 1353 | 1499 |
+| **crash** | — | **1564** |
+
+**Every mission entity is created *after* the last class-table reload** (150
+deaggregation events all follow it), so their `entityTypePtr_` values were never
+stale, and the class table is not freed anywhere near the crash. The two entities
+that *do* get re-pointed are long-lived session objects, not the dying aircraft.
+
+**So the committed fix does not address the observed crash.** It closes a real but
+narrow hazard — those two entities genuinely held pointers into a freed block — and
+it is being kept on that basis, with `FF_NO_TYPEPTR_REFRESH=1` to revert. It must not
+be described as the UAF-1 fix.
+
+**Where this leaves the diagnosis.** `RemoveTest` reads three 1-byte fields through
+`entityTypePtr_`, matching ASAN's `READ of size 1`. With the class table alive, the
+only consistent reading is that **`ent` itself is stale** and its memory has since
+been reallocated to something live — so reading `ent->entityTypePtr_` is *not*
+flagged, and the garbage pointer it yields lands in a freed region. That returns
+suspicion to a stale entity pointer reaching `Move()`, which is what the
+`~VuGridTree` deregistration fix (`287b71ea`) actually addresses — a still-registered
+grid with freed members is exactly a source of garbage `ent`.
+
+**Four theories refuted now** (entity freed while ACTIVE; `Remove` skips grids;
+asymmetric predicates; type table freed under live entities). The pattern in every
+one: a mechanism that is *genuinely present in the code* but not *active at the time
+of the crash*. Presence is not timing, and only the log line numbers settled it.
