@@ -9307,3 +9307,25 @@ list: for every file you edit, enumerate siblings and other uses of the same get
 
 That check cost a few minutes and found a defect that had survived the scanner, the
 34-mission sweep, and my own review.
+
+**The sibling audit found a gap in the ORDER-3 fix too.** `division.cpp:329`:
+
+```c
+ShiAssert(dc->elements == divels[t][dc->nid]);
+```
+
+`dc->nid` is assigned from `d` **before** the bounds check at the creation site, and
+the node is linked into `dd[t]` **unconditionally** — outside the `if (divIdxOk)`
+block. So a node carrying an out-of-range `nid` reaches this line, and the assertion
+indexes `divels[t][]` out of bounds. Same shape as the defect it sits downstream of,
+one call site further on, and **pre-existing** rather than introduced by that fix —
+but my fix didn't close it either, and I would have called ORDER-3 done.
+
+Bounded before use, in both trees. Behaviour for the out-of-range case is now an
+assertion rather than an out-of-bounds read.
+
+**A C pitfall worth recording:** the first version failed to compile with *"`else`
+without a previous `if`"*. `ShiAssert` expands to a statement whose trailing `;`
+terminates an unbraced `if`, orphaning the `else`. Any `if/else` around a `ShiAssert`
+in this codebase must brace both branches. The compiler caught it, but only because I
+built — a diff review would have passed it.

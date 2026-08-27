@@ -320,7 +320,21 @@ void BuildDivisionData(void)
             if (F4IsBadReadPtr(dc, sizeof(Division))) // JB 010223 CTD
                 break;
 
-            ShiAssert(dc->elements == divels[t][dc->nid]);
+            // FF_LINUX: dc->nid is assigned from d BEFORE the bounds check at the creation
+            // site, and the node is linked into dd[t] unconditionally, so a node with an
+            // out-of-range nid reaches here and this assertion would index divels[t][] out
+            // of bounds -- the same shape as the creation-site defect, one call site further
+            // on, and pre-existing rather than introduced by that fix. Bound before use.
+            // (braced: ShiAssert expands to a statement whose trailing ';' would
+            // terminate an unbraced if and orphan the else)
+            if (dc->nid >= 0 and dc->nid < MAX_DIVISION)
+            {
+                ShiAssert(dc->elements == divels[t][dc->nid]);
+            }
+            else
+            {
+                ShiAssert(false);   // out-of-range division id reached the list
+            }
             dc->UpdateDivisionStats();
             dc = dc->next;
         }
