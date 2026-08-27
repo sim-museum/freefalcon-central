@@ -6653,3 +6653,32 @@ before anything is called a finding — the check is cheap (`awk` tracking the l
 
 **Result: the `new[]`/`delete` class is closed for the shipped game.** The tools instances
 are recorded above but not fixed, being outside the game binary.
+
+### STATIC-1 (b) — the assert-before-bounds-check class: one more instance, in the sibling function
+
+Scanned for the shape that made `AttachChild` a heap-buffer-overflow: an assertion that
+**indexes an array using a variable whose bounds check appears later in the same function**.
+
+Naive greps were useless here — 195 `ShiAssert` calls index arrays, and filtering for "a
+guard within 6 lines" returned ten hits whose guards were null-checks on unrelated things.
+The precise test is narrower: extract the *index variable* from the assertion, then look for
+a later `if (thatVariable >= limit) return`. That returns **exactly one** candidate across
+the whole game tree.
+
+`drawbsp.cpp:137`, `DrawableBSP::DetachChild` — the sibling of the function fixed earlier:
+
+```c
+ShiAssert((instance.SlotChildren) and (instance.SlotChildren[slotNumber] == &child->instance));
+...
+if (slotNumber >= instance.ParentObject->nSlots) { return; }        // 7 lines later
+```
+
+Same defect, same file, one function down. **ASAN never caught this one** — nothing in any
+run called `DetachChild` with an out-of-range slot — so it is latent rather than observed,
+and that is precisely what a static scan is for. Fixed identically: guards first, indexing
+assertion after.
+
+**Worth noting what made the scan work.** The first two attempts produced 195 and 10 hits,
+both useless. Narrowing from "an assertion containing brackets" to "an assertion whose index
+variable is bounds-checked later" cut it to one, and that one was real. A scan that returns
+a long list has not found anything; it has just moved the work.

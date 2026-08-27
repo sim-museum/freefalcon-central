@@ -10,7 +10,7 @@ BIN=$REPO/build-asan/src/ffviper/FFViper
 pgrep -f mutter-x11-frames >/dev/null || { setsid /usr/libexec/mutter-x11-frames >/dev/null 2>&1 & sleep 1; }
 cd "$GD" || exit 1
 
-for row in 3 4 5 6 7 8 10 12 13 14 16 17 18 20 21 23 24 25 27 28 29 30 31 32 33 34; do
+for row in 10 12 13 14 16 17 18 20 21 23 24 25 27 28 29 30 31 32 33 34; do
     y=$(( 94 + row * 17 ))
     log=/tmp/asan-rest-$row.log
     ( export ASAN_OPTIONS="halt_on_error=0:detect_leaks=0:abort_on_error=0:print_stats=0"

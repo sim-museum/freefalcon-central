@@ -134,13 +134,17 @@ void DrawableBSP::DetachChild(DrawableBSP *child, int slotNumber)
     ShiAssert(child);
     ShiAssert(slotNumber >= 0);
     ShiAssert(slotNumber < instance.ParentObject->nSlots);
-    ShiAssert((instance.SlotChildren) and (instance.SlotChildren[slotNumber] == &child->instance));
 
     Tpoint offset;
     Tpoint pos;
 
-    // THIS IS A HACK TO TOLERATE OBJECTS WHICH DON'T YET HAVE SLOTS
-    // THIS SHOULD BE REMOVED IN THE LATE BETA AND SHIPPING VERSIONS
+    // FF_LINUX: same defect as AttachChild above -- the indexing assertion
+    // ShiAssert(SlotChildren[slotNumber] == &child->instance) used to sit here, ahead
+    // of the bounds guard below, so it performed an out-of-bounds READ itself whenever
+    // slotNumber >= nSlots. ASAN caught the AttachChild instance (heap-buffer-overflow
+    // via the HARMs path); this sibling was found by a static scan for the same shape
+    // and is latent rather than observed. The check is kept, just sequenced after the
+    // guards that make it safe.
     if (slotNumber >= instance.ParentObject->nSlots)
     {
         return;
@@ -151,6 +155,8 @@ void DrawableBSP::DetachChild(DrawableBSP *child, int slotNumber)
         //(*(int*)0) = 0;
         return;
     }
+
+    ShiAssert(instance.SlotChildren[slotNumber] == &child->instance);
 
     // Get the childs offset from the parent in object space
     GetChildOffset(slotNumber, &offset);
