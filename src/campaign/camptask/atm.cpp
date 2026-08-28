@@ -543,7 +543,11 @@ int AirTaskingManagerClass::Task(void)
 
         if (ffAtmDbg)
         {
-            static int reported[8] = { 0 };
+            // FF_LINUX (ATO-1): the cap was per-GATE and shared across teams, so in
+            // Korea the three gate-4 slots were used up by two idle teams (0/0) and
+            // the busy team's fill counts never printed -- making a Korea/Balkans
+            // comparison impossible. Cap per TEAM and gate instead.
+            static int reported[8][8] = {{ 0 }};
             int gate = 0;
 
             if ( not (TeamInfo[owner]->flags bitand TEAM_ACTIVE)) gate = 1;
@@ -552,9 +556,13 @@ int AirTaskingManagerClass::Task(void)
             else if ( not (flags bitand ATM_NEW_REQUESTS) and
                       not (flags bitand ATM_NEW_PLANES))          gate = 4;
 
-            if (gate < 8 and reported[gate] < 3)
+            int ffTeam = (int)owner;
+
+            if (ffTeam < 0 or ffTeam > 7) ffTeam = 0;
+
+            if (gate < 8 and reported[ffTeam][gate] < 6)
             {
-                reported[gate]++;
+                reported[ffTeam][gate]++;
                 fprintf(stderr, "[ATM] team=%d Task() %s (squadrons=%d flags=0x%x"
                         " hasRequestList=%d missionsFilled=%d/%d)\n",
                         (int)owner,
