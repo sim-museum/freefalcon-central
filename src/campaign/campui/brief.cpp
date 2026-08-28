@@ -2835,8 +2835,18 @@ int ReadScriptedBriefFile(char* filename, _TCHAR *current_line, C_Window *win, _
                             }
                             else // Operation Objective
                             {
+                                // FF_LINUX (GUARD-1): the team's offensive air action
+                                // objective can be captured or destroyed, leaving an id
+                                // that Find() no longer resolves. gtm.cpp guards the
+                                // same lookup; this one did not. Keep the entry so the
+                                // string count is unchanged, just leave it empty.
                                 CampEntity ot = (CampEntity) vuDatabase->Find(TeamInfo[mec->team]->GetOffensiveAirAction()->actionObjective);
-                                ot->GetName(str[strCount], 80, FALSE);
+
+                                if (ot not_eq NULL)
+                                    ot->GetName(str[strCount], 80, FALSE);
+                                else
+                                    str[strCount][0] = 0;
+
                                 strCount++;
                             }
 
@@ -3093,30 +3103,70 @@ int ReadScriptedBriefFile(char* filename, _TCHAR *current_line, C_Window *win, _
 
                 if (strcmp(sptr, "AWACS") == 0)
                 {
+                    // FF_LINUX (GUARD-1): vuDatabase->Find() returns NULL for an id
+                    // that is no longer in the database, and a support flight can be
+                    // destroyed or completed between the ATO recording its id here and
+                    // the briefing being opened. Both derefs below were unguarded.
                     Flight flight = (Flight) vuDatabase->Find(mec->awacs_id);
-                    Package pack = flight->GetUnitPackage();
-                    pack->GetUnitDestination(&x, &y);
+
+                    if (flight not_eq NULL)
+                    {
+                        Package pack = flight->GetUnitPackage();
+
+                        if (pack not_eq NULL)
+                            pack->GetUnitDestination(&x, &y);
+                    }
                 }
 
                 if (strcmp(sptr, "JSTAR") == 0)
                 {
+                    // FF_LINUX (GUARD-1): vuDatabase->Find() returns NULL for an id
+                    // that is no longer in the database, and a support flight can be
+                    // destroyed or completed between the ATO recording its id here and
+                    // the briefing being opened. Both derefs below were unguarded.
                     Flight flight = (Flight) vuDatabase->Find(mec->jstar_id);
-                    Package pack = flight->GetUnitPackage();
-                    pack->GetUnitDestination(&x, &y);
+
+                    if (flight not_eq NULL)
+                    {
+                        Package pack = flight->GetUnitPackage();
+
+                        if (pack not_eq NULL)
+                            pack->GetUnitDestination(&x, &y);
+                    }
                 }
 
                 if (strcmp(sptr, "TANKER") == 0)
                 {
+                    // FF_LINUX (GUARD-1): vuDatabase->Find() returns NULL for an id
+                    // that is no longer in the database, and a support flight can be
+                    // destroyed or completed between the ATO recording its id here and
+                    // the briefing being opened. Both derefs below were unguarded.
                     Flight flight = (Flight) vuDatabase->Find(mec->tanker_id);
-                    Package pack = flight->GetUnitPackage();
-                    pack->GetUnitDestination(&x, &y);
+
+                    if (flight not_eq NULL)
+                    {
+                        Package pack = flight->GetUnitPackage();
+
+                        if (pack not_eq NULL)
+                            pack->GetUnitDestination(&x, &y);
+                    }
                 }
 
                 if (strcmp(sptr, "ECM") == 0)
                 {
+                    // FF_LINUX (GUARD-1): vuDatabase->Find() returns NULL for an id
+                    // that is no longer in the database, and a support flight can be
+                    // destroyed or completed between the ATO recording its id here and
+                    // the briefing being opened. Both derefs below were unguarded.
                     Flight flight = (Flight) vuDatabase->Find(mec->ecm_id);
-                    Package pack = flight->GetUnitPackage();
-                    pack->GetUnitDestination(&x, &y);
+
+                    if (flight not_eq NULL)
+                    {
+                        Package pack = flight->GetUnitPackage();
+
+                        if (pack not_eq NULL)
+                            pack->GetUnitDestination(&x, &y);
+                    }
                 }
 
                 if (strcmp(sptr, "ALT_AIRBASE") == 0)

@@ -3675,9 +3675,14 @@ void MissionEvaluationClass::RegisterKill(FalconEntity *shooter, FalconEntity *t
 
             while (tmp_ptr)
             {
+                // FF_LINUX (GUARD-1): this walks flight records AFTER the mission
+                // and looks each one up by id. A flight destroyed during the mission
+                // is no longer in the database, so Find() returns NULL here as a
+                // matter of course -- this is post-mission evaluation, where dead
+                // flights are the expected case, not an edge case.
                 flight = (Flight)vuDatabase->Find(tmp_ptr->flight_id);
 
-                if (flight->GetEvalFlags() bitand FEVAL_ON_STATION)
+                if (flight not_eq NULL and (flight->GetEvalFlags() bitand FEVAL_ON_STATION))
                     tmp_ptr->status_flags or_eq MISEVAL_FLIGHT_F_AREA_HIT;
 
                 tmp_ptr = tmp_ptr->next_flight;
