@@ -2883,6 +2883,16 @@ void RestoreStores(C_Window *win)
     Leave = UI_Enter(win);
     flt = (Flight)vuDatabase->Find(gLoadoutFlightID);
 
+    // FF_LINUX (GUARD-1): the other three lookups of gLoadoutFlightID in this file
+    // all guard the result (lines ~1185, ~2188, ~2960); this one did not. Release
+    // the UI critical section on the way out -- an early return that skipped
+    // UI_Leave would deadlock the UI.
+    if (flt == NULL)
+    {
+        UI_Leave(Leave);
+        return;
+    }
+
     ac = flt->GetTotalVehicles();
     loads = flt->GetNumberOfLoadouts();
     ShiAssert(ac > 0 and loads > 0);

@@ -268,9 +268,11 @@ static void DeleteFlightCB(long, short hittype, C_Base *)
 
             if (dfflight)
             {
+                // FF_LINUX (GUARD-1): the list entry can name a flight that has
+                // already been deleted.
                 flt = (Flight)vuDatabase->Find(dfflight->GetVUID());
 
-                if ( not flt->IsPlayer())
+                if (flt not_eq NULL and not flt->IsPlayer())
                     RequestFlightDelete(flt);
             }
         }

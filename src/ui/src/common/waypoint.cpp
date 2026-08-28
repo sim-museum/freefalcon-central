@@ -1159,7 +1159,13 @@ void ChangeAirspeedLockCB(long, short hittype, C_Base *control)
     {
         WayPointClass *w;
         int lock = wp->GetWPFlags() bitand WPF_SPEED_LOCKED;
+        // FF_LINUX (GUARD-1): gActiveFlightID is a UI global that can outlive the
+        // flight it names.
         FlightClass *flt = (Flight) vuDatabase->Find(gActiveFlightID);
+
+        if (flt == NULL)
+            return;
+
         w = flt->GetFirstUnitWP();
 
         while (w)
@@ -1207,7 +1213,13 @@ void ChangeTOSLockCB(long, short hittype, C_Base *control)
     {
         WayPointClass *w;
         int lock = wp->GetWPFlags() bitand WPF_TIME_LOCKED;
+        // FF_LINUX (GUARD-1): gActiveFlightID is a UI global that can outlive the
+        // flight it names.
         FlightClass *flt = (Flight) vuDatabase->Find(gActiveFlightID);
+
+        if (flt == NULL)
+            return;
+
         w = flt->GetFirstUnitWP();
 
         while (w)
