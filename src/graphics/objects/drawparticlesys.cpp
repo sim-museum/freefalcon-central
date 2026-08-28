@@ -3183,6 +3183,29 @@ void  DrawableParticleSys::PS_PolyRun(void)
                 static long ffDrawn = 0, ffSkipped = 0;
                 static DWORD ffLast = 0;
 
+                // FF_LINUX (BOOM-2): the aircraft explosion renders and the ground
+                // explosion does not, yet both reach here. Report what each quad
+                // actually carries -- a texture that failed to load would submit a
+                // quad that draws nothing, and texbank IsValidIndex assertions have
+                // fired in this build. Name the effect so the two can be compared.
+                {
+                    static int ffSeen[MAX_PARTICLE_PARAMETERS];
+                    static int ffInit = 0;
+
+                    if ( not ffInit) { memset(ffSeen, 0, sizeof(ffSeen)); ffInit = 1; }
+
+                    int ffId = (int)Poly.PPN;
+
+                    if (ffId >= 0 and ffId < MAX_PARTICLE_PARAMETERS and not ffSeen[ffId])
+                    {
+                        ffSeen[ffId] = 1;
+                        fprintf(stderr, "[PSTEX] effect='%s' tex=0x%lx visible=%d size=%.1f\n",
+                                ppn.name, (unsigned long)Poly.TexHandle,
+                                (int)Visible, (double)size);
+                        fflush(stderr);
+                    }
+                }
+
                 if (Visible) ffDrawn++; else ffSkipped++;
 
                 DWORD ffNow = GetTickCount();

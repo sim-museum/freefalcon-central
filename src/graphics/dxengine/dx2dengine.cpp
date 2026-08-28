@@ -506,6 +506,11 @@ void CDXEngine::DX2D_MakeCameraSpace(D3DXVECTOR3 *Result, D3DXVECTOR3 *Pos)
 
 
 
+#ifdef FF_LINUX
+// FF_LINUX (BOOM-2): count of quads dropped because every 2D vertex buffer was full.
+long ffDX2DVbFullCount = 0;
+#endif
+
 inline bool CDXEngine::CheckBufferSpace(DWORD VbIndex, DWORD Size)
 {
     // check for buffer limit
@@ -540,6 +545,42 @@ void CDXEngine::DX2D_AddQuad(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNV
 
 #endif
 
+#ifdef FF_LINUX
+    // FF_LINUX (BOOM-2): both early-returns below are SILENT drops. Upstream the
+    // particle system reports full success -- emitted, poly allocated, visibility
+    // passed, quad submitted -- so a cap hit here loses the effect with no trace
+    // anywhere. A bomb burst submits ~1900 quads in one frame, which is exactly the
+    // kind of spike that finds a cap. Count them. FF_DEBUG_2DCAP=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0) ffDbg = getenv("FF_DEBUG_2DCAP") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            static long ffItemFull = 0, ffVbFull = 0, ffPeak = 0;
+            static DWORD ffLast = 0;
+
+            if ((long)Total2DItems > ffPeak) ffPeak = (long)Total2DItems;
+
+            if (Total2DItems >= MAX_2D_ITEMS) ffItemFull++;
+
+            DWORD ffNow = GetTickCount();
+
+            if (ffNow - ffLast > 1000)
+            {
+                ffLast = ffNow;
+                fprintf(stderr, "[2DCAP] peakItems=%ld/%d itemFullDrops=%ld vbFullDrops=%ld VBSelected=%d\n",
+                        ffPeak, (int)MAX_2D_ITEMS, ffItemFull, ffVbFull, (int)VBSelected);
+                fflush(stderr);
+                ffPeak = 0;
+            }
+
+            extern long ffDX2DVbFullCount;
+            ffVbFull = ffDX2DVbFullCount;
+        }
+    }
+#endif
     // not going to overflow stuff
     if (Total2DItems >= MAX_2D_ITEMS) return;
 
@@ -547,7 +588,14 @@ void CDXEngine::DX2D_AddQuad(DWORD Layer, DWORD Flags, D3DXVECTOR3 *Pos, D3DDYNV
     DWORD &VbIndex = Dyn2DVertexBuffer[VBSelected].LastIndex;
 
     // if no more space, exit
-    if ( not CheckBufferSpace(VbIndex, 4)) return;
+    if ( not CheckBufferSpace(VbIndex, 4))
+    {
+#ifdef FF_LINUX
+        extern long ffDX2DVbFullCount;
+        ffDX2DVbFullCount++;
+#endif
+        return;
+    }
 
     // Get Distance from a previous test if POLY DECLARED VISIBLE, or calcualte if from scratch
     float Distance;
