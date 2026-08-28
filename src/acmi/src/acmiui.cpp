@@ -822,6 +822,34 @@ void ACMItoggleLABELSCB(long, short hittype, C_Base *control)
 //
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
+// FF_LINUX (ACMIDUP-1): retire a .flt once it has become a tape. There is no
+// MoveFile in the compat layer, so convert the separators the way DeleteFileA
+// does and use the CRT rename(). Renaming rather than deleting keeps the raw
+// flight on disk, and "acmi*.flt" no longer matches it -- so neither the import
+// walk below nor the recorder's startup wipe (acmirec.cpp) picks it up again.
+static void ffRetireImportedFlt(const char *fltPath)
+{
+#ifdef FF_LINUX
+    char from[MAX_PATH];
+    char to[MAX_PATH + 16];
+    size_t i = 0;
+
+    for (; fltPath[i] and i < sizeof(from) - 1; i++)
+        from[i] = (fltPath[i] == '\\') ? '/' : fltPath[i];
+
+    from[i] = '\0';
+    snprintf(to, sizeof(to), "%s.imported", from);
+
+    if (rename(from, to) not_eq 0)
+    {
+        fprintf(stderr, "[ACMI] could not retire %s: %s\n", from, strerror(errno));
+        fflush(stderr);
+    }
+#else
+    (void)fltPath;
+#endif
+}
+
 void ACMI_ImportFile(void)
 {
     // FF_LINUX: a .flt is only complete once recording STOPS. Importing while the
@@ -841,6 +869,17 @@ void ACMI_ImportFile(void)
     WIN32_FIND_DATA fData;
     BOOL foundAFile = TRUE;
 
+    // FF_LINUX (ACMIDUP-1): snapshot the .flt names BEFORE importing any of them.
+    // The import creates TAPEnnnn.vhs inside acmibin/ -- the very directory this
+    // FindFirstFile/FindNextFile walk is enumerating. Adding entries mid-walk has
+    // unspecified results (on ext4 the hash-order cursor can hand back an entry
+    // already returned), and one 74 s flight duly produced BOTH TAPE0016 and
+    // TAPE0017 from a single acmi0000.flt. Finish the walk, then import.
+    enum { MAX_FLTS = 64 };
+    char fltNames[MAX_FLTS][MAX_PATH];
+    int nFlts = 0;
+    int f;
+
     // look for *.flt files to import
     findHand = FindFirstFile("acmibin\\acmi*.flt", &fData);
 
@@ -850,8 +889,22 @@ void ACMI_ImportFile(void)
 
     while (foundAFile)
     {
-        strcpy(fltname, "acmibin\\");
-        strcat(fltname, fData.cFileName);
+        if (nFlts < MAX_FLTS)
+        {
+            strcpy(fltNames[nFlts], "acmibin\\");
+            strcat(fltNames[nFlts], fData.cFileName);
+            nFlts++;
+        }
+
+        // get next file
+        foundAFile = FindNextFile(findHand, &fData);
+    }
+
+    FindClose(findHand);
+
+    for (f = 0; f < nFlts; f++)
+    {
+        strcpy(fltname, fltNames[f]);
 
         // find a suitable name to import to
         for (y = 1; y < 10000; y++)
@@ -862,7 +915,16 @@ void ACMI_ImportFile(void)
 
             if ( not fp)
             {
-                ACMITape::Import(fltname, fname);
+                // FF_LINUX (ACMIDUP-1): retire the source once it IS a tape.
+                // FF_ACMI_IMPORT runs this on every return to the UI, so a .flt
+                // left in place is imported again -- one flight, a fresh duplicate
+                // tape each time you leave the sim. Only on success: a failed
+                // import must leave the raw flight where it is.
+                if (ACMITape::Import(fltname, fname))
+                {
+                    ffRetireImportedFlt(fltname);
+                }
+
                 break;
             }
             else
@@ -870,12 +932,7 @@ void ACMI_ImportFile(void)
                 fclose(fp);
             }
         }
-
-        // get next file
-        foundAFile = FindNextFile(findHand, &fData);
     }
-
-    FindClose(findHand);
 }
 
 
