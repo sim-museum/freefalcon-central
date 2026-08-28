@@ -1283,6 +1283,45 @@ void AirTaskingManagerClass::ProcessRequest(MissionRequest request)
     Package pack = NULL;
     GridIndex px, py;
 
+#ifdef FF_LINUX
+    // FF_LINUX (ATO-1): Balkans missions display "TGT: Nowhere", which is
+    // NameTable[0] -- the null-name fallback -- so the target's nameid is 0. The
+    // name table itself is healthy (2296 entries in Balkans vs 1791 in Korea), so
+    // the question is whether the TARGET carries a name id. Report it per request.
+    // FF_DEBUG_TGT=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0) ffDbg = getenv("FF_DEBUG_TGT") ? 1 : 0;
+
+        if (ffDbg and request)
+        {
+            static long ffN = 0, ffNamed = 0, ffUnnamed = 0, ffNoTarget = 0;
+            CampEntity ffTe = (CampEntity) vuDatabase->Find(request->targetID);
+            int ffNameId = -1;
+
+            if (ffTe not_eq NULL and ffTe->IsObjective())
+                ffNameId = ((Objective)ffTe)->GetObjectiveNameID();
+
+            ffN++;
+
+            if (ffTe == NULL)      ffNoTarget++;
+            else if (ffNameId > 0) ffNamed++;
+            else                   ffUnnamed++;
+
+            if (ffN <= 40 or (ffN % 50) == 0)
+            {
+                fprintf(stderr, "[TGT] team=%d mission=%d targetID=%u entity=%s nameid=%d"
+                        "  [named=%ld unnamed=%ld noTarget=%ld of %ld]\n",
+                        (int)owner, (int)request->mission, (unsigned)request->targetID.num_,
+                        ffTe ? (ffTe->IsObjective() ? "objective" : "non-objective") : "NOT FOUND",
+                        ffNameId, ffNamed, ffUnnamed, ffNoTarget, ffN);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     if (request->flags bitand AMIS_IMMEDIATE)
     {
         // Immediately try to task this, or continue if we can't
