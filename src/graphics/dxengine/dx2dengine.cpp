@@ -1677,6 +1677,20 @@ void CDXEngine::DX2D_Flush2DObjects(void)
     // if no 2D objects to Draw, exit here
     if ( not Total2DItems) return;
 
+#ifdef FF_LINUX
+    // FF_LINUX (BOOM-2): everything upstream of here measures healthy -- the quads
+    // are emitted, allocated, pass visibility and are submitted with a valid
+    // texture. So either they are lost in this flush or they are drawn and the
+    // effect is actually fine. Count items IN against draw items actually visited,
+    // and note any layer skipped entirely. FF_DEBUG_2DFLUSH=1.
+    static int ffFlushDbg = -1;
+
+    if (ffFlushDbg < 0) ffFlushDbg = getenv("FF_DEBUG_2DFLUSH") ? 1 : 0;
+
+    long ffItemsIn = (long)Total2DItems;
+    long ffVisited = 0, ffSkippedLayers = 0;
+#endif
+
     // Set the View Mode for the 2D stuff
     DX2D_SetViewMode();
 
@@ -1706,7 +1720,13 @@ void CDXEngine::DX2D_Flush2DObjects(void)
         START_PROFILE("DYN SORT:");
 #endif
 
-        if (Layer == LAYER_NODRAW) continue;
+        if (Layer == LAYER_NODRAW)
+        {
+#ifdef FF_LINUX
+            if (ffFlushDbg and DrawStart not_eq 0xffffffff) ffSkippedLayers++;
+#endif
+            continue;
+        }
 
         // check if Layer need to be sorted and eventually sort it
         if (1 or Layers[Layer].Flags bitand LAYER_SORT) DrawStart = DX2D_SortIndexes(DrawStart);
@@ -1791,6 +1811,9 @@ void CDXEngine::DX2D_Flush2DObjects(void)
 
             ///////////////////////////////////////////////////////////////////////////////////////////////
 
+#ifdef FF_LINUX
+            if (ffFlushDbg) ffVisited++;
+#endif
             // ok, go to next draw
             DrawStart = NextDraw;
 #ifdef DEBUG_2D_ENGINE
@@ -1803,6 +1826,31 @@ void CDXEngine::DX2D_Flush2DObjects(void)
     while (Layer not_eq LAYER_TOP and l <= LAYER_TOP); // END with TOP LAYER in any case
 
 
+#ifdef FF_LINUX
+    // FF_LINUX (BOOM-2): itemsIn is what DX2D_AddQuad accepted this frame; visited
+    // is how many of those the flush actually walked and drew. A gap means the
+    // deferred queue is losing them; equality means the pipeline is honest and the
+    // effect really is being drawn.
+    if (ffFlushDbg)
+    {
+        static DWORD ffLast = 0;
+        static long ffPeakIn = 0, ffPeakVisited = 0, ffTotalSkipped = 0;
+
+        if (ffItemsIn > ffPeakIn) { ffPeakIn = ffItemsIn; ffPeakVisited = ffVisited; }
+
+        ffTotalSkipped += ffSkippedLayers;
+        DWORD ffNow = GetTickCount();
+
+        if (ffNow - ffLast > 1000)
+        {
+            ffLast = ffNow;
+            fprintf(stderr, "[2DFLUSH] busiestFrame itemsIn=%ld visited=%ld lost=%ld skippedLayers=%ld\n",
+                    ffPeakIn, ffPeakVisited, ffPeakIn - ffPeakVisited, ffTotalSkipped);
+            fflush(stderr);
+            ffPeakIn = ffPeakVisited = 0; ffTotalSkipped = 0;
+        }
+    }
+#endif
     // buffer is flushed
     Total2DItems = 0;
 #ifdef DEBUG_2D_ENGINE
