@@ -24,6 +24,13 @@
 #include "falcsess.h"
 #include "InvalidBufferException.h"
 #include "graphics/include/drawparticlesys.h"
+#ifdef FF_LINUX
+// FF_LINUX (BOOM-1): bomb-impact effects spawn at the ground-snapped position;
+// every other consumer of the impact point is unchanged. See FF_ImpactEffectPos.
+#define FF_FXPOS ffFxPos
+#else
+#define FF_FXPOS pos
+#endif
 
 static int randomVal = 0;
 
@@ -57,6 +64,51 @@ FalconMissileEndMessage::~FalconMissileEndMessage(void)
 // a runway-cratering munition (HeaveDam / PenetrationDam / KineticDam) impacted and
 // printed nothing -- and cratering is exactly the drop most likely to be aimed at a
 // runway. "Where is the ground here" does not depend on the warhead that asked.
+// FF_LINUX (BOOM-1): place a ground-impact particle effect ON the ground.
+//
+// Every visible child emitter of $GROUND_EXPLOSION (reached via _mk81) is
+// emissionmode=EMITONEARTHIMPACT, and that mode fires only when
+//     epos.z >= Part.GroundLevel        (drawparticlesys.cpp:3270)
+// z is positive-DOWN, so the test means "at or below the surface". MEASURED
+// 2026-08-27 on the PO's CCIP drop: the two bombs recorded physicsZ -684.7 and
+// -684.2 against a ground level of -682.0 -- 2.7 ft and 2.2 ft ABOVE the surface.
+// The inequality was false for both, so no child emitter ever ran and the drop
+// produced no fireball, no smoke and no sound. $GROUND_EXPLOSION and _mk81 are
+// themselves drawtype=none / alpha=0 shells that exist only to hold those
+// children, so when the trigger misses there is nothing left to see.
+//
+// The weapon code has already decided this bomb struck the earth; the particle
+// system then re-decides it from a z comparison and reaches the opposite answer.
+// Rather than loosen the engine test for every effect in the game, put the effect
+// where the impact was: on the surface. The emitters assign epos.z = GroundLevel
+// themselves, so this changes where the effect TRIGGERS, not where it draws.
+//
+// Deliberately returns a copy -- `pos` is left alone, so damage, scoring and the
+// ACMI event still see the unmodified impact point. FF_NO_IMPACT_SNAP=1 disables.
+static Tpoint FF_ImpactEffectPos(const Tpoint &pos)
+{
+    static int ffOff = -1;
+
+    if (ffOff < 0) ffOff = getenv("FF_NO_IMPACT_SNAP") ? 1 : 0;
+
+    Tpoint out = pos;
+
+    if (ffOff)
+        return out;
+
+    float gl = OTWDriver.GetGroundLevel(pos.x, pos.y);
+
+    if (gl < -99000.0f)
+        return out;
+
+    // positive-down: a SMALLER z is HIGHER. Only ever lower the effect onto the
+    // surface; never raise one that genuinely buried itself.
+    if (out.z < gl)
+        out.z = gl;
+
+    return out;
+}
+
 static void FF_ReportImpactLODZ(const Tpoint &pos)
 {
     if ( not getenv("FF_DEBUG_LODZ"))
@@ -344,7 +396,10 @@ int FalconMissileEndMessage::Process(uchar autodisp)
 
 #endif
 #ifdef FF_LINUX
-                FF_ReportImpactLODZ(pos);
+                {   // FF_LINUX (BOOM-1): the outer switch's later case labels jump past
+                    // ffFxPos, so the declaration needs its own scope.
+                    FF_ReportImpactLODZ(pos);
+                    const Tpoint ffFxPos = FF_ImpactEffectPos(pos);
 #endif
                 switch (wc->DamageType)
                 {
@@ -359,7 +414,7 @@ int FalconMissileEndMessage::Process(uchar autodisp)
                          (float)wc->BlastRadius ) ); // scale
                          */
                         DrawableParticleSys::PS_AddParticleEx((SFX_GROUND_PENETRATION + 1),
-                                                              &pos,
+                                                              &FF_FXPOS,
                                                               &PSvec);
 
                         break;
@@ -405,7 +460,7 @@ int FalconMissileEndMessage::Process(uchar autodisp)
                         }
 
                         DrawableParticleSys::PS_AddParticleEx((SFX_GROUND_EXPLOSION + 1),
-                                                              &pos,
+                                                              &FF_FXPOS,
                                                               &PSvec);
                         break;
 
@@ -422,7 +477,7 @@ int FalconMissileEndMessage::Process(uchar autodisp)
                          0.2f ) ); // interval
                          */
                         DrawableParticleSys::PS_AddParticleEx((SFX_NAPALM + 1),
-                                                              &pos,
+                                                              &FF_FXPOS,
                                                               &vec);
                         break;
 
@@ -442,10 +497,13 @@ int FalconMissileEndMessage::Process(uchar autodisp)
                          40.0f ) ); // scale
                          */
                         DrawableParticleSys::PS_AddParticleEx((SFX_SHAPED_FIRE_DEBRIS + 1),
-                                                              &pos,
+                                                              &FF_FXPOS,
                                                               &PSvec);
                         break;
                 } // end switch
+#ifdef FF_LINUX
+                }   // FF_LINUX (BOOM-1) scope
+#endif
 
                 break;
 
