@@ -2154,6 +2154,15 @@ void AirTaskingManagerClass::ScheduleAircraft(VU_ID abid, WayPoint w, int aircra
             static long ffWrapped = 0, ffTotal = 0;
             ffTotal++;
 
+            // Heartbeat: without this, "no [ATO] lines" is ambiguous between
+            // "no wraps occurred" and "ScheduleAircraft was never called".
+            if ((ffTotal % 200) == 1)
+            {
+                fprintf(stderr, "[ATO] ScheduleAircraft calls=%ld wrapped=%ld\n",
+                        ffTotal, ffWrapped);
+                fflush(stderr);
+            }
+
             if (w->GetWPArrivalTime() < scheduleTime)
             {
                 ffWrapped++;
