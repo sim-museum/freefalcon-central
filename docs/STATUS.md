@@ -9386,3 +9386,123 @@ for another because I happen to be in the file.
 **How to close them properly if it ever matters:** the UCNULL-1 method — probe on
 entry when `!IsReady()`, run a spread, and let the count decide. That converts fourteen
 files of idiom into a measured number, and costs one run.
+
+---
+
+## Session 2026-08-27/28 — five items, and what the corrections cost
+
+Five backlog items were worked this session. Two closed, one closed as already-fixed,
+two are parked on observations I cannot make from here. The through-line is not the
+fixes; it is how often a confident diagnosis died on contact with a control.
+
+### Closed with confirmed evidence
+
+**LODGATE-2 — the runway plateau gate keyed on the wrong quantity.** `drawbldg.cpp`
+gated its plateau correction on `glLod > 1`. But `glLod` reports the level the terrain
+lookup *stopped at*, not what the returned elevation was interpolated from, so a
+coarse-derived answer arrives flagged as fine and the gate stays shut. Measured at the
+PO's Korea airbase: at `glLod == 0`, `gl` differed from the LOD-0 post by up to 3.5 ft,
+by over 1 ft in 98 of 1799 samples, while physics answered −26.00 throughout. The
+runway was therefore drawn on a surface up to 3.5 ft off the one the wheels rest on,
+*varying with position* — which is the aircraft sinking into the strip and re-emerging
+during rollout. Gate on the disagreement, not the LOD index. PO-confirmed by a clean
+touch-and-go: surface disagreement 3.5 ft → 0.0 ft, wheels on the tarmac, successful
+takeoff after.
+
+**BOOM-1 — bomb impacts produced no explosion, no smoke and no sound.** Every visible
+child of `$GROUND_EXPLOSION` is `emissionmode=EMITONEARTHIMPACT`, which fires only when
+`epos.z >= Part.GroundLevel` — and z is positive-down, so that means "at or below the
+surface". The PO's two bombs recorded `physicsZ` 2.7 ft and 2.2 ft *above* ground. The
+test was false for both, no child emitter ran, and the parent nodes are
+`drawtype=none/alpha=0` shells with nothing of their own to draw. The legacy
+`AddSfxRequest(SfxClass)` path that would have carried the sound is commented out
+upstream, so the failure was total and silent in both channels.
+
+**GUARD-1 — 27 unchecked `vuDatabase->Find()` dereferences.** A fourth pass added to
+`order-audit.py`. Every pass-4 site in code this port builds is now guarded.
+
+### Closed as already-fixed
+
+**NVG-5.** On the ticket's own metric — percentage of pure-blue pixels, one-keystroke
+repro — the symptom is gone: 80.2% → **0.0%**, with green rising to 8.0% (a correctly
+tinted cockpit). The re-scoped symptom is absent too: green-channel detail in the world
+region goes .167 → .113 under NVG (68% retained, consistent with legitimate darkening)
+and the pit loses nothing at all (.231 → .230). Almost certainly a side effect of
+NVG-2/3/4, all of which landed after the ticket was written.
+
+### Parked on an observation
+
+**BOOM-2** — poly explosion particles emit and play their sound but never render.
+Nine pipeline stages eliminated by measurement; a headless repro exists. Gated on one
+PO observation: **drop a bomb on open ground, away from any airbase, not over water —
+is there a fireball?** Everything measured is equally consistent with "tarmac occludes
+it" and "ground explosions never render anywhere", which is why six sprints did not
+separate them.
+
+**ATO-1** — Balkans generates no missions after 07:00. Symptom reproduced headlessly;
+the frag order holds 8 missions all within one hour and never extends. Five candidate
+root causes killed by measurement. Blocked on the control never taken: **does Balkans
+under Wine also run dry?** Wine is this project's oracle, and if it behaves the same
+then none of the Linux-side instrumentation was ever going to find a defect.
+
+### What the corrections cost, and the pattern in them
+
+Nine diagnoses were retracted this session, every one killed by a control or by reading
+the code the claim depended on:
+
+| retracted claim | what killed it |
+|---|---|
+| the 4x timestep explains "2 m below the runway" | PO: those data points were at 1x |
+| `SetGreenMode` destroys NVG detail (bisection table) | metric artifact — sd over (r+g+b)/3 collapses 3× when r,b→0 |
+| ColorBank's `(0,g,0)` palette blanks the world | terrain never touches ColorBank |
+| the `ContextMPR` vertex tint blanks the world | `FF_NVG_NOVTX=1` changes nothing; it is the MFD context |
+| tarmac occludes ground explosions (the A/B) | `FF_TEST_EXPLOSION=1` spawns `SFX_AIR_EXPLOSION` — both arms tested the wrong effect |
+| the unsigned `CampaignTime` wrap empties the ATO | 0 occurrences, both theaters, every run |
+| the ATO never runs in Balkans | a missing 4th UI click; Korea behaved identically |
+| ~29 requests fail to build | Korea fails at the same rate (68% fill in both) |
+| `Balkans.nam` is missing | `LoadNames` reads `.idx`/`.wch`; both present, 2296 entries vs Korea's 1791 |
+
+Three failure modes account for nearly all of them:
+
+1. **Concluding from an absence without checking what the code does.** The missing
+   `.nam` was a search for a filename the loader never opens. "The ATO never runs" was
+   a probe that printed only on the interesting case, so silence was ambiguous — it
+   needed a heartbeat before it meant anything.
+2. **Instruments that do not do what their names say.** `FF_NVG_SKIP` takes keywords,
+   not `1`. `FF_VIEW_SCRIPT`'s view-mode steps are inert. `FF_TEST_EXPLOSION=1` spawns
+   an *air* explosion. Each was found by reading the implementation before reusing it —
+   and each had already produced a wrong conclusion before that.
+3. **Measuring the wrong quantity.** Averaging r,g,b under a green tint manufactures a
+   detail collapse. Counting draw calls and calling them items manufactures a 124-item
+   loss (`DX2D_GenerateIndexes` batches). A fire-colour detector returning identical
+   counts across twelve *distinct* frames was counting canopy, not scene.
+
+The corrective that actually worked, every time, was taking the control first: Korea
+against Balkans, NVG off against on, the scanner against a known instance. Where a
+sprint began with a control it converged; where it began with a hypothesis it did not.
+
+### Tooling worth keeping
+
+- `order-audit.py` pass 4 — lookup dereferenced with no NULL check. **Five**
+  false-positive shapes filtered, every one found by reading its own output. After any
+  filter change, re-validate against the `atm.cpp ScheduleAircraft` seed: a filter that
+  goes too far is silent. `camptool` excluded by default (`if(WIN32)`-only);
+  `FF_AUDIT_ALL=1` includes it.
+- Headless campaign harness. The theater is **not** chosen by UI clicks — it is
+  `curTheater` in `config/registry.ini` (Korea `4B6F72656100`, Balkans
+  `42616C6B616E7300`). Back it up and restore it; it is the PO's live config. Campaign
+  start needs the full five-click sequence; dropping the fourth silently yields a
+  loaded campaign whose ATO never runs.
+- `FF_TEST_EXPLOSION=ground`, `FF_DEBUG_ATM`, `FF_DEBUG_ATO`, `FF_DEBUG_NAMES`,
+  `FF_DEBUG_TGT`, `FF_DEBUG_PSFIRE/PSPOLY/PSVIS`, `FF_DEBUG_2DCAP/2DFLUSH`.
+
+### Two process notes
+
+**Do not rebuild while a sweep is running.** A relink mid-sweep meant rows 1–12 ran the
+old binary and 13+ would have run the new one. The changes were no-ops by measurement,
+but a gate you cannot fully vouch for is not a gate; the sweep was restarted against
+the final binary.
+
+**Bracket pkill patterns.** `pkill -f '/FFViper -d'` matched the invoking shell's own
+command line and killed it, leaving an orphaned game instance. This trap is already
+documented for `pgrep` in the project notes and was walked into anyway.
