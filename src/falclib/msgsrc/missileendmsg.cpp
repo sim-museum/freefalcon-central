@@ -47,6 +47,46 @@ FalconMissileEndMessage::~FalconMissileEndMessage(void)
     // Your Code Goes Here
 }
 
+#ifdef FF_LINUX
+// FF_LINUX (TERRAIN-Z): at a weapon impact point, report the terrain post height at
+// every LOD next to the interpolated level physics actually collides against. The
+// spread between them is the gap the PO sees as a bomb sinking into the surface.
+// FF_DEBUG_LODZ=1.
+//
+// Called for EVERY damage type. It used to sit inside the HighExplosiveDam case, so
+// a runway-cratering munition (HeaveDam / PenetrationDam / KineticDam) impacted and
+// printed nothing -- and cratering is exactly the drop most likely to be aimed at a
+// runway. "Where is the ground here" does not depend on the warhead that asked.
+static void FF_ReportImpactLODZ(const Tpoint &pos)
+{
+    if ( not getenv("FF_DEBUG_LODZ"))
+        return;
+
+    extern float FF_GroundLevelAtLOD(class TViewPoint *vp, float x, float y, int lod);
+    RViewPoint *ffVp = OTWDriver.GetViewpoint();
+    char ffBuf[192];
+    int ffN = 0;
+    ffBuf[0] = '\0';
+
+    for (int L = 0; L < 5; L++)
+    {
+        float z = ffVp ? FF_GroundLevelAtLOD((TViewPoint*)ffVp, pos.x, pos.y, L) : -99999.0f;
+        ffN += snprintf(ffBuf + ffN, sizeof(ffBuf) - ffN, "lod%d=%.1f ", L, (double)z);
+
+        if (ffN >= (int)sizeof(ffBuf) - 24) break;
+    }
+
+    // FF_LINUX: FF_GroundLevelAtLOD gives the NEAREST POST; the interpolated value is
+    // what physics collides against. On sloped terrain the two differ legitimately, so
+    // comparing physicsZ against a post alone cannot tell a real gap from ordinary slope.
+    float ffInterp = OTWDriver.GetGroundLevel(pos.x, pos.y);
+    fprintf(stderr, "[LODZ] impact (%.0f,%.0f) physicsZ=%.1f interp=%.1f delta=%.1f | %s\n",
+            pos.x, pos.y, (double)pos.z, (double)ffInterp,
+            (double)(pos.z - ffInterp), ffBuf);
+    fflush(stderr);
+}
+#endif
+
 int FalconMissileEndMessage::Process(uchar autodisp)
 {
     // Your Code Goes Here
@@ -303,6 +343,9 @@ int FalconMissileEndMessage::Process(uchar autodisp)
                 }
 
 #endif
+#ifdef FF_LINUX
+                FF_ReportImpactLODZ(pos);
+#endif
                 switch (wc->DamageType)
                 {
                     case HeaveDam:
@@ -348,34 +391,6 @@ int FalconMissileEndMessage::Process(uchar autodisp)
                         // the finest; the renderer drew at whatever its distance
                         // picked. The spread between them is the gap the PO sees
                         // as a bomb sinking into the surface. FF_DEBUG_LODZ=1.
-                        if (getenv("FF_DEBUG_LODZ"))
-                        {
-                            extern float FF_GroundLevelAtLOD(class TViewPoint *vp, float x, float y, int lod);
-                            RViewPoint *ffVp = OTWDriver.GetViewpoint();
-                            char ffBuf[192];
-                            int ffN = 0;
-                            ffBuf[0] = '\0';
-
-                            for (int L = 0; L < 5; L++)
-                            {
-                                float z = ffVp ? FF_GroundLevelAtLOD((TViewPoint*)ffVp, pos.x, pos.y, L) : -99999.0f;
-                                ffN += snprintf(ffBuf + ffN, sizeof(ffBuf) - ffN, "lod%d=%.1f ", L, (double)z);
-
-                                if (ffN >= (int)sizeof(ffBuf) - 24) break;
-                            }
-
-                            // FF_LINUX: also report the INTERPOLATED ground level, which
-                            // is what physics actually collides against. FFPostZAtLOD gives
-                            // the NEAREST POST, and on sloped terrain the two differ
-                            // legitimately -- comparing physicsZ against a post alone
-                            // cannot distinguish a real gap from ordinary slope.
-                            float ffInterp = OTWDriver.GetGroundLevel(pos.x, pos.y);
-                            fprintf(stderr, "[LODZ] impact (%.0f,%.0f) physicsZ=%.1f interp=%.1f delta=%.1f | %s\n",
-                                    pos.x, pos.y, (double)pos.z, (double)ffInterp,
-                                    (double)(pos.z - ffInterp), ffBuf);
-                            fflush(stderr);
-                        }
-
                         if (getenv("FF_SHOT_ON_IMPACT"))
                         {
                             extern volatile int g_screenshotRequest;
