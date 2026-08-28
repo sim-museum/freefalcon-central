@@ -389,7 +389,13 @@ def scan4(path, out):
 
 res4 = []
 for dirpath, dirnames, filenames in os.walk(ROOT):
-    dirnames[:] = [d for d in dirnames if d not in ("extern", ".git")]
+    # camptool is built only under if(WIN32) (src/campaign/CMakeLists.txt:6) and is
+    # not compiled in this port, so its copies of camptask sources are dead code
+    # here. They were inflating the pass-4 count with duplicates of already-fixed
+    # sites. FF_AUDIT_ALL=1 includes them.
+    dirnames[:] = [d for d in dirnames
+                   if d not in ("extern", ".git")
+                   and not (d == "camptool" and not os.environ.get("FF_AUDIT_ALL"))]
     for fn in filenames:
         if fn.endswith((".cpp", ".c")):
             p = os.path.join(dirpath, fn)
