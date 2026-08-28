@@ -1723,14 +1723,27 @@ long SetWPTimes(Flight u, MissionRequestClass *mis)
         if (w->GetWPArrivalTime() > 0) // Preset time - Adjust Speed to match
         {
             ShiAssert(w->GetWPArrivalTime() > mission_time);
-            time = w->GetWPArrivalTime() - mission_time;
-            speed = (dist * CampaignHours) / time;
 
-            if (speed < minSpeed)
+            // FF_LINUX (ATO-1): the assertion above fires on exactly the case this
+            // handles, and ShiAssert does NOT halt in this build. CampaignTime is
+            // uint32_t, so arrival <= mission_time wraps `time` to ~4e9, making
+            // speed ~0, which the clamp below then raises to minSpeed. Saying that
+            // directly is behaviour-preserving and does not depend on the wrap.
+            if (w->GetWPArrivalTime() <= mission_time)
+            {
                 speed = minSpeed;
+            }
+            else
+            {
+                time = w->GetWPArrivalTime() - mission_time;
+                speed = (dist * CampaignHours) / time;
 
-            if (speed > maxSpeed)
-                speed = maxSpeed;
+                if (speed < minSpeed)
+                    speed = minSpeed;
+
+                if (speed > maxSpeed)
+                    speed = maxSpeed;
+            }
 
             w->SetWPSpeed(speed);
         }

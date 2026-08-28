@@ -2187,6 +2187,21 @@ void AirTaskingManagerClass::ScheduleAircraft(VU_ID abid, WayPoint w, int aircra
         return;
 
     // Find minutes to takeoff
+    //
+    // FF_LINUX (ATO-1): CampaignTime is uint32_t, so when arrival precedes
+    // scheduleTime this subtraction does NOT go negative -- it wraps to ~4e9 and
+    // mins becomes ~71582. Every "if (block < ATM_MAX_CYCLES)" below then fails and
+    // no slot is written. Computing the delta signed and returning early is
+    // BEHAVIOUR-PRESERVING (the wrapped value already wrote nothing) while removing
+    // an accident waiting for someone to add an unguarded use of `mins`.
+    // Measured 0 occurrences in Korea and Balkans, so this is a no-op today.
+    {
+        long ffDelta = (long)w->GetWPArrivalTime() - (long)scheduleTime;
+
+        if (ffDelta < 0)
+            return;
+    }
+
     mins = (int)((w->GetWPArrivalTime() - scheduleTime) / CampaignMinutes);
 
 #ifdef FF_LINUX
