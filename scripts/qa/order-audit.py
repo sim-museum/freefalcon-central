@@ -330,6 +330,13 @@ def scan4(path, out):
             if not m:
                 continue
             name = m.group(1)
+            # Assignment INSIDE a condition, tested on the same line:
+            #     (assoc = vuDatabase->Find(...)) not_eq 0 and assoc->OwnerId()
+            # That is guarded. Fourth false-positive shape found while triaging.
+            if re.search(r'\b' + re.escape(name) + r'\b[^;]*?(?:==|!=|not_eq)\s*(?:NULL|nullptr|0)', ln):
+                continue
+            if short_circuit(ln, name):
+                continue
             base = depth[k]
             # walk forward in the same or deeper scope
             for j in range(k + 1, min(k + 1 + WINDOW, b + 1)):
@@ -350,6 +357,18 @@ def scan4(path, out):
                 # defects. Reuse the helper written for pass 1.
                 if short_circuit(nxt, name):
                     break
+                # A truth-test of `name` in an if CONDITION guards the whole body,
+                # including a deref on a LATER line:
+                #     if (o and ...)
+                #         o->GetFullName(...);
+                # short_circuit() only sees one line, so it missed these and all
+                # four gtm.cpp hits were false positives. `name` must appear BARE in
+                # the condition -- if it is dereferenced there (if (abe->IsObj()))
+                # that is the defect itself, not a guard.
+                if 'if' in nxt:
+                    cond, _body = split_if(nxt)
+                    if re.search(r'\b' + re.escape(name) + r'\b', cond) and not accesses(cond, name):
+                        break
                 if re.search(r'(?:not\s+|!)\s*' + re.escape(name) + r'\b\s*(?:or|\|\|)', nxt):
                     break
                 deref = re.search(r'\b' + re.escape(name) + r'\s*(?:->|\[)', nxt)
