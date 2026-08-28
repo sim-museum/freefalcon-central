@@ -818,6 +818,18 @@ void SimulationDriver::Cycle()
                 pos.z = ac->ZPos();  // same altitude, dead ahead
 
                 if (s_testGround) {
+                    // FF_LINUX (BOOM-2): throw the burst far enough ahead that it
+                    // lands in the FORWARD view rather than straight down. Every TE
+                    // starts several thousand feet up, so a fixed 1500 ft puts the
+                    // ground point almost directly beneath the aircraft. Distance
+                    // ~4x AGL gives roughly a 14 degree depression angle.
+                    float gz0 = OTWDriver.GetGroundLevel(ac->XPos(), ac->YPos());
+                    float agl = (gz0 > -99000.0f) ? (gz0 - ac->ZPos()) : 1500.0f;
+                    float ahead = agl * 4.0f;
+                    if (ahead < 1500.0f)  ahead = 1500.0f;
+                    if (ahead > 60000.0f) ahead = 60000.0f;
+                    pos.x = ac->XPos() + vx / vmag * ahead;
+                    pos.y = ac->YPos() + vy / vmag * ahead;
                     float gz = OTWDriver.GetGroundLevel(pos.x, pos.y);
                     if (gz > -99000.0f) pos.z = gz;
                     fprintf(stderr, "[FF_TEST] GROUND burst at (%.0f,%.0f) z=%.1f (acZ=%.1f)\n",
