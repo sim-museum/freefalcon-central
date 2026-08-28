@@ -282,3 +282,95 @@ for r in res3:
     print("%s:%d  %s %s -- %s" % (r[0], r[1], r[2], r[3], r[4]))
     print("      %s" % r[6])
 print("--- pass3: %d candidates ---" % len(res3), file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Pass 4 -- GUARD-1: a lookup that CAN return NULL whose result is dereferenced
+# with no NULL check at all. Distinct from pass 1 (guard present but sequenced
+# after the access) -- here there is no guard.
+#
+# Seed found by hand in atm.cpp:
+#     abe = (CampEntity) vuDatabase->Find(airbase->id);
+#     if (abe->IsObjective())            <-- no NULL test
+# vuDatabase->Find() returns NULL for an absent id, and ids go stale across
+# deaggregation and entity removal.
+#
+# ShiAssert does NOT count as a guard: it is live but non-halting in this build,
+# so "ShiAssert(p); p->x;" is this same defect with a printout.
+# ---------------------------------------------------------------------------
+LOOKUPS = re.compile(
+    r'=\s*(?:\([^)]*\)\s*)?'                       # optional cast
+    r'(?:[\w\.\->]*?)\b('
+    r'vuDatabase\s*->\s*Find|'
+    r'FindATMAirbase|'
+    r'FindEntity|GetEntity|'
+    r'FindName|FindObjective|FindUnit'
+    r')\s*\(')
+
+def scan4(path, out):
+    try:
+        with open(path, encoding="latin-1") as f:
+            lines = f.readlines()
+    except OSError:
+        return
+    depth = depth_map(lines)
+    for a, b in _funcs(lines):
+        for k in range(a, b + 1):
+            ln = lines[k]
+            if ln.lstrip().startswith("//"):
+                continue
+            if not LOOKUPS.search(ln):
+                continue
+            # The optional type prefix made this ambiguous: on `abe = ...` the
+            # regex backtracks and captures 'e' (splitting "ab|e ="), so the walk
+            # then looks for derefs of `e` and misses `abe->`. That silently hid
+            # the very instance this pass was written from. Capture the identifier
+            # immediately before '=' instead.
+            m = re.search(r'(\w+)\s*=(?!=)', ln)
+            if not m:
+                continue
+            name = m.group(1)
+            base = depth[k]
+            # walk forward in the same or deeper scope
+            for j in range(k + 1, min(k + 1 + WINDOW, b + 1)):
+                if depth[j] < base:
+                    break
+                nxt = lines[j]
+                if nxt.lstrip().startswith("//"):
+                    continue
+                # a real NULL test on `name` clears it
+                if re.search(r'if\s*\(\s*(?:not\s+|!)?\s*' + re.escape(name)
+                             + r'\s*(?:==|!=|not_eq)?\s*(?:NULL|nullptr|0)?\s*[\)&|]', nxt):
+                    break
+                if re.search(r'\b' + re.escape(name) + r'\s*(?:==|not_eq|!=)\s*(?:NULL|nullptr|0)', nxt):
+                    break
+                # ShiAssert is NOT a guard here
+                # `p and p->x` / `not p or not p->x` protect the deref by
+                # short-circuit -- the first pass-4 run reported ~all of these as
+                # defects. Reuse the helper written for pass 1.
+                if short_circuit(nxt, name):
+                    break
+                if re.search(r'(?:not\s+|!)\s*' + re.escape(name) + r'\b\s*(?:or|\|\|)', nxt):
+                    break
+                deref = re.search(r'\b' + re.escape(name) + r'\s*(?:->|\[)', nxt)
+                if deref and 'ShiAssert' not in nxt:
+                    out.append((os.path.relpath(path, "/home/g/ff"), k + 1, j + 1,
+                                name, ln.strip()[:90], nxt.strip()[:90]))
+                    break
+
+res4 = []
+for dirpath, dirnames, filenames in os.walk(ROOT):
+    dirnames[:] = [d for d in dirnames if d not in ("extern", ".git")]
+    for fn in filenames:
+        if fn.endswith((".cpp", ".c")):
+            p = os.path.join(dirpath, fn)
+            if os.path.islink(p):
+                continue
+            scan4(p, res4)
+
+print("\n=== pass 4: lookup result dereferenced with NO NULL check ===")
+for r in res4:
+    print("%s:%d  '%s' assigned here, dereferenced at line %d with no NULL test" % (r[0], r[1], r[3], r[2]))
+    print("      %s" % r[4])
+    print("      %s" % r[5])
+print("--- pass4: %d candidates ---" % len(res4), file=sys.stderr)
