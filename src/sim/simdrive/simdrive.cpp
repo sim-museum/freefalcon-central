@@ -790,9 +790,18 @@ void SimulationDriver::Cycle()
     // player every ~5 seconds to exercise the particle system without weapons.
     {
         static int s_testExpl = -1;
+        // FF_LINUX (BOOM-2): FF_TEST_EXPLOSION=ground spawns SFX_GROUND_EXPLOSION at
+        // the TERRAIN height ahead of the player instead of SFX_AIR_EXPLOSION at the
+        // player's altitude. The plain =1 form spawns an AIR explosion, which is a
+        // DIFFERENT effect chain ($AIR_EXPLOSION) from the one BOOM-2 is about
+        // ($GROUND_EXPLOSION -> _mk81 -> the EMITONEARTHIMPACT children). Flying
+        // level and spawning on the ground ahead puts a real ground burst in the
+        // forward view over open terrain -- the control this ticket has been missing.
+        static int s_testGround = 0;
         if (s_testExpl == -1) {
             const char* e = getenv("FF_TEST_EXPLOSION");
-            s_testExpl = (e && atoi(e)) ? 1 : 0;
+            s_testGround = (e && strstr(e, "ground")) ? 1 : 0;
+            s_testExpl = (e && (atoi(e) || s_testGround)) ? 1 : 0;
         }
         if (s_testExpl && playerEntity && playerEntity->IsAirplane()) {
             static VU_TIME s_lastSpawn = 0;
@@ -807,6 +816,15 @@ void SimulationDriver::Cycle()
                 pos.x = ac->XPos() + vx / vmag * 1500.0f;
                 pos.y = ac->YPos() + vy / vmag * 1500.0f;
                 pos.z = ac->ZPos();  // same altitude, dead ahead
+
+                if (s_testGround) {
+                    float gz = OTWDriver.GetGroundLevel(pos.x, pos.y);
+                    if (gz > -99000.0f) pos.z = gz;
+                    fprintf(stderr, "[FF_TEST] GROUND burst at (%.0f,%.0f) z=%.1f (acZ=%.1f)\n",
+                            pos.x, pos.y, pos.z, ac->ZPos());
+                    fflush(stderr);
+                    DrawableParticleSys::PS_AddParticleEx(SFX_GROUND_EXPLOSION + 1, &pos, &vec);
+                } else {
                 // Alternate between the direct path (known good) and the
                 // named-effect/SfxClass path used by real missile impacts.
                 static int s_alt = 0;
@@ -818,6 +836,7 @@ void SimulationDriver::Cycle()
                 } else {
                     fprintf(stderr, "[FF_TEST] PS_AddParticleEx(SFX_AIR_EXPLOSION) at (%.0f,%.0f,%.0f)\n", pos.x, pos.y, pos.z);
                     DrawableParticleSys::PS_AddParticleEx(SFX_AIR_EXPLOSION + 1, &pos, &vec);
+                }
                 }
             }
         }
