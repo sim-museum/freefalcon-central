@@ -484,7 +484,17 @@ BOOL TacanList::GetVUIDFromLocation(float x, float y, Domain domain,
         if (p_current->domain == domain)
         {
 
+            // FF_LINUX (GUARD-1): a beacon in the list can name an entity that has
+            // been destroyed. Skip the entry rather than dereference it -- the loop
+            // is picking the nearest, so a missing one simply does not compete.
             p_entity = vuDatabase->Find(p_current->vuID);
+
+            if (p_entity == NULL)
+            {
+                p_current = p_current->p_next;
+                continue;
+            }
+
             tacanX = p_entity->XPos();
             tacanY = p_entity->YPos();
 

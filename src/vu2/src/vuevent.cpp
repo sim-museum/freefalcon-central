@@ -345,8 +345,13 @@ VU_ERRCODE VuRequestDummyBlockMessage::Process(VU_BOOL autod)
     // server sent a private address, use his own
     if (sendAddress.IsPrivate())
     {
+        // FF_LINUX (GUARD-1): the `if (s not_eq NULL)` immediately below shows the
+        // author knew this can be NULL -- the guard was simply sequenced after this
+        // dereference rather than before it.
         s = (VuSessionEntity*)vuDatabase->Find(sender_);
-        sendAddress.ip = s->GetAddress().ip;
+
+        if (s not_eq NULL)
+            sendAddress.ip = s->GetAddress().ip;
     }
 
     if (s not_eq NULL)

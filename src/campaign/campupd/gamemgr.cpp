@@ -499,7 +499,10 @@ void GameManagerClass::ReleasePlayer(FalconSessionEntity *player)
                                           ((AircraftClass*)simEntity)->DBrain()->Airbase()
                                       );
 
-                if (((AircraftClass*)simEntity)->DBrain()->IsSetATC(DigitalBrain::PermitTakeoff))
+                // FF_LINUX (GUARD-1): the airbase objective can be destroyed while
+                // an aircraft is still referencing it for ATC calls.
+                if (atc not_eq NULL
+                    and ((AircraftClass*)simEntity)->DBrain()->IsSetATC(DigitalBrain::PermitTakeoff))
                 {
                     radioMessage = CreateCallFromATC(
                                        atc, (AircraftClass*)simEntity, rcCLEAREDONRUNWAY, FalconLocalSession

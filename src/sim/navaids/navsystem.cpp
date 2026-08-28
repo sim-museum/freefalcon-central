@@ -392,7 +392,15 @@ void NavigationSystem::SetIlsData(VU_ID airbaseid, int rwyidx)
 
     mpCurrentIls.vuID = airbaseid;
     mpCurrentIls.pobjective = (ObjectiveClass *)vuDatabase->Find(mpCurrentIls.vuID);
+    // FF_LINUX (GUARD-1): the ShiAssert below READS like a guard and is not one --
+    // ShiAssert is live but non-halting in this build, so on a bad pointer it
+    // prints and falls straight through into pobjective->brain->... A real check
+    // is needed; the assert is left in place as the diagnostic it actually is.
     ShiAssert(FALSE == F4IsBadReadPtr(mpCurrentIls.pobjective, sizeof * mpCurrentIls.pobjective));
+
+    if (mpCurrentIls.pobjective == NULL)
+        return;
+
     // if (mpCurrentIls.pobjective->ZPos() == 0.0f) // JPO - fix up old data
     //      mpCurrentIls.pobjective->SetPosition (mpCurrentIls.pobjective->XPos(),
     // mpCurrentIls.pobjective->YPos(),

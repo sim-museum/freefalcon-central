@@ -1143,7 +1143,9 @@ void MenuSendTanker(int enumId)
     {
         flight = (Flight)vuDatabase->Find(TankerId);
 
-        if ( not flight->IsFlight())
+        // FF_LINUX (GUARD-1): a stored tanker id can outlive the tanker. The
+        // existing FindTanker fallback is the right handling.
+        if (flight == NULL or not flight->IsFlight())
         {
             flight = SimDriver.FindTanker(SimDriver.GetPlayerEntity());
         }

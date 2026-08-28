@@ -3628,9 +3628,11 @@ runwayQueueStruct * ATCBrain::AddTraffic(VU_ID aircraftID, AtcStatusEnum status,
     int i, point, position;
 
     newTraffic = InList(aircraftID);
+    // FF_LINUX (GUARD-1): the aircraft can be removed from the database while it
+    // is still queued for the runway -- shot down on approach, or despawned.
     FalconEntity *entity = (FalconEntity*)vuDatabase->Find(aircraftID);
 
-    if (newTraffic && entity->IsAirplane())
+    if (newTraffic && entity != NULL && entity->IsAirplane())
     {
         ShiAssert(!(!newTraffic->rwindex && runwayQueue[queue] == newTraffic));
 
