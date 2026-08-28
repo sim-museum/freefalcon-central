@@ -2935,7 +2935,30 @@ void DrawableParticleSys::PS_AddPoly(PS_PTR owner, PS_PTR ID)
     PS_PTR ptr = PS_AddItem(PS_POLYS_IDX);
 
     // security check
-    if (ptr == PS_NOPTR) return;
+    if (ptr == PS_NOPTR)
+    {
+#ifdef FF_LINUX
+        // FF_LINUX (BOOM-2): this bail is SILENT. The particle still exists, still
+        // ages, still plays its soundid -- it just has no polygon, so the effect is
+        // audible and invisible. That is exactly the reported bombing symptom, so
+        // count the bails rather than assume the pool is never exhausted.
+        {
+            static long ffBail = 0;
+            static int ffDbg = -1;
+
+            if (ffDbg < 0) ffDbg = getenv("FF_DEBUG_PSPOLY") ? 1 : 0;
+
+            ffBail++;
+
+            if (ffDbg and (ffBail == 1 or (ffBail % 100) == 0))
+            {
+                fprintf(stderr, "[PSPOLY] PS_AddPoly BAILED (pool full) count=%ld\n", ffBail);
+                fflush(stderr);
+            }
+        }
+#endif
+        return;
+    }
 
     // Get the pointer in the list
     PolySubPartType &pn = (((PolySubPartType*)PS_Lists[PS_POLYS_IDX].ObjectList)[ptr]);
@@ -3145,6 +3168,36 @@ void  DrawableParticleSys::PS_PolyRun(void)
             }
         }
 
+#ifdef FF_LINUX
+        // FF_LINUX (BOOM-2): tally polys that reach submission against polys killed
+        // by the visibility gate. Emission and poly allocation are both already
+        // proven healthy (262 emissions, 0 pool bails), so if the effect is still
+        // invisible the loss is here or in DX2D_AddQuad. FF_DEBUG_PSVIS=1.
+        {
+            static int ffDbg = -1;
+
+            if (ffDbg < 0) ffDbg = getenv("FF_DEBUG_PSVIS") ? 1 : 0;
+
+            if (ffDbg)
+            {
+                static long ffDrawn = 0, ffSkipped = 0;
+                static DWORD ffLast = 0;
+
+                if (Visible) ffDrawn++; else ffSkipped++;
+
+                DWORD ffNow = GetTickCount();
+
+                if (ffNow - ffLast > 1000 and (ffDrawn or ffSkipped))
+                {
+                    ffLast = ffNow;
+                    fprintf(stderr, "[PSVIS] polys drawn=%ld skippedNotVisible=%ld\n",
+                            ffDrawn, ffSkipped);
+                    fflush(stderr);
+                    ffDrawn = ffSkipped = 0;
+                }
+            }
+        }
+#endif
         // ok, if not visible, skip all the rest
         if ( not Visible) goto Skip;
 
@@ -3321,6 +3374,33 @@ void  DrawableParticleSys::PS_EmitterRun(void)
         }
 
 
+#ifdef FF_LINUX
+        // FF_LINUX (BOOM-2): report every emitter that actually fires, with the
+        // child it spawns, the mode, and the z comparison the impact modes turn on.
+        // The bombing chain is $GROUND_EXPLOSION -> _mk81 -> the visible poly nodes,
+        // and all three are drawtype=none/alpha=0 shells except the last -- so
+        // "the sound played" is not by itself proof the visible node was reached.
+        // FF_DEBUG_PSFIRE=1.
+        {
+            static int ffPsFire = -1;
+
+            if (ffPsFire < 0) ffPsFire = getenv("FF_DEBUG_PSFIRE") ? 1 : 0;
+
+            if (ffPsFire and qty > 0)
+            {
+                static int ffN = 0;
+
+                if (ffN++ < 400)
+                {
+                    fprintf(stderr, "[PSFIRE] emit child='%s' mode=%d qty=%.1f "
+                            "epos.z=%.1f partGround=%.1f alive=%d\n",
+                            Emitter.PEP->name, (int)Emitter.PEP->mode, (double)qty,
+                            (double)epos.z, (double)Part.GroundLevel, (int)Alive);
+                    fflush(stderr);
+                }
+            }
+        }
+#endif
         while (qty >= 1)
         {
             float v;
