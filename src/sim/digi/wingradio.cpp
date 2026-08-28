@@ -598,10 +598,17 @@ void AiCustomizeRadioMsg(SimBaseClass* p_sender,
 
             if (theRadar->TargetUnderCursor() not_eq FalconNullId)
             {
+                // FF_LINUX (GUARD-1): the id is non-null but the entity it names can
+                // already have been destroyed -- TargetUnderCursor() only proves the
+                // radar HAS a lock id, not that the target still exists.
                 theTarget = vuDatabase->Find(theRadar->TargetUnderCursor());
+
+                if (theTarget not_eq NULL)
+                {
                 (*pp_radioMsgs)->dataBlock.edata[2] = SimToGrid(theTarget->YPos());
                 (*pp_radioMsgs)->dataBlock.edata[3] = SimToGrid(theTarget->XPos());
                 (*pp_radioMsgs)->dataBlock.edata[4] = -1 * FloatToInt32(theTarget->ZPos());
+                }
             }
             else
             {

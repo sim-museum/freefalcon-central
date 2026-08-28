@@ -109,9 +109,11 @@ int FalconDivertMessage::Process(uchar autodisp)
         // Return receipt
         if (flight->IsLocal() and (dataBlock.flags bitand REQF_NEEDRESPONSE))
         {
+            // FF_LINUX (GUARD-1): the requester can be gone by the time the
+            // response is sent.
             CampEntity e = (CampEntity) vuDatabase->Find(dataBlock.requesterID);
 
-            if (e->IsUnit())
+            if (e not_eq NULL and e->IsUnit())
                 ((Unit)e)->SendUnitMessage(dataBlock.targetID, FalconUnitMessage::unitRequestMet, dataBlock.mission, flight->GetTeam(), 0);
         }
 

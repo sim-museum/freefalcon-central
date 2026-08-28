@@ -260,6 +260,12 @@ void  DigitalBrain::AiClearLeadersSix(FalconWingmanMsg* msg)
     flightIdx = self->GetCampaignObject()->GetComponentIndex(self);
     pfrom = (AircraftClass*) vuDatabase->Find(msg->dataBlock.from);
 
+    // FF_LINUX (GUARD-1): the sender named by msg->dataBlock.from can be shot
+    // down or otherwise removed between the message being sent and this
+    // handler running, so Find() returns NULL as a normal outcome here.
+    if (pfrom == NULL)
+        return;
+
     if (msg->dataBlock.newTarget == FalconNullId)
     {
 
@@ -1851,6 +1857,11 @@ void DigitalBrain::AiGiveBra(FalconWingmanMsg* msg)
 
     psender = (AircraftClass*) vuDatabase->Find(msg->dataBlock.from);
 
+    // FF_LINUX (GUARD-1): the sender named by msg->dataBlock.from can be shot
+    // down or otherwise removed between the message being sent and this
+    // handler running, so Find() returns NULL as a normal outcome here.
+    if (psender == NULL)
+        return;
 
     rx = self->XPos() - psender->XPos();
     ry = self->YPos() - psender->YPos();
@@ -2055,6 +2066,10 @@ void DigitalBrain::AiGiveStatus(FalconWingmanMsg* msg)
         {
             pfrom = (AircraftClass*) vuDatabase->Find(msg->dataBlock.from);
             edata[0] = 2 * (pmytarget->Type() - VU_LAST_ENTITY_TYPE);
+
+            // FF_LINUX (GUARD-1): sender may be gone by the time this runs.
+            if (pfrom == NULL)
+                return;
 
             xdiff = pmytarget->XPos() - pfrom->XPos();
             ydiff = pmytarget->YPos() - pfrom->YPos();

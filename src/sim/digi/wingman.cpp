@@ -53,6 +53,12 @@ void DigitalBrain::ReceiveOrders(FalconEvent* theEvent)
 
     p_flight = (FlightClass*) vuDatabase->Find(wingMsg->EntityId());
     p_from = (AircraftClass*) vuDatabase->Find(wingMsg->dataBlock.from);
+
+    // FF_LINUX (GUARD-1): both the flight and the sending aircraft can be removed
+    // between the order being issued and this handler running.
+    if (p_flight == NULL)
+        return;
+
     fromIndex = p_flight->GetComponentIndex(p_from);
 
     if (curMode == GunsJinkMode or curMode == MissileDefeatMode or curMode == DefensiveModes)

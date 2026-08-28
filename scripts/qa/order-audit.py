@@ -367,7 +367,17 @@ def scan4(path, out):
                 # that is the defect itself, not a guard.
                 if 'if' in nxt:
                     cond, _body = split_if(nxt)
-                    if re.search(r'\b' + re.escape(name) + r'\b', cond) and not accesses(cond, name):
+                    # strip redundant parens so `if ((un) and (un->IsFlight()))`
+                    # reads as a bare operand -- waypoint.cpp:2144 was reported as a
+                    # defect purely because of the extra brackets.
+                    flat = re.sub(r'\(\s*(\w+)\s*\)', r'\1', cond)
+                    # `(un) and (un->IsFlight())`: the name is BOTH truth-tested and
+                    # dereferenced in the same condition, so accesses() alone rejects
+                    # it. Short-circuit order is what matters -- the bare test comes
+                    # first, so the deref is protected.
+                    if short_circuit(flat, name):
+                        break
+                    if re.search(r'\b' + re.escape(name) + r'\b', flat) and not accesses(flat, name):
                         break
                 if re.search(r'(?:not\s+|!)\s*' + re.escape(name) + r'\b\s*(?:or|\|\|)', nxt):
                     break

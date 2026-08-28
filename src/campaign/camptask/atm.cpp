@@ -1460,9 +1460,10 @@ void AirTaskingManagerClass::ProcessRequest(MissionRequest request)
                         // all with escorts. Sending a negative response would cause no warning to appear in the briefing.
                         if (request->flags bitand REQF_NEEDRESPONSE)
                         {
+                            // FF_LINUX (GUARD-1): requester may have been removed.
                             e = (CampEntity) vuDatabase->Find(request->requesterID);
 
-                            if (e->IsUnit())
+                            if (e not_eq NULL and e->IsUnit())
                                 ((Unit)e)->SendUnitMessage(pack->GetMainFlightID(), FalconUnitMessage::unitRequestMet, request->mission, request->who, 0);
                         }
 
@@ -1587,6 +1588,12 @@ Squadron AirTaskingManagerClass::FindBestAir(MissionRequest mis, GridIndex bx, G
     {
         // We don't want to look for a squadron, we want to use this one.
         sq = (Squadron) FindUnit(mis->requesterID);
+
+        // FF_LINUX (GUARD-1): REQF_USE_REQ_SQUAD names a specific squadron by id;
+        // if that squadron has been destroyed the lookup yields NULL.
+        if (sq == NULL)
+            return NULL;
+
         memset(mis->slots, 255, 4);
         mis->start_block = mis->final_block = ATM_MAX_CYCLES - 1;
         av = sq->FindAvailableAircraft(mis);
@@ -2258,14 +2265,18 @@ void AirTaskingManagerClass::ScheduleAircraft(VU_ID abid, WayPoint w, int aircra
     // If this is a one runway airbase, find the landing waypoint and
     // fill in the landing time - otherwise, assume landing aircraft will
     // use the other runway.
+    // FF_LINUX (GUARD-1): the airbase entity can have been destroyed while its
+    // ATM record survives -- ZapAirbase() exists precisely because airbases die.
+    // sortie_rate keeps its initialiser of 2 when the lookup fails, which is the
+    // existing "two runways, no landing slot needed" behaviour.
     abe = (CampEntity) vuDatabase->Find(airbase->id);
 
-    if (abe->IsObjective())
+    if (abe not_eq NULL and abe->IsObjective())
     {
         sortie_rate = ((Objective)abe)->GetAdjustedDataRate();
         ShiAssert(sortie_rate <= 2);
     }
-    else if (abe->IsUnit())
+    else if (abe not_eq NULL and abe->IsUnit())
         sortie_rate = 1;
 
     if (sortie_rate < 2)
@@ -2313,7 +2324,12 @@ void AirTaskingManagerClass::ZapAirbase(VU_ID abid)
         // to eliminate flights.. But it'd require a few minutes work..
         return;
 
+    // FF_LINUX (GUARD-1): this is the airbase-destroyed path, so the entity being
+    // absent from the database is exactly the case it handles.
     the_airbase = (CampEntity) vuDatabase->Find(abid);
+
+    if (the_airbase == NULL)
+        return;
 
     if (the_airbase->IsUnit())
     {
