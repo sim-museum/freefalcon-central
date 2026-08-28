@@ -132,11 +132,44 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
 
                 if (gate < 0) gate = getenv("FF_NO_RUNWAY_LODGATE") ? 0 : 1;  // DEFAULT ON
 
-                if (gate and glLod > 1)
+                // FF_LINUX (TERRAIN-Z / LODGATE-2): the glLod > 1 test is the wrong
+                // question. It asks "did a coarse LOD answer?", but glLod reports which
+                // level the walk STOPPED at, not what the returned number was actually
+                // interpolated from. MEASURED 2026-08-27, PO's TE-9 landing at the Korea
+                // airbase (log ff-acmi-dbg3, 3914 MESHZ samples): at three positions on
+                // the field glLod came back 0 -- finest, gate stays shut -- while gl was
+                // -22.5 / -25.2 / -23.4 against L0 = -26.0 and approx = -26.0. Physics
+                // answered -26.00 for the whole rollout. Across all 1799 glLod == 0
+                // samples gl differs from L0 by up to 3.5ft, over 1ft in 98 of them.
+                //
+                // So the runway got drawn on a surface up to 3.5ft off the one the wheels
+                // rest on, varying with position -- and that variation IS the aircraft
+                // sinking into the strip and re-emerging as it rolls. The gate was
+                // supposed to have cured that (PO confirmed 2026-08-26); it recurred
+                // because the provenance flag it trusts does not mean what it says.
+                //
+                // Ask the answerable question instead: does the accurate query disagree
+                // with the nearest-post approximation? This block only ever runs for FLAT
+                // surfaces -- runway, taxiway, apron -- which sit on a flattened plateau,
+                // so on a correct plateau the two agree and this changes nothing. Any
+                // disagreement means the interpolation has wandered off the plateau, and
+                // the approximation is the one that matches both the plateau and physics.
+                // FF_LODGATE_LODONLY=1 restores the old glLod > 1 test for A/B.
+                static int lodOnly = -1;
+
+                if (lodOnly < 0) lodOnly = getenv("FF_LODGATE_LODONLY") ? 1 : 0;
+
+                if (gate)
                 {
                     float ap = renderer->viewpoint->GetGroundLevelApproximation(position.x, position.y);
 
-                    if (ap > -99000.0f) gl = ap;
+                    if (ap > -99000.0f)
+                    {
+                        const float FF_PLATEAU_TOL = 0.5f;   // ft
+
+                        if (glLod > 1 or ( not lodOnly and fabsf(gl - ap) > FF_PLATEAU_TOL))
+                            gl = ap;
+                    }
                 }
             }
             // FF_LINUX: lift the flat runway/tarmac surface slightly ABOVE the terrain
