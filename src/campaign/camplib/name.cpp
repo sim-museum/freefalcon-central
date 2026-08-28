@@ -43,6 +43,27 @@ void LoadNames(char* filename)
 
     CampaignData cd = ReadCampFile(filename, "idx");
 
+#ifdef FF_LINUX
+    // FF_LINUX (ATO-1): a target displayed as "Nowhere" is NameTable index 0, the
+    // null-name fallback, and the PO sees TASK/TOT/TGT "Not available" in Balkans.
+    // The name table is <theater>.idx + <theater>.wch (NOT a .nam file -- that is
+    // an old commented-out implementation further down this file). Report whether
+    // it loads and how many entries it has. FF_DEBUG_NAMES=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0) ffDbg = getenv("FF_DEBUG_NAMES") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            fprintf(stderr, "[NAMES] LoadNames('%s') idx dataSize=%ld%s\n",
+                    filename ? filename : "(null)", (long)cd.dataSize,
+                    (cd.dataSize == -1) ? "  <-- FAILED TO OPEN" : "");
+            fflush(stderr);
+        }
+    }
+#endif
+
     if (cd.dataSize == -1)
     {
         return;
@@ -63,6 +84,15 @@ void LoadNames(char* filename)
     NameIndex = new short[NameEntries];
     memcpychk(NameIndex, &data_ptr, sizeof(short) * NameEntries, &rem);
 
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_NAMES"))
+    {
+        fprintf(stderr, "[NAMES] loaded %d entries, stream bytes=%d\n",
+                (int)NameEntries, NameEntries > 0 ? (int)NameIndex[NameEntries - 1] : -1);
+        fflush(stderr);
+    }
+#endif
+
     delete[] cd.data;  // FF_LINUX: Match new[] with delete[]
 }
 
@@ -78,6 +108,15 @@ void LoadNameStream(void)
     CampEnterCriticalSection();
     NameStream = new _TCHAR [NameIndex[NameEntries - 1]];
     fp = OpenCampFile(NameFile, "wch", "rb");
+
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_NAMES"))
+    {
+        fprintf(stderr, "[NAMES] LoadNameStream('%s'.wch) -> %s\n",
+                NameFile, fp ? "opened" : "FAILED TO OPEN (all names will be empty)");
+        fflush(stderr);
+    }
+#endif
 
     if (fp)
     {
