@@ -9506,3 +9506,85 @@ the final binary.
 **Bracket pkill patterns.** `pkill -f '/FFViper -d'` matched the invoking shell's own
 command line and killed it, leaving an orphaned game instance. This trap is already
 documented for `pgrep` in the project notes and was walked into anyway.
+
+### Later the same session — GUARD-1 closed, and three items opened by the PO
+
+**GUARD-1 closed with the strongest evidence of the session.** 27 unchecked
+`vuDatabase->Find()` dereferences guarded across campaign UI, message handlers, the
+ATO, UI globals and the sim. Closing gate — a full 34-mission sweep against the final
+binary:
+
+```
+rows=34   reached sim=34   crash-free=34
+42 assertion lines = 21 hits across 8 distinct sites
+```
+
+The only file appearing in both the assertion list and the changeset is `atm.cpp`,
+whose single site (`sq->GetRating(j) == 0 or uc->Scores[j] > 0` @843) is byte-identical
+at the same line before any of my changes, with every hunk in that file at 1460 or
+later. So: no crash, no mission failed to reach the sim, **no assertion originating
+from a file this item modified**. Deliberately *not* claimed: any comparison against
+the remembered ~38-line baseline, which came from a different build that also carries
+the ORDER-1/ORDER-3 fixes.
+
+Three fixes worth remembering:
+
+- `munition.cpp RestoreStores` — `gLoadoutFlightID` is looked up four times in that
+  file and **three** guard it. The file stated its own convention and this site broke
+  it. The early return must call `UI_Leave(Leave)` or the "fix" deadlocks the UI
+  instead of crashing.
+- `vuevent.cpp:348` — the guard existed *one line too late*:
+  `s = Find(sender_); sendAddress.ip = s->GetAddress().ip; if (s not_eq NULL) {...}`
+- `navsystem.cpp:394` — `ShiAssert(FALSE == F4IsBadReadPtr(pobjective, ...))` reads as
+  a guard and is not: live but **non-halting** here, so a bad pointer prints and falls
+  straight into `pobjective->brain->GetOppositeRunway()`.
+
+The scanner ended up filtering **five** false-positive shapes, every one found by
+reading its own output rather than trusting its count — including one where the
+capture regex backtracked and grabbed `e` out of `abe = ...`, silently hiding the very
+instance the pass was written from.
+
+**Two process rules earned here.** Do not rebuild while a sweep is running — a relink
+mid-run meant rows 1–12 used the old binary and 13+ would have used the new one, so
+the run was discarded and restarted. And bracket `pkill`/`pgrep` patterns:
+`pkill -f '/FFViper -d'` matched the invoking shell's own command line, killed it, and
+orphaned a game instance.
+
+**VIEW3-1 (PO): view 3 renders the runway when views 0/1/2 do not.** Reproduced
+headlessly on the first attempt. The view mapping was read from `keystrokes.key`
+rather than assumed — `1`=HUD, `2`=2D pit, `3`=**virtual cockpit**, `0`=orbit — so the
+odd one out is the 3D pit. TE-2 starts parked on the runway, so no flying is needed:
+`FF_SIM_KEY` switches views on a timer while `FF_VIEW_SCRIPT` captures. Prime suspect
+is the known seam between the 2D and 3D pit paths (NVG-4 existed precisely to make the
+2D path participate in a pipeline the 3D one already did). The PO's second question —
+would view 3 show bomb craters the others swallow — is a real prediction, because
+craters and the runway go through the same flat-surface/decal machinery, which would
+tie this to BOOM-2.
+
+**EPIC THEATERS-1 (PO): all seven theaters, not just two.** Sprint 1 swept every
+theater in `theater.lst`:
+
+| theater | loads | menu | crash | assertions |
+|---|---|---|---|---|
+| Korea | yes | yes | 0 | 0 |
+| Korea 2012 Theater | yes | yes | 0 | 0 |
+| EuroWar Theater | yes | yes | 0 | 0 |
+| Israeli | yes | yes | 0 | 1 |
+| Israel 2012 | yes | yes | 0 | 1 |
+| Israel Classic | yes | yes | 0 | 1 |
+| Balkans | yes | yes | 0 | 0 |
+
+So the epic is **not** about theaters failing to load. Two defects fell out of it:
+
+1. **An unrecognised theater name silently falls back to Korea.** `"Korea 2012 Theater "`
+   (the `.tdf` name has a *trailing space*) loads correctly; `"Korea 2012"` quietly
+   loads Korea with no message. My own first sweep row was therefore testing Korea
+   twice and looking clean — never assume the theater you set is the theater you got.
+2. **All three Israeli theaters hit `(int)Falcon4ClassTable[i].dataPtr < NumWeaponTypes`**
+   (`entity.cpp:285`) — a weapon-type index out of range in the same class table UAF-1
+   was about. Korea, EuroWar and Balkans do not. That is the next lead.
+
+**Still parked on observations only the PO can make:** BOOM-2 needs a bomb dropped on
+open ground away from any airbase; ATO-1 needs the Wine comparison, whose harness now
+works as far as the campaign-select screen (the Wine theater lives in the real Wine
+registry, and the COMMIT coordinate in the driver's header is for a different screen).
