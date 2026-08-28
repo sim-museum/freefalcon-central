@@ -2135,6 +2135,39 @@ void AirTaskingManagerClass::ScheduleAircraft(VU_ID abid, WayPoint w, int aircra
     // Find minutes to takeoff
     mins = (int)((w->GetWPArrivalTime() - scheduleTime) / CampaignMinutes);
 
+#ifdef FF_LINUX
+    // FF_LINUX (ATO-1): CampaignTime is uint32_t, so if this waypoint's arrival is
+    // BEFORE scheduleTime the subtraction does not go negative -- it wraps to ~4e9
+    // and mins becomes ~71582. block then lands far outside ATM_MAX_CYCLES, every
+    // "if (block < ATM_MAX_CYCLES)" below is skipped, and NO TAKEOFF SLOT IS FILLED.
+    // A flight with no slot never reaches the frag order, which is the PO's "no
+    // missions after 07:00". mission.cpp:1725 asserts on exactly this condition
+    // (arrival <= mission_time) but ShiAssert does not halt.
+    // FF_DEBUG_ATO=1 reports it rather than assuming it happens.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0) ffDbg = getenv("FF_DEBUG_ATO") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            static long ffWrapped = 0, ffTotal = 0;
+            ffTotal++;
+
+            if (w->GetWPArrivalTime() < scheduleTime)
+            {
+                ffWrapped++;
+                fprintf(stderr, "[ATO] WRAP arrival=%u < scheduleTime=%u -> mins=%d block=%d "
+                        "(ATM_MAX_CYCLES=%d) NO SLOT  [%ld of %ld]\n",
+                        (unsigned)w->GetWPArrivalTime(), (unsigned)scheduleTime,
+                        mins, mins / MIN_PLAN_AIR, (int)ATM_MAX_CYCLES,
+                        ffWrapped, ffTotal);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     // Find block and slot
     block = mins / MIN_PLAN_AIR;
     slot = mins % MIN_PLAN_AIR;
