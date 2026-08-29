@@ -818,7 +818,14 @@ void RenderGMRadar::DrawGMsquare(GroundMapVertex *v0, GroundMapVertex *v1, Groun
         context.StorePrimitiveVertexData(v2);
         context.StorePrimitiveVertexData(v3);
 #else
-        context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR, 4, (MPRVtxTexClr_t **) &v0);
+        // &v0 is NOT a 4-element array. v0..v3 are parameters: on Win32 every
+        // argument was pushed contiguously on the stack in order, so indexing
+        // off &v0 happened to walk v1, v2, v3. Under the x86-64 SysV ABI they
+        // arrive in registers and are spilled to arbitrary slots, so (&v0)[1]
+        // is garbage and DrawPrimitive segfaults dereferencing it. Build the
+        // array explicitly, exactly as the clipped branch above already does.
+        GroundMapVertex *vp[4] = { v0, v1, v2, v3 };
+        context.DrawPrimitive(MPR_PRM_TRIFAN, MPR_VI_COLOR, 4, (MPRVtxTexClr_t **) vp);
 #endif
     }
 }
