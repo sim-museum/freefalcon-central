@@ -13,6 +13,23 @@ misaligned, which is the signature of "bytes arrive, nothing decodes".
 Compares the ORDERED list of sizeof(...) widths each side of a pair uses. A
 mismatch in width or count means the two sides do not agree on the format.
 
+TRIAGE RESULT 2026-08-29: all three hits on the current tree are FALSE POSITIVES.
+  vu2/src/vu_nat.cpp        the fix writes sizeof(ip) (a variable) where Decode
+                            uses sizeof(uint32_t) (a type) -- same width, and the
+                            tool cannot resolve a variable to a width
+  falclib/msgsrc/radiochattermsg.cpp   both sides use
+                            sizeof(dataBlock) - sizeof(dataBlock.edata) then a
+                            count byte then per-element reads; the difference is
+                            Encode counting each field three times
+  campaign/campupd/cmpclass.cpp   ALREADY deliberately aligned -- Encode carries
+                            "FF_LINUX: write 4-byte fields to match Decode's
+                            int32_t reads". The apparent 69-vs-70 field gap is the
+                            size header, written into a staging buffer rather than
+                            *stream, so it falls outside the extraction pattern.
+So: 0 real defects found, 3/3 false positives. The tool earns its place only as a
+pointer at pairs worth reading by hand -- treat every hit as a question, never as
+a finding, and expect to spend a few minutes per hit.
+
 Validate against the pre-fix source before believing a zero:
     git show b7ade5e7^:src/vu2/src/vu_nat.cpp > /tmp/w/vu_nat.cpp
     python3 scripts/qa/wire-pair-audit.py /tmp/w
