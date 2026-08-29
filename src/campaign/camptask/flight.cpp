@@ -4028,6 +4028,19 @@ uchar FlightClass::GetPilotVoiceID(int pilot_slot)
 
     int pilot_id = GetPilotID(pilot_slot);
 
+#ifdef FF_LINUX
+    // FF_LINUX (PILOTIDX-1): pilot_id indexes PilotInfo[] with no bound. PilotInfo
+    // is new PilotInfoClass[NumPilots] (pilot.cpp:180) and NumPilots can be 0 --
+    // ASAN caught a READ 2 bytes BEFORE a 1-byte region here, reached from
+    // VehRwrClass::ObjectDetected -> FalconTrackMessage::Process on the RWR path.
+    // FlightClass::GetPilotID guards its own arguments but forwards to
+    // Squadron::GetPilotID, whose result is used raw. Return the same "unknown
+    // pilot" value the slot-exhausted path above returns.
+    if ( not PilotInfo or pilot_id < 0 or pilot_id >= NumPilots)
+        return 1;
+
+#endif
+
     if (PilotInfo[pilot_id].voice_id == 255)
         PilotInfo[pilot_id].AssignVoice(GetOwner());
 
