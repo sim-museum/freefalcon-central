@@ -9588,3 +9588,92 @@ So the epic is **not** about theaters failing to load. Two defects fell out of i
 open ground away from any airbase; ATO-1 needs the Wine comparison, whose harness now
 works as far as the campaign-select screen (the Wine theater lives in the real Wine
 registry, and the COMMIT coordinate in the driver's header is for a different screen).
+
+---
+
+## 2026-08-28/29 — nine items closed, four premises retracted
+
+Autonomous scrum, ~10 sprints. The headline is not the fixes: it is that **four
+backlog premises did not reproduce**, and that several of my own conclusions had
+to be retracted on measurement. Both patterns are recorded here because they are
+the expensive part.
+
+### Fixed and verified
+
+| item | defect | verification |
+|---|---|---|
+| MP-1 | `ComIPHostIDGet` wrote `sizeof(long)` (8 bytes on LP64) into `ComGROUP::HostID`, a 4-byte field, truncating the adjacent `GroupHead` pointer to `0x555500000000`. Going online segfaulted 5/5. | 5/5 clean post-fix; found with a hardware watchpoint, not by reading assignments |
+| GMRADAR-1 | `DrawGMsquare` passed `&v0` as if four *parameters* were a contiguous array. True under Win32's stack-passed args; on x86-64 SysV they arrive in registers, so `(&v0)[1]` is garbage. Maverick TE → A-G → S crashed. | automated A/B: pre-fix SIGSEGV, post-fix clean. `scripts/qa/gm-radar-repro.sh` |
+| SINK-2 | The 5 ft visual gear lift was applied only inside `if (OnGround())`, so at rotation it vanished in one frame and the drawn jet dropped 5 ft. | tapered over 25 ft AGL; `scale=0.501 at agl=12.4`; A/B shows 0 intermediate states before, non-zero after |
+| THEATERS-1 | `SetCurrentTheater` wrote `strlen` bytes for a `REG_SZ`; `FF_RegQueryValue` never terminates, so the reader parsed uninitialised stack. Worked only by luck. | round trip now self-consistent; all 7 theaters load their own data |
+
+### Premises that did not reproduce
+
+- **"Theater reverts to Korea"** — does not happen. All seven theaters resolve to
+  themselves and load their own campaign directory.
+- **"Campaign works only in Korea"** — every theater opens its own `save0.cam`.
+  Confirmed visually: the Balkans campaign runs with the 555th FS frag order.
+- **"The ATO generates no missions after 07:00"** — at ×64 it produced packages at
+  06:51, 06:52 and **07:25**. Earlier sprints could not see this because at ×1 a
+  150 s run advances campaign time ~2.5 minutes, far too little for a TOT to expire.
+- **"View 3 shows the runway when 1/2/0 do not"** — no per-view defect. All four
+  views are correct once loading settles; the early frames are the loading splash.
+
+These are all Balkans-era notes that predate the THEATER-1/TERRAIN-Z/GUARD-1 work.
+**Re-verify old observations against a current build before spending sprints on
+them.**
+
+### My own retractions
+
+- Reported "only view 1 is broken, it renders blue UI art". Wrong — I had sampled
+  it 3 s after sim entry. Holding the view showed it correct at 78/86/94 s.
+- Shipped a drawn-ground fix for BOOM-2 believing it would restore the fireball.
+  It did not. Kept on its own merits, credited with nothing.
+- Claimed a weapon-view capture proved no fireball rendered. The camera attaches
+  *to the bomb* ~5 ft from the detonation looking into the ground — very likely
+  inside the fireball. That evidence is inconclusive, not negative.
+- Fixed a lazy-init race in the comms critical section, measured, found it changed
+  nothing, and reverted it rather than leave an unevidenced change in threading code.
+
+### Coverage gap found
+
+GMRADAR-1 was a hard crash on a common action that survived **every** 34-mission TE
+sweep, because the sweep drives takeoff/flight/landing and never enters A-G, radar
+modes, MFD pages or the ICP. `scripts/qa/avionics-sweep.sh` now covers that surface.
+Its first version reported 0 crashes and was hollow — validated against the pre-fix
+build it failed to detect the very crash it existed for, because it never pressed
+ICP A-G and because the crash is mission-dependent (row 24 crashes, row 18 does not).
+**Never believe a zero from a scanner that has not been shown to find a known
+positive.** The same discipline caught two bugs in `lp64-audit.py`.
+
+### BOOM-2 / SINK-1 — narrowed, not solved
+
+Measured, in order: the effect **emits** (67 firings, full child set); its polys are
+**drawn and submitted** (0 before impact, 2958 after, none culled); it is **not**
+buried under terrain (drawn-ground A/B). The failure is downstream of
+`DX2D_AddQuad`, *or* every vantage tried so far was wrong. `FF_DEBUG_2DFLUSH` /
+`2DCAP` / `2DCENSUS` are the next instruments, from a third-party vantage.
+Note: an earlier "particle system exonerated end to end" result was obtained on the
+**air** explosion chain, which is a different chain from `$GROUND_EXPLOSION`.
+
+### New harness
+
+`FF_CAMP_TIMECOMP` (campaign hours in wall-clock minutes — this is what made the ATO
+testable at all), `FF_AP_MODE=1` (waypoint AP flies an approach unattended),
+`FF_TEST_BOMB`, `FF_SHOT_ON_IMPACT=<ms>` (deferred — capturing *at* impact predates
+any particle), `FF_TEST_EXPL_DIST`, `FF_MP_CONNECT`, `FF_DEBUG_DRAWNGND`,
+`FF_DEBUG_PSFIRE`, `FF_DEBUG_PSVIS`. Plus `scripts/qa/theater-sweep.sh`,
+`campaign-sweep.sh`, `avionics-sweep.sh`, `gm-radar-repro.sh`, `lp64-audit.py`.
+
+Gotchas worth keeping: `FF_SIM_KEY` times are seconds after **sim entry** (~55 s with
+the standard click track) — earlier times all fire at once. `FF_VIEW_SCRIPT` mode
+numbers are **not** the keys the PO presses (PO "3" = mode 4). Entering `ModeWeapon`
+with no weapon in flight silently does nothing. Never `setsid` a game run from a
+sweep — it detaches and the shell races the run.
+
+### Still needs the PO
+
+SINK-2 (does the rotation drop look right in view 0 now?), VIEW3-1 (were the bad
+frames inside the first ~15 s?), and BOOM-2's remaining question — whether a fireball
+is visible from a normal viewing distance, which is the one thing the harness has not
+yet been able to stage.
