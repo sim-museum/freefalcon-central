@@ -290,6 +290,36 @@ void AircraftClass::DoWeapons()
     if ( not SimDriver.RunningInstantAction() or gNumWeaponsInAir < gMaxIAWeaponsFired)
     {
         wasPostDrop = FCC->postDrop;
+#ifdef FF_LINUX
+        // FF_LINUX (BOOM-2): the existing FF_DEBUG_PICKLE trace only covers the A-A
+        // branch, so it stays silent in A-G and tells us nothing about why a bomb
+        // does not leave the jet. Report the whole weapon state once a second while
+        // the player is consenting, so the blocking condition is visible.
+        {
+            static int s_dbgW = -1;
+
+            if (s_dbgW < 0)
+                s_dbgW = getenv("FF_DEBUG_PICKLE") ? 1 : 0;
+
+            if (s_dbgW and isPlayer and FCC->releaseConsent)
+            {
+                static DWORD s_last = 0;
+                DWORD now = GetTickCount();
+
+                if (now - s_last >= 1000)
+                {
+                    s_last = now;
+                    fprintf(stderr, "[PICKLE] AG state: masterMode=%d subMode=%d curWeapon=%p "
+                            "wpnClass=%d masterArm=%d bombPickle=%d postDrop=%d onGround=%d\n",
+                            (int)FCC->GetMasterMode(), (int)FCC->GetSubMode(),
+                            (void*)Sms->curWeapon.get(), (int)Sms->curWeaponClass,
+                            (int)Sms->MasterArm(), (int)FCC->bombPickle,
+                            (int)FCC->postDrop, (int)OnGround());
+                    fflush(stderr);
+                }
+            }
+        }
+#endif
 
         // If in Selective jettison mode, stop here, since the pickle button has been usurped
         if (
