@@ -2717,6 +2717,38 @@ VU_ERRCODE VuSessionEntity::Handle(VuSessionEvent* event)
     int retval = VU_SUCCESS;
     SetKeepaliveTime(vuxRealTime);
 
+#ifdef FF_LINUX
+    // FF_LINUX (MP-1): comms is proven working both ways (f53c37f8) yet neither peer
+    // adopts the other's game -- both JoinGame with current_game=(nil). This is the
+    // only route in: a VU_SESSION_JOIN_GAME whose group_ id resolves through
+    // vuDatabase->Find. Report every session event RECEIVED and, for join/change,
+    // whether the Find succeeds. That separates "the event never arrives" from
+    // "it arrives and the game entity was never distributed". FF_DEBUG_MPCOMMS=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            static long ffN = 0;
+
+            if (++ffN <= 40)
+            {
+                VuEntity *ffFound = (event->subtype_ == VU_SESSION_JOIN_GAME
+                                     or event->subtype_ == VU_SESSION_CHANGE_GAME)
+                                    ? vuDatabase->Find(event->group_) : NULL;
+                fprintf(stderr, "[MPEVENT] subtype=%d group=%u find=%s\n",
+                        (int)event->subtype_, (unsigned)event->group_.num_,
+                        ffFound ? "HIT" : "-");
+                fflush(stderr);
+            }
+        }
+    }
+
+#endif
+
     switch (event->subtype_)
     {
         case VU_SESSION_CLOSE:
