@@ -826,6 +826,24 @@ void SimulationDriver::Cycle()
                     float gz0 = OTWDriver.GetGroundLevel(ac->XPos(), ac->YPos());
                     float agl = (gz0 > -99000.0f) ? (gz0 - ac->ZPos()) : 1500.0f;
                     float ahead = agl * 4.0f;
+                    // FF_TEST_EXPL_DIST=<ft> overrides the throw. At 12,000ft AGL
+                    // the 4x rule puts the burst ~9 miles out, where a fireball is
+                    // a few hazy pixels -- an A/B shot there shows nothing whether
+                    // the effect renders or not, which is how earlier BOOM-2 arms
+                    // measured the wrong thing.
+                    {
+                        static float ffDist = -1.0f;
+
+                        if (ffDist < 0.0f)
+                        {
+                            const char *d = getenv("FF_TEST_EXPL_DIST");
+                            ffDist = d ? (float)atof(d) : 0.0f;
+                        }
+
+                        if (ffDist > 0.0f)
+                            ahead = ffDist;
+                    }
+
                     if (ahead < 1500.0f)  ahead = 1500.0f;
                     if (ahead > 60000.0f) ahead = 60000.0f;
                     pos.x = ac->XPos() + vx / vmag * ahead;

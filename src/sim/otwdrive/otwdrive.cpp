@@ -3208,6 +3208,77 @@ void OTWDriverClass::FindNewOwnship(void)
     SetGraphicsOwnship(newOwnship);
 }
 
+#ifdef FF_LINUX
+// FF_LINUX (SINK-1/BOOM-2): the height the terrain is DRAWN at, which is not the
+// height physics collides against. Measured 2026-08-28 on an automated CCIP drop:
+// at one impact the physics ground was -1916.6 while the drawn posts were
+// lod0=-1930 and lod1=-1951 -- 13ft and 34ft ABOVE it (z is positive-DOWN, so a
+// SMALLER z is HIGHER). An impact effect clamped to the physics height is
+// therefore created UNDER the visible ground and cannot be seen, while the sound,
+// which has no z test, plays normally. That is the whole "bombs are swallowed,
+// I hear it but never see it" report.
+//
+// Uses the FINEST available LOD: when an explosion is close enough to be worth
+// seeing, that is what the terrain is drawn with. Deliberately only ever RAISES
+// the surface -- if the drawn ground is below physics, keeping physics leaves the
+// effect slightly above the drawn ground (visible, marginally floating), which is
+// the far better failure than burying it. FF_NO_DRAWN_GROUND=1 restores the old
+// physics-only answer.
+float FF_DrawnGroundLevel(float x, float y)
+{
+    float gl = OTWDriver.GetGroundLevel(x, y);
+
+    static int ffOff = -1;
+
+    if (ffOff < 0)
+        ffOff = getenv("FF_NO_DRAWN_GROUND") ? 1 : 0;
+
+    if (ffOff)
+        return gl;
+
+    RViewPoint *vp = OTWDriver.GetViewpoint();
+
+    if ( not vp)
+        return gl;
+
+    extern float FF_GroundLevelAtLOD(class TViewPoint *vp, float x, float y, int lod);
+
+    for (int L = 0; L <= 4; ++L)
+    {
+        const float z = FF_GroundLevelAtLOD((class TViewPoint *)vp, x, y, L);
+
+        if (z > -99000.0f)
+        {
+            if (z < gl)
+            {
+                static int ffDbg = -1;
+
+                if (ffDbg < 0)
+                    ffDbg = getenv("FF_DEBUG_DRAWNGND") ? 1 : 0;
+
+                if (ffDbg)
+                {
+                    static long ffN = 0;
+
+                    if ((ffN++ % 200) == 0)
+                    {
+                        fprintf(stderr, "[DRAWNGND] lod%d drawn=%.1f physics=%.1f raise=%.1f at (%.0f,%.0f)\n",
+                                L, z, gl, gl - z, x, y);
+                        fflush(stderr);
+                    }
+                }
+
+                gl = z;
+            }
+
+            break;
+        }
+    }
+
+    return gl;
+}
+#endif
+
 float OTWDriverClass::GetGroundLevel(float x, float y, Tpoint* normal)
 {
 #if NEW_SERVER_VIEWPOINT

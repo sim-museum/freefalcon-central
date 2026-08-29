@@ -1555,7 +1555,15 @@ void ParticleNode::Draw(class RenderOTW *renderer, int LOD)
         pos.y += vel.y * elapsedTime;
         pos.z += vel.z * elapsedTime;
 
+#ifdef FF_LINUX
+        // Clamp particles to the DRAWN surface, not the physics one -- see
+        // FF_DrawnGroundLevel in otwdrive.cpp. Clamping to the physics height is
+        // what buried every ground explosion.
+        extern float FF_DrawnGroundLevel(float x, float y);
+        float GroundLevel = DrawableParticleSys::groundLevel = FF_DrawnGroundLevel(pos.x, pos.y);
+#else
         float GroundLevel = DrawableParticleSys::groundLevel = OTWDriver.GetGroundLevel(pos.x, pos.y);
+#endif
 
         if (pos.z >= GroundLevel)
         {
@@ -1820,7 +1828,14 @@ void DrawableParticleSys::Draw(class RenderOTW *renderer, int LOD)
 
     if (n)
     {
+#ifdef FF_LINUX
+        {
+            extern float FF_DrawnGroundLevel(float x, float y);
+            groundLevel = FF_DrawnGroundLevel(n->pos.x, n->pos.y);
+        }
+#else
         groundLevel = OTWDriver.GetGroundLevel(n->pos.x, n->pos.y);
+#endif
         mlTrig trigWind;
         float wind;
 
@@ -3704,7 +3719,16 @@ void DrawableParticleSys::PS_AddParticle(int ID, Tpoint *Pos, Tpoint *Vel, Tpoin
 
     // Recalc Ground position
     pn.LastCalcPos = pn.pos;
+#ifdef FF_LINUX
+    // Per-particle ground must be the DRAWN surface too -- this is the value the
+    // EMITONEARTHIMPACT test reads, so it decides where the fireball children land.
+    {
+        extern float FF_DrawnGroundLevel(float x, float y);
+        pn.GroundLevel = FF_DrawnGroundLevel(pn.pos.x, pn.pos.y);
+    }
+#else
     pn.GroundLevel = OTWDriver.GetGroundLevel(pn.pos.x, pn.pos.y);
+#endif
 
     // Recalc Wind velocity
     mlTrig trigWind;
@@ -3781,7 +3805,14 @@ void DrawableParticleSys::PS_ParticleRun(void)
         {
             // Recalc Ground position
             Part.LastCalcPos = Part.pos;
+#ifdef FF_LINUX
+            {
+                extern float FF_DrawnGroundLevel(float x, float y);
+                Part.GroundLevel = FF_DrawnGroundLevel(Part.pos.x, Part.pos.y);
+            }
+#else
             Part.GroundLevel = OTWDriver.GetGroundLevel(Part.pos.x, Part.pos.y);
+#endif
             // Recalc Wind velocity
             Part.Wind = ((WeatherClass*)realWeather)->GetWindVector();
             Part.Wind.x *= ppn->WindFactor;
