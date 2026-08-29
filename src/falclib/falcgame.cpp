@@ -262,6 +262,21 @@ FalconGameType FalconGameEntity::GetGameType(void)
     if ( not this)
         return game_PlayerPool;
 
+#ifdef FF_LINUX
+    // FF_LINUX (GAMETYPE-1): the player-pool game is a VuPlayerPoolGame, which is a
+    // SIBLING of FalconGameEntity (both derive from VuGameEntity, neither from the
+    // other) -- so reading gameType off it reads memory the object does not have.
+    // ASAN: READ of size 4, 0 bytes after the 464-byte VuPlayerPoolGame allocated
+    // at vu_thread.cpp:626, reached via FalconLocalGame->GetGameType() in
+    // UIComms::SetStatsFile during logbook load.
+    // The intent already exists in the tree, commented out at ui/src/comms/info.cpp:54
+    //     //if(FalconLocalGame == vuPlayerPoolGroup)
+    // and this function's own null-this hack returns exactly game_PlayerPool.
+    if ((void*)this == (void*)vuPlayerPoolGroup)
+        return game_PlayerPool;
+
+#endif
+
     return gameType;
 }
 
