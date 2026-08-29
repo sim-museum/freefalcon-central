@@ -74,6 +74,29 @@ void OnSimKeyboardInput()
                         state or_eq (ShiftCount > 0 ? SHIFT_KEY : 0);
                         state or_eq (CtrlCount > 0 ? CTRL_KEY : 0);
                         state or_eq (AltCount > 0 ? ALT_KEY : 0);
+#ifdef FF_LINUX
+                        // FF_DEBUG_KEYSTATE=1: report the dispatched key and the
+                        // modifier state actually computed for it. Needed because
+                        // "the modified binding did not visibly fire" cannot
+                        // distinguish a modifier that never reached the sim from
+                        // one that reached it and did something invisible.
+                        {
+                            static int ffKsDbg = -1;
+
+                            if (ffKsDbg < 0)
+                                ffKsDbg = getenv("FF_DEBUG_KEYSTATE") ? 1 : 0;
+
+                            if (ffKsDbg)
+                            {
+                                fprintf(stderr, "[KEYSTATE] dik=0x%02x state=0x%x"
+                                        " (shift=%d ctrl=%d alt=%d)\n",
+                                        (unsigned)ObjData[i].dwOfs, (unsigned)state,
+                                        ShiftCount, CtrlCount, AltCount);
+                                fflush(stderr);
+                            }
+                        }
+
+#endif
                         CallInputFunction(ObjData[i].dwOfs, state);
                         break;
                 }

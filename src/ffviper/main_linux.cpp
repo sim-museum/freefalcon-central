@@ -3144,7 +3144,7 @@ static void main_loop(void) {
         // so the full sim input path is exercised. For automated testing of issue #14.
         if (!doUI) {
             static int s_keyInit = 0;
-            static struct { int dik; Uint32 atMs; Uint32 holdMs; int phase; Uint32 downAt; } s_keys[16];
+            static struct { int dik; int mods[3]; int nMods; Uint32 atMs; Uint32 holdMs; int phase; Uint32 downAt; } s_keys[16];
             static int s_nKeys = 0;
             static Uint32 s_simKeyStart = 0;
             if (!s_keyInit) {
@@ -3155,8 +3155,38 @@ static void main_loop(void) {
                     strncpy(buf, e, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
                     for (char* tok = strtok(buf, ";"); tok && s_nKeys < 16; tok = strtok(NULL, ";")) {
                         unsigned dik; float at; unsigned hold = 250;
-                        if (sscanf(tok, "%i@%f+%u", &dik, &at, &hold) >= 2) {
+                        // FF_LINUX (AVIONICS-1): optional modifier prefix S/C/A.
+                        // config/keystrokes.key gives every binding a modifier
+                        // column, and bindings SHARE a DIK across modifiers --
+                        // 0x3C is SimRadarAGModeStep at modifier 0 and
+                        // SimHUDPower at modifier 5. Sending a bare DIK could
+                        // only ever reach the modifier-0 half of the key map.
+                        // The sim derives its modifier state from seeing
+                        // DIK_LSHIFT/LCONTROL/LMENU in the same event stream
+                        // (sikeybd.cpp ShiftCount/CtrlCount/AltCount), so a
+                        // modifier just needs to be held around the key.
+                        const char* kt = tok;
+                        int mods[3]; int nMods = 0;
+
+                        while (*kt == ' ') kt++;
+
+                        // Prefixes STACK, e.g. "SA0x3C@60" = shift+alt. They have to:
+                        // in config/keystrokes.key the modifier column is a bitmask
+                        // (SHIFT 1, CTRL 2, ALT 4) and the combinations 3/5/6/7 hold
+                        // 109 of the 275 bindings. Modifier 0 is only 53 of them, so
+                        // a bare-DIK harness could reach under a fifth of the key map.
+                        while (nMods < 3) {
+                            if (*kt == 'S' || *kt == 's') mods[nMods++] = 0x2A;       // DIK_LSHIFT
+                            else if (*kt == 'C' || *kt == 'c') mods[nMods++] = 0x1D;  // DIK_LCONTROL
+                            else if (*kt == 'A' || *kt == 'a') mods[nMods++] = 0x38;  // DIK_LMENU
+                            else break;
+                            kt++;
+                        }
+
+                        if (sscanf(kt, "%i@%f+%u", &dik, &at, &hold) >= 2) {
                             s_keys[s_nKeys].dik = (int)dik;
+                            s_keys[s_nKeys].nMods = nMods;
+                            for (int mi = 0; mi < nMods; mi++) s_keys[s_nKeys].mods[mi] = mods[mi];
                             s_keys[s_nKeys].atMs = (Uint32)(at * 1000.0f);
                             s_keys[s_nKeys].holdMs = hold;
                             s_keys[s_nKeys].phase = 0;
@@ -3173,12 +3203,24 @@ static void main_loop(void) {
                     if (s_keys[ki].phase == 0 && el >= s_keys[ki].atMs) {
                         s_keys[ki].phase = 1;
                         s_keys[ki].downAt = el;
-                        fprintf(stderr, "[FF_SIM_KEY] DOWN dik=0x%02x at %ums\n", s_keys[ki].dik, el);
+                        fprintf(stderr, "[FF_SIM_KEY] DOWN dik=0x%02x nmods=%d at %ums\n",
+                                s_keys[ki].dik, s_keys[ki].nMods, el);
+
+                        // modifiers go down BEFORE the key so ShiftCount/CtrlCount/
+                        // AltCount are already raised when the key is dispatched
+                        for (int mi = 0; mi < s_keys[ki].nMods; mi++)
+                            FF_PushKeyEvent(s_keys[ki].mods[mi], true);
+
                         FF_PushKeyEvent(s_keys[ki].dik, true);
                     } else if (s_keys[ki].phase == 1 && el >= s_keys[ki].downAt + s_keys[ki].holdMs) {
                         s_keys[ki].phase = 2;
-                        fprintf(stderr, "[FF_SIM_KEY] UP   dik=0x%02x at %ums\n", s_keys[ki].dik, el);
+                        fprintf(stderr, "[FF_SIM_KEY] UP   dik=0x%02x nmods=%d at %ums\n",
+                                s_keys[ki].dik, s_keys[ki].nMods, el);
                         FF_PushKeyEvent(s_keys[ki].dik, false);
+
+                        // released AFTER, so the counts never drop early
+                        for (int mi = 0; mi < s_keys[ki].nMods; mi++)
+                            FF_PushKeyEvent(s_keys[ki].mods[mi], false);
                     }
                 }
             }
