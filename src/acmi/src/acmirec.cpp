@@ -7,6 +7,7 @@
 ** We go dancing in.....
 */
 #pragma optimize( "", off )
+#include <float.h>
 #include <windows.h>
 #include <conio.h>
 #include <stdio.h>
@@ -133,7 +134,25 @@ ACMIRecorder::StartRecording(void)
         return;
 
     // set our max file size now
+    // FF_LINUX (ACMI-1): the PO reports many short tapes per session. This is why:
+    // the recorder ROTATES to a new numbered file every ACMIFileSize megabytes
+    // (default 5, playerop.cpp:59), via the check at the bottom of TracerRecord --
+    // StopRecording() then SimDriver.doFile = TRUE to start the next tape. At the
+    // measured rate (~528KB per 100s of flight) that is a new file roughly every
+    // 15 minutes, inside a single continuous flight.
+    // ACMIFileSize <= 0 now means UNLIMITED -- one tape for the whole session.
+    // FF_ACMI_MAXMB=<n> overrides it without touching the saved profile (0 =
+    // unlimited), so this can be exercised without the Setup screen.
     _maxBytesToWrite = 1000000.0f * PlayerOptions.ACMIFileSize;
+    {
+        const char *ffMax = getenv("FF_ACMI_MAXMB");
+
+        if (ffMax)
+            _maxBytesToWrite = 1000000.0f * (float)atof(ffMax);
+
+        if (_maxBytesToWrite <= 0.0f)
+            _maxBytesToWrite = FLT_MAX;   // no rotation
+    }
 
     // find a suitable name for flight file
     for (y = 0; y < 10000; y++)
