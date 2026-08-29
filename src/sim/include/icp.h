@@ -14,6 +14,11 @@
 // ================================= \\
 
 #define ICP_NAV_BUTTON_ID 1012 //
+// FF_LINUX (CKPTID-1): cockpit button ids start at 1001. Anything below this in
+// the keystrokes.key id column is a device/HOTAS function id, not a button --
+// verified against all 430 pit .dat files (lowest declared BUTTON id is 1001).
+#define FF_CPBUTTON_ID_BASE 1000
+
 #define ICP_AA_BUTTON_ID 1013 // These must match the values in the cockpit
 #define ICP_AG_BUTTON_ID 1014 // script files...
 #define ICP_ILS_BUTTON_ID 1015 //

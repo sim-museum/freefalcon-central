@@ -519,7 +519,23 @@ void CallInputFunction(unsigned long val, int state)
         // Call the Function
         if (theFunc)
         {
-            if (buttonId < 0)
+            // FF_LINUX (CKPTID-1): config/keystrokes.key uses TWO id namespaces in
+            // this column. Cockpit button ids start at 1001; ids 1-7 are device /
+            // HOTAS function ids attached to dik=-2 bindings and are NOT cockpit
+            // buttons. Measured across all 430 pit .dat files in the game data:
+            // the lowest declared BUTTON id anywhere is 1001, and NO pit declares
+            // any id 1-7. Passing those to GetButtonPointer made it search the
+            // button table, fail, fire its (non-halting) F4Assert and return NULL
+            // -- eight bindings asserting by design in normal play, which both
+            // masked genuine missing buttons and produced the NULL that
+            // SimNextAAWeapon / SimNextAGWeapon dereferenced (CPBTN-1, ids 4 and 5).
+            // FF_NO_BTNID_RANGE=1 restores the old <0-only test.
+            static int ffNoRange = -1;
+
+            if (ffNoRange < 0)
+                ffNoRange = getenv("FF_NO_BTNID_RANGE") ? 1 : 0;
+
+            if (buttonId < 0 or ( not ffNoRange and buttonId < FF_CPBUTTON_ID_BASE))
             {
                 //theFunc(val, state, NULL);
                 CallFunc(theFunc, val, state, NULL);
