@@ -352,6 +352,8 @@ static bool g_gameInitialized = false;
 static bool g_autoTestInstantAction = false;  // TEST: Set by auto-launch code
 bool g_testInstantActionFlag = false;  // Command-line flag for auto-testing
 volatile int g_requestedPanel = -1;  // Set by main thread, read by sim thread for view testing
+volatile unsigned long g_ffImpactShotAt = 0;   // deferred impact capture (FF_SHOT_ON_IMPACT=<ms>)
+const char *g_ffImpactShotName = 0;
 volatile int g_requestedViewMode = -1;  // Set by main thread, -1=none, 0=HUD, 1=cockpit, 2=chase, 3=orbit
 volatile int g_requestedNVGToggle = 0;  // FF_LINUX (NVG-2): set by main thread, consumed on the sim thread
 volatile int g_screenshotRequest = 0;   // Set by main thread, read by sim thread to take screenshot

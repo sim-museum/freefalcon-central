@@ -453,8 +453,25 @@ int FalconMissileEndMessage::Process(uchar autodisp)
                             static char ffShotPath[64];
                             static int ffShotN = 0;
                             snprintf(ffShotPath, sizeof(ffShotPath), "/tmp/ff_impact_%d.bmp", ffShotN++);
+                            // FF_SHOT_ON_IMPACT=<ms> defers the capture. Firing it on
+                            // the impact message grabs the frame in which the effect is
+                            // CREATED -- no particle has been drawn yet, so the shot is
+                            // identical with or without any effect fix. Measured: the
+                            // fixed and unfixed arms produced byte-comparable frames.
+                            const int ffDelay = atoi(getenv("FF_SHOT_ON_IMPACT"));
+
+                            if (ffDelay > 1)
+                            {
+                                extern volatile unsigned long g_ffImpactShotAt;
+                                extern const char *g_ffImpactShotName;
+                                g_ffImpactShotName = ffShotPath;
+                                g_ffImpactShotAt = GetTickCount() + (unsigned long)ffDelay;
+                            }
+                            else
+                            {
                             g_screenshotFilename = ffShotPath;
                             g_screenshotRequest = 1;
+                            }
                             fprintf(stderr, "[IMPACTSHOT] requested %s\n", ffShotPath);
                             fflush(stderr);
                         }

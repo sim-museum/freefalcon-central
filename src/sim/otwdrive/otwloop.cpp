@@ -258,6 +258,21 @@ void OTWDriverClass::Cycle(void)
     // FF_LINUX (NVG-2): cross-thread NVG toggle request. NVGToggle() has to run
     // on the sim thread for the same reason the view-mode change does, so the
     // main thread only raises a flag. Driven by FF_TEST_NVG=<sec>[,<sec>...].
+    // FF_LINUX (BOOM-2 harness): deferred impact screenshot. See FF_SHOT_ON_IMPACT.
+    {
+        extern volatile unsigned long g_ffImpactShotAt;
+        extern const char *g_ffImpactShotName;
+        extern volatile int g_screenshotRequest;
+        extern const char *g_screenshotFilename;
+
+        if (g_ffImpactShotAt and GetTickCount() >= g_ffImpactShotAt)
+        {
+            g_ffImpactShotAt = 0;
+            g_screenshotFilename = g_ffImpactShotName;
+            g_screenshotRequest = 1;
+        }
+    }
+
     {
         extern volatile int g_requestedNVGToggle;
 
