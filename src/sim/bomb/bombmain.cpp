@@ -942,6 +942,40 @@ int BombClass::Exec(void)
 
         // check for feature collision impact
 
+#ifdef FF_LINUX
+        // FF_LINUX (BOOM-2): the PO reports the bomb visibly entering the terrain
+        // and the blast arriving ~0.5s LATER. At fall speed that is hundreds of feet
+        // of travel below the surface the renderer is showing, which would put the
+        // (proven healthy) explosion under the visible ground. Trace the last second
+        // of the fall: weapon z, the physics ground it will collide against, and the
+        // drawn ground the renderer uses. FF_DEBUG_BOMBFALL=1.
+        {
+            static int ffDbg = -1;
+
+            if (ffDbg < 0)
+                ffDbg = getenv("FF_DEBUG_BOMBFALL") ? 1 : 0;
+
+            if (ffDbg and (z - terrainHeight) > -3000.0f)
+            {
+                static DWORD ffLast = 0;
+                DWORD ffNow = GetTickCount();
+
+                if (ffNow - ffLast >= 100)
+                {
+                    ffLast = ffNow;
+                    extern float FF_DrawnGroundLevel(float x, float y);
+                    const float ffDrawn = FF_DrawnGroundLevel(XPos(), YPos());
+                    fprintf(stderr, "[BOMBFALL] z=%.1f physicsGnd=%.1f drawnGnd=%.1f "
+                            "abovePhysics=%.1f aboveDrawn=%.1f zdot=%.1f\n",
+                            (double)z, (double)terrainHeight, (double)ffDrawn,
+                            (double)(terrainHeight - z), (double)(ffDrawn - z),
+                            (double)ZDelta());
+                    fflush(stderr);
+                }
+            }
+        }
+#endif
+
         if (bombType == None and z - terrainHeight > -800.0f)
         {
             hitObj = FeatureCollision(terrainHeight);

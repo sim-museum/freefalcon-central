@@ -3241,11 +3241,28 @@ float FF_DrawnGroundLevel(float x, float y)
     if ( not vp)
         return gl;
 
+    // FF_LINUX (BOOM-2): use the INTERPOLATED surface, not the nearest post.
+    // FF_GroundLevelAtLOD returns the nearest terrain post; the renderer draws
+    // interpolated triangles between posts, so on a slope the two differ -- and that
+    // difference was sinking ground explosions, because the particle system emits its
+    // fireball children exactly at the ground level it is given. Proven by the PO's
+    // control experiment: a crash into WATER (flat, where nearest-post and
+    // interpolated agree) showed the COMPLETE fireball, while the same crash into
+    // sloped terrain showed only its top cap. FF_DRAWN_GROUND_NEAREST=1 restores the
+    // old nearest-post behaviour for A/B.
     extern float FF_GroundLevelAtLOD(class TViewPoint *vp, float x, float y, int lod);
+    extern float FF_InterpGroundLevelAtLOD(class TViewPoint *vp, float x, float y, int lod);
+
+    static int ffNearest = -1;
+
+    if (ffNearest < 0)
+        ffNearest = getenv("FF_DRAWN_GROUND_NEAREST") ? 1 : 0;
 
     for (int L = 0; L <= 4; ++L)
     {
-        const float z = FF_GroundLevelAtLOD((class TViewPoint *)vp, x, y, L);
+        const float z = ffNearest
+                        ? FF_GroundLevelAtLOD((class TViewPoint *)vp, x, y, L)
+                        : FF_InterpGroundLevelAtLOD((class TViewPoint *)vp, x, y, L);
 
         if (z > -99000.0f)
         {

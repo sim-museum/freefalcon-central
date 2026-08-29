@@ -1974,7 +1974,53 @@ void SmsDrawable::MaverickDisplay(void)
     if (Sms->curWeapon)
     {
         ShiAssert(Sms->curWeapon->IsMissile());
+#ifdef FF_LINUX
+        // FF_LINUX (MAV-1): two defects on this page, which is the one the PO could
+        // not get to display in the Maverick TE.
+        //
+        // 1. ShiAssert is LIVE BUT NON-HALTING in this build, so the assertion above
+        //    reports a non-missile and then execution continues straight into a
+        //    MissileClass* cast and a read of ->display. On a non-missile that
+        //    pointer is garbage, and the IsSOI() call below dereferences it.
+        // 2. mavDisplay is NULL-checked for the Display() block and then
+        //    dereferenced UNGUARDED by IsSOI() immediately after -- a guard
+        //    sequenced before the access it was meant to protect, then dropped.
+        //    The commented-out lines further down ("mavDisplay and
+        //    mavDisplay->CurFOV()") show the author knew it could be NULL.
+        const bool ffIsMissile = Sms->curWeapon->IsMissile();
+
+        if ( not ffIsMissile)
+        {
+            static long ffN = 0;
+
+            if (++ffN <= 4)
+            {
+                fprintf(stderr, "[MAV1] MaverickDisplay: curWeapon is NOT a missile "
+                        "(class=%d) -- would have read ->display off a bad cast\n",
+                        (int)Sms->curWeaponClass);
+                fflush(stderr);
+            }
+        }
+
+        mavDisplay = ffIsMissile
+                     ? (MaverickDisplayClass*)((MissileClass*)Sms->GetCurrentWeapon())->display
+                     : NULL;
+
+        if ( not mavDisplay)
+        {
+            static long ffM = 0;
+
+            if (++ffM <= 4)
+            {
+                fprintf(stderr, "[MAV1] MaverickDisplay: no display object "
+                        "(isMissile=%d) -- IsSOI() would have crashed here\n",
+                        (int)ffIsMissile);
+                fflush(stderr);
+            }
+        }
+#else
         mavDisplay = (MaverickDisplayClass*)((MissileClass*)Sms->GetCurrentWeapon())->display;
+#endif
 
         if (mavDisplay)
         {
@@ -1983,7 +2029,7 @@ void SmsDrawable::MaverickDisplay(void)
             mavDisplay->Display(display);
         }
 
-        if (mavDisplay->IsSOI())
+        if (mavDisplay and mavDisplay->IsSOI())
             LabelButton(1, "VIS", "");
         else
             LabelButton(1, "PRE", "");
@@ -1999,7 +2045,13 @@ void SmsDrawable::MaverickDisplay(void)
     float ZoomMin;
     float ZoomMax;
 
-    if ((MissileClass*)Sms->GetCurrentWeapon() and ((MissileClass*)Sms->GetCurrentWeapon())->GetEXPLevel() > 0 and ((MissileClass*)Sms->GetCurrentWeapon())->GetFOVLevel() > 0)
+    // FF_LINUX (MAV-1): "(MissileClass*)ptr and ..." is a vacuous test -- a cast
+    // never turns a non-NULL pointer into NULL -- so GetEXPLevel()/GetFOVLevel()
+    // were called on whatever the current weapon happened to be. Require an actual
+    // missile before treating it as one.
+    if (Sms->GetCurrentWeapon() and Sms->GetCurrentWeapon()->IsMissile() and
+        ((MissileClass*)Sms->GetCurrentWeapon())->GetEXPLevel() > 0 and
+        ((MissileClass*)Sms->GetCurrentWeapon())->GetFOVLevel() > 0)
     {
         ZoomMin = ((MissileClass*)Sms->GetCurrentWeapon())->GetFOVLevel();
         ZoomMax = ((MissileClass*)Sms->GetCurrentWeapon())->GetEXPLevel();

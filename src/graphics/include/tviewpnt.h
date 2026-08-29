@@ -142,6 +142,7 @@ public:
     // FF_LINUX (TERRAIN-Z): post height at a forced LOD, for measuring the
     // physics-vs-rendered terrain disagreement. -99999 if that LOD has no data.
     float FFPostZAtLOD(float x, float y, int lod);
+    float FFInterpZAtLOD(float x, float y, int lod);
 #endif
     // sfr: new prototype with LOD level
 #define USE_GET_LOD_LEVEL 1

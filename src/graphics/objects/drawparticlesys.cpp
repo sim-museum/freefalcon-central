@@ -3359,6 +3359,37 @@ void  DrawableParticleSys::PS_EmitterRun(void)
 
                 // * EARTH IMPACT * if on ground
             case PSEM_EARTHIMPACT:
+#ifdef FF_LINUX
+                    // FF_LINUX (BOOM-2): every visible part of a bomb explosion
+                    // ($GROUND_EXPLOSION -> _mk81 -> flash/fireball/smoke/shockring)
+                    // is EMITONEARTHIMPACT, and the carrier _mk81 is itself invisible
+                    // (alpha=0, drawtype=none) with initialvelocity=0. So if the
+                    // carrier spawns even slightly ABOVE its captured GroundLevel it
+                    // never crosses the plane, this test never passes, and nothing is
+                    // ever drawn -- while the sound, which is on a separate path,
+                    // still plays. That is exactly the reported symptom.
+                    {
+                        static int ffDbg = -1;
+
+                        if (ffDbg < 0)
+                            ffDbg = getenv("FF_DEBUG_PSMAP") ? 1 : 0;
+
+                        if (ffDbg)
+                        {
+                            static long ffN = 0;
+
+                            if (++ffN <= 40)
+                            {
+                                fprintf(stderr, "[PSEARTH] epos.z=%.2f groundLevel=%.2f delta=%.2f -> %s\n",
+                                        (double)epos.z, (double)Part.GroundLevel,
+                                        (double)(epos.z - Part.GroundLevel),
+                                        (epos.z >= Part.GroundLevel) ? "EMIT" : "no-emit");
+                                fflush(stderr);
+                            }
+                        }
+                    }
+#endif
+
                     if (epos.z >= Part.GroundLevel)
                     {
                         epos.z = Part.GroundLevel;
@@ -5239,6 +5270,63 @@ void DrawableParticleSys::PS_Exec(class RenderOTW *renderer)
 
     // Sounds
     PS_SoundRun();
+
+#ifdef FF_LINUX
+    // FF_LINUX (BOOM-2): the bomb explosion is emitted correctly (measured: all five
+    // EMITONEARTHIMPACT emitters fire at delta=0.00) yet nothing is seen. Report what
+    // survives each stage once a second, so the loss can be localised to
+    // "nothing alive" vs "alive but cluster-culled" vs "alive, in, but no polys".
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_PSMAP") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            static DWORD ffLast = 0;
+            DWORD ffNow = GetTickCount();
+
+            if (ffNow - ffLast >= 1000)
+            {
+                ffLast = ffNow;
+                int nPart = 0, nPoly = 0, nClus = 0, nOut = 0;
+
+                for (PS_PTR q = PS_Lists[PS_PARTICLES_IDX].ListEntry; q not_eq PS_NOPTR; )
+                {
+                    ParticleNodeType &n = ((ParticleNodeType*)PS_Lists[PS_PARTICLES_IDX].ObjectList)[q];
+                    nPart++;
+                    q = n.NEXT;
+                }
+
+                for (PS_PTR q = PS_Lists[PS_POLYS_IDX].ListEntry; q not_eq PS_NOPTR; )
+                {
+                    PolySubPartType &n = ((PolySubPartType*)PS_Lists[PS_POLYS_IDX].ObjectList)[q];
+                    nPoly++;
+                    q = n.NEXT;
+                }
+
+                for (PS_PTR q = PS_Lists[PS_CLUSTERS_IDX].ListEntry; q not_eq PS_NOPTR; )
+                {
+                    ClusterPosType &n = ((ClusterPosType*)PS_Lists[PS_CLUSTERS_IDX].ObjectList)[q];
+                    nClus++;
+
+                    if (n.Out)
+                        nOut++;
+
+                    q = n.NEXT;
+                }
+
+                if (nPart or nPoly or nClus)
+                {
+                    fprintf(stderr, "[PSSTAT] particles=%d polys=%d clusters=%d culledOut=%d\n",
+                            nPart, nPoly, nClus, nOut);
+                    fflush(stderr);
+                }
+            }
+        }
+    }
+#endif
 
     //STOP_PROFILE("New PS");
 }

@@ -487,6 +487,84 @@ float FF_GroundLevelAtLOD(TViewPoint *vp, float x, float y, int lod)
     return vp ? vp->FFPostZAtLOD(x, y, lod) : -99999.0f;
 }
 
+// FF_LINUX (BOOM-2/TERRAIN-Z): the INTERPOLATED surface at a forced LOD.
+//
+// FFPostZAtLOD above returns the NEAREST POST, but the renderer draws interpolated
+// triangles between posts, so on any slope the two disagree -- by more the coarser
+// the LOD, since post spacing grows with it. That error is what sank ground
+// explosions: the particle system emits its fireball children exactly at the ground
+// level it is handed (drawparticlesys.cpp, PSEM_EARTHIMPACT clamps epos.z to
+// Part.GroundLevel), so a too-low value buries the whole effect and only its top cap
+// clears the drawn surface.
+//
+// The PO's own control experiment isolated this: a jet crashed into WATER showed the
+// COMPLETE fireball, while the same crash into sloped terrain showed only the top.
+// Water is flat, and on flat ground nearest-post and interpolated agree exactly.
+//
+// This mirrors the plane interpolation in GetGroundLevel (same triangle split, same
+// normal-dot-product solve), but at a CALLER-CHOSEN LOD instead of the finest
+// available one. Returns -99999 when that LOD has no data for the point.
+float TViewPoint::FFInterpZAtLOD(float x, float y, int lod)
+{
+    if (lod < minLOD or lod > maxLOD)
+        return -99999.0f;
+
+    const int row = WORLD_TO_LEVEL_POST(x, lod);
+    const int col = WORLD_TO_LEVEL_POST(y, lod);
+
+    EnterCriticalSection(&cs_update);
+
+    float ret = -99999.0f;
+
+    if (blockLists[lod].RangeFromCenter(row, col) < blockLists[lod].GetAvailablePostRange())
+    {
+        Tpost *p1 = blockLists[lod].GetPost(row,     col);
+        Tpost *p3 = blockLists[lod].GetPost(row + 1, col + 1);
+
+        if (p1 and p3)
+        {
+            const float x_pos = x - LEVEL_POST_TO_WORLD(row, lod);
+            const float y_pos = y - LEVEL_POST_TO_WORLD(col, lod);
+            const float Nz = -TheMap.Level(lod)->FTperPOST(); // positive Z is down
+            const bool upperLeft = (x_pos >= y_pos);
+            Tpost *p2 = upperLeft ? blockLists[lod].GetPost(row + 1, col)
+                                  : blockLists[lod].GetPost(row,     col + 1);
+
+            if (p2 and Nz not_eq 0.0f)
+            {
+                float Nx, Ny;
+
+                if (upperLeft)
+                {
+                    Nx = p2->z - p1->z;
+                    Ny = p3->z - p2->z;
+                }
+                else
+                {
+                    Nx = p3->z - p2->z;
+                    Ny = p2->z - p1->z;
+                }
+
+                ret = p1->z - Nx / Nz * x_pos - Ny / Nz * y_pos;
+            }
+            else
+            {
+                ret = p1->z;
+            }
+        }
+    }
+
+    LeaveCriticalSection(&cs_update);
+    return ret;
+}
+
+float FF_InterpGroundLevelAtLOD(TViewPoint *vp, float x, float y, int lod);
+
+float FF_InterpGroundLevelAtLOD(TViewPoint *vp, float x, float y, int lod)
+{
+    return vp ? vp->FFInterpZAtLOD(x, y, lod) : -99999.0f;
+}
+
 float TViewPoint::FFPostZAtLOD(float x, float y, int lod)
 {
     if (lod < minLOD or lod > maxLOD)
