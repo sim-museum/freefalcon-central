@@ -307,9 +307,14 @@ int LoadClassTable(char *filename)
                         if (ffN <= 12 or (ffN % 25) == 0)
                         {
                             fprintf(stderr, "[CLASSTBL] weapon entry %d: dataPtr index %d >= NumWeaponTypes %d"
-                                    "  (OOB write of .Index would follow)  [%d so far]\n",
+                                    "  (OOB write of .Index would follow)  [%d so far] domain=%d class=%d type=%d stype=%d sptype=%d\n",
                                     i, (int)(intptr_t)Falcon4ClassTable[i].dataPtr,
-                                    (int)NumWeaponTypes, ffN);
+                                    (int)NumWeaponTypes, ffN,
+                                (int)Falcon4ClassTable[i].vuClassData.classInfo_[VU_DOMAIN],
+                                (int)Falcon4ClassTable[i].vuClassData.classInfo_[VU_CLASS],
+                                (int)Falcon4ClassTable[i].vuClassData.classInfo_[VU_TYPE],
+                                (int)Falcon4ClassTable[i].vuClassData.classInfo_[VU_STYPE],
+                                (int)Falcon4ClassTable[i].vuClassData.classInfo_[VU_SPTYPE]);
                             fflush(stderr);
                         }
                     }
