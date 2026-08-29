@@ -322,6 +322,31 @@ static int MessagePoll(VuCommsContext* ctxt)
             while (data < end)
             {
                 data += ReadMessageHeader(data, &mhdr);
+#ifdef FF_LINUX
+                // FF_LINUX (MP-1): bytes provably arrive (f53c37f8) but ZERO session
+                // events are dispatched (66fbda1c). This is where a datagram becomes
+                // messages. Report the length received, the sender lookup, and each
+                // message header -- a decode that silently mis-parses shows up here
+                // as absurd types/lengths. FF_DEBUG_MPCOMMS=1.
+                {
+                    static int ffDbg = -1;
+                    static long ffN = 0;
+
+                    if (ffDbg < 0)
+                        ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+                    if (ffDbg and ++ffN <= 25)
+                    {
+                        fprintf(stderr, "[MPRECV] len=%d senderFound=%d target=%u "
+                                "msgType=%d msgLen=%d\n",
+                                (int)length, sender ? 1 : 0,
+                                (unsigned)phdr.targetId_.num_,
+                                (int)mhdr.type_, (int)mhdr.length_);
+                        fflush(stderr);
+                    }
+                }
+
+#endif
                 count += MessageReceive(
                              phdr.targetId_, senderAddress, senderid, mhdr.type_, &data, mhdr.length_, timestamp
                          );
