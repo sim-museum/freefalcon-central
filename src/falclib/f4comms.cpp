@@ -469,6 +469,22 @@ bool AddDanglingSession(VU_ID owner, VU_ADDRESS address)
                                  owner.creator_.value_
                              );
 
+#ifdef FF_LINUX
+    // FF_LINUX (MP-1): two peers go Online=1 but every send reports
+    // COMAPI_EMPTYGROUP -- the send group has no members. This is the ONLY path
+    // that adds one (ComAPIAddToGroup below), so report whether it is reached and
+    // what it produces. FF_DEBUG_MPCOMMS=1.
+    if (getenv("FF_DEBUG_MPCOMMS"))
+    {
+        fprintf(stderr, "[MPGROUP] AddDanglingSession owner=%u addr ip=0x%lx recv=%u "
+                "-> ComUDPOpen=%s\n",
+                (unsigned)owner.creator_.value_, (unsigned long)address.ip,
+                (unsigned)address.recvPort, udpHandle ? "OK" : "NULL");
+        fflush(stderr);
+    }
+
+#endif
+
     if (udpHandle == NULL)
     {
         delete tempSess;
@@ -481,7 +497,21 @@ bool AddDanglingSession(VU_ID owner, VU_ADDRESS address)
     tempSess->SetCommsStatus(VU_CONN_ACTIVE);
 
     // add handlers to UDP group handler (so we can send and receive data from it)
-    ComAPIAddToGroup(FalconGlobalUDPHandle, udpHandle);
+    {
+        int ffAdd = ComAPIAddToGroup(FalconGlobalUDPHandle, udpHandle);
+#ifdef FF_LINUX
+
+        if (getenv("FF_DEBUG_MPCOMMS"))
+        {
+            fprintf(stderr, "[MPGROUP] ComAPIAddToGroup(global=%p, member=%p) -> %d\n",
+                    (void*)FalconGlobalUDPHandle, (void*)udpHandle, ffAdd);
+            fflush(stderr);
+        }
+
+#else
+        (void)ffAdd;
+#endif
+    }
 
     DanglingSessionsList->ForcedInsert(tempSess);
     VuExitCriticalSection();
