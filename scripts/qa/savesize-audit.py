@@ -12,6 +12,24 @@ Compares the multiset of sizeof(...) terms on each side. A term present in Save 
 absent from SaveSize is the dangerous direction (writes more than budgeted); the
 reverse merely wastes space.
 
+TRIAGE 2026-08-29: 9 candidates, 0 defects.
+  EMPIRICAL: ASAN now runs clean across every path these classes live on --
+  two-peer multiplayer (session/game/group entities), bombing and CCRP, guns,
+  HARMs, the Israeli theater, avionics keys and 3D-pit clicks. No overflow
+  manifests anywhere covered.
+  STATIC spot-check, BombClass: SaveSize counts sizeof(BombType) while Save writes
+  sizeof(int). BombType is `enum BombType { None, Chaff, Flare, Debris }` and the
+  member is declared `int bombType` -- both 4 bytes. Same width, different
+  spelling. FALSE POSITIVE.
+
+PRECISION IS LOW IN THIS CODEBASE and the reason is structural: the same width is
+routinely spelled two ways (enum vs int, uint32_t vs a variable name, typedef vs
+underlying type), and this tool compares SPELLINGS. Its genuine value is narrow but
+real -- it catches a field written through a HELPER CALL, which contributes no
+sizeof to the Save side at all. That is exactly how VUADDR-1 presented, and it is
+the one shape worth acting on. Read the "counted but not written as sizeof" column
+first.
+
 KNOWN LIMITS, so a hit is read rather than believed:
   - a field written via a helper call (address_.Encode) has no sizeof on the Save
     side at all, so it shows as SaveSize-only -- that is how VUADDR-1 presents, and
