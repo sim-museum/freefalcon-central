@@ -167,6 +167,57 @@ def scan_direct(files, fields, root):
     return findings
 
 
+def scan_source_width(files, fields, root):
+    """memcpy(stream, &field, sizeof(long)) where `field` is NARROWER than 8 bytes.
+
+    This is the shape that VUADDR-1 (b7ade5e7) took and that the other two passes
+    miss, because the DESTINATION is a byte stream rather than a field:
+
+        uint32_t ip;                                  // 4 bytes
+        memcpy(*stream, &ip, sizeof(unsigned long));  // writes 8 on LP64
+
+    It over-READS the source by 4 bytes and, worse, writes 4 more bytes than any
+    matching size function budgeted -- VU_ADDRESS::Encode overran the send buffer
+    AND desynchronised the wire format against its own Decode, which had already
+    been corrected to sizeof(uint32_t).
+    """
+    call = re.compile(r'\b(memcpy|memcpychk)\s*\(', re.S)
+    findings = 0
+    for path in files:
+        if path.endswith(('.h', '.hpp')):
+            continue
+        try:
+            src = open(path, errors='ignore').read()
+        except OSError:
+            continue
+        if not SIZEOF.search(src):
+            continue
+        for m in call.finditer(src):
+            args = split_args(arg_text(src, m.end() - 1))
+            if len(args) < 3:
+                continue
+            sizearg = args[2] if m.group(1) == 'memcpy' else args[2]
+            if not SIZEOF.search(sizearg) or '*' in sizearg:
+                continue
+            srcarg = args[1].strip()
+            sm = re.match(r'&\s*([A-Za-z_]\w*)\s*$', srcarg)
+            if not sm:
+                continue
+            name = sm.group(1)
+            types = fields.get(name)
+            if not types:
+                continue
+            narrow = sorted(t for t in types if NARROW.match(t) and not WIDE.search(t))
+            wide = sorted(t for t in types if WIDE.search(t))
+            if narrow and not wide:
+                line = src[:m.start()].count('\n') + 1
+                print(f'{os.path.relpath(path, root)}:{line}: writes '
+                      f'{SIZEOF.search(sizearg).group(1)}-sized bytes FROM `{name}`, '
+                      f'declared {narrow}')
+                findings += 1
+    return findings
+
+
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else ROOT
     files = []
@@ -184,8 +235,11 @@ def main():
         print(f'     {f}()  arg{idx}  [{fl}:{ln}]')
     print()
 
+    print('-- narrow SOURCE written at long width (VUADDR-1 shape):')
+    findings = scan_source_width(files, fields, root)
+    print()
     print('-- direct writes into a narrow field:')
-    findings = scan_direct(files, fields, root)
+    findings = findings + scan_direct(files, fields, root)
     print()
     print('-- narrow destinations passed to those writers:')
 
