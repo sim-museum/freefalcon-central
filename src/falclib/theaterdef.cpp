@@ -233,6 +233,23 @@ bool TheaterList::SetNewTheater(TheaterDef *td)
     else
         SetPathName(FalconCampaignSaveDirectory, "Campaign\\Save", FalconDataDirectory);
 
+#ifdef FF_LINUX
+    // FF_LINUX (THEATERS-1): the TE list loads Korea's missions in every theater
+    // while the campaign path reaches the theater directory. Only two places assign
+    // these globals -- here and init_game_paths -- and the ORDER cannot be read from
+    // the log, because init_game_paths prints with printf (stdout, block-buffered
+    // when redirected) while these traces use stderr. Report on stderr from BOTH
+    // sites so one run settles it. FF_DEBUG_PATHS=1.
+    if (getenv("FF_DEBUG_PATHS"))
+    {
+        fprintf(stderr, "[PATHS] SetNewTheater('%s') campaigndir='%s' -> CampUserSave='%s'\n",
+                td->m_name ? td->m_name : "(null)",
+                td->m_campaign ? td->m_campaign : "(empty)",
+                FalconCampUserSaveDirectory);
+        fflush(stderr);
+    }
+#endif
+
     //========
     if (strlen(td->m_terrain) > 0)
         SetPathName(FalconTerrainDataDir, td->m_terrain, FalconDataDirectory);

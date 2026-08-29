@@ -1327,6 +1327,17 @@ static bool init_game_paths(void) {
     // because DeviceIndependentGraphicsSetup is called before theater loading
     snprintf(FalconCampaignSaveDirectory, _MAX_PATH, "%s/campaign/save", FalconDataDirectory);
     snprintf(FalconCampUserSaveDirectory, _MAX_PATH, "%s/campaign/save", FalconDataDirectory);
+
+    // FF_LINUX (THEATERS-1): this is a FIXED, non-theater path. Whether it runs
+    // before or after SetNewTheater decides whether it is harmless or a clobber,
+    // and the log cannot answer that (printf below is buffered, stderr is not).
+    if (getenv("FF_DEBUG_PATHS"))
+    {
+        fprintf(stderr, "[PATHS] init_game_paths -> CampUserSave='%s'\n",
+                FalconCampUserSaveDirectory);
+        fflush(stderr);
+    }
+
     snprintf(FalconTerrainDataDir, _MAX_PATH, "%s/terrdata/korea", FalconDataDirectory);  // Include default theater
     snprintf(FalconMiscTexDataDir, _MAX_PATH, "%s/terrdata/misctex", FalconDataDirectory);
     snprintf(FalconPictureDirectory, _MAX_PATH, "%s/pictures", FalconDataDirectory);
@@ -1759,6 +1770,12 @@ static bool init_game_core(void) {
     gCommsMgr = new UIComms;
     gCommsMgr->Setup(FalconDisplay.appWin);
     fprintf(stderr, "  [main_linux] gCommsMgr->Setup() returned\n");
+
+    // FF_MP_CONNECT drives the phonebook connect path headlessly (see phonebk.cpp).
+    {
+        extern void FF_MpAutoConnect();
+        FF_MpAutoConnect();
+    }
 
     // FF_LINUX: load the player's logbook (winmain.cpp does this at the same
     // point on Windows). Skipping it left LB_LOADED_ONCE clear, and UI_Startup()

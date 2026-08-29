@@ -172,6 +172,26 @@ int InitCommsStuff(ComDataClass *comData)
     // UDP
     FalconGlobalUDPHandle = ComAPICreateGroup("CreateGroup WAN FalconGlobalUDPHandle\n", F4CommsMaxUDPMessageSize, 0);
 
+#ifdef FF_LINUX
+    // FF_LINUX (MP-1): the whole chain UI -> UIComms -> f4comms -> capi -> udp/tcp
+    // is built on Linux and needs none of the Windows-only comms files. These two
+    // ComAPICreateGroup calls are where multiplayer either starts or silently does
+    // not, so report both, with the ports actually bound. FF_DEBUG_MPCOMMS=1.
+    // NOTE the misleading error below: a failed RUDP group returns
+    // F4COMMS_ERROR_MULTICAST_NOT_AVAILABLE, which does NOT mean multicast is
+    // involved -- multicast is not on this path at all.
+    if (getenv("FF_DEBUG_MPCOMMS"))
+    {
+        fprintf(stderr, "[MPCOMMS] localPort=%d recvPort=%d reliableRecvPort=%d\n",
+                (int)comData->localPort, (int)com_API_get_my_receive_port(),
+                (int)com_API_get_my_reliable_receive_port());
+        fprintf(stderr, "[MPCOMMS] UDP group  -> %s\n",
+                FalconGlobalUDPHandle ? "OPENED" : "FAILED");
+        fflush(stderr);
+    }
+
+#endif
+
     if ( not FalconGlobalUDPHandle)
     {
         return F4CommsConnectionCallback(F4COMMS_ERROR_UDP_NOT_AVAILABLE);
@@ -179,6 +199,16 @@ int InitCommsStuff(ComDataClass *comData)
 
     // TCP
     FalconGlobalTCPHandle = ComAPICreateGroup("WAN RUDP GROUP", F4CommsMaxTCPMessageSize, 0);
+
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_MPCOMMS"))
+    {
+        fprintf(stderr, "[MPCOMMS] RUDP group -> %s\n",
+                FalconGlobalTCPHandle ? "OPENED" : "FAILED (reported as MULTICAST_NOT_AVAILABLE)");
+        fflush(stderr);
+    }
+
+#endif
 
     if ( not FalconGlobalTCPHandle)
     {

@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <cISO646>
 #include <stdio.h>
 #include <stdlib.h>
@@ -178,8 +179,9 @@ com_API_handle ComUDPOpen(
 
     if (IPaddress == CAPI_DANGLING_IP)
     {
-        ComIPHostIDGet(&c->apiheader, (char*)&IPaddress, 0);
-        IPaddress = CAPI_htonl(IPaddress);
+        uint32_t hostId = 0;
+        ComIPHostIDGet(&c->apiheader, (char*)&hostId, 0);
+        IPaddress = CAPI_htonl(hostId);
         //IPaddress = CAPI_htonl (c->whoami);
     }
 
@@ -306,8 +308,9 @@ com_API_handle ComUDPOpenSendClone(
 
     if (IPaddress == -1)
     {
-        ComIPHostIDGet(&c->apiheader, (char*)&IPaddress, 0);
-        IPaddress = CAPI_htonl(IPaddress);
+        uint32_t hostId = 0;
+        ComIPHostIDGet(&c->apiheader, (char*)&hostId, 0);
+        IPaddress = CAPI_htonl(hostId);
     }
 
     // header
@@ -886,7 +889,12 @@ int ComUDPGet(com_API_handle c)
 // hopefully, this will be random enough
 int ComIPHostIDGet(com_API_handle c, char *buf, int reset)
 {
-    static long internalId = -1;
+    // int32_t, not long: every destination is a 32-bit field (ComGROUP::HostID,
+    // ComIP::whoami). On Win32 long was 4 bytes so copying sizeof(long) matched;
+    // on LP64 it writes 8 and runs 4 bytes past the field. In ComAPIAddToGroup
+    // that overwrote the low half of the adjacent GroupHead pointer, so the next
+    // ComGROUPSend walked a truncated list pointer and segfaulted.
+    static int32_t internalId = -1;
 
     // reset the ID, choose a new one
     if (reset)
@@ -897,16 +905,16 @@ int ComIPHostIDGet(com_API_handle c, char *buf, int reset)
     // -1 is never a valid ID
     while (internalId == -1)
     {
-        internalId = ((long)(clock()));
+        internalId = ((int32_t)(clock()));
     }
 
     if (force_ip_address)
     {
-        internalId = ((long)force_ip_address);
+        internalId = ((int32_t)force_ip_address);
     }
 
-    // writes Id to buffer, host order
-    memcpy(buf, &internalId, sizeof(long));
+    // writes Id to buffer, host order -- exactly 4 bytes
+    memcpy(buf, &internalId, sizeof(internalId));
 
     return 0;
 

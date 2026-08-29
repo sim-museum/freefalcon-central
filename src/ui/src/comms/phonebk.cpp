@@ -295,6 +295,52 @@ void Phone_Remove_CB(long, short hittype, C_Base *)
     }
 }
 
+// FF_MP_CONNECT="localPort[:remotePort[:host]]" drives the connect path without
+// the phonebook dialog, so the transport can be exercised headlessly. Host empty
+// or absent means listen as server (ip_address 0).
+void FF_MpAutoConnect()
+{
+    const char *spec = getenv("FF_MP_CONNECT");
+
+    if ( not spec or not *spec)
+        return;
+
+    char buf[256];
+    strncpy(buf, spec, sizeof(buf) - 1);
+    buf[sizeof(buf) - 1] = 0;
+
+    char *lp = buf;
+    char *rp = strchr(lp, ':');
+
+    if (rp)
+        *rp++ = 0;
+
+    char *host = rp ? strchr(rp, ':') : NULL;
+
+    if (host)
+        *host++ = 0;
+
+    localData.localPort = (unsigned short)atoi(lp);
+    localData.remotePort = (unsigned short)(rp ? atoi(rp) : 0);
+    localData.ip_address = (host and *host) ? ComAPIGetIP(host) : 0;
+
+    if ( not gUICommsQ)
+    {
+        CommsQueue *nq = new CommsQueue;
+
+        if (nq)
+        {
+            nq->Setup(gCommsMgr->AppWnd_);
+            gUICommsQ = nq;
+        }
+    }
+
+    fprintf(stderr, "[MPCONNECT] StartComms local=%u remote=%u ip=0x%lx\n",
+            localData.localPort, localData.remotePort, (unsigned long)localData.ip_address);
+    gCommsMgr->StartComms(&localData);
+    fprintf(stderr, "[MPCONNECT] returned, Online=%d\n", gCommsMgr->Online() ? 1 : 0);
+}
+
 void Phone_Connect_CB(long n, short hittype, C_Base *control)
 {
     if (hittype not_eq C_TYPE_LMOUSEUP)
