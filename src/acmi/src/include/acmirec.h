@@ -1,3 +1,7 @@
+// FF_LINUX (ACMI-2): needed by the fixed-width fields in the on-disk record
+// structs below. This include used to sit far below them.
+#include <cstdint>
+
 #ifdef FF_LINUX
 // FF_LINUX (ACMI-1): the PO gets many short .flt tapes per session.
 // StartRecording always opens a NEW numbered file (acmirec.cpp:141) and
@@ -69,6 +73,22 @@ enum
 ** Record structure typedefs for each type of record
 */
 
+// FF_LINUX (ACMI-2): every field below that identifies an object was `long`.
+// These structs are #pragma pack(1) and written to the tape RAW --
+// acmirec.cpp does fwrite(recp, sizeof(Record), 1, _fd) at 11 sites -- so the
+// on-disk layout IS the in-memory layout. `long` is 4 bytes under Win32 and 8
+// under LP64, which made Linux-written .flt/.vhs files unreadable by every
+// Win32 reader, Tacview included. Measured before the fix: parsing a Linux tape
+// with the Win32 layout desynced after 2 records (byte 46), while the LP64
+// layout walked 15331 records cleanly.
+//
+// The conversion was half done -- the .vhs structs in acmitape.h (ACMIEntityData,
+// ACMIEntityPositionData, ACMIEventHeader, ACMIEventTrailer, ACMIFeatEvent) were
+// already int32_t, which is why the tape HEADER read correctly while the record
+// stream did not. ACMITextEvent below is the one .vhs struct that was missed.
+// The remaining `long`s in acmitape.h are runtime-only structs (SimTapeEntity
+// holds a DrawableTrail*, ActiveEvent is a chain node) and never hit disk.
+//
 //
 // ACMIRecHeader
 // this struct is common thru all record types as a record header
@@ -89,7 +109,7 @@ typedef struct
 typedef struct
 {
     int type; // base type for creating simbase object
-    long uniqueID; // identifier of instance
+    int32_t uniqueID; // identifier of instance
     float x;
     float y;
     float z;
@@ -107,8 +127,8 @@ typedef struct
 typedef struct
 {
     int type; // base type for creating simbase object
-    long uniqueID; // identifier of instance
-    long leadUniqueID; // id of lead component (for bridges. bases etc)
+    int32_t uniqueID; // identifier of instance
+    int32_t leadUniqueID; // id of lead component (for bridges. bases etc)
     int slot; // slot number in component list
     int specialFlags;   // campaign feature flag
     float x;
@@ -126,7 +146,7 @@ typedef struct
 #pragma pack (push, pack1, 1)
 typedef struct
 {
-    long    intTime;
+    int32_t intTime;
     _TCHAR timeStr[20];
     _TCHAR msgStr[100];
 } ACMITextEvent;
@@ -140,7 +160,7 @@ typedef struct
 typedef struct
 {
     int type; // base type for creating simbase object
-    long uniqueID; // identifier of instance
+    int32_t uniqueID; // identifier of instance
     int switchNum;
     int switchVal;
     int prevSwitchVal;
@@ -154,7 +174,7 @@ typedef struct
 #pragma pack (push, pack1, 1)
 typedef struct
 {
-    long uniqueID; // identifier of instance
+    int32_t uniqueID; // identifier of instance
     int newStatus;
     int prevStatus;
 } ACMIFeatureStatusData;
@@ -168,7 +188,7 @@ typedef struct
 typedef struct
 {
     int type; // base type for creating simbase object
-    long uniqueID; // identifier of instance
+    int32_t uniqueID; // identifier of instance
     int DOFNum;
     float DOFVal;
     float prevDOFVal;
@@ -277,7 +297,7 @@ typedef struct
 {
     ACMIRecHeader hdr;
     ACMIGenPositionData data;
-    long RadarTarget;
+    int32_t RadarTarget;
 
 } ACMIAircraftPositionRecord;
 
