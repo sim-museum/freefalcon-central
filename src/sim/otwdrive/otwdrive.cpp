@@ -2897,17 +2897,88 @@ void OTWDriverClass::ObjectSetData(SimBaseClass *obj, Tpoint *simView, Trotation
     // only: obj->ZPos() is untouched, so collision, the flight model, ACMI recording
     // and the Sprint-22 landing parity all see exactly what they saw before. Negative
     // z is up. FF_NO_GEAR_LIFT=1 disables.
-    if (obj->OnGround() and obj->IsAirplane())
+    // SINK-2: the lift used to be applied strictly inside OnGround(), so at
+    // rotation it vanished in a single frame and the DRAWN aircraft dropped the
+    // full standoff (3ft decal + 2ft gear = 5ft) while ZPos() never moved. From
+    // an external view that reads as the jet falling into the tarmac and then
+    // climbing back out of it (PO report, 2026-08-28). The cockpit views never
+    // showed it because they do not draw the player's own airframe.
+    //
+    // Taper it over the first FF_GEAR_LIFT_FADE ft AGL instead. On the ground the
+    // scale is 1 and behaviour is identical to before; by the top of the fade it
+    // is 0, which is correct -- once clear of the runway there is no decal to
+    // compensate for. Still visual only: ZPos() is untouched.
+    if (obj->IsAirplane())
     {
         static int ffNoLift = -1;
 
         if (ffNoLift < 0)
             ffNoLift = getenv("FF_NO_GEAR_LIFT") ? 1 : 0;
 
+        float ffLiftScale = 0.0f;
+        float ffAgl = -1.0f;
+
         if ( not ffNoLift)
         {
+            if (obj->OnGround())
+                ffLiftScale = 1.0f;
+            else
+            {
+                static float ffFade = -9999.f;
+
+                if (ffFade < -9000.f)
+                {
+                    const char *e = getenv("FF_GEAR_LIFT_FADE");
+                    ffFade = e ? (float)atof(e) : 25.0f;
+                }
+
+                if (ffFade > 0.0f)
+                {
+                    // z is positive DOWN, so AGL is ground minus the aircraft z.
+                    const float agl = GetGroundLevel(obj->XPos(), obj->YPos(), NULL)
+                                      - obj->ZPos();
+                    ffAgl = agl;
+
+                    if (agl < ffFade)
+                    {
+                        ffLiftScale = 1.0f - (agl / ffFade);
+
+                        if (ffLiftScale > 1.0f) ffLiftScale = 1.0f;
+
+                        if (ffLiftScale < 0.0f) ffLiftScale = 0.0f;
+                    }
+                }
+            }
+        }
+
+        // FF_DEBUG_LIFT=1 reports the lift scale once a second for the player.
+        // Sits OUTSIDE the applied-lift branch on purpose: the whole point of
+        // SINK-2 is what happens as the scale goes to zero, and a probe that only
+        // fires while a lift is applied cannot show that.
+        {
+            static int s_dbg = -1;
+            static DWORD s_last = 0;
+
+            if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_LIFT") ? 1 : 0;
+
+            if (s_dbg and obj == (SimBaseClass*)SimDriver.GetPlayerEntity())
+            {
+                DWORD now = GetTickCount();
+
+                if (now - s_last > 1000)
+                {
+                    s_last = now;
+                    fprintf(stderr, "[LIFT] OnGround=%d scale=%.3f agl=%.1f zPos=%.2f\n",
+                            obj->OnGround() ? 1 : 0, ffLiftScale, ffAgl, obj->ZPos());
+                    fflush(stderr);
+                }
+            }
+        }
+
+        if (ffLiftScale > 0.0f)
+        {
             extern float FF_RunwayDecal(void);
-            simView->z -= FF_RunwayDecal();
+            simView->z -= FF_RunwayDecal() * ffLiftScale;
 
             // FF_LINUX (GEAR-1): the decal above aligns the aircraft ORIGIN with the
             // runway surface, which is correct only if the model's gear reaches
@@ -2930,31 +3001,9 @@ void OTWDriverClass::ObjectSetData(SimBaseClass *obj, Tpoint *simView, Trotation
                     extra = e ? (float)atof(e) : 2.0f;
                 }
 
-                simView->z -= extra;
+                simView->z -= extra * ffLiftScale;
             }
 
-            // FF_LINUX (GEAR-1): FF_DEBUG_LIFT=1 reports the applied lift once a
-            // second for the player, so the visual standoff can be compared
-            // against the runway decal without guessing from screenshots.
-            {
-                static int s_dbg = -1;
-                static DWORD s_last = 0;
-
-                if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_LIFT") ? 1 : 0;
-
-                if (s_dbg and obj == (SimBaseClass*)SimDriver.GetPlayerEntity())
-                {
-                    DWORD now = GetTickCount();
-
-                    if (now - s_last > 1000)
-                    {
-                        s_last = now;
-                        fprintf(stderr, "[LIFT] player OnGround=1 decal=%.2f zPos=%.2f drawZ=%.2f\n",
-                                FF_RunwayDecal(), obj->ZPos(), simView->z);
-                        fflush(stderr);
-                    }
-                }
-            }
         }
     }
 #endif
