@@ -2253,6 +2253,36 @@ int ComGROUPSend(com_API_handle c, int msgsize, int oob, int type)
                     {
                         ret = curr->com->send_func(curr->com, msgsize, oob, type);
 
+#ifdef FF_LINUX
+                        /* FF_LINUX (MP-1): traffic is ASYMMETRIC -- the client
+                           reaches the server but the server never reaches the
+                           client, even though it registered the client as a member
+                           with the right address. Report what each MEMBER send
+                           actually returns and its running counters, so "A never
+                           sends to B" and "A sends and B never reads" separate.
+                           FF_DEBUG_MPCOMMS=1. */
+                        {
+                            static int ffDbg = -1;
+                            static long ffN = 0;
+
+                            if (ffDbg < 0)
+                                ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+                            if (ffDbg && ++ffN <= 12)
+                            {
+                                fprintf(stderr, "[MPMEMBER] udp ret=%d id=%lu sent=%lu "
+                                        "wouldblock=%lu lastsender=0x%lx:%lu\n",
+                                        ret, (unsigned long)this_cudp->id,
+                                        (unsigned long)this_cudp->sendmessagecount,
+                                        (unsigned long)this_cudp->sendwouldblockcount,
+                                        (unsigned long)this_cudp->lastsender,
+                                        (unsigned long)this_cudp->lastsenderport);
+                                fflush(stderr);
+                            }
+                        }
+
+#endif
+
                         if (ret > 0)
                         {
                             // oob = TRUE; // force other UDP packets to go OOB if the first one went
