@@ -3142,8 +3142,20 @@ static void main_loop(void) {
         // sec = seconds after entering sim mode, holdms = hold duration (default 250).
         // Pushes events into the same buffer real SDL key presses use (FF_PushKeyEvent),
         // so the full sim input path is exercised. For automated testing of issue #14.
+        // FF_LINUX (AVIONICS-1): FF_SIM_KEY times are documented as "seconds after
+        // entering sim mode", but the clock used to start on the FIRST !doUI frame --
+        // and there is one of those at startup, BEFORE the UI comes up. So the clock
+        // was really running from process start, and with the standard click track
+        // sim entry is ~55s in, every scripted time below 55 fired at once on the
+        // first sim frame. Latch the clock on the UI -> sim transition instead.
+        static bool s_sawUI = false;
+
+        if (doUI)
+            s_sawUI = true;
+
         if (!doUI) {
             static int s_keyInit = 0;
+            static bool s_simEntryLatched = false;
             static struct { int dik; int mods[3]; int nMods; Uint32 atMs; Uint32 holdMs; int phase; Uint32 downAt; } s_keys[16];
             static int s_nKeys = 0;
             static Uint32 s_simKeyStart = 0;
@@ -3197,6 +3209,16 @@ static void main_loop(void) {
                 }
             }
             if (s_nKeys) {
+                // Re-latch when the UI hands over to the sim. If a run never shows a
+                // UI at all, fall back to the first sim frame so the old behaviour
+                // still holds for UI-less harnesses.
+                if (s_sawUI && !s_simEntryLatched) {
+                    s_simEntryLatched = true;
+                    s_simKeyStart = SDL_GetTicks();
+                    fprintf(stderr, "[FF_SIM_KEY] sim entry latched at %ums; times are relative to this\n",
+                            s_simKeyStart);
+                }
+
                 if (!s_simKeyStart) s_simKeyStart = SDL_GetTicks();
                 Uint32 el = SDL_GetTicks() - s_simKeyStart;
                 for (int ki = 0; ki < s_nKeys; ki++) {
