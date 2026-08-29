@@ -2100,7 +2100,38 @@ void UnitClass::InsertInSimLists(float cameraX, float cameraY)
                 }
 
                 // put it in display
-                OTWDriver.InsertObject(draw_pointer);
+                #ifdef FF_LINUX
+            // FF_LINUX (OTWTHREAD-1): report the calling thread EVERY time, not only
+            // when the assertion in otwlist.cpp happens to fire. The assertion is
+            // one-hit-per-process and did not reproduce in ~40 runs, so it is a poor
+            // sampler. If these callers routinely run off the sim thread, the missing
+            // objectCriticalSection is a live exposure regardless. FF_DEBUG_OTWTHREAD=1.
+            {
+                extern DWORD gSimThreadID;
+                static int ffTd = -1;
+                static long ffN = 0, ffOff = 0;
+
+                if (ffTd < 0)
+                    ffTd = getenv("FF_DEBUG_OTWTHREAD") ? 1 : 0;
+
+                if (ffTd)
+                {
+                    ffN++;
+
+                    if (GetCurrentThreadId() not_eq gSimThreadID)
+                        ffOff++;
+
+                    if (ffN <= 3 or (ffN % 500) == 0)
+                    {
+                        fprintf(stderr, "[OTWCALL] unit cur=%lu sim=%lu offThread=%ld/%ld\n",
+                                (unsigned long)GetCurrentThreadId(),
+                                (unsigned long)gSimThreadID, ffOff, ffN);
+                        fflush(stderr);
+                    }
+                }
+            }
+#endif
+            OTWDriver.InsertObject(draw_pointer);
             }
         }
         else
