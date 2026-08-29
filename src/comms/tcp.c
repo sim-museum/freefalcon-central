@@ -2166,6 +2166,41 @@ int ComGROUPSend(com_API_handle c, int msgsize, int oob, int type)
             senderror = 0;
         }
 
+#ifdef FF_LINUX
+        /* FF_LINUX (MP-1): both peers register each other as group members
+           (verified 12e67ac8) yet every send returns 0 bytes. Count the members
+           actually walked and what each member's send_func returns, so "group is
+           empty" and "member send does nothing" stop being confusable.
+           FF_DEBUG_MPCOMMS=1. */
+        {
+            static int ffDbg = -1;
+            static long ffCall = 0;
+
+            if (ffDbg < 0)
+                ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+            if (ffDbg)
+            {
+                int ffMembers = 0;
+                CAPIList *ffc;
+
+                for (ffc = group->GroupHead; ffc; ffc = ffc->next)
+                    ffMembers++;
+
+                ffCall++;
+
+                static int ffWithMembers = 0;
+
+                if (ffCall <= 3 || (ffMembers > 0 && ffWithMembers++ < 8) || (ffCall % 200) == 0)
+                {
+                    fprintf(stderr, "[MPSEND] call=%ld members=%d msgsize=%d oob=%d\n",
+                            ffCall, ffMembers, msgsize, oob);
+                    fflush(stderr);
+                }
+            }
+        }
+
+#endif
         /* proceed thru list and call send_function() for each connection */
         for (curr = group->GroupHead; curr; curr = curr->next)
         {
