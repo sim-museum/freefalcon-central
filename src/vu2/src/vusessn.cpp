@@ -1499,6 +1499,28 @@ VuSessionEntity::VuSessionEntity(VU_BYTE** stream, long *rem)
 
 
     memcpychk(&gameId_,                  stream, sizeof(VU_ID), rem);
+#ifdef FF_LINUX
+    // FF_LINUX (MP-1): a session entity carries its gameId_ on the wire, and full
+    // updates of the local session are sent to the global group -- 7 cross each way
+    // in a two-peer run. So each peer SHOULD learn the other's game id here. If this
+    // fires with a non-null id, the peer HAS the remote game and simply never joins
+    // it; if it never fires, the full updates being exchanged are not session
+    // entities at all. FF_DEBUG_MPCOMMS=1.
+    {
+        static int ffDbg = -1;
+        static long ffN = 0;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+        if (ffDbg and ++ffN <= 12)
+        {
+            fprintf(stderr, "[MPGAMEID] session decode: gameId=%u/%u\n",
+                    (unsigned)gameId_.creator_.value_, (unsigned)gameId_.num_);
+            fflush(stderr);
+        }
+    }
+#endif
     //VU_ID gameId;
     //memcpychk(&gameId,                  stream, sizeof(VU_ID), rem);
     //game_.reset(static_cast<VuGameEntity*>(vuDatabase->Find(gameId)));
