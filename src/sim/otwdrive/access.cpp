@@ -455,6 +455,41 @@ void OTWDriverClass::SelectExternal()
 
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX (BOOM-2): report the mode and the platform the camera is bolted to,
+    // every time the camera is positioned. A 15x standoff override in the
+    // ModeWeapon branch changed nothing, and that branch logged only ONE sample per
+    // run -- so by the time a bomb detonates the view is evidently no longer
+    // ModeWeapon. The suspicion is that it falls back to another mode while
+    // otwPlatform still points at the DEAD weapon sitting at the impact point,
+    // which would put the camera on the ground at the burst. FF_DEBUG_CAMMODE=1.
+    {
+        static int ffCm = -1;
+        static DWORD ffLast = 0;
+
+        if (ffCm < 0)
+            ffCm = getenv("FF_DEBUG_CAMMODE") ? 1 : 0;
+
+        if (ffCm)
+        {
+            DWORD now = GetTickCount();
+
+            if (now - ffLast > 400)
+            {
+                ffLast = now;
+                fprintf(stderr, "[CAMMODE] mode=%d platform=%s pos=(%.0f,%.0f,%.0f) cam=(%.0f,%.0f,%.0f)\n",
+                        (int)mOTWDisplayMode,
+                        otwPlatform ? (otwPlatform->IsWeapon() ? "weapon" : "other") : "NULL",
+                        otwPlatform ? (double)otwPlatform->XPos() : 0.0,
+                        otwPlatform ? (double)otwPlatform->YPos() : 0.0,
+                        otwPlatform ? (double)otwPlatform->ZPos() : 0.0,
+                        (double)chaseCamPos.x, (double)chaseCamPos.y, (double)chaseCamPos.z);
+                fflush(stderr);
+            }
+        }
+    }
+
+#endif
     cameraPos = chaseCamPos;
 
     // mix it up a bit for action camera
