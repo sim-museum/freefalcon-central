@@ -1332,6 +1332,7 @@ void SimulationLoopControl::StartLoop(void)
         //MonoPrint( "Checking for ACMI Tape Import\n" );
         if (gACMIRec.IsRecording())
         {
+            FF_ACMILOG("simloop:1335");
             gACMIRec.StopRecording();
             SimDriver.SetAVTR(FALSE);
         }

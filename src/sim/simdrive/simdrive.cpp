@@ -460,6 +460,7 @@ void SimulationDriver::Exit(void)
 
     if (gACMIRec.IsRecording())
     {
+        FF_ACMILOG("simdrive:463");
         gACMIRec.StopRecording();
         SimDriver.SetAVTR(FALSE);
     }

@@ -1,3 +1,22 @@
+#ifdef FF_LINUX
+// FF_LINUX (ACMI-1): the PO gets many short .flt tapes per session.
+// StartRecording always opens a NEW numbered file (acmirec.cpp:141) and
+// FIVE separate call sites can stop a tape, so the first question is which
+// stop actually fires. FF_DEBUG_ACMI=1 reports every stop with its origin.
+#include <stdio.h>
+#include <stdlib.h>
+static inline void FF_ACMILOG(const char *where)
+{
+    static int on = -1;
+
+    if (on < 0) on = getenv("FF_DEBUG_ACMI") ? 1 : 0;
+
+    if (on) { fprintf(stderr, "[ACMILOG] stop from %s\n", where); fflush(stderr); }
+}
+#else
+#define FF_ACMILOG(x) ((void)0)
+#endif
+
 /*
 ** Name: ACMIREC.H
 ** Description:

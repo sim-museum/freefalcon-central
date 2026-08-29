@@ -581,6 +581,7 @@ void ServerChatCommand(_TCHAR *msg)
                     if (gACMIRec.IsRecording())
                     {
                         //F4EnterCriticalSection( _csect );
+                        FF_ACMILOG("ui_comms:584");
                         gACMIRec.StopRecording();
                         //F4LeaveCriticalSection( _csect );
                     }
@@ -589,6 +590,7 @@ void ServerChatCommand(_TCHAR *msg)
                 else if ( not stricmp(argb, "dofile"))
                 {
                     if (gACMIRec.IsRecording())
+                        FF_ACMILOG("ui_comms:592");
                         gACMIRec.StopRecording();
 
                     ACMI_ImportFile();

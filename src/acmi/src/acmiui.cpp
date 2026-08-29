@@ -858,6 +858,7 @@ void ACMI_ImportFile(void)
     // handler in ui_comms.cpp, stops first; doing it here makes every caller safe.
     if (gACMIRec.IsRecording())
     {
+        FF_ACMILOG("acmiui:861");
         gACMIRec.StopRecording();
     }
 
