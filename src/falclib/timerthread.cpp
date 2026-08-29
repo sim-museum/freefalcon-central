@@ -87,6 +87,27 @@ void ResyncTimes();
 // This is the main routine to change our time compression ratio
 void SetTimeCompression(int newComp)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (ATO-1 harness): FF_CAMP_TIMECOMP=N forces the campaign clock rate
+    // so a test run can cover campaign HOURS in wall-clock minutes -- at x1 the
+    // clock advances ~2.5 min in a 150s run, which is far too little for any
+    // mission TOT to expire. A request of 0 is left alone so pause still pauses.
+    if (newComp > 0)
+    {
+        static int ffComp = -1;
+
+        if (ffComp == -1)
+        {
+            const char *e = getenv("FF_CAMP_TIMECOMP");
+            ffComp = e ? atoi(e) : 0;
+        }
+
+        if (ffComp > 0)
+            newComp = ffComp;
+    }
+
+#endif
+
     if (newComp < 0)
         newComp = 0;
 

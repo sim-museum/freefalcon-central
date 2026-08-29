@@ -1488,8 +1488,50 @@ void AirTaskingManagerClass::ProcessRequest(MissionRequest request)
         if ( not pmis)
             continue;
 
-        // Check for timeout
-        timeleft = (int)((pmis->tot - Camp_GetCurrentTime()) / CampaignMinutes);
+        // Check for timeout. CampaignTime is uint32_t, so once tot has passed this
+        // subtraction wrapped to ~4.29e9 and timeleft came out hugely POSITIVE --
+        // which meant the stale-request prune below never fired and expired
+        // requests accumulated in the list forever. Measured live: tot=20302784
+        // now=20324928 gave timeleft=+71582, pruned=0.
+        timeleft = (int)(((int64_t)pmis->tot - (int64_t)Camp_GetCurrentTime())
+                         / (int64_t)CampaignMinutes);
+
+#ifdef FF_LINUX
+        // FF_LINUX (ATO-1): CampaignTime is uint32_t, so once tot has passed this
+        // subtraction wraps to ~4.29e9 rather than going negative and timeleft comes
+        // out hugely POSITIVE -- which means the stale-request prune just below
+        // (timeleft < LONGRANGE_MIN_TIME) never fires and dead requests accumulate.
+        // Count it before changing anything; the last ATO-1 fix measured 0.
+        {
+            static int ffWrapDbg = -1;
+            static long ffWraps = 0, ffSeen = 0;
+
+            if (ffWrapDbg == -1)
+                ffWrapDbg = getenv("FF_DEBUG_ATM") ? 1 : 0;
+
+            if (ffWrapDbg)
+            {
+                ffSeen++;
+
+                if (pmis->tot < Camp_GetCurrentTime())
+                {
+                    ffWraps++;
+
+                    if (ffWraps <= 5 or (ffWraps % 500) == 0)
+                    {
+                        fprintf(stderr, "[ATMWRAP] tot=%u now=%u timeleft=%d pruned=%d"
+                                " wraps=%ld/%ld\n",
+                                (unsigned)pmis->tot, (unsigned)Camp_GetCurrentTime(),
+                                timeleft,
+                                ((pmis->tot_type == TYPE_LT or pmis->tot_type == TYPE_EQ)
+                                 and timeleft < LONGRANGE_MIN_TIME) ? 1 : 0,
+                                ffWraps, ffSeen);
+                        fflush(stderr);
+                    }
+                }
+            }
+        }
+#endif
 
         if (pmis->mission not_eq request->mission)
             continue;
