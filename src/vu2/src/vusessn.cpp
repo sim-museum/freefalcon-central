@@ -335,14 +335,34 @@ static int MessagePoll(VuCommsContext* ctxt)
                     if (ffDbg < 0)
                         ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
 
-                    if (ffDbg and ++ffN <= 25)
+                    if (ffDbg)
                     {
-                        fprintf(stderr, "[MPRECV] len=%d senderFound=%d target=%u "
-                                "msgType=%d msgLen=%d\n",
-                                (int)length, sender ? 1 : 0,
-                                (unsigned)phdr.targetId_.num_,
-                                (int)mhdr.type_, (int)mhdr.length_);
-                        fflush(stderr);
+                        // Histogram over the WHOLE run, not the first N. Sampling the
+                        // head of this sequence is what produced three wrong claims on
+                        // this item; "type 10 never arrives" cannot be concluded from
+                        // 25 samples.
+                        static long ffHist[32] = { 0 };
+                        static DWORD ffLast = 0;
+                        int ffT = (int)mhdr.type_;
+
+                        if (ffT >= 0 and ffT < 32)
+                            ffHist[ffT]++;
+
+                        ffN++;
+                        DWORD ffNow = GetTickCount();
+
+                        if (ffNow - ffLast > 15000)
+                        {
+                            ffLast = ffNow;
+                            fprintf(stderr, "[MPHIST] msgs=%ld types:", ffN);
+
+                            for (int ffI = 0; ffI < 32; ffI++)
+                                if (ffHist[ffI])
+                                    fprintf(stderr, " %d=%ld", ffI, ffHist[ffI]);
+
+                            fprintf(stderr, "\n");
+                            fflush(stderr);
+                        }
                     }
                 }
 
