@@ -1,3 +1,6 @@
+#ifdef FF_LINUX
+#include <execinfo.h>
+#endif
 #include "graphics/include/rviewpnt.h"
 #include "graphics/include/timemgr.h"
 #include "graphics/include/drawsgmt.h"
@@ -256,6 +259,39 @@ OTWDriverClass::ClearSfxLists(void)
 void OTWDriverClass::InsertObject(DrawableObject *dObj)
 {
     ShiAssert(GetCurrentThreadId() == gSimThreadID);
+#ifdef FF_LINUX
+    // FF_LINUX (OTWTHREAD-1): the two ShiAsserts here fire on row 25 when radar
+    // range/elevation/azimuth/FOV keys are pressed, meaning the drawable-object
+    // list is mutated off the sim thread. The critical section that used to guard
+    // it was removed (see the comment above ~line 251) on the assumption that sim
+    // and graphics share a thread -- which is false in this port. Report WHO is
+    // calling and from where. FF_DEBUG_OTWTHREAD=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_OTWTHREAD") ? 1 : 0;
+
+        if (ffDbg and GetCurrentThreadId() not_eq gSimThreadID)
+        {
+            static int ffN = 0;
+
+            if (ffN++ < 6)
+            {
+                fprintf(stderr, "[OTWTHREAD] %s off-sim-thread: cur=%lu sim=%lu\n",
+                        "InsertObject", (unsigned long)GetCurrentThreadId(),
+                        (unsigned long)gSimThreadID);
+                fflush(stderr);
+                void *bt[24];
+                int n = backtrace(bt, 24);
+                backtrace_symbols_fd(bt, n, fileno(stderr));
+                fprintf(stderr, "[OTWTHREAD] end\n");
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
 
     // FF_LINUX: NULL check - return early if dObj is NULL
     // This can happen during deaggregation when objects are being created
@@ -315,6 +351,7 @@ void OTWDriverClass::AttachObject(DrawableBSP *dObj, DrawableBSP *atObj, int s)
 {
     ShiAssert(GetCurrentThreadId() == gSimThreadID);
 
+
     dObj->AttachChild(atObj, s);
 }
 
@@ -365,6 +402,39 @@ void OTWDriverClass::AddToLitList(DrawableBSP* bsp)
     drawPtrList *newEntry;
 
     ShiAssert(GetCurrentThreadId() == gSimThreadID);
+#ifdef FF_LINUX
+    // FF_LINUX (OTWTHREAD-1): the two ShiAsserts here fire on row 25 when radar
+    // range/elevation/azimuth/FOV keys are pressed, meaning the drawable-object
+    // list is mutated off the sim thread. The critical section that used to guard
+    // it was removed (see the comment above ~line 251) on the assumption that sim
+    // and graphics share a thread -- which is false in this port. Report WHO is
+    // calling and from where. FF_DEBUG_OTWTHREAD=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_OTWTHREAD") ? 1 : 0;
+
+        if (ffDbg and GetCurrentThreadId() not_eq gSimThreadID)
+        {
+            static int ffN = 0;
+
+            if (ffN++ < 6)
+            {
+                fprintf(stderr, "[OTWTHREAD] %s off-sim-thread: cur=%lu sim=%lu\n",
+                        "AddToLitList", (unsigned long)GetCurrentThreadId(),
+                        (unsigned long)gSimThreadID);
+                fflush(stderr);
+                void *bt[24];
+                int n = backtrace(bt, 24);
+                backtrace_symbols_fd(bt, n, fileno(stderr));
+                fprintf(stderr, "[OTWTHREAD] end\n");
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
 
 #ifdef DEBUG
 
