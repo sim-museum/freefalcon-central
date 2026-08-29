@@ -96,14 +96,41 @@ static Tpoint FF_ImpactEffectPos(const Tpoint &pos)
     if (ffOff)
         return out;
 
-    float gl = OTWDriver.GetGroundLevel(pos.x, pos.y);
+    // FF_LINUX (BOOM-2): clamp against the DRAWN ground, not the physics ground.
+    // The two disagree -- the physics surface sits below the rendered one (the
+    // TERRAIN-Z family), and the particle system already uses FF_DrawnGroundLevel
+    // for its own ground plane. Clamping the effect ORIGIN to the physics ground
+    // while the particles measure against the drawn one left the burst under the
+    // visible surface.
+    extern float FF_DrawnGroundLevel(float x, float y);
+    float gl = FF_DrawnGroundLevel(pos.x, pos.y);
 
     if (gl < -99000.0f)
         return out;
 
-    // positive-down: a SMALLER z is HIGHER. Only ever lower the effect onto the
-    // surface; never raise one that genuinely buried itself.
+    // positive-down: a SMALLER z is HIGHER.
     if (out.z < gl)
+    {
+        // floating above the surface -- lower it on.
+        out.z = gl;
+        return out;
+    }
+
+    // Below the drawn surface. A burst under the visible ground can never be seen,
+    // which is exactly the reported symptom (bombs "swallowed", audible but not
+    // visible). A weapon reaches this branch by ordinary means: impact is detected
+    // against the physics surface, which is already below the drawn one. Raise it
+    // onto the surface, but only within a bound, so a genuinely deep penetration
+    // is still allowed to stay buried. FF_IMPACT_RAISE_MAX=0 disables the raise.
+    static float ffMaxRaise = -1.0f;
+
+    if (ffMaxRaise < 0.0f)
+    {
+        const char *e = getenv("FF_IMPACT_RAISE_MAX");
+        ffMaxRaise = e ? (float)atof(e) : 100.0f;
+    }
+
+    if (ffMaxRaise > 0.0f and (out.z - gl) <= ffMaxRaise)
         out.z = gl;
 
     return out;
@@ -357,6 +384,15 @@ int FalconMissileEndMessage::Process(uchar autodisp)
                 pos.x -= dataBlock.xDelta * 0.12f;
                 pos.y -= dataBlock.yDelta * 0.12f;
                 pos.z -= dataBlock.zDelta * 0.12f;
+#ifdef FF_LINUX
+                // FF_LINUX (BOOM-2): FeatureImpact was the ONLY impact branch that
+                // never surface-clamped its effect. A bomb on a runway lands here
+                // whenever the flat-container carve-out in BombClass does not fire
+                // (bombmain.cpp:972,991 -- it only runs once the arming check has
+                // passed), so the burst was drawn at the raw impact z, under the
+                // drawn surface. Back-up above still sorts it in front of the feature.
+                pos = FF_ImpactEffectPos(pos);
+#endif
                 /*
                 OTWDriver.AddSfxRequest(
                  new SfxClass (SFX_AIR_PENETRATION, // type
