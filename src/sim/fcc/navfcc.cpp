@@ -656,6 +656,31 @@ void FireControlComputer::StepPoint(void)
 
     if (waypointStepCmd == 1 or waypointStepCmd == -1 or waypointStepCmd == 127)
     {
+#ifdef FF_LINUX
+        // FF_LINUX (MAV-1): every ICP touch below was an unguarded
+        // OTWDriver.pCockpitManager->mpIcp->... on the steerpoint-step key path
+        // (SimNextWaypoint / SimPrevWaypoint, DIK 0x1F = S). The codebase's own
+        // convention is to check BOTH pointers -- wpnmfd.cpp:212,868, ins.cpp:93,176,
+        // menumfd.cpp:131, dtemfd.cpp:55, blankmfd.cpp:47, hadmfd.cpp:438 and
+        // voice.cpp:571 all do -- so the manager is known to be absent at times.
+        // Stepping a steerpoint while it is absent dereferenced NULL. Reported as
+        // "pressed S to select target steerpoint, window disappears".
+        ICPClass *ffIcp = OTWDriver.pCockpitManager ? OTWDriver.pCockpitManager->mpIcp : NULL;
+
+        if ( not ffIcp)
+        {
+            static long ffN = 0;
+
+            if (++ffN <= 4)
+            {
+                fprintf(stderr, "[MAV1] StepPoint with no ICP (cpm=%p) -- would have crashed\n",
+                        (void*)OTWDriver.pCockpitManager);
+                fflush(stderr);
+            }
+        }
+#else
+        ICPClass *ffIcp = OTWDriver.pCockpitManager->mpIcp;
+#endif
 
         switch (mStptMode)
         {
@@ -679,8 +704,11 @@ void FireControlComputer::StepPoint(void)
             {
                waypointStepCmd = 0;
             }*/
-            OTWDriver.pCockpitManager->mpIcp->SetICPUpdateFlag(STPT_UPDATE);
-            OTWDriver.pCockpitManager->mpIcp->SetICPUpdateFlag(CNI_UPDATE);
+            if (ffIcp)
+            {
+                ffIcp->SetICPUpdateFlag(STPT_UPDATE);
+                ffIcp->SetICPUpdateFlag(CNI_UPDATE);
+            }
             break;
 
             case FCCMarkpoint:
@@ -696,8 +724,11 @@ void FireControlComputer::StepPoint(void)
 
                 gNavigationSys->GetMarkWayPoint(&platform->curWaypoint);
                 TheHud->waypointNum = gNavigationSys->GetMarkIndex() + 20;
-                OTWDriver.pCockpitManager->mpIcp->SetICPUpdateFlag(MARK_UPDATE);
-                OTWDriver.pCockpitManager->mpIcp->SetICPUpdateFlag(CNI_UPDATE);
+                if (ffIcp)
+                {
+                    ffIcp->SetICPUpdateFlag(MARK_UPDATE);
+                    ffIcp->SetICPUpdateFlag(CNI_UPDATE);
+                }
                 break;
 
             case FCCDLinkpoint:
@@ -713,8 +744,11 @@ void FireControlComputer::StepPoint(void)
 
                 gNavigationSys->GetDLinkWayPoint(&platform->curWaypoint);
                 TheHud->waypointNum = gNavigationSys->GetDLinkIndex() + 30;
-                OTWDriver.pCockpitManager->mpIcp->SetICPUpdateFlag(DLINK_UPDATE);
-                OTWDriver.pCockpitManager->mpIcp->SetICPUpdateFlag(CNI_UPDATE);
+                if (ffIcp)
+                {
+                    ffIcp->SetICPUpdateFlag(DLINK_UPDATE);
+                    ffIcp->SetICPUpdateFlag(CNI_UPDATE);
+                }
                 break;
         }
 
@@ -729,7 +763,8 @@ void FireControlComputer::StepPoint(void)
             }
         }
 
-        OTWDriver.pCockpitManager->mpIcp-> SetICPWPIndex(TheHud->waypointNum);
+        if (ffIcp)
+            ffIcp->SetICPWPIndex(TheHud->waypointNum);
 
 
         waypointStepCmd = 0;

@@ -2915,6 +2915,18 @@ static void main_loop(void) {
         }
 
         // FF_LINUX debug: scripted view changes + screenshots via
+        // FF_LINUX (AVIONICS-1): both scripted clocks below (FF_VIEW_SCRIPT and
+        // FF_SIM_KEY) are documented as "seconds after entering sim mode", but each
+        // used to start on the FIRST !doUI frame -- and there is one of those at
+        // startup, BEFORE the UI comes up. So they really ran from process start,
+        // and with the standard click track sim entry is ~55s in, meaning every
+        // scripted time below 55 fired at once on the first sim frame. This latches
+        // the UI -> sim transition so both clocks can key off it.
+        static bool s_sawUI = false;
+
+        if (doUI)
+            s_sawUI = true;
+
         // FF_VIEW_SCRIPT="<mode>@sec;s@sec;..." where <mode> is a view-mode
         // number (0=HUD 1=2Dpit 2=chase 3=orbit 4=virtual pit) or 's' for a
         // screenshot (written to /tmp/ff_view_<N>.bmp). For visual testing.
@@ -2948,6 +2960,17 @@ static void main_loop(void) {
                 }
             }
             if (s_nVs) {
+                // FF_LINUX (AVIONICS-1): same sim-entry latch as FF_SIM_KEY -- this
+                // clock also used to start on the pre-UI !doUI frame, so view steps
+                // scheduled before ~55s all fired at once on the first sim frame.
+                static bool s_vsLatched = false;
+
+                if (s_sawUI && !s_vsLatched)
+                {
+                    s_vsLatched = true;
+                    s_vsStart = SDL_GetTicks();
+                }
+
                 if (!s_vsStart) s_vsStart = SDL_GetTicks();
                 Uint32 el = SDL_GetTicks() - s_vsStart;
                 static int s_shotIdx = 0;
@@ -3142,17 +3165,6 @@ static void main_loop(void) {
         // sec = seconds after entering sim mode, holdms = hold duration (default 250).
         // Pushes events into the same buffer real SDL key presses use (FF_PushKeyEvent),
         // so the full sim input path is exercised. For automated testing of issue #14.
-        // FF_LINUX (AVIONICS-1): FF_SIM_KEY times are documented as "seconds after
-        // entering sim mode", but the clock used to start on the FIRST !doUI frame --
-        // and there is one of those at startup, BEFORE the UI comes up. So the clock
-        // was really running from process start, and with the standard click track
-        // sim entry is ~55s in, every scripted time below 55 fired at once on the
-        // first sim frame. Latch the clock on the UI -> sim transition instead.
-        static bool s_sawUI = false;
-
-        if (doUI)
-            s_sawUI = true;
-
         if (!doUI) {
             static int s_keyInit = 0;
             static bool s_simEntryLatched = false;
