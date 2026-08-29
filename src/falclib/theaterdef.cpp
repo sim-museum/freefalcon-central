@@ -545,7 +545,19 @@ void TheaterList::SetCurrentTheater(TheaterDef *td)
     HKEY theKey;
     RegOpenKeyEx(HKEY_LOCAL_MACHINE, FALCON_REGISTRY_KEY, 0, KEY_ALL_ACCESS, &theKey);
 
-    RegSetValueEx(theKey, "curTheater", 0, REG_SZ, (LPBYTE)td->m_name, strlen(td->m_name));
+    // strlen + 1: REG_SZ includes the terminator, and FF_RegQueryValue copies
+    // exactly the stored byte count without adding one. Writing strlen left the
+    // reader's stack buffer unterminated -- it only ever worked because the
+    // next stack byte happened to be zero.
+    RegSetValueEx(theKey, "curTheater", 0, REG_SZ, (LPBYTE)td->m_name, strlen(td->m_name) + 1);
+
+    if (getenv("FF_DEBUG_THEATER"))
+    {
+        fprintf(stderr, "[THEATER] SetCurrentTheater wrote '%s' as %d bytes (incl NUL)\n",
+                td->m_name, (int)strlen(td->m_name) + 1);
+        fflush(stderr);
+    }
+
     RegCloseKey(theKey);
 }
 
@@ -564,13 +576,33 @@ TheaterDef * TheaterList::GetCurrentTheater()
     {
         //TheaterName[0] = '\0';
         strcpy(TheaterName, "Korea");
-        RegSetValueEx(theKey, "curTheater", 0, REG_SZ, (LPBYTE)TheaterName, strlen(TheaterName));
+        RegSetValueEx(theKey, "curTheater", 0, REG_SZ, (LPBYTE)TheaterName, strlen(TheaterName) + 1);
     }
 
     //if (strnicmp(TheaterName, "Korea", 5) == 0)
     // strcpy(TheaterName, "Korea");
 
     RegCloseKey(theKey);
+
+    if (getenv("FF_DEBUG_THEATER"))
+    {
+        int i;
+        fprintf(stderr, "[THEATER] GetCurrentTheater read size=%u bytes:", (unsigned)size);
+
+        for (i = 0; i < (int)size and i < 16; i++)
+            fprintf(stderr, " %02X", (unsigned char)TheaterName[i]);
+
+        fprintf(stderr, "  byte[size]=%02X\n", (unsigned char)TheaterName[size]);
+        {
+            TheaterDef *found = FindTheaterByName(TheaterName);
+            fprintf(stderr, "[THEATER] name='%s' -> matched '%s'%s\n",
+                    TheaterName, found ? found->m_name : "<null>",
+                    (found and stricmp(found->m_name, TheaterName) not_eq 0) ? "  <-- FELL BACK" : "");
+            fflush(stderr);
+            return found;
+        }
+    }
+
     return FindTheaterByName(TheaterName);
 }
 
@@ -590,5 +622,11 @@ TheaterDef * TheaterList::FindTheaterByName(const char *name)
 
     // RV - Biker - If we did not find this theater use first in list
     //return NULL;
+    // Silent until now: an unrecognised name loads m_first (Korea) and the
+    // player sees their theater choice quietly ignored. Callers assume a
+    // non-NULL return, so the fallback stays -- but it no longer hides.
+    fprintf(stderr, "[THEATER] WARNING: no theater named '%s'; falling back to '%s'\n",
+            name ? name : "<null>", m_first ? m_first->m_name : "<none>");
+    fflush(stderr);
     return m_first;
 }
