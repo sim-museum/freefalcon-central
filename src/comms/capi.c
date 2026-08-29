@@ -91,7 +91,61 @@ int ComAPISend(com_API_handle c, int msgsize, int type)
 
     leave_cs();
 
-    return rc;
+    int ffRet = rc;
+
+    #ifdef FF_LINUX
+
+        // FF_LINUX (MP-1): two peers both reach Online=1 on loopback yet neither sees
+
+        // the other -- each joins its own local game. That has two explanations and
+
+        // counters separate them in one run: packets never move (transport open but
+
+        // inert), or packets move and the session/game-list handshake never happens.
+
+        // FF_DEBUG_MPCOMMS=1.
+
+        {
+
+            static int ffDbg = -1;
+
+            static long ffN = 0;
+
+    
+
+            if (ffDbg < 0)
+
+                ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+    
+
+            if (ffDbg)
+
+            {
+
+                ffN++;
+
+    
+
+                if (ffN <= 3 or (ffN % 200) == 0)
+
+                {
+
+                    fprintf(stderr, "[MPIO] send n=%ld ret=%d\n", ffN, (int)ffRet);
+
+                    fflush(stderr);
+
+                }
+
+            }
+
+        }
+
+    #endif
+
+    
+
+    return ffRet;
 }
 
 
@@ -133,7 +187,34 @@ int ComAPISendOOB(com_API_handle c, int msgsize, int type)
     }
 
     leave_cs();
-    return rc;
+    int ffRet = rc;
+    #ifdef FF_LINUX
+        // FF_LINUX (MP-1): two peers both reach Online=1 on loopback yet neither sees
+        // the other -- each joins its own local game. That has two explanations and
+        // counters separate them in one run: packets never move (transport open but
+        // inert), or packets move and the session/game-list handshake never happens.
+        // FF_DEBUG_MPCOMMS=1.
+        {
+            static int ffDbg = -1;
+            static long ffN = 0;
+    
+            if (ffDbg < 0)
+                ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+    
+            if (ffDbg)
+            {
+                ffN++;
+    
+                if (ffN <= 3 or (ffN % 200) == 0)
+                {
+                    fprintf(stderr, "[MPIO] sendOOB n=%ld ret=%d\n", ffN, (int)ffRet);
+                    fflush(stderr);
+                }
+            }
+        }
+    #endif
+    
+    return ffRet;
 }
 
 /*int ComAPISendX(com_API_handle c, int msgsize,com_API_handle Xcom){
@@ -178,7 +259,61 @@ int ComAPIGet(com_API_handle c)
 
     leave_cs();
 
-    return size;
+    int ffRet = size;
+
+    #ifdef FF_LINUX
+
+        // FF_LINUX (MP-1): two peers both reach Online=1 on loopback yet neither sees
+
+        // the other -- each joins its own local game. That has two explanations and
+
+        // counters separate them in one run: packets never move (transport open but
+
+        // inert), or packets move and the session/game-list handshake never happens.
+
+        // FF_DEBUG_MPCOMMS=1.
+
+        {
+
+            static int ffDbg = -1;
+
+            static long ffN = 0;
+
+    
+
+            if (ffDbg < 0)
+
+                ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+    
+
+            if (ffDbg)
+
+            {
+
+                ffN++;
+
+    
+
+                if (ffN <= 3 or (ffN % 200) == 0)
+
+                {
+
+                    fprintf(stderr, "[MPIO] recv n=%ld ret=%d\n", ffN, (int)ffRet);
+
+                    fflush(stderr);
+
+                }
+
+            }
+
+        }
+
+    #endif
+
+    
+
+    return ffRet;
 }
 
 /* set the group to send and recieve data from */
