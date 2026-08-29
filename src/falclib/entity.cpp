@@ -283,8 +283,56 @@ int LoadClassTable(char *filename)
             else if (Falcon4ClassTable[i].dataType == DTYPE_WEAPON)
             {
                 ShiAssert((int)Falcon4ClassTable[i].dataPtr < NumWeaponTypes);
-                WeaponDataTable[(int)Falcon4ClassTable[i].dataPtr].Index = i;
-                Falcon4ClassTable[i].dataPtr = (void*) &WeaponDataTable[(int)Falcon4ClassTable[i].dataPtr];
+
+                // FF_LINUX (THEATERS-1): this assert fires on all three Israeli
+                // theaters, and ShiAssert does NOT halt in this build -- so the very
+                // next line writes .Index THROUGH an out-of-range index into
+                // WeaponDataTable. That is a heap write past the end of the table
+                // during theater load, not a cosmetic warning.
+                // NumWeaponTypes really is the table size (entity.cpp:620,
+                // NumWeaponTypes = entries, right where the table is allocated), so
+                // the bound is correct and the DATA is what disagrees: the class
+                // table references weapon entries the weapon file does not provide.
+                // FF_DEBUG_CLASSTBL=1 reports the range and the scale.
+                {
+                    static int ffDbg = -1;
+
+                    if (ffDbg < 0) ffDbg = getenv("FF_DEBUG_CLASSTBL") ? 1 : 0;
+
+                    if (ffDbg and (int)(intptr_t)Falcon4ClassTable[i].dataPtr >= NumWeaponTypes)
+                    {
+                        static int ffN = 0;
+                        ffN++;
+
+                        if (ffN <= 12 or (ffN % 25) == 0)
+                        {
+                            fprintf(stderr, "[CLASSTBL] weapon entry %d: dataPtr index %d >= NumWeaponTypes %d"
+                                    "  (OOB write of .Index would follow)  [%d so far]\n",
+                                    i, (int)(intptr_t)Falcon4ClassTable[i].dataPtr,
+                                    (int)NumWeaponTypes, ffN);
+                            fflush(stderr);
+                        }
+                    }
+                }
+
+                if ((int)(intptr_t)Falcon4ClassTable[i].dataPtr >= NumWeaponTypes)
+                {
+                    // FF_LINUX (THEATERS-1): the class table names a weapon the
+                    // theater's weapon file does not contain. MEASURED on Israeli:
+                    // exactly two entries (614 -> 790 and 3049 -> 794 against
+                    // NumWeaponTypes = 782); Korea has none. Writing .Index through
+                    // that index corrupts the heap 8 and 12 entries past the table,
+                    // so leave the entry with NO data rather than a bad pointer.
+                    // NOTE: downstream handling of a NULL weapon dataPtr for these
+                    // two entries is UNTESTED -- but a defined NULL is strictly
+                    // better than an out-of-bounds write, and it is checkable.
+                    Falcon4ClassTable[i].dataPtr = NULL;
+                }
+                else
+                {
+                    WeaponDataTable[(int)Falcon4ClassTable[i].dataPtr].Index = i;
+                    Falcon4ClassTable[i].dataPtr = (void*) &WeaponDataTable[(int)Falcon4ClassTable[i].dataPtr];
+                }
             }
             else if (Falcon4ClassTable[i].dataType == DTYPE_FEATURE)
             {
