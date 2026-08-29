@@ -82,6 +82,11 @@ enum
 // with the Win32 layout desynced after 2 records (byte 46), while the LP64
 // layout walked 15331 records cleanly.
 //
+// VERIFIED IN TACVIEW (1.9.5), not just by a parser: the pre-fix .flt is rejected
+// with "The file format ... is not supported", while a tape recorded after this
+// change opens and plays. A pre-fix .vhs also opens -- which is NOT evidence either
+// way, because the .vhs structs were already int32_t (see below).
+//
 // The conversion was half done -- the .vhs structs in acmitape.h (ACMIEntityData,
 // ACMIEntityPositionData, ACMIEventHeader, ACMIEventTrailer, ACMIFeatEvent) were
 // already int32_t, which is why the tape HEADER read correctly while the record
