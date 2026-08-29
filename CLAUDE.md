@@ -3915,7 +3915,7 @@ match the latest commit, check the title first (this resolved repeated
 | FF_DEBUG_VIEW=1 | Trace pilotEyePos load + 3D-pit camera assembly (focus/offset/eye vs aircraft) + ownship draw-inhibit |
 | FF_DEBUG_FLUSHES=1 | Per-FlushPolyLists poly counts + caller backtrace |
 | FF_PROBE_BT=1 | Backtrace per FF_PROBE_PIXEL change; FF_DUMP_GLTEX=<id> dumps that GL texture to /tmp when probed |
-| FF_VIEW_SCRIPT="m@sec;s@sec;..." | Scripted sim view changes + screenshots: m = view mode (0=HUD 1=2Dpit 2=chase 3=orbit 4=virtual pit), 's' = screenshot to /tmp/ff_view_N.bmp |
+| FF_VIEW_SCRIPT="m@sec;s@sec;..." | Scripted sim view changes + screenshots: m = view mode (0=HUD 1=2Dpit 2=chase 3=orbit 4=virtual pit), 's' = screenshot to /tmp/ff_view_N.bmp. **These do NOT match the keys the PO presses:** PO "1"=mode 0, "2"=mode 1, "3"=mode 4 (virtual pit), "0"=mode 3, "9"=mode 2. Sampling a view in the first ~15s of a mission catches the loading splash and then a partially-streamed world, which reads as "this view is broken" -- see VIEW3-1. |
 | FF_DEBUG_VPIT=1 | One-time 3D-pit texture dump (texture-set layout, bank handles, per-texture SURFSTAT pixel stats) |
 | FF_PROBE_PIXEL="x,y" | Pixel→draw-call attribution: after every VB draw, read that pixel; log fvf/texture/lighting/pit-mode when its color changes |
 | FF_PIT_NO_LIGHTING=1 | Restore old force-unlit 3D-pit rendering (default is now lit, matching Windows) |
