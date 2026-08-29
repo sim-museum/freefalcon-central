@@ -3463,6 +3463,28 @@ void OTWDriverClass::VCock_Exec(void)
         if (closestbutton not_eq 9999)
             if (Button3DList.buttons[closestbutton].function)
             {
+#ifdef FF_LINUX
+                // FF_LINUX (ASAN-9 / CPBTN-1): this is the 3D-pit click dispatch --
+                // the path CPBTN-1's NULL dereference actually lived on, and the one
+                // surface no sweep in this project reaches. Report every button
+                // actually hit, so a clean ASAN run over scripted clicks can be shown
+                // to have EXERCISED the path rather than merely missed every button.
+                // FF_DEBUG_PITCLICK=1.
+                {
+                    static int ffPc = -1;
+
+                    if (ffPc < 0)
+                        ffPc = getenv("FF_DEBUG_PITCLICK") ? 1 : 0;
+
+                    if (ffPc)
+                    {
+                        fprintf(stderr, "[PITCLICK] button index=%d id=%d\n",
+                                closestbutton, Button3DList.buttons[closestbutton].buttonId);
+                        fflush(stderr);
+                    }
+                }
+
+#endif
                 //Wombat778 03-06-04 Send the buttonid of the function, which should stop a ctd in not-realistic avionics
                 if (Button3DList.buttons[closestbutton].buttonId < 0)
                     //Wombat778 03-06-04 Use callfunc instead of directly calling funcs, so they can be captured
