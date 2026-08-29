@@ -384,6 +384,42 @@ void OTWDriverClass::SelectExternal()
                 chaseCamPos.x = otwPlatform->dmx[0][0] * chaseRange * 0.5f;
                 chaseCamPos.y = otwPlatform->dmx[0][1] * chaseRange * 0.5f;
                 chaseCamPos.z = otwPlatform->dmx[0][2] * chaseRange * 0.5f - 5.0f;
+
+#ifdef FF_LINUX
+                // FF_LINUX (BOOM-2): the PO reports the SH-7 / weapon view is where a
+                // bomb impact is supposed to be visible and never is. The offset here
+                // is chaseRange*0.5 along the weapon axis -- 37ft at chaseRange -75,
+                // 250ft at the -500 default -- which should frame the burst nicely.
+                // Captured frames instead show extreme close-up ground, so either
+                // chaseRange collapses on this path or otwPlatform is stale once the
+                // weapon dies at impact. Report both. FF_DEBUG_WPNCAM=1.
+                {
+                    static int ffWc = -1;
+                    static DWORD ffLast = 0;
+
+                    if (ffWc < 0)
+                        ffWc = getenv("FF_DEBUG_WPNCAM") ? 1 : 0;
+
+                    if (ffWc)
+                    {
+                        DWORD now = GetTickCount();
+
+                        if (now - ffLast > 500)
+                        {
+                            ffLast = now;
+                            fprintf(stderr, "[WPNCAM] chaseRange=%.1f offset=(%.1f,%.1f,%.1f) "
+                                    "plat=(%.0f,%.0f,%.0f) isWeapon=%d\n",
+                                    (double)chaseRange, (double)chaseCamPos.x,
+                                    (double)chaseCamPos.y, (double)chaseCamPos.z,
+                                    (double)otwPlatform->XPos(), (double)otwPlatform->YPos(),
+                                    (double)otwPlatform->ZPos(),
+                                    otwPlatform->IsWeapon() ? 1 : 0);
+                            fflush(stderr);
+                        }
+                    }
+                }
+
+#endif
             }
             else
             {
