@@ -1850,7 +1850,14 @@ void SimNextAAWeapon(unsigned long val, int state, void* pButton)
         if ( not g_bRealisticAvionics)
         {
             //MI original Code
-            if (((CPButtonObject*)pButton)->GetCurrentState() == CPBUTTON_OFF)
+            // CPBTN-1: pButton is GetButtonPointer()'s result, NULL when the id is
+            // not in the pit -- its F4Assert does not halt in this build.
+            // keystrokes.key binds this command TWICE: by key with a declared id,
+            // and with a device binding (dik=-2) whose id (4 for A-A, 5 for A-G)
+            // has NO BUTTON record in 16_ckpit.dat. The 3D-pit click path
+            // (vcock.cpp:3472) feeds the same NULL in. icp.h says these ids "must
+            // match the values in the cockpit script files" -- nothing enforces it.
+            if (pButton and ((CPButtonObject*)pButton)->GetCurrentState() == CPBUTTON_OFF)
             {
                 SimICPAA(val, state, pButton);
                 Sms = SimDriver.GetPlayerAircraft()->Sms;
@@ -1992,7 +1999,14 @@ void SimNextAGWeapon(unsigned long val, int state, void* pButton)
         if ( not g_bRealisticAvionics)
         {
             //MI original code
-            if (((CPButtonObject*)pButton)->GetCurrentState() == CPBUTTON_OFF)
+            // CPBTN-1: pButton is GetButtonPointer()'s result, NULL when the id is
+            // not in the pit -- its F4Assert does not halt in this build.
+            // keystrokes.key binds this command TWICE: by key with a declared id,
+            // and with a device binding (dik=-2) whose id (4 for A-A, 5 for A-G)
+            // has NO BUTTON record in 16_ckpit.dat. The 3D-pit click path
+            // (vcock.cpp:3472) feeds the same NULL in. icp.h says these ids "must
+            // match the values in the cockpit script files" -- nothing enforces it.
+            if (pButton and ((CPButtonObject*)pButton)->GetCurrentState() == CPBUTTON_OFF)
             {
                 SimICPAG(val, state, pButton);
                 Sms = SimDriver.GetPlayerAircraft()->Sms;
