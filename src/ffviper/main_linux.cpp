@@ -2656,6 +2656,40 @@ static void render_frame(void) {
     if (doUI) {
         FF_PresentPrimarySurface();
 
+        // FF_LINUX (MP-1): can peer B RESOLVE the remote game it was told about?
+        // af98c308 showed a hosted game IS distributed -- peer B decodes a real game
+        // id (e.g. 856619/28007) and receives CREATE(10)/SESSION(11). Joining is
+        // InitCampaign(gametype, joingame), which needs the actual FalconGameEntity.
+        // If vuDatabase cannot Find it, no join hook can work, so establish that
+        // first. FF_DEBUG_MPCOMMS=1.
+        {
+            extern unsigned g_ffRemoteGameCreator, g_ffRemoteGameNum;
+            static int ffDbg = -1;
+            static int ffDone = 0;
+
+            if (ffDbg < 0)
+                ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+            if (ffDbg and not ffDone and g_ffRemoteGameNum)
+            {
+                ffDone = 1;
+                VU_ID ffId;
+                ffId.creator_.value_ = g_ffRemoteGameCreator;
+                ffId.num_ = g_ffRemoteGameNum;
+                VuEntity *ffE = vuDatabase ? vuDatabase->Find(ffId) : NULL;
+                fprintf(stderr, "[MPJOIN] remote game %u/%u -> Find()=%p%s\n",
+                        g_ffRemoteGameCreator, g_ffRemoteGameNum, (void*)ffE,
+                        ffE ? "" : "   <-- NOT RESOLVABLE, a join hook cannot work");
+
+                if (ffE)
+                    fprintf(stderr, "[MPJOIN]   entityType=%d isGame=%d\n",
+                            (int)ffE->EntityType(),
+                            (ffE->IsGame() ? 1 : 0));
+
+                fflush(stderr);
+            }
+        }
+
         // FF_LINUX debug: scripted UI clicks via FF_UI_CLICK="x,y@sec;x,y@sec..."
         // (UI-surface coordinates, 1024x768). Posts the same WM_LBUTTONDOWN/UP
         // messages a real mouse click produces - for automated UI testing.

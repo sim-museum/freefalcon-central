@@ -13,6 +13,12 @@
 // sfr: remove this include (create a new VuxMessageType)
 #include "mesg.h"
 
+#ifdef FF_LINUX
+// FF_LINUX (MP-1): first remote (non player-pool) game id observed on the wire.
+unsigned g_ffRemoteGameCreator = 0;
+unsigned g_ffRemoteGameNum = 0;
+#endif
+
 using namespace std;
 
 //#define DEBUG_COMMS 1
@@ -1518,6 +1524,28 @@ VuSessionEntity::VuSessionEntity(VU_BYTE** stream, long *rem)
             fprintf(stderr, "[MPGAMEID] session decode: gameId=%u/%u\n",
                     (unsigned)gameId_.creator_.value_, (unsigned)gameId_.num_);
             fflush(stderr);
+        }
+
+        // FF_LINUX (MP-1): remember the first REMOTE game id seen -- anything that is
+        // not the shared player pool (0/2). Peer B receives this once peer A hosts a
+        // campaign (af98c308). Resolving it locally is the prerequisite for any join:
+        // if vuDatabase cannot Find it, a join hook has nothing to join.
+        if (gameId_.num_ not_eq 0 and not (gameId_.creator_.value_ == 0 and gameId_.num_ == 2))
+        {
+            extern unsigned g_ffRemoteGameCreator, g_ffRemoteGameNum;
+
+            if ( not g_ffRemoteGameNum)
+            {
+                g_ffRemoteGameCreator = (unsigned)gameId_.creator_.value_;
+                g_ffRemoteGameNum = (unsigned)gameId_.num_;
+
+                if (ffDbg)
+                {
+                    fprintf(stderr, "[MPGAMEID] remembered REMOTE game %u/%u\n",
+                            g_ffRemoteGameCreator, g_ffRemoteGameNum);
+                    fflush(stderr);
+                }
+            }
         }
     }
 #endif
