@@ -1278,6 +1278,10 @@ static void setup_signal_handlers() {
 }
 
 // Forward declarations
+// FF_LINUX (MP-1): defined in ui/src/comms/phonebk.cpp; -port sets it so two
+// peers on one machine do not both take CAPI_UDP_PORT for their local port.
+extern "C" unsigned short force_port;
+
 static void print_usage(const char* progname);
 static bool init_data_directory(const char* dataDir);
 static bool init_resource_manager(void);
@@ -1301,6 +1305,8 @@ static void print_usage(const char* progname) {
     printf("  -w           Run in windowed mode (default)\n");
     printf("  -f           Run in fullscreen mode\n");
     printf("  -nosound     Disable sound\n");
+    printf("  -port <n>    Force the local UDP port (default 2934). Needed to run\n");
+    printf("               two peers on one machine -- they otherwise collide.\n");
     printf("  -test-ia     Auto-launch Instant Action after 3 seconds (for testing)\n");
     printf("  -h           Show this help\n");
 }
@@ -3695,6 +3701,16 @@ int main(int argc, char** argv) {
             fullscreen = false;
         } else if (strcmp(argv[i], "-nosound") == 0) {
             enableSound = false;
+        } else if (strcmp(argv[i], "-port") == 0 && i + 1 < argc) {
+            // FF_LINUX (MP-1): winmain.cpp parses -port into force_port, and
+            // main_linux.cpp did not, so force_port stayed 0 and every instance
+            // took CAPI_UDP_PORT (2934) for its LOCAL port. Two peers on one
+            // machine therefore fought over the same UDP port, which is exactly
+            // the case a local two-instance multiplayer test needs -- and it is
+            // not only a test problem, since two players on one box hit it too.
+            force_port = (unsigned short)atoi(argv[++i]);
+            fprintf(stderr, "[MP] local port forced to %u\n",
+                    (unsigned)force_port);
         } else if (strcmp(argv[i], "-test-ia") == 0 || strcmp(argv[i], "--test-instant-action") == 0) {
             testInstantAction = true;
             fprintf(stderr, "[TEST] Auto-launch Instant Action enabled (3 second delay)\n");
