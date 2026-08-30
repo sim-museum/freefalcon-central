@@ -1145,8 +1145,32 @@ void CampaignSetup() // Everything that needs to be done to start the campaign (
     if (gATOPackage)
         gATOPackage->SetMenu(0);
 
-    gGps->SetTeamNo(FalconLocalSession->GetTeam()); // See ONLY what is spotted
-    gGps->Update();
+#ifdef FF_LINUX
+    // FF_LINUX (MP-1): guard gGps and FalconLocalSession.
+    //
+    // This is where a JOINING peer segfaults, now that a join can actually complete:
+    //   #0 CampaignSetup()       campaign.cpp:1148
+    //   #1 CampaignJoinSuccess() campjoin.cpp:256
+    //   #2 ProcessGameMessages() main_linux.cpp:2420
+    // Its two immediate neighbours above (gATOAll, gATOPackage) ARE NULL-checked; this
+    // one was not. A joiner reaches CampaignSetup from FM_JOIN_SUCCEEDED without
+    // having walked the campaign UI that constructs these, so the pointer can be null
+    // on a path that simply never ran on Linux before.
+    //
+    // Report which pointer is missing rather than only surviving it -- a silent skip
+    // here would just move the failure somewhere less obvious.
+    if ( not gGps or not FalconLocalSession)
+    {
+        fprintf(stderr, "[CAMPSETUP] skipping GPS team setup: gGps=%p FalconLocalSession=%p\n",
+                (void*)gGps, (void*)FalconLocalSession);
+        fflush(stderr);
+    }
+    else
+#endif
+    {
+        gGps->SetTeamNo(FalconLocalSession->GetTeam()); // See ONLY what is spotted
+        gGps->Update();
+    }
 
     win = gMainHandler->FindWindow(CP_SUA);
 
