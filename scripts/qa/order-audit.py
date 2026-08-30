@@ -40,6 +40,22 @@ G_NULL_ANY  = re.compile(r'(\w+)\s*(?:==|not_eq|!=)\s*(?:NULL|nullptr|0)\b')
 BAILS   = re.compile(r'\b(return|continue|break|goto|throw)\b')
 DECL    = re.compile(r'^\s*(?:const\s+|static\s+|unsigned\s+)*[\w:]+\s*[*&]?\s*\**\s*%s\s*(?:[;=,)]|\[)')
 
+def uses_bare(line, name):
+    """True if `name` appears as its own identifier, not as SOMETHING->name.
+
+    Plain `name in line` conflates `drawPointer` with `testFeature->drawPointer`,
+    which are different objects. That is what made pass2 report simmover.cpp:1286
+    -- the guard covers this->drawPointer, the later line touches the feature's --
+    and it would misfire the same way anywhere a member shares a local's name.
+    """
+    for m in re.finditer(r'\b%s\b' % re.escape(name), line):
+        pre = line[:m.start()].rstrip()
+        if pre.endswith("->") or (pre.endswith(".") and not pre.endswith("..")):
+            continue
+        return True
+    return False
+
+
 def depth_map(lines):
     """Brace depth BEFORE each line (comments/strings ignored -- good enough)."""
     d, out = 0, []
@@ -131,7 +147,7 @@ def scan(path, out):
                 if depth[j] < gd:            # left the guard's block
                     break
                 prev, p = lines[j], lines[j].strip()
-                if p.startswith(("//", "*", "/*", "#")) or name not in prev:
+                if p.startswith(("//", "*", "/*", "#")) or not uses_bare(prev, name):
                     continue
                 if re.match(DECL.pattern % re.escape(name), prev):
                     continue                 # a declaration, not an access
@@ -165,6 +181,12 @@ def scan(path, out):
                     gnames += G_NULL_DOM.findall(pk)
                     if IF_LINE.search(pk):
                         gnames += G_NULL_ANY.findall(pk)
+                    # A bounds guard dominates too: cstringrc.cpp GetString opens
+                    # with `if (ID < 1) return(NULL);`, which is exactly what makes
+                    # its later IDTable_[ID] safe. Only NULL guards were recognised.
+                    bm = G_BOUND.search(pk)
+                    if bm:
+                        gnames.append(bm.group(1))
                     if name in gnames and BAILS.search("".join(lines[k:k + 3])):
                         dominated = True
                         break
@@ -248,7 +270,7 @@ def scan2(path, out):
             if depth[j] < depth[i]:
                 break
             nxt, p = lines[j], lines[j].strip()
-            if p.startswith(("//", "*", "/*", "#")) or name not in nxt:
+            if p.startswith(("//", "*", "/*", "#")) or not uses_bare(nxt, name):
                 continue
             if depth[j] != depth[i]:
                 continue
