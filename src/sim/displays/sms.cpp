@@ -1636,6 +1636,48 @@ void SMSClass::Exec(void)
 
     // END OF ADDED SECTION
 
+#ifdef FF_LINUX
+    // FF_LINUX (RIPPLE-1): the PO gets one bomb or one pair in CCIP regardless of the
+    // ripple setting. The release path computes
+    //     curRippleCount = max(min(GetAGBRippleCount(), numCurrentWpn - 1), 0)
+    // so a zero count OR numCurrentWpn <= 1 yields exactly one release. These values
+    // are readable WITHOUT dropping anything, which matters because driving a real
+    // release needs a firing solution. Report them, plus the continuation state.
+    // Note GetAGBRippleCount() reads agbProfile[curProfile].rippleCount; the flat
+    // rippleCount member is NOT what the release path uses, and the Prof1RP/Prof2RP
+    // copy in smsdraw.cpp:121-137 is entirely inside a comment block, so it is dead.
+    // FF_DEBUG_RIPPLE=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_RIPPLE") ? 1 : 0;
+
+        if (ffDbg and ownship == SimDriver.GetPlayerAircraft())
+        {
+            static DWORD ffLast = 0;
+            static int ffLastCount = -999, ffLastWpn = -999;
+            DWORD ffNow = GetTickCount();
+            const int ffCount = GetAGBRippleCount();
+
+            // report on change, or every 3s
+            if (ffCount not_eq ffLastCount or numCurrentWpn not_eq ffLastWpn
+                or ffNow - ffLast >= 3000)
+            {
+                ffLast = ffNow;
+                ffLastCount = ffCount;
+                ffLastWpn = numCurrentWpn;
+                fprintf(stderr, "[RIPPLE] agbRippleCount=%d (displays as %d) interval=%d "
+                        "numCurrentWpn=%d pair=%d curRippleCount=%d isBomb=%d\n",
+                        ffCount, ffCount + 1, GetAGBRippleInterval(),
+                        numCurrentWpn, (int)GetAGBPair(), curRippleCount,
+                        (curWeapon and curWeapon->IsBomb()) ? 1 : 0);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     // Do ripple stuff here
     if (curRippleCount and SimLibElapsedTime > nextDrop)
     {
