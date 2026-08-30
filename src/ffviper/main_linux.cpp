@@ -2457,6 +2457,38 @@ bool ProcessGameMessages() {
                 if (msg.wParam == CAMP_NEED_PRELOAD && FalconLocalGame) {
                     CampaignPreloadSuccess(!FalconLocalGame->IsLocal());
                 }
+                // FF_LINUX (MP-1): the eight DATA cases were missing entirely.
+                //
+                // FalconWndProc (winmain.cpp:1810-1898) handles CAMP_NEED_ENTITIES,
+                // WEATHER, PERSIST, OBJ_DELTAS, TEAM_DATA, UNIT_DATA, VC and
+                // PRIORITIES, and every one of them calls TheCampaign.GotJoinData().
+                // That call is the join's completion gate: it clears CAMP_LOADED,
+                // runs JoinGame() and posts FM_JOIN_SUCCEEDED once no CAMP_NEED_*
+                // bits remain. Here only CAMP_NEED_PRELOAD was handled, so nothing
+                // ever re-evaluated completion.
+                //
+                // Some receive handlers call GotJoinData() themselves (weather.cpp,
+                // team.cpp, campdatamsg.cpp, sendpersistantlist.cpp) which is why the
+                // joiner got as far as it did -- 8 of 9 bits cleared. But
+                // sendvcmsg.cpp does NOT; it only posts this message. So when VC was
+                // the last bit outstanding, the flag cleared and nobody noticed the
+                // join was complete. Measured: joiner stuck at
+                // loaded=0 preloaded=1 suspended=1 with stillNeeded=[VC], forever,
+                // while the master had already reported "SENDING VC".
+                else if (msg.wParam == CAMP_NEED_ENTITIES   || msg.wParam == CAMP_NEED_WEATHER   ||
+                         msg.wParam == CAMP_NEED_PERSIST    || msg.wParam == CAMP_NEED_OBJ_DELTAS ||
+                         msg.wParam == CAMP_NEED_TEAM_DATA  || msg.wParam == CAMP_NEED_UNIT_DATA ||
+                         msg.wParam == CAMP_NEED_VC         || msg.wParam == CAMP_NEED_PRIORITIES)
+                {
+                    // Same guard the Windows handler applies to every one of these.
+                    if (FalconLocalGame && vuPlayerPoolGroup != vuLocalGame) {
+                        extern VU_TIME gCampJoinLastData;
+                        extern int gCampJoinTries;
+                        gCampJoinLastData = vuxRealTime;
+                        gCampJoinTries = 0;
+                        TheCampaign.GotJoinData();
+                    }
+                }
                 break;
 
             // =========================================================

@@ -139,6 +139,31 @@ int FalconSendVC::Process(uchar autodisp)
 
     MonoPrint("Got the VC Message %d\n", dataBlock.size);
 
+#ifdef FF_LINUX
+    // FF_LINUX (MP-1): a joining peer stalls with CAMP_NEED_VC as the last
+    // outstanding bit while the MASTER reports "SENDING VC". The flag clear below is
+    // unconditional once this handler runs with the flag set, so if the flag never
+    // clears the handler is not running at all -- i.e. the message is not arriving or
+    // not being dispatched. MonoPrint above does not reach the Linux console, so
+    // there was no way to tell those apart. FF_DEBUG_MPCOMMS=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            fprintf(stderr, "[MPJOIN] FalconSendVC::Process ENTERED size=%d needVC=%d "
+                    "tacticalMission=%p\n",
+                    (int)dataBlock.size,
+                    (TheCampaign.Flags bitand CAMP_NEED_VC) ? 1 : 0,
+                    (void*)current_tactical_mission);
+            fflush(stderr);
+        }
+    }
+#endif
+
     if (TheCampaign.Flags bitand CAMP_NEED_VC)
     {
         count = dataBlock.size / sizeof(sent_vc);

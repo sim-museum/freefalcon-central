@@ -1008,6 +1008,43 @@ void CampaignClass::GotJoinData(void)
 
     MonoPrint("Got Join data Still needed = %x\n", still_needed);
 
+#ifdef FF_LINUX
+    // FF_LINUX (MP-1): this is the completion gate for a JOINING peer -- CAMP_LOADED
+    // is set, JoinGame runs and FM_JOIN_SUCCEEDED is posted only once every
+    // CAMP_NEED_* bit has cleared. A joiner observed stuck at
+    // loaded=0/preloaded=1/suspended=1 is therefore still waiting on one of these,
+    // and MonoPrint does not reach the Linux console. Name the outstanding bits.
+    // FF_DEBUG_MPCOMMS=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            char ffBuf[256];
+            ffBuf[0] = '\0';
+#define FF_NEEDBIT(b, n) if (still_needed bitand (b)) { strncat(ffBuf, n " ", sizeof(ffBuf) - strlen(ffBuf) - 1); }
+            FF_NEEDBIT(CAMP_NEED_ENTITIES,   "ENTITIES")
+            FF_NEEDBIT(CAMP_NEED_WEATHER,    "WEATHER")
+            FF_NEEDBIT(CAMP_NEED_PERSIST,    "PERSIST")
+            FF_NEEDBIT(CAMP_NEED_OBJ_DELTAS, "OBJ_DELTAS")
+            FF_NEEDBIT(CAMP_NEED_PRELOAD,    "PRELOAD")
+            FF_NEEDBIT(CAMP_NEED_TEAM_DATA,  "TEAM_DATA")
+            FF_NEEDBIT(CAMP_NEED_UNIT_DATA,  "UNIT_DATA")
+            FF_NEEDBIT(CAMP_NEED_VC,         "VC")
+            FF_NEEDBIT(CAMP_NEED_PRIORITIES, "PRIORITIES")
+#undef FF_NEEDBIT
+            fprintf(stderr, "[MPJOIN] GotJoinData: stillNeeded=0x%08lx [%s] loaded=%d "
+                    "mainHandler=%p\n",
+                    (unsigned long)still_needed, ffBuf[0] ? ffBuf : "none",
+                    IsLoaded() ? 1 : 0, (void*)gMainHandler);
+            fflush(stderr);
+        }
+    }
+#endif
+
     if (still_needed or IsLoaded())
         return;
 

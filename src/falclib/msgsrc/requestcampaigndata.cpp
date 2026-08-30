@@ -303,6 +303,31 @@ void SendRequestedData(void)
                     }
                 }
 
+                // FF_LINUX (MP-1): a joining peer stalls with CAMP_NEED_VC as the LAST
+                // outstanding bit -- 8 of 9 clear, VC never does. This is the only
+                // place the master sends it, and MonoPrint does not reach the Linux
+                // console, so report whether the branch is even reached and why not.
+                // FF_DEBUG_MPCOMMS=1.
+#ifdef FF_LINUX
+                {
+                    static int ffDbg = -1;
+
+                    if (ffDbg < 0)
+                        ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+                    if (ffDbg)
+                    {
+                        const int ffWants = (request->dataBlock.dataNeeded bitand CAMP_NEED_VC) ? 1 : 0;
+                        const int ffNotSelf = (request->dataBlock.who not_eq vuLocalSession) ? 1 : 0;
+                        fprintf(stderr, "[MPJOIN] master: request dataNeeded=0x%08lx wantsVC=%d "
+                                "notSelf=%d -> %s\n",
+                                (unsigned long)request->dataBlock.dataNeeded, ffWants, ffNotSelf,
+                                (ffWants and ffNotSelf) ? "SENDING VC" : "not sending VC");
+                        fflush(stderr);
+                    }
+                }
+#endif
+
                 if (request->dataBlock.dataNeeded bitand CAMP_NEED_VC and request->dataBlock.who not_eq vuLocalSession)
                 {
                     MonoPrint("Sending VC Data\n");
