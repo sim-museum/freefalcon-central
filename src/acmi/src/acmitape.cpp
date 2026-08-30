@@ -569,6 +569,26 @@ void CleanupACMIImportPositionData
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifdef FF_LINUX
+// FF_LINUX (ACMI-3): Import() has six silent `return FALSE` exits. A recorded
+// flight was leaving acmibin/acmi0000.flt unconverted while the caller still
+// printed "done", so a failed conversion was indistinguishable from a good one
+// -- that is the PO-visible "file format not supported". Report WHICH exit and
+// the file offset, so a parse desync can be told from a short/absent file.
+static BOOL FFAcmiBail(int line, FILE *fp)
+{
+    if (getenv("FF_DEBUG_ACMI"))
+    {
+        fprintf(stderr, "[ACMI] Import BAILED at acmitape.cpp:%d  offset=%ld\n",
+                line, fp ? ftell(fp) : -1L);
+        fflush(stderr);
+    }
+
+    return FALSE;
+}
+#endif
+
+
 BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
 {
     FILE
@@ -626,7 +646,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
     if (flightFile == NULL)
     {
         MonoPrint("Error opening acmi flight file");
-        return FALSE;
+        return FFAcmiBail(__LINE__, flightFile);
     }
 
     begTime = -1.0;
@@ -652,7 +672,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 if ( not fread(&genpos, sizeof(ACMIGenPositionData), 1, flightFile))
                 {
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
-                    return FALSE;
+                    return FFAcmiBail(__LINE__, flightFile);
                 }
 
                 if (hdr.type == ACMIRecAircraftPosition)
@@ -708,7 +728,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 if ( not fread(&tracer, sizeof(ACMITracerStartData), 1, flightFile))
                 {
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
-                    return FALSE;
+                    return FFAcmiBail(__LINE__, flightFile);
                 }
 
                 // Allocate a new data node.
@@ -743,7 +763,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 if ( not fread(&sfx, sizeof(ACMIStationarySfxData), 1, flightFile))
                 {
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
-                    return FALSE;
+                    return FFAcmiBail(__LINE__, flightFile);
                 }
 
                 // Allocate a new data node.
@@ -777,7 +797,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 if ( not fread(&fs, sizeof(ACMIFeatureStatusData), 1, flightFile))
                 {
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
-                    return FALSE;
+                    return FFAcmiBail(__LINE__, flightFile);
                 }
 
                 // Allocate a new data node.
@@ -808,7 +828,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 if ( not fread(&msfx, sizeof(ACMIMovingSfxData), 1, flightFile))
                 {
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
-                    return FALSE;
+                    return FFAcmiBail(__LINE__, flightFile);
                 }
 
                 // Allocate a new data node.
@@ -847,7 +867,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 if ( not fread(&sd, sizeof(ACMISwitchData), 1, flightFile))
                 {
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
-                    return FALSE;
+                    return FFAcmiBail(__LINE__, flightFile);
                 }
 
                 // Allocate a new data node.
@@ -882,7 +902,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 if ( not fread(&dd, sizeof(ACMIDOFData), 1, flightFile))
                 {
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
-                    return FALSE;
+                    return FFAcmiBail(__LINE__, flightFile);
                 }
 
                 // Allocate a new data node.
@@ -917,7 +937,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 if ( not fread(&featpos, sizeof(ACMIFeaturePositionData), 1, flightFile))
                 {
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
-                    return FALSE;
+                    return FFAcmiBail(__LINE__, flightFile);
                 }
 
                 // Allocate a new data node.
@@ -962,9 +982,22 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 if ( not fread(&import_count, sizeof(int32_t), 1, flightFile))
                 {
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
-                    return FALSE;
+                    return FFAcmiBail(__LINE__, flightFile);
                 }
 
+#ifdef FF_LINUX
+                // ACMI-3: this count is unvalidated file data fed straight to
+                // new[]; a garbage value aborts the whole process via bad_alloc.
+                if (getenv("FF_DEBUG_ACMI"))
+                {
+                    fprintf(stderr, "[ACMI] ACMICallsignList: count=%ld  "
+                            "bytes=%ld  offset=%ld\n",
+                            import_count,
+                            (long)(import_count * (long)sizeof(ACMI_CallRec)),
+                            ftell(flightFile));
+                    fflush(stderr);
+                }
+#endif
                 F4Assert(Import_Callsigns == NULL);
                 Import_Callsigns = new ACMI_CallRec[import_count];
                 F4Assert(Import_Callsigns not_eq NULL);
@@ -972,7 +1005,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 if ( not fread(Import_Callsigns, import_count * sizeof(ACMI_CallRec), 1, flightFile))
                 {
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
-                    return FALSE;
+                    return FFAcmiBail(__LINE__, flightFile);
                 }
 
                 break;

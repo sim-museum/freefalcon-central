@@ -37,6 +37,66 @@ extern char gAcmiStr[11];
 void InitACMIIDTable();
 void CleanupACMIIDTable();
 
+#ifdef FF_LINUX
+// FF_LINUX (ACMI-4): this constructor used to DeleteFile() every acmibin/*.flt
+// at static-init time -- gACMIRec is a global, so the sweep runs before main(),
+// before FF_ACMI_IMPORT gets a chance to convert anything. On Windows a flight
+// was imported during the session, so the sweep only ever met stale files. Here
+// the importer currently fails (ACMI-3), so the .flt survives the session and
+// the NEXT launch silently destroys it. A PO flight recorded at 16:03 was lost
+// exactly this way. ACMI is the project's quantitative instrument, so losing a
+// tape is a data-loss bug, not housekeeping.
+//
+// Preserve instead of delete: rename to <name>.orphanN. FF_ACMI_PURGE_FLT=1
+// restores the original delete-on-startup behaviour.
+static void FFRetireOrPurgeFlt(const char *winPath)
+{
+    char from[MAX_PATH];
+    char to[MAX_PATH + 24];
+    size_t i = 0;
+
+    for (; winPath[i] and i < sizeof(from) - 1; i++)
+        from[i] = (winPath[i] == '\\') ? '/' : winPath[i];
+
+    from[i] = '\0';
+
+    if (getenv("FF_ACMI_PURGE_FLT"))
+    {
+        remove(from);
+        return;
+    }
+
+    for (int n = 0; n < 1000; n++)
+    {
+        FILE *probe;
+
+        snprintf(to, sizeof(to), "%s.orphan%d", from, n);
+        probe = fopen(to, "r");
+
+        if (probe)
+        {
+            fclose(probe);
+            continue;
+        }
+
+        if (rename(from, to) not_eq 0)
+        {
+            fprintf(stderr, "[ACMI] could not preserve %s: %s\n",
+                    from, strerror(errno));
+            fflush(stderr);
+        }
+        else
+        {
+            fprintf(stderr, "[ACMI] preserved unconverted flight %s -> %s\n",
+                    from, to);
+            fflush(stderr);
+        }
+
+        return;
+    }
+}
+#endif
+
 /*
 ** The constructor
 */
@@ -71,13 +131,13 @@ ACMIRecorder::ACMIRecorder(void)
     {
         strcpy(path, "acmibin\\");
         strcat(path, FindFileData.cFileName);
-        DeleteFile(path);
+        FFRetireOrPurgeFlt(path);
 
         while (FindNextFile(handle,  &FindFileData))
         {
             strcpy(path, "acmibin\\");
             strcat(path, FindFileData.cFileName);
-            DeleteFile(path);
+            FFRetireOrPurgeFlt(path);
         }
 
         FindClose(handle);
