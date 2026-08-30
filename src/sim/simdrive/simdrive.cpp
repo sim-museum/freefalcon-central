@@ -849,12 +849,36 @@ void SimulationDriver::Cycle()
                     if (ahead > 60000.0f) ahead = 60000.0f;
                     pos.x = ac->XPos() + vx / vmag * ahead;
                     pos.y = ac->YPos() + vy / vmag * ahead;
+                    // FF_LINUX (QUAD-1): GetGroundLevel returns EXACTLY 0.0f when it
+                    // runs out of LOD data for the point (tviewpnt.cpp bails with
+                    // "return 0.0f" once LOD > maxLOD). The old guard only rejected
+                    // -99000, and 0.0 sails through it -- so every burst thrown
+                    // beyond the streamed terrain was spawned at SEA LEVEL. Measured:
+                    // "GROUND burst at (620734,1968072) z=0.0 (acZ=-7896.6)" with real
+                    // terrain near -1700, i.e. ~1700ft UNDERGROUND. Any A/B run
+                    // through this harness was comparing two invisible bursts.
+                    // Same family as the terrain-streaming transient: a ground query
+                    // answers 0 before the data is there, and callers bake it in.
                     float gz = OTWDriver.GetGroundLevel(pos.x, pos.y);
-                    if (gz > -99000.0f) pos.z = gz;
+
+                    if (gz > -99000.0f and gz not_eq 0.0f)
+                    {
+                        pos.z = gz;
+                    }
+                    else
+                    {
+                        // No terrain data out there yet -- skip rather than bury the
+                        // burst. Silence would look exactly like a rendering failure.
+                        fprintf(stderr, "[FF_TEST] SKIP burst at (%.0f,%.0f): no terrain "
+                                "data (GetGroundLevel=%.1f)\n", pos.x, pos.y, (double)gz);
+                        fflush(stderr);
+                        goto ffSkipBurst;
+                    }
                     fprintf(stderr, "[FF_TEST] GROUND burst at (%.0f,%.0f) z=%.1f (acZ=%.1f)\n",
                             pos.x, pos.y, pos.z, ac->ZPos());
                     fflush(stderr);
                     DrawableParticleSys::PS_AddParticleEx(SFX_GROUND_EXPLOSION + 1, &pos, &vec);
+ffSkipBurst: ;
                 } else {
                 // Alternate between the direct path (known good) and the
                 // named-effect/SfxClass path used by real missile impacts.

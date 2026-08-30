@@ -1589,6 +1589,32 @@ void CDXEngine::DX2D_SetViewMode(void)
     // set the engine status
     m_pD3DD->SetRenderState(D3DRENDERSTATE_ZWRITEENABLE, FALSE);
 
+#ifdef FF_LINUX
+    // FF_LINUX (QUAD-1/BOOM-2): this path disables depth WRITES but never touches
+    // depth TESTING -- there is no z-test bit in DXFlagsType, so ZENABLE stays on
+    // with ZFUNC=LESSEQUAL from the global state. Particle quads are therefore
+    // depth-tested against terrain, and the fireball children spawn EXACTLY at
+    // ground level (measured: PSEARTH delta=0.00), i.e. coplanar with the surface
+    // they have to pass.
+    //
+    // That fits the PO's control: a crash into WATER showed the COMPLETE fireball
+    // while the same crash on sloped terrain showed only its top cap.
+    //
+    // FF_PS_NODEPTH=1 turns the test off for the 2D flush. This is a DIAGNOSTIC, not
+    // a proposed fix -- drawing every 2D effect with no depth test would also make
+    // effects behind hills show through. It exists to answer one question: is the
+    // depth test what is eating the explosion?
+    {
+        static int ffNoDepth = -1;
+
+        if (ffNoDepth < 0)
+            ffNoDepth = getenv("FF_PS_NODEPTH") ? 1 : 0;
+
+        if (ffNoDepth)
+            m_pD3DD->SetRenderState(D3DRENDERSTATE_ZENABLE, FALSE);
+    }
+#endif
+
     // Disable any texture stage Alpha and Color
     m_pD3DD->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_DISABLE);
     m_pD3DD->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
