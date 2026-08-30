@@ -153,6 +153,31 @@ void CopyDataFromWindow()
 
     // leave critical section
     UI_Leave(uics);
+
+#ifdef FF_LINUX
+    // FF_LINUX (MP-1): report what CONNECT actually resolved. Driving the comms
+    // screen from a script, there was no way to tell a client connect to a
+    // selected phone-book entry from a server-mode connect that ignored it --
+    // both just raise COMMLINK_WIN. FF_DEBUG_MPCOMMS=1.
+    {
+        static int s_dbg = -1;
+
+        if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+        if (s_dbg)
+        {
+            const unsigned long ip = (unsigned long)localData.ip_address;
+            fprintf(stderr, "[PBOOK] connect as %s: ip=0x%08lx (%lu.%lu.%lu.%lu) "
+                    "localPort=%d remotePort=%d desc='%s'\n",
+                    localData.ip_address == 0 ? "SERVER" : "CLIENT",
+                    ip, (ip >> 24) bitand 0xff, (ip >> 16) bitand 0xff,
+                    (ip >> 8) bitand 0xff, ip bitand 0xff,
+                    (int)localData.localPort, (int)localData.remotePort,
+                    localDescription);
+            fflush(stderr);
+        }
+    }
+#endif
 }
 
 // called when the URL text area is selected
