@@ -1530,6 +1530,41 @@ int ObjectiveClass::DecodeDamageData(uchar *data, Unit shooter, FalconDeathMessa
         if ( not islocal)
             SetFeatureStatus(f, s);
 
+#ifdef FF_LINUX
+        // FF_LINUX (CAMPAIGN-ALL): the one thing this item never observed directly is
+        // damage actually registering -- the claim that bombing counts regardless of
+        // the invisible-explosion defect (BOOM-2) was a code trace, not a measurement.
+        // Report every decoded hit so a campaign run, where the AI strikes objectives
+        // constantly, proves it live. FF_DEBUG_DAMAGE=1.
+        //
+        // Note SetFeatureStatus above runs ONLY when the objective is remote; craters
+        // and EvaluateKill below run either way. So islocal is printed -- a local
+        // objective taking damage should still crater and score without a status
+        // write here.
+        {
+            static int ffDbg = -1;
+
+            if (ffDbg < 0)
+                ffDbg = getenv("FF_DEBUG_DAMAGE") ? 1 : 0;
+
+            if (ffDbg)
+            {
+                static long ffN = 0;
+                const int ffIsRunway =
+                    (Falcon4ClassTable[GetFeatureID(f)].vuClassData.classInfo_[VU_TYPE] == TYPE_RUNWAY);
+
+                if (++ffN <= 60)
+                {
+                    fprintf(stderr, "[DAMAGE] hit %ld/%d feature=%d status=%d islocal=%d "
+                            "runway=%d objId=%u/%u\n",
+                            ffN, (int)lost, f, s, islocal, ffIsRunway,
+                            (unsigned)Id().creator_.value_, (unsigned)Id().num_);
+                    fflush(stderr);
+                }
+            }
+        }
+#endif
+
         // Add runway craters
         if (Falcon4ClassTable[GetFeatureID(f)].vuClassData.classInfo_[VU_TYPE] == TYPE_RUNWAY) // (IS_RUNWAY)
         {
