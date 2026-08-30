@@ -1332,6 +1332,67 @@ char* ReadToken(FILE *fp, char name[], int len)
     if (sptr)
         *sptr = '\0';
 
+#ifdef FF_LINUX
+    // FF_LINUX: strip the CR as well. The game data is CRLF -- measured, e.g.
+    // campaign/SAVE/save1.tri holds "#ENDINIT\r\n" -- and Windows text-mode
+    // fgets removes the CR while Linux keeps it. Truncating at the '\n' leaves
+    // the '\r' in place, because it sits BEFORE the newline, so every caller
+    // doing a whole-token compare fails:
+    //     strcmp(token, "#ENDINIT")   vs   "#ENDINIT\r"
+    // cmpevent.cpp terminates its sections that way (#ENDINIT, #ENDIF, #ELSE,
+    // #ENDSCRIPT), so none of them ever matched. That is the same "terminator
+    // token never found -> loop never ends" campaign-start hang the FF_LINUX
+    // feof() breaks in cmpevent.cpp were added to contain; this is the cause
+    // those breaks were treating.
+    //
+    // ReadMemToken directly below already skips '\r'. The asymmetry between two
+    // tokenizers in the same file is the defect.
+    //
+    // Same class as the particlesys.ini CRLF bug (5783ca73) that made every
+    // explosion invisible. FF_NO_CRLF_FIX=1 reverts.
+    {
+        static int ffOff = -1;
+
+        if (ffOff < 0)
+            ffOff = getenv("FF_NO_CRLF_FIX") ? 1 : 0;
+
+        if ( not ffOff)
+        {
+            sptr = strchr(name, '\r');
+
+            if (sptr)
+            {
+                *sptr = '\0';
+
+                // FF_DEBUG_CRLF=1: report the first stripped token and a running
+                // count. Without this, a clean regression run cannot be told
+                // apart from a run in which this code never executed.
+                static int s_dbg = -1;
+
+                if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_CRLF") ? 1 : 0;
+
+                if (s_dbg)
+                {
+                    static long s_n = 0;
+
+                    if (s_n++ == 0)
+                    {
+                        fprintf(stderr, "[CRLF] first CR stripped from token '%s'\n",
+                                name);
+                        fflush(stderr);
+                    }
+
+                    if ((s_n % 500) == 0)
+                    {
+                        fprintf(stderr, "[CRLF] %ld tokens had a CR stripped\n", s_n);
+                        fflush(stderr);
+                    }
+                }
+            }
+        }
+    }
+#endif
+
     return name;
 }
 
