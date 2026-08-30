@@ -787,6 +787,42 @@ int ObjectiveClass::Deaggregate(FalconSessionEntity *session)
             simdata.x = XPos() + x;
             simdata.y = YPos() + y;
 #ifdef FF_LINUX
+            // FF_LINUX (MAV-2): place the feature ON THE GROUND.
+            //
+            // simdata.z was left at the 0 assigned before this loop -- SEA LEVEL --
+            // so every feature was placed at z=0 regardless of the terrain under it.
+            // MEASURED at the Maverick TE target area: placedZ=0.0 against
+            // drawnGnd=-31..-42, i.e. each feature buried by 31-42ft. A 30-40ft
+            // building is entirely swallowed, which is the PO's report of no visible
+            // buildings or vehicles.
+            //
+            // Note the unit path already does this (unit.cpp:1806,2327 set simdata.z
+            // from a real height); only the feature path did not. GetFeatureOffset's
+            // z offset is applied on top, so features that are deliberately raised
+            // relative to their objective keep that relationship.
+            //
+            // FF_NO_FEATURE_GROUND=1 restores the old sea-level placement for A/B.
+            {
+                static int ffOff = -1;
+
+                if (ffOff < 0)
+                    ffOff = getenv("FF_NO_FEATURE_GROUND") ? 1 : 0;
+
+                if ( not ffOff)
+                {
+                    extern float FF_DrawnGroundLevel(float xx, float yy);
+                    const float ffGnd = FF_DrawnGroundLevel(simdata.x, simdata.y);
+
+                    // Reject the no-data sentinels rather than baking them in: this
+                    // query answers exactly 0.0f before terrain has streamed, and
+                    // accepting that is what buried the FF_TEST_EXPLOSION bursts
+                    // (e321710b). Leaving simdata.z alone keeps the old behaviour.
+                    if (ffGnd < -0.5f and ffGnd > -99000.0f)
+                        simdata.z = ffGnd + z;
+                }
+            }
+#endif
+#ifdef FF_LINUX
             // FF_LINUX: TE2-2 -- the player's airbase never gets FEAT_FLAT_CONTAINER
             // (0x100) so it is never built as a DrawablePlatform and its runway is
             // never drawn, while a base 19 miles away does. Log each feature at its
@@ -797,6 +833,39 @@ int ObjectiveClass::Deaggregate(FalconSessionEntity *session)
                         simdata.x, simdata.y, XPos(), YPos(), f, (int)classID,
                         (unsigned)fc->Flags,
                         (fc->Flags bitand FEAT_FLAT_CONTAINER) ? 1 : 0, (int)fc->Priority);
+
+            // FF_LINUX (MAV-2): the PO cannot see buildings or vehicles at the
+            // Maverick target area and suspects they are under the terrain.
+            // GetFeatureOffset above writes a z offset which this caller DISCARDS --
+            // simdata.z stays at the 0 assigned before the loop, i.e. SEA LEVEL --
+            // while the unit path (unit.cpp:1806,2327) does set simdata.z from a real
+            // height. Whether that is wrong depends on whether anything later snaps
+            // the feature onto the terrain, so MEASURE it: report the height the
+            // feature is being placed at against the ground beneath it.
+            // A feature placed at 0 where the ground is well above sea level is
+            // buried by exactly that difference. FF_DEBUG_FEATZ=1.
+            {
+                static int ffDbg = -1;
+
+                if (ffDbg < 0)
+                    ffDbg = getenv("FF_DEBUG_FEATZ") ? 1 : 0;
+
+                if (ffDbg)
+                {
+                    static long ffN = 0;
+
+                    if (++ffN <= 20)
+                    {
+                        extern float FF_DrawnGroundLevel(float x, float y);
+                        const float ffGnd = FF_DrawnGroundLevel(simdata.x, simdata.y);
+                        fprintf(stderr, "[FEATZ] f=%d placedZ=%.1f offsetZ=%.1f drawnGnd=%.1f "
+                                "buriedBy=%.1f\n",
+                                f, (double)simdata.z, (double)z, (double)ffGnd,
+                                (double)(simdata.z - ffGnd));
+                        fflush(stderr);
+                    }
+                }
+            }
 #endif
             simdata.heading = (float)(FeatureEntryDataTable[fid].Facing) * DEG_TO_RADIANS;
             simdata.displayPriority = fc->Priority;
