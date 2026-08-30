@@ -3015,6 +3015,53 @@ void SmsDrawable::MavSMSDisplay(void)
     AircraftClass *self = ((AircraftClass*)SimDriver.GetPlayerAircraft());
     int CAPplayer = 0;
 
+#ifdef FF_LINUX
+    // FF_LINUX (MAV-1): guard `self`, and note this is the LIVE Maverick page.
+    //
+    // MissileDisplay dispatches wtAgm65 as:
+    //     if (not g_bRealisticAvionics) MaverickDisplay(); else MavSMSDisplay();
+    // and playerop.cpp:223 sets g_bRealisticAvionics = true by DEFAULT. So this
+    // function is the one that actually runs, and MaverickDisplay -- where the
+    // earlier MAV-1 guards were placed -- is effectively dead in the shipping
+    // configuration. Those guards were never going to fire.
+    //
+    // MaverickDisplay opens with "if (not self) return;". This function did not,
+    // and dereferences self on the very next line. Same page, same weapon, opposite
+    // treatment of the same pointer -- the asymmetry is the defect.
+    if ( not self)
+    {
+        static int ffSaid = 0;
+
+        if ( not ffSaid)
+        {
+            ffSaid = 1;
+            fprintf(stderr, "[MAV1] MavSMSDisplay: player aircraft is NULL -- would have "
+                            "dereferenced it\n");
+            fflush(stderr);
+        }
+
+        return;
+    }
+
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            static long ffN = 0;
+
+            if (++ffN == 1 or (ffN % 500) == 0)
+            {
+                fprintf(stderr, "[MAV1] MavSMSDisplay drawn, call %ld (realistic avionics path)\n", ffN);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     if (self->autopilotType == AircraftClass::CombatAP)
         CAPplayer = 1;
 
