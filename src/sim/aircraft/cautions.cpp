@@ -1638,6 +1638,51 @@ void AircraftClass::SetExternalData(void)
 
     // MD -- 20040301: adding bits for the gear down and locked so you can see for sure
     // what the individual strut state looks like.
+#ifdef FF_LINUX
+    // FF_LINUX (SINK-2 family): these three lights asked the gear ANIMATION DOF,
+    // for exact float equality, whether each strut is down and locked. The same
+    // DOF read is what SINK-2 caught returning zero while surface.cpp held it at
+    // full travel (1.570) with gearPos 1.000 -- so on any frame where the read
+    // beats the animation write, all three "down and locked" indications drop.
+    //
+    // gearPos is the authority; surface.cpp derives the DOF from it. Ask gearPos
+    // directly, and keep the original treatment of a stuck or broken leg, which
+    // surface.cpp parks at 0.6 of travel and which therefore never lit before.
+    // FF_NO_GEARDOF_FIX=1 restores the DOF comparison.
+    {
+        static int ffNoFix = -1;
+
+        if (ffNoFix < 0)
+            ffNoFix = getenv("FF_NO_GEARDOF_FIX") ? 1 : 0;
+
+        const FlightData::LightBits3 ffBit[3] =
+        {
+            FlightData::NoseGearDown, FlightData::LeftGearDown, FlightData::RightGearDown
+        };
+
+        for (int ffI = 0; ffI < 3; ffI++)
+        {
+            bool ffDown;
+
+            if (ffNoFix)
+            {
+                ffDown = (GetDOFValue(ComplexGearDOF[ffI])
+                          == (af->GetAeroData(AeroDataSet::NosGearRng + ffI * 4) * DTR));
+            }
+            else
+            {
+                ffDown = (af->gearPos >= 1.0F)
+                         and not (af->gear[ffI].flags bitand GearData::GearStuck)
+                         and not (af->gear[ffI].flags bitand GearData::GearBroken);
+            }
+
+            if (ffDown)
+                cockpitFlightData.SetLightBit3(ffBit[ffI]);
+            else
+                cockpitFlightData.ClearLightBit3(ffBit[ffI]);
+        }
+    }
+#else
     if (GetDOFValue(ComplexGearDOF[0]) == (af->GetAeroData(AeroDataSet::NosGearRng) * DTR))
         cockpitFlightData.SetLightBit3(FlightData::NoseGearDown);
     else
@@ -1652,6 +1697,7 @@ void AircraftClass::SetExternalData(void)
         cockpitFlightData.SetLightBit3(FlightData::RightGearDown);
     else
         cockpitFlightData.ClearLightBit3(FlightData::RightGearDown);
+#endif
 
 }
 
