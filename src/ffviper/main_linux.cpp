@@ -3313,6 +3313,26 @@ static void main_loop(void) {
 
             if (s_nClicks) {
                 extern int gxPos, gyPos;
+
+                // FF_LINUX (AVIONICS-1): latch the clock on the UI -> sim transition,
+                // exactly as FF_SIM_KEY (276522ff) and FF_VIEW_SCRIPT needed. This is
+                // the THIRD copy of the same defect: the clock started on the first
+                // !doUI frame, and there is one of those at startup BEFORE the UI, so
+                // with the standard click track (sim entry ~55s) every click
+                // scheduled below 55 fired at once on the first sim frame. A cockpit
+                // click track was therefore never actually sequenced -- which is a
+                // good reason this harness was never used successfully to reach an
+                // MFD page.
+                static bool s_clickLatched = false;
+
+                if (s_sawUI && !s_clickLatched) {
+                    s_clickLatched = true;
+                    s_clickStart = SDL_GetTicks();
+                    fprintf(stderr, "[FF_SIM_CLICK] sim entry latched at %ums; times are relative to this\n",
+                            s_clickStart);
+                    fflush(stderr);
+                }
+
                 if (!s_clickStart) s_clickStart = SDL_GetTicks();
                 Uint32 el = SDL_GetTicks() - s_clickStart;
                 for (int ci = 0; ci < s_nClicks; ci++) {
