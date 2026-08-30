@@ -1971,6 +1971,33 @@ void SmsDrawable::MaverickDisplay(void)
     float range;
     float dx, dy, dz;
 
+#ifdef FF_LINUX
+    // FF_LINUX (MAV-1): is this page being DRAWN at all? Every reproduction attempt
+    // for the PO's A-G -> S crash has come back clean, but the NULL guards below only
+    // speak when they catch something -- silence is equally consistent with "the
+    // Maverick page was never displayed", which is what an automated run that cannot
+    // drive MFD page selection would produce. Count entries so a clean run can be
+    // told from an untested one. FF_DEBUG_MPCOMMS=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            static long ffN = 0;
+
+            if (++ffN == 1 or (ffN % 500) == 0)
+            {
+                fprintf(stderr, "[MAV1] MaverickDisplay drawn, call %ld (curWeapon=%p)\n",
+                        ffN, (void*)Sms->curWeapon.get());
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     if (Sms->curWeapon)
     {
         ShiAssert(Sms->curWeapon->IsMissile());
