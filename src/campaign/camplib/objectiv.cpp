@@ -738,6 +738,33 @@ float FF_FeatureGroundZ(float x, float y, float zOffset, float fallback)
     extern float FF_DrawnGroundLevel(float xx, float yy);
     const float ffGnd = FF_DrawnGroundLevel(x, y);
 
+    // FF_LINUX: count how often the terrain query cannot answer. Rejecting the
+    // 0.0 sentinel is right, but the fallback here is simdata.z, which is 0 --
+    // i.e. sea level, the very placement this helper exists to prevent. If the
+    // fallback rate is high, features are being placed before terrain streams and
+    // this helper is a no-op for them. FF_DEBUG_FEATZ=1.
+    {
+        static int s_dbg = -1;
+
+        if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_FEATZ") ? 1 : 0;
+
+        if (s_dbg)
+        {
+            static long s_ok = 0, s_fell = 0;
+            const bool ffUsable = (ffGnd < -0.5f and ffGnd > -99000.0f);
+
+            if (ffUsable) s_ok++; else s_fell++;
+
+            if (((s_ok + s_fell) % 200) == 0)
+            {
+                fprintf(stderr, "[FEATZ] placed-on-terrain=%ld fell-back-to-%.1f=%ld "
+                        "(last query=%.1f)\n", s_ok, (double)fallback, s_fell,
+                        (double)ffGnd);
+                fflush(stderr);
+            }
+        }
+    }
+
     if (ffGnd < -0.5f and ffGnd > -99000.0f)
         return ffGnd + zOffset;
 

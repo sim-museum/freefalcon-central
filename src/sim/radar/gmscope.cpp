@@ -2751,9 +2751,88 @@ void RadarDopplerClass::GMMode(void)
                     )
                     {
                         // Actual LOS
-                        if ( not OTWDriver.CheckLOS(platform, testFeature))
                         {
-                            canSee = 0.0F;  // LOS is blocked
+#ifdef FF_LINUX
+                            // FF_LINUX (TERRAIN-AGREE): report each feature's burial
+                            // depth alongside the LOS verdict.
+                            //
+                            // LOS is traced by viewPoint->LineOfSight, i.e. against
+                            // the DRAWN terrain, and FF_DrawnGroundLevel samples that
+                            // same RViewPoint. A feature below the drawn surface is
+                            // therefore occluded by it and filtered out here --
+                            // invisible AND untargetable from one cause. That is the
+                            // proposed explanation for the PO's "no visible buildings
+                            // or vehicles" in the Maverick TE; this makes it
+                            // measurable rather than inferred.
+                            //
+                            // CAUTION: OTWDriverClass::CheckLOS returns 1 (clear) when
+                            // terrain is not loaded -- its own comment says so. During
+                            // streaming EVERYTHING has LOS, so ignore the first
+                            // seconds or the numbers invert.
+                            const int ffLos = OTWDriver.CheckLOS(platform, testFeature) ? 1 : 0;
+                            {
+                                static int s_dbg = -1;
+
+                                if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_BURIED") ? 1 : 0;
+
+                                // Ignore the streaming window entirely. CheckLOS
+                                // returns 1 when terrain is not loaded, so early
+                                // samples report "everything visible" no matter what
+                                // -- the first run of this probe produced 200 such
+                                // samples and said nothing. FF_DEBUG_BURIED_AFTER
+                                // (seconds, default 90) sets the gate.
+                                static long s_after = -1;
+
+                                if (s_after < 0)
+                                {
+                                    const char *e = getenv("FF_DEBUG_BURIED_AFTER");
+                                    s_after = e ? atol(e) : 90;
+                                }
+
+                                // Measure elapsed time from the FIRST call, not
+                                // against SimLibElapsedTime directly: that is
+                                // CAMPAIGN time (the launch path sets it from
+                                // vuxGameTime), an absolute clock in the tens of
+                                // millions of ms, so any "> N seconds" test on it is
+                                // trivially true from the first frame. The first
+                                // version of this gate did exactly that and changed
+                                // nothing.
+                                static VU_TIME s_first = 0;
+
+                                if ( not s_first) s_first = SimLibElapsedTime;
+
+                                if (s_dbg and testFeature
+                                    and SimLibElapsedTime - s_first
+                                        > (VU_TIME)(s_after * 1000))
+                                {
+                                    static long s_n = 0;
+
+                                    if (s_n++ < 200)
+                                    {
+                                        extern float FF_DrawnGroundLevel(float xx, float yy);
+                                        const float fx = testFeature->XPos();
+                                        const float fy = testFeature->YPos();
+                                        const float fz = testFeature->ZPos();
+                                        const float drawn = FF_DrawnGroundLevel(fx, fy);
+                                        const float phys = OTWDriver.GetGroundLevel(fx, fy);
+                                        // z is positive DOWN: buried when the feature
+                                        // sits BELOW (greater z than) the drawn surface.
+                                        fprintf(stderr, "[BURIED] los=%d z=%.1f drawn=%.1f "
+                                                "phys=%.1f buriedBy=%.1f delta(d-p)=%.1f\n",
+                                                ffLos, fz, drawn, phys, fz - drawn,
+                                                drawn - phys);
+                                        fflush(stderr);
+                                    }
+                                }
+                            }
+
+                            if ( not ffLos)
+#else
+                            if ( not OTWDriver.CheckLOS(platform, testFeature))
+#endif
+                            {
+                                canSee = 0.0F;  // LOS is blocked
+                            }
                         }
                     }
                     else
@@ -3055,9 +3134,88 @@ void RadarDopplerClass::GMMode(void)
                     )
                     {
                         // Actual LOS
-                        if ( not OTWDriver.CheckLOS(platform, testFeature))
                         {
-                            canSee = 0.0F;  // LOS is blocked
+#ifdef FF_LINUX
+                            // FF_LINUX (TERRAIN-AGREE): report each feature's burial
+                            // depth alongside the LOS verdict.
+                            //
+                            // LOS is traced by viewPoint->LineOfSight, i.e. against
+                            // the DRAWN terrain, and FF_DrawnGroundLevel samples that
+                            // same RViewPoint. A feature below the drawn surface is
+                            // therefore occluded by it and filtered out here --
+                            // invisible AND untargetable from one cause. That is the
+                            // proposed explanation for the PO's "no visible buildings
+                            // or vehicles" in the Maverick TE; this makes it
+                            // measurable rather than inferred.
+                            //
+                            // CAUTION: OTWDriverClass::CheckLOS returns 1 (clear) when
+                            // terrain is not loaded -- its own comment says so. During
+                            // streaming EVERYTHING has LOS, so ignore the first
+                            // seconds or the numbers invert.
+                            const int ffLos = OTWDriver.CheckLOS(platform, testFeature) ? 1 : 0;
+                            {
+                                static int s_dbg = -1;
+
+                                if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_BURIED") ? 1 : 0;
+
+                                // Ignore the streaming window entirely. CheckLOS
+                                // returns 1 when terrain is not loaded, so early
+                                // samples report "everything visible" no matter what
+                                // -- the first run of this probe produced 200 such
+                                // samples and said nothing. FF_DEBUG_BURIED_AFTER
+                                // (seconds, default 90) sets the gate.
+                                static long s_after = -1;
+
+                                if (s_after < 0)
+                                {
+                                    const char *e = getenv("FF_DEBUG_BURIED_AFTER");
+                                    s_after = e ? atol(e) : 90;
+                                }
+
+                                // Measure elapsed time from the FIRST call, not
+                                // against SimLibElapsedTime directly: that is
+                                // CAMPAIGN time (the launch path sets it from
+                                // vuxGameTime), an absolute clock in the tens of
+                                // millions of ms, so any "> N seconds" test on it is
+                                // trivially true from the first frame. The first
+                                // version of this gate did exactly that and changed
+                                // nothing.
+                                static VU_TIME s_first = 0;
+
+                                if ( not s_first) s_first = SimLibElapsedTime;
+
+                                if (s_dbg and testFeature
+                                    and SimLibElapsedTime - s_first
+                                        > (VU_TIME)(s_after * 1000))
+                                {
+                                    static long s_n = 0;
+
+                                    if (s_n++ < 200)
+                                    {
+                                        extern float FF_DrawnGroundLevel(float xx, float yy);
+                                        const float fx = testFeature->XPos();
+                                        const float fy = testFeature->YPos();
+                                        const float fz = testFeature->ZPos();
+                                        const float drawn = FF_DrawnGroundLevel(fx, fy);
+                                        const float phys = OTWDriver.GetGroundLevel(fx, fy);
+                                        // z is positive DOWN: buried when the feature
+                                        // sits BELOW (greater z than) the drawn surface.
+                                        fprintf(stderr, "[BURIED] los=%d z=%.1f drawn=%.1f "
+                                                "phys=%.1f buriedBy=%.1f delta(d-p)=%.1f\n",
+                                                ffLos, fz, drawn, phys, fz - drawn,
+                                                drawn - phys);
+                                        fflush(stderr);
+                                    }
+                                }
+                            }
+
+                            if ( not ffLos)
+#else
+                            if ( not OTWDriver.CheckLOS(platform, testFeature))
+#endif
+                            {
+                                canSee = 0.0F;  // LOS is blocked
+                            }
                         }
                     }
                     else

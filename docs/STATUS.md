@@ -9801,3 +9801,114 @@ The first attempt at this sweep's smaller sibling reported `SWEEP COMPLETE` havi
 run **zero** missions — `campaign-sweep.sh` iterates `for name in "$@"` over
 theater names and was invoked with none. A sweep that runs nothing and a sweep
 that passes look identical from the outside. Check the row count, not the banner.
+
+## 2026-08-30 session close — where things stand
+
+Autonomous scrum, ~30 sprints, 24 commits, all pushed to `origin/develop`.
+Regression: **TESWEEP-4 34/34 clean, assertion lines 64 → 42**; ASAN clean on the
+changed paths with the traces on, so the code was verified to have *executed*
+rather than merely not crashed.
+
+### Fixed and pushed
+
+| item | defect |
+|---|---|
+| SINK-2 | physics read the ground standoff from the gear **animation DOF**, so the standoff alternated 6.00 ↔ 2.39 ft and the jet jittered 3.6 ft into the runway |
+| GEAR lights | the three "down and locked" indications compared that same DOF for **exact float equality** |
+| ORDER-4 ×4 | guards sequenced after their access: `phonebk.cpp`, `psound.cpp` (`camvel` never tested at all), `weapon.cpp`, `cstringrc.cpp` (out-of-bounds **write** on a negative ID) |
+| CRLF | `ReadToken` left the `\r`, so `#ENDINIT`/`#ENDIF`/`#ELSE`/`#ENDSCRIPT` never matched in CRLF `.tri` files |
+| BOOM-3 | ground-impact particles placed at exactly `GroundLevel` in **four** sites across two emitter implementations; the lift had reached one |
+| MP feature burial | `DeaggregateFromData` left `simdata.z` at 0, burying every feature a joining peer received |
+| MP port | `-port` was parsed in `winmain.cpp` and **not** on Linux, so two peers on one machine collided on 2934 — a real two-players-on-one-box bug |
+
+### Open, and blocked on the PO
+
+**#86** takeoff shudder · **#102** Maverick TE (buildings, and "U" corrupting
+textures) · **#103** sloped-terrain bombing — needs *both* halves, and
+`FF_DEBUG_PSGROUND=1` on one bomb run names which of the four emitter sites a real
+bomb exercises, which no harness here can reach · **#101** ripple intent.
+
+### Open, actionable without the PO
+
+**#83** — the joining peer's wire, queue, group recognition and message handler are
+all **verified working**; the game list lives on the Campaign/DF/TE screens, not
+the comms screen, so peer B must navigate there after connecting. Resume by adding
+that click and dumping the `CampaignGames` tree.
+
+**#108** — see the task. Three plausible hypotheses died there in one sprint.
+
+### The theme, and it is not the fixes
+
+**Eight negative results this session turned out to be the instrument, not the
+system.** Each produced output indistinguishable from a real finding:
+
+- `pgrep -f <pattern>` matches the shell running it, so "wait until X finishes"
+  loops never exit and status checks always say "running"
+- `campaign-sweep.sh` iterates `for name in "$@"`; invoked with no arguments it
+  runs **zero** missions and still prints `SWEEP COMPLETE`
+- `FF_TEST_EXPLOSION` skipped 51 of 51 bursts (`GetGroundLevel` answering the
+  streaming sentinel), so "zero emitter sites fired" proved nothing
+- rebuilding while a sweep was live swapped the binary underneath it
+- a wire metric grepped `type=10|type=11`, a string this build never emits, and
+  reported "no game crossed the wire" while one demonstrably had
+- peer B sat *behind* the connect dialog for two entire runs because the dismiss
+  click had been added for peer A only
+- a burial probe sampled entirely inside the terrain-streaming window, where
+  `CheckLOS` returns 1 unconditionally
+- the fix for that gate compared against `SimLibElapsedTime`, which is **campaign**
+  time — an absolute clock — so the gate was true from the first frame and the
+  output was byte-identical
+
+And one was mine directly: `echo BUILD_OK` after a `grep` for errors, printing on
+a failed build.
+
+**The rule worth keeping: before concluding anything from a negative, verify the
+instrument was in the state you assumed at the moment of measurement.** Eliminating
+every candidate you thought of does not leave the remaining one proven — it leaves
+it unexamined. That is how the #83 "the UI never advances" conclusion survived a
+whole sprint before the code showed the game list was simply on another screen.
+
+### Detectors
+
+`order-audit.py` had a blind spot: it matched a NULL test only when it *was* the
+whole condition, so compound guards were invisible and `phonebk.cpp` scanned clean
+through the entire ORDER-1 sweep. Widening it, then adding member-aware identifier
+matching and dominating-guard recognition, took shipping candidates 23 → 14 and
+yielded **four** real defects instead of one. **Validate a detector against a known
+positive before trusting a clean run** — and fetch the pre-fix file with
+`git show HEAD:path`, not `git stash`, which also stashes the scanner.
+
+`onecopy-audit.py` is new and has found **zero** defects on its own; its docstring
+says so. Both instances of the pattern it exists for were found by hand first. Use
+it as a place to start looking, not as a list of defects.
+
+### Postscript — a red sweep that was the harness, not the code
+
+The last verification sweep of this session went **sim=0 on every row**, which
+looks exactly like a regression. It was not. `te-sweep.sh` fires `FF_UI_CLICK` on
+**absolute times from process start**, and the campaign load drifted ~2 s slower,
+so the fly click at 54 s began landing *before* the load finished:
+
+```
+TESWEEP-4 row 34 (passed):   FM_JOIN_SUCCEEDED received
+                             firing (973,750) at 54007ms
+failing run row 1:           firing (973,750) at 55740ms
+                             FM_JOIN_SUCCEEDED received
+```
+
+The order inverted; the click hit a screen that did not exist yet
+(`GrabItem found NO control`). Re-running with the click 12 s later takes row 1
+from sim=0 to sim=1 — with the new probes still in the build, which is also what
+exonerates them. Row 2 still fails at +12 s, so the margin varies per mission and
+there is no single constant to bump. Tracked as **TESWEEP-RACE**.
+
+**Four hypotheses died before the log comparison**, all plausible: the two new
+probes (disproved by rebuilding without them — still red), the seeded
+`phonebkn.da2` putting the game in client mode (disproved by restoring it — still
+red), the theater being left on Balkans (it was Korea), and registry drift (the
+file is byte-identical to a pre-session backup). I had begun writing the phone
+book one up as a candidate *product* defect before testing it.
+
+That is the ninth instrument-not-system result of the session, and the most
+expensive, because a fixed-schedule harness turns a slightly slower machine into a
+wall of false regressions that are indistinguishable from real ones.
