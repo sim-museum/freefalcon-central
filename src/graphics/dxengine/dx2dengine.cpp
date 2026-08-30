@@ -1688,7 +1688,7 @@ void CDXEngine::DX2D_Flush2DObjects(void)
     if (ffFlushDbg < 0) ffFlushDbg = getenv("FF_DEBUG_2DFLUSH") ? 1 : 0;
 
     long ffItemsIn = (long)Total2DItems;
-    long ffVisited = 0, ffSkippedLayers = 0;
+    long ffVisited = 0, ffSkippedLayers = 0, ffItemsDrawn = 0;
 #endif
 
     // Set the View Mode for the 2D stuff
@@ -1812,7 +1812,24 @@ void CDXEngine::DX2D_Flush2DObjects(void)
             ///////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef FF_LINUX
-            if (ffFlushDbg) ffVisited++;
+            // FF_LINUX (QUAD-1): ffVisited used to count DRAW CALLS, but
+            // DX2D_GenerateIndexes BATCHES consecutive items that share texture and
+            // state into one call. So "itemsIn - visited" was items minus batches --
+            // it read as a 90% loss when it was ordinary batching of ~10 quads per
+            // draw. Count the ITEMS each batch consumes instead, by walking the
+            // chain from DrawStart to the returned NextDraw.
+            if (ffFlushDbg)
+            {
+                ffVisited++;
+                DWORD ffScan = DrawStart;
+                int ffGuard = 0;
+
+                while (ffScan not_eq 0xffffffff and ffScan not_eq NextDraw and ++ffGuard < 100000)
+                {
+                    ffItemsDrawn++;
+                    ffScan = Draws2D[ffScan].Next;
+                }
+            }
 #endif
             // ok, go to next draw
             DrawStart = NextDraw;
@@ -1836,7 +1853,7 @@ void CDXEngine::DX2D_Flush2DObjects(void)
         static DWORD ffLast = 0;
         static long ffPeakIn = 0, ffPeakVisited = 0, ffTotalSkipped = 0;
 
-        if (ffItemsIn > ffPeakIn) { ffPeakIn = ffItemsIn; ffPeakVisited = ffVisited; }
+        if (ffItemsIn > ffPeakIn) { ffPeakIn = ffItemsIn; ffPeakVisited = ffItemsDrawn; }
 
         ffTotalSkipped += ffSkippedLayers;
         DWORD ffNow = GetTickCount();
@@ -1844,7 +1861,7 @@ void CDXEngine::DX2D_Flush2DObjects(void)
         if (ffNow - ffLast > 1000)
         {
             ffLast = ffNow;
-            fprintf(stderr, "[2DFLUSH] busiestFrame itemsIn=%ld visited=%ld lost=%ld skippedLayers=%ld\n",
+            fprintf(stderr, "[2DFLUSH] busiestFrame itemsIn=%ld itemsDrawn=%ld lost=%ld skippedLayers=%ld\n",
                     ffPeakIn, ffPeakVisited, ffPeakIn - ffPeakVisited, ffTotalSkipped);
             fflush(stderr);
             ffPeakIn = ffPeakVisited = 0; ffTotalSkipped = 0;
