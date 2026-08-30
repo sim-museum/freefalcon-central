@@ -73,6 +73,28 @@ for dirpath, dirnames, filenames in os.walk(ROOT):
             rel = os.path.relpath(p, "/home/g/ff")
 
             if "#ifdef FF_LINUX" in nxt:
+                # A block that only traces is not a fix. This tree is full of
+                # `#ifdef FF_LINUX fprintf(...)` debug blocks, and counting them
+                # made unit.cpp's Deaggregate/DeaggregateFromData pair look like a
+                # missing fix when the only difference is a [Deaggregate] printf.
+                body = []
+                for k in range(i + 1, min(len(lines), i + 16)):
+                    t = lines[k].strip()
+
+                    if t.startswith("#endif"):
+                        break
+
+                    if (not t or t.startswith(("//", "*", "/*", "#"))):
+                        continue
+
+                    body.append(t)
+
+                meaningful = [t for t in body
+                              if not t.startswith(("fprintf", "fflush", "MonoPrint"))]
+
+                if not meaningful:
+                    continue
+
                 anchored[s].append((rel, i + 1))
             else:
                 # If the "unfixed" site already sits inside an FF_LINUX region,
