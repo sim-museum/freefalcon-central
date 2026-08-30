@@ -306,6 +306,12 @@ public:
     long GetWindowFlags(long ID); // find a window by its ID
     C_Window *GetWindow(short x, short y); // get window mouse is over
     C_Window *FindWindow(long ID); // find a window by its ID
+#ifdef FF_LINUX
+    // FF_LINUX: visibility lives on the handler's list node, not on the window,
+    // so iterating with _GetFirstWindow/_GetNextWindow loses it and every
+    // registered-but-hidden window looks live. Used by the FF_DUMP_UI probe.
+    BOOL FFIsWindowVisible(C_Window *thewin);
+#endif
     C_Window *_GetFirstWindow(); // Get the First Window
     C_Window *_GetNextWindow(C_Window *win); // find the window following win
     ImageBuffer *GetFront()

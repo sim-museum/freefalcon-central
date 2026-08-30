@@ -542,6 +542,23 @@ long C_Handler::GetWindowFlags(long ID)
     return(0);
 }
 
+#ifdef FF_LINUX
+BOOL C_Handler::FFIsWindowVisible(C_Window *thewin)
+{
+    WHLIST *cur = Root_;
+
+    while (cur)
+    {
+        if (cur->win == thewin)
+            return (cur->Flags bitand C_BIT_ENABLED) ? TRUE : FALSE;
+
+        cur = cur->Next;
+    }
+
+    return FALSE;
+}
+#endif
+
 C_Window *C_Handler::_GetFirstWindow()
 {
     EnterCritical();

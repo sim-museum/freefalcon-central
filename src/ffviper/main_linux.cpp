@@ -2887,6 +2887,105 @@ static void render_frame(void) {
             }
         }
 
+        // FF_LINUX debug: FF_DUMP_UI="<sec>[;<sec>...]" dumps every visible window
+        // and its controls -- ID and rectangle -- at each listed time.
+        //
+        // Written for MP-1. Driving a real UI join means clicking the comms and
+        // game-list screens, and those coordinates are recorded nowhere; the
+        // existing click scripts are pixel positions someone found once by hand.
+        // Reading the control rectangles straight out of the UI turns "guess a
+        // pixel, see if anything happens" into arithmetic, and a click that lands
+        // on nothing is then distinguishable from a button that does nothing.
+        {
+            static int s_n = -1;
+            static Uint32 s_at[8];
+            static int s_fired[8];
+
+            if (s_n < 0)
+            {
+                s_n = 0;
+                const char* e = getenv("FF_DUMP_UI");
+
+                if (e)
+                {
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "%s", e);
+
+                    for (char* tok = strtok(buf, ";"); tok and s_n < 8;
+                         tok = strtok(NULL, ";"))
+                    {
+                        s_at[s_n] = (Uint32)(atof(tok) * 1000.0);
+                        s_fired[s_n] = 0;
+                        s_n++;
+                    }
+                }
+            }
+
+            if (s_n > 0)
+            {
+                const Uint32 el = SDL_GetTicks();
+
+                for (int di = 0; di < s_n; di++)
+                {
+                    if (s_fired[di] or el < s_at[di])
+                        continue;
+
+                    s_fired[di] = 1;
+
+                    extern C_Handler *gMainHandler;
+
+                    if ( not gMainHandler)
+                    {
+                        fprintf(stderr, "[UIDUMP] t=%ums no handler\n", el);
+                        fflush(stderr);
+                        continue;
+                    }
+
+                    fprintf(stderr, "[UIDUMP] ==== t=%ums ====\n", el);
+
+                    for (C_Window* w = gMainHandler->_GetFirstWindow(); w;
+                         w = gMainHandler->_GetNextWindow(w))
+                    {
+                        // Hidden windows stay registered, so an unfiltered dump
+                        // lists every screen the UI has ever built and none of the
+                        // coordinates mean anything. FF_DUMP_UI_ALL=1 shows them.
+                        static int s_all = -1;
+
+                        if (s_all < 0)
+                            s_all = getenv("FF_DUMP_UI_ALL") ? 1 : 0;
+
+                        const bool vis = gMainHandler->FFIsWindowVisible(w) ? true : false;
+
+                        if ( not vis and not s_all)
+                            continue;
+
+                        fprintf(stderr, "[UIDUMP] window id=%ld at %ld,%ld %ldx%ld vis=%d\n",
+                                w->GetID(), w->GetX(), w->GetY(), w->GetW(), w->GetH(),
+                                vis ? 1 : 0);
+
+                        for (CONTROLLIST* cl = w->GetControlList(); cl; cl = cl->Next)
+                        {
+                            C_Base* c = cl->Control_;
+
+                            if ( not c)
+                                continue;
+
+                            // Report the CENTRE, which is what a click script wants,
+                            // alongside the raw rect. Window coordinates are relative,
+                            // so add the window origin.
+                            fprintf(stderr,
+                                    "[UIDUMP]   ctrl id=%ld rect=%ld,%ld %ldx%ld click=%ld,%ld\n",
+                                    c->GetID(), c->GetX(), c->GetY(), c->GetW(), c->GetH(),
+                                    w->GetX() + c->GetX() + c->GetW() / 2,
+                                    w->GetY() + c->GetY() + c->GetH() / 2);
+                        }
+                    }
+
+                    fflush(stderr);
+                }
+            }
+        }
+
         // FF_LINUX debug: periodic UI screenshot when FF_UI_SCREENSHOT env var is set
         // (value = period in seconds, written to /tmp/ff_ui.bmp before buffer swap)
         {
