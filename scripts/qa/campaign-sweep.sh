@@ -7,7 +7,10 @@ set -u
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export DISPLAY=:0
 GD="$HOME/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6"
-BIN=$REPO/build/src/ffviper/FFViper
+# FF_LINUX: build-relg is the current build; build/ went stale and is a different
+# config, so results from it did not reflect the tree under test (same defect found
+# in theater-sweep.sh, 5274414d).
+BIN=${FF_BIN:-$REPO/build-relg/src/ffviper/FFViper}
 R="$GD/config/registry.ini"
 cp "$R" /tmp/registry.ini.campbak
 pgrep -f mutter-x11-frames >/dev/null || { setsid /usr/libexec/mutter-x11-frames >/dev/null 2>&1 & sleep 1; }
