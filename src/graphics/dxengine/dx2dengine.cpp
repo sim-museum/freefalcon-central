@@ -1611,7 +1611,23 @@ void CDXEngine::DX2D_SetViewMode(void)
             ffNoDepth = getenv("FF_PS_NODEPTH") ? 1 : 0;
 
         if (ffNoDepth)
+        {
+            // Announce ONCE that the arm is live. A silent flag is indistinguishable
+            // from an unset one, and this session has repeatedly been misled by
+            // exactly that -- an A/B whose test arm never actually engaged looks
+            // identical to a hypothesis being refuted.
+            static int ffSaid = 0;
+
+            if ( not ffSaid)
+            {
+                ffSaid = 1;
+                fprintf(stderr, "[PSDEPTH] FF_PS_NODEPTH active: depth TEST disabled "
+                                "for the 2D flush\n");
+                fflush(stderr);
+            }
+
             m_pD3DD->SetRenderState(D3DRENDERSTATE_ZENABLE, FALSE);
+        }
     }
 #endif
 
