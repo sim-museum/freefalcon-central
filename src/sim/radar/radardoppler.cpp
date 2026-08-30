@@ -787,6 +787,39 @@ void RadarDopplerClass::CtlPushButton(int whichButton, int whichMFD)
 
 SimObjectType* RadarDopplerClass::Exec(SimObjectType* targetList)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (AVIONICS-1/OTWTHREAD-1): a row-25 run with radar keys pressed
+    // produced ZERO [RADAR] lines, so the radar keys were reaching a radar that
+    // never updates. That inner trace is gated on platform == player, so silence
+    // could mean Exec never runs, runs only for OTHER aircraft, or the player's
+    // radar is not a Doppler radar at all. Separate those three.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_RADAR") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            static long ffAll = 0, ffMine = 0;
+            static DWORD ffLast = 0;
+            ffAll++;
+
+            if (platform == SimDriver.GetPlayerAircraft())
+                ffMine++;
+
+            DWORD ffNow = GetTickCount();
+
+            if (ffNow - ffLast >= 2000)
+            {
+                ffLast = ffNow;
+                fprintf(stderr, "[RADAREXEC] calls=%ld forPlayer=%ld player=%p platform=%p\n",
+                        ffAll, ffMine, (void*)SimDriver.GetPlayerAircraft(), (void*)platform);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
     int i, rngCell[MAX_OBJECTS], angCell[MAX_OBJECTS], velCell[MAX_OBJECTS];
     SimObjectType* rdrObj;
     SimObjectType* lastLocked;
