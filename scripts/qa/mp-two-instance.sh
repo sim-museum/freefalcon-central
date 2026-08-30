@@ -69,7 +69,17 @@ echo "=== peer B (client) starting on port 2936 ==="
     # observed. Nothing in the comms screen auto-hides that dialog; it is
     # dismissed by its own ALERT_CANCEL (577,468). Only the campaign and
     # dogfight join paths hide it programmatically.
-    export FF_UI_CLICK="487,748@12;512,748@18;577,468@26"
+    # MP-1 A/B: connect, dismiss the status dialog, then visit DOGFIGHT (874,748)
+    # and CAMPAIGN (924,745). dogfight.cpp rebuilds the game tree on entry when
+    # online; cpselect.cpp does not. If the hypothesis holds, [GAMETREE] shows an
+    # add under DOGFIGHT and none under CAMPAIGN.
+    # PEER_B_SCREEN=dogfight|campaign|both (default both)
+    case "${PEER_B_SCREEN:-both}" in
+        dogfight) nav="874,748@34" ;;
+        campaign) nav="924,745@34" ;;
+        *)        nav="874,748@34;924,745@50" ;;
+    esac
+    export FF_UI_CLICK="487,748@12;512,748@18;577,468@26;$nav"
     export FF_DUMP_UI="30;45"          # after connect: find the game-list screen
     timeout -s INT "$B_SECS" "$BIN" -d "$GD" -w -port 2936 > "$B_LOG" 2>&1
 ) &

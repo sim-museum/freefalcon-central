@@ -1430,6 +1430,24 @@ static TREELIST *CreatePlayerButton(C_TreeList *tree, FalconSessionEntity *sessi
 
 void UpdateGameTreeBranch(long branchid, VuGameEntity *game, C_TreeList *tree, TREELIST *parent, BOOL IsChild) // branchid is the game_<GameType> therefore add 1 for valid ID
 {
+#ifdef FF_LINUX
+    {
+        static int s_dbg2 = -1;
+
+        if (s_dbg2 < 0) s_dbg2 = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+        if (s_dbg2)
+        {
+            fprintf(stderr, "[GAMETREE] add game to tree %p (branch %ld) -- %s\n",
+                    (void*)tree, branchid,
+                    tree == DogfightGames ? "DOGFIGHT"
+                    : tree == TacticalGames ? "TACTICAL"
+                    : tree == CampaignGames ? "CAMPAIGN" : "?");
+            fflush(stderr);
+        }
+    }
+#endif
+
     TREELIST *group, *player;
     C_Button *btn;
 
@@ -1889,6 +1907,25 @@ void UpdateLocalGameTree()
 
 void RebuildGameTree()
 {
+#ifdef FF_LINUX
+    // FF_LINUX (MP-1): dogfight.cpp calls this on screen entry when online;
+    // cpselect.cpp does not. A client that connects BEFORE opening a screen has
+    // its _Q_GAME_ADD_ dropped (tree pointer still NULL), so only a rebuild can
+    // recover the game -- whether this runs decides whether the list populates.
+    // FF_DEBUG_MPCOMMS=1.
+    {
+        static int s_dbgRGT = -1;
+
+        if (s_dbgRGT < 0) s_dbgRGT = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+        if (s_dbgRGT)
+        {
+            fprintf(stderr, "[GAMETREE] RebuildGameTree ENTERED\n");
+            fflush(stderr);
+        }
+    }
+#endif
+
     _TCHAR *gamename;
     FalconGameType gametype;
 

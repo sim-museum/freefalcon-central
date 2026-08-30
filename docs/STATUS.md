@@ -9912,3 +9912,66 @@ book one up as a candidate *product* defect before testing it.
 That is the ninth instrument-not-system result of the session, and the most
 expensive, because a fixed-schedule harness turns a slightly slower machine into a
 wall of false regressions that are indistinguishable from real ones.
+
+## 2026-08-30 — session close (scrum stopped by PO)
+
+### #83 MP-1 — the "Campaign never rebuilds the game tree" lead is REFUTED
+
+The A/B ran. Peer B connects, dismisses the status dialog, then visits Dogfight
+(874,748) and Campaign (924,745) in one session, with probes at both
+`RebuildGameTree()` and `UpdateGameTreeBranch()` (`FF_DEBUG_MPCOMMS=1`).
+
+Measured:
+
+    [GAMETREE] RebuildGameTree ENTERED        <- ran, once
+    (zero "add game to tree" lines, either screen)
+    [MPQUEUE] ... IsGame=1 -> QUEUED _Q_GAME_ADD_   x2   <- a game DID arrive
+
+A game reaches peer B and the rebuild runs, and *still* no tree receives it.
+So the Dogfight/Campaign asymmetry does not explain the empty game list — the
+defect is upstream of the tree population, not in which screen calls the rebuild.
+Fifth hypothesis on this item to die; I am not proposing a sixth without data.
+
+**Next step, concrete:** the probe was simplified to "ENTERED" and lost the tree
+pointers. Restore `DF=%p TAC=%p CAMP=%p`. If those are NULL when the rebuild
+runs, that is the bug; if they are valid, the game is missing from the collection
+the rebuild walks, and the search moves to the VU session game list.
+
+### ORDER-4 residue — all 10 remaining candidates are FALSE POSITIVES
+
+Triaged every candidate the guard-order scanner still reports. Zero new defects.
+Two scanner weaknesses explain all ten:
+
+1. **Reassignment between access and guard.** The guard protects a *different*
+   value than the one dereferenced, so the sequencing is correct:
+   `chandler.cpp:728` (`found = NULL` sentinel), `cpopup.cpp:541` and
+   `mslsms.cpp:809` (loop advances the cursor), `radardoppler.cpp:1015`
+   (`tmpPtr = tmpPtrNext`).
+2. **`#if 0` dead code is scanned as if live.** `mslsms.cpp:800` dereferences a
+   cast `weaponPointer` with no check and looked like a certain defect —
+   `weaponPointer` is NULL-checked at 63 other sites. The enclosing function
+   `SubLaunchRocket` sits under `#if 0` at line 771. Not shipping code.
+
+Remaining reports were already-correct short-circuits (`cpselect.cpp:605` tests
+`gSelectedSquadronID < 0` before indexing; `dogfight.cpp:1227` is inside
+`if (pilot)`).
+
+Both suppressions were prototyped and then reverted rather than committed
+half-wired. They are worth adding before the scanner is trusted again — its
+current signal-to-noise on this tree is 0 real defects in 10 reports.
+
+### Two harness bugs of my own, recorded so they are not repeated
+
+- Injecting a probe by matching a function signature hit the **forward
+  declaration**, and the following `{` opened an unrelated function. Anchor on
+  the definition (signature followed by `{`), never on the first match.
+- `strings build-relg/FFViper` — wrong path; the binary is at
+  `build-relg/src/ffviper/FFViper`. `grep -c` printed 0 *and* exited non-zero, so
+  a trailing `|| echo 0` printed a second reassuring zero. A missing file read as
+  "probe absent" and cost a run. **Verify a probe by its string count in the
+  binary the harness actually launches, before trusting its silence.**
+
+### State
+
+Backlog open: #83 (lead refuted, next step above), #86, #101, #102, #103, #108.
+All awaiting PO input except #83. Cron loop deleted at PO request.
