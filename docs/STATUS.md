@@ -9770,3 +9770,34 @@ on one PO bomb run answers it.
 raises `COMMLINK_WIN` and the campaign clicks landed on it. Peer B connected correctly
 and found nothing, which says nothing about the join. Resume by adding the
 `ALERT_CANCEL` (577,468) dismiss and confirming peer A hosts *before* reading peer B.
+
+## TESWEEP-4 — full 34-mission sweep after the 2026-08-29/30 session: 34/34, and fewer assertions
+
+Every regression during that session was 3-5 rows aimed at a specific changed
+path. That is the right check per fix and the wrong check for the session, which
+landed 20 commits in code every mission executes: the gear-DOF ground standoff
+(`FFGearDofRatio`), particle placement at four sites (`FFGroundImpactZ`), four
+guard fixes across sim/ui/ui95/falcsnd, a campaign text parser (`ReadToken` CRLF),
+and feature placement on the wire path.
+
+**Result: 34 of 34 reach the sim, 0 crashes, 42 assertion lines.**
+
+| | TESWEEP-1 | TESWEEP-2 | TESWEEP-4 |
+|---|---|---|---|
+| assertion lines | 68 | 64 | **42** |
+
+Assertion counts here are **coverage, not frequency** — one hit per site per
+process — so the number that matters is whether any *new* site appeared. None did;
+the count fell. Rows carrying hits: 12 (8), 23 (6), 22 (4), and 2 each in 14-17,
+21, 24, 26-28, 32-34.
+
+**Rows 09 and 10 are clean** (`sim=1 crash=0 asserts=0`). This file used to claim
+they fail to load; that claim was already marked superseded and this confirms it.
+Do not treat them as broken.
+
+### Method note
+
+The first attempt at this sweep's smaller sibling reported `SWEEP COMPLETE` having
+run **zero** missions — `campaign-sweep.sh` iterates `for name in "$@"` over
+theater names and was invoked with none. A sweep that runs nothing and a sweep
+that passes look identical from the outside. Check the row count, not the banner.
