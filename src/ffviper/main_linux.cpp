@@ -254,6 +254,79 @@ void FF_SwapBuffers() {
     static int swapCount = 0;
     swapCount++;
 
+#ifdef FF_LINUX
+    // FF_LINUX (MAVTEX-1): FF_DEBUG_OTWPIX=1 reports the dominant colour of the
+    // out-the-window band straight out of the back buffer.
+    //
+    // X11 root capture returns pure black on this display (the game window is not
+    // composited into the root), so screenshots cannot measure what the renderer
+    // produced -- two arms of an A/B came back byte-identical black and said
+    // nothing. Reading the pixels in-process is display-independent.
+    //
+    // The band is the upper-middle of the drawable, above the 2D panel: that is
+    // where the PO's video shows the sky go flat #0000F8 the instant the Maverick
+    // seeker is uncaged. GL origin is bottom-left, so "up" is high y.
+    {
+        static int s_otwPix = -1;
+
+        if (s_otwPix < 0) s_otwPix = getenv("FF_DEBUG_OTWPIX") ? 1 : 0;
+
+        if (s_otwPix and g_SDLWindow and g_GLContext and (swapCount % 60) == 0)
+        {
+            int w = 0, h = 0;
+
+            SDL_GL_GetDrawableSize(g_SDLWindow, &w, &h);
+
+            if (w > 16 and h > 16)
+            {
+                const int x0 = (int)(w * 0.35f), x1 = (int)(w * 0.65f);
+                const int y0 = (int)(h * 0.75f), y1 = (int)(h * 0.90f);
+                const int bw = x1 - x0, bh = y1 - y0;
+                unsigned char *px = new unsigned char[(size_t)bw * bh * 3];
+
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                glReadBuffer(GL_BACK);
+                // GL_PACK_ALIGNMENT defaults to 4, so with GL_RGB every row is
+                // padded to a 4-byte multiple. When bw*3 is not a multiple of 4
+                // glReadPixels writes PAST a bw*bh*3 buffer -- which corrupted the
+                // heap and aborted at delete[] below. Ask for tight packing.
+                glPixelStorei(GL_PACK_ALIGNMENT, 1);
+                glReadPixels(x0, y0, bw, bh, GL_RGB, GL_UNSIGNED_BYTE, px);
+
+                // mean, plus a coarse 5-bit histogram peak so a flat key colour
+                // is distinguishable from a gradient that merely averages to it
+                unsigned long sr = 0, sg = 0, sb = 0;
+                static unsigned int hist[32768];
+                memset(hist, 0, sizeof(hist));
+
+                for (int i = 0; i < bw * bh; i++)
+                {
+                    unsigned r = px[i * 3], g = px[i * 3 + 1], b = px[i * 3 + 2];
+                    sr += r; sg += g; sb += b;
+                    hist[((r >> 3) << 10) bitor ((g >> 3) << 5) bitor (b >> 3)]++;
+                }
+
+                int best = 0;
+
+                for (int i = 1; i < 32768; i++)
+                    if (hist[i] > hist[best]) best = i;
+
+                const long n = (long)bw * bh;
+
+                fprintf(stderr, "[OTWPIX] swap=%d mean=#%02lX%02lX%02lX "
+                        "peak=#%02X%02X%02X frac=%.2f\n",
+                        swapCount, sr / n, sg / n, sb / n,
+                        ((best >> 10) bitand 31) << 3,
+                        ((best >> 5) bitand 31) << 3,
+                        (best bitand 31) << 3,
+                        (double)hist[best] / (double)n);
+                fflush(stderr);
+                delete[] px;
+            }
+        }
+    }
+#endif
+
     if (g_SDLWindow && g_GLContext) {
         // Make sure the GL context is current on this thread before swapping
         SDL_GLContext current = SDL_GL_GetCurrentContext();
