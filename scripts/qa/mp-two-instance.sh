@@ -63,7 +63,13 @@ echo "=== peer B (client) starting on port 2936 ==="
 (
     cd "$GD" || exit 1
     export FF_DEBUG_MPCOMMS=1
-    export FF_UI_CLICK="487,748@12;512,748@18"
+    # COMMS, CONNECT, then dismiss COMMLINK_WIN. Peer A always dismissed it;
+    # peer B did not, so peer B spent every run sitting behind the connect
+    # dialog -- including both UI dumps, which is why "no game list" was
+    # observed. Nothing in the comms screen auto-hides that dialog; it is
+    # dismissed by its own ALERT_CANCEL (577,468). Only the campaign and
+    # dogfight join paths hide it programmatically.
+    export FF_UI_CLICK="487,748@12;512,748@18;577,468@26"
     export FF_DUMP_UI="30;45"          # after connect: find the game-list screen
     timeout -s INT "$B_SECS" "$BIN" -d "$GD" -w -port 2936 > "$B_LOG" 2>&1
 ) &

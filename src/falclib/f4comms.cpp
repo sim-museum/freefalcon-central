@@ -1006,6 +1006,36 @@ int VuxGroupConnect(VuGroupEntity *group)
         }
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX (MP-1): this is the gate that decides whether a discovered game
+    // ever reaches the UI. Peer B provably receives and remembers a remote game
+    // (MPGAMEID traces) yet its game-list screen never appears, so the question
+    // is which of these two conditions fails -- the queue not existing, or the
+    // group not being recognised as a game. Guessing between them is what a
+    // probe is for. FF_DEBUG_MPCOMMS=1.
+    {
+        static int s_dbg = -1;
+
+        if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+        if (s_dbg)
+        {
+            static int ffSaid = 0;
+
+            if (ffSaid < 8)
+            {
+                ffSaid++;
+                fprintf(stderr, "[MPQUEUE] GroupConnect: gUICommsQ=%p IsGame=%d "
+                        "-> %s\n", (void*)gUICommsQ,
+                        group ? (int)group->IsGame() : -1,
+                        (gUICommsQ and group and group->IsGame())
+                            ? "QUEUED _Q_GAME_ADD_" : "dropped");
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     if (gUICommsQ and group->IsGame())
         gUICommsQ->Add(_Q_GAME_ADD_, FalconNullId, group->Id());
 
