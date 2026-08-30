@@ -93,9 +93,26 @@ BOOL C_String::AddString(long ID, _TCHAR *str)
     if (HashID < 0)
         return(FALSE);
 
+#ifdef FF_LINUX
+    // FF_LINUX (ORDER/bounds family): the upper bound was checked but not the
+    // lower, so a negative ID passes `ID < IDSize_` and WRITES before the array.
+    // Same shape as the SetDOF/SetSwitch guards in simmover.h, which carry the
+    // note "guard the LOWER bound too -- a negative dof/num passes < count".
+    //
+    // Also require the table itself: IDSize_ is 0 with IDTable_ NULL before
+    // SetIDTable runs, and a negative ID satisfies `ID < 0`, so the unguarded
+    // form would dereference NULL at a negative offset.
+    //
+    // GetString() directly below already gets this right (`if (ID < 1) return`),
+    // which is what makes the omission here visible.
+    if (ID >= 0 and ID < IDSize_ and IDTable_)
+        IDTable_[ID] = HashID bitor 0x40000000;
+
+#else
     if (ID < IDSize_)
         IDTable_[ID] = HashID bitor 0x40000000;
 
+#endif
     return(TRUE);
 }
 

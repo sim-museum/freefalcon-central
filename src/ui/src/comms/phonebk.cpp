@@ -81,10 +81,23 @@ void CopyDataFromWindow()
 {
     // get pbook window handlers
     C_Window *win = gMainHandler->FindWindow(PB_WIN);
+
+#ifdef FF_LINUX
+    // FF_LINUX (ORDER family): `win` was dereferenced twice by FindControl below
+    // before the `win == NULL` test that follows, so the guard could only ever
+    // run after the access it protects. The sibling CopyDataToWindow() directly
+    // above gets this right -- it returns on a NULL window BEFORE touching it --
+    // and the asymmetry between two functions written together is the defect.
+    if (win == NULL)
+    {
+        return;
+    }
+
+#endif
     C_EditBox *hostAddressControl = (C_EditBox*)win->FindControl(IP_ADDRESS_1);
     C_Button *servButtonControl = (C_Button*)win->FindControl(COMM_MODE_SERV);
 
-    if ((win == NULL) or (hostAddressControl == NULL) or (servButtonControl == NULL))
+    if ((hostAddressControl == NULL) or (servButtonControl == NULL))
     {
         return;
     }

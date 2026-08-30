@@ -775,7 +775,24 @@ int GroundClass::MissileTrack(void)
                 RadarClass *radar = (RadarClass*)FindSensor(battalionFireControl, SensorClass::Radar);
                 ShiAssert(radar);
 
+#ifdef FF_LINUX
+                // FF_LINUX (ORDER family): targetPtr is dereferenced here, but its
+                // only NULL check is ten lines further down -- "Make sure we still
+                // have a target after all the above contortions" -- so the author
+                // knew it could be NULL and the guard is simply too late. The
+                // ShiAssert(targetPtr) above does NOT protect this: assertions are
+                // live but NON-HALTING in this build, so a NULL logs one line and
+                // then falls straight into the dereference.
+                //
+                // Only one path is unsafe: CurrentTarget() non-NULL with targetPtr
+                // NULL. Short-circuiting on targetPtr keeps the intent -- the
+                // condition stays true, so SetTarget() still adopts the radar's
+                // target -- while removing the dereference.
+                if ( not radar->CurrentTarget() or not targetPtr
+                     or targetPtr->BaseData() not_eq radar->CurrentTarget()->BaseData())
+#else
                 if ( not radar->CurrentTarget() or targetPtr->BaseData() not_eq radar->CurrentTarget()->BaseData())
+#endif
                     SetTarget(radar->CurrentTarget());
 
                 // ADDED BY S.G. SO SAM DO NOT NORMALLY FIRE WHEN JAMMED. DEPENDING ON THE SKILL, THEY MIGHT FIRE THOUGH

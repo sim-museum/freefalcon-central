@@ -2253,6 +2253,20 @@ void CSoundMgr::SetCameraPostion(Tpoint *campos, Trotation *camrot, Tpoint *camv
     static int reset = 1;
     static float olddoppler = -1, oldrolloff;
 
+#ifdef FF_LINUX
+    // FF_LINUX (ORDER family): the guard below tests campos for NULL, but only
+    // after campos has already been dereferenced three times here; camvel is
+    // dereferenced three times and never tested at all. Check the pointers we
+    // are about to read, before reading them.
+    //
+    // Deliberately NOT hoisting the whole condition: the use3d/Ds3dListener/
+    // StreamCSection part of that test gates the DirectSound3D work, and
+    // CamPos/CamVelocity are updated even when 3D sound is off. Moving it would
+    // change behaviour; moving only the pointer checks does not.
+    if (campos == NULL or camvel == NULL)
+        return;
+
+#endif
     CamPos.x = campos->x;
     CamPos.y = campos->y;
     CamPos.z = campos->z;
