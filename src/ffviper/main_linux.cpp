@@ -2750,13 +2750,52 @@ static void render_frame(void) {
                         }
 
                         ffPhase = 2;
+                        ffPhaseAt = GetTickCount();
                     }
                     else if (GetTickCount() - ffPhaseAt > 30000)
                     {
                         fprintf(stderr, "[MPJOIN] phase1 TIMEOUT: CAMP_PRELOADED never set "
                                 "after 30s -- the master never sent campaign data\n");
                         fflush(stderr);
-                        ffPhase = 2;
+                        ffPhase = 3; // nothing to watch
+                    }
+                }
+                else if (ffPhase == 2)
+                {
+                    // FF_LINUX (MP-1): JoinCampaign returning 1 only means the join was
+                    // ACCEPTED -- loading is asynchronous (InitCampaign hands back a
+                    // thread handle), so IsLoaded() is 0 at that moment by design.
+                    // Watch it settle rather than sampling once, otherwise "loaded=0"
+                    // reads as failure when it only means "not yet".
+                    static DWORD ffTick = 0;
+                    DWORD ffNow = GetTickCount();
+
+                    if (TheCampaign.IsLoaded())
+                    {
+                        fprintf(stderr, "[MPJOIN] phase3 campaign LOADED after %lums "
+                                "-- join completed\n",
+                                (unsigned long)(ffNow - ffPhaseAt));
+                        fflush(stderr);
+                        ffPhase = 3;
+                    }
+                    else if (ffNow - ffTick >= 5000)
+                    {
+                        ffTick = ffNow;
+                        fprintf(stderr, "[MPJOIN] phase3 waiting: loaded=0 preloaded=%d "
+                                "suspended=%d online=%d  t+%lums\n",
+                                TheCampaign.IsPreLoaded() ? 1 : 0,
+                                TheCampaign.IsSuspended() ? 1 : 0,
+                                TheCampaign.IsOnline() ? 1 : 0,
+                                (unsigned long)(ffNow - ffPhaseAt));
+                        fflush(stderr);
+                    }
+
+                    if (ffPhase == 2 and ffNow - ffPhaseAt > 60000)
+                    {
+                        fprintf(stderr, "[MPJOIN] phase3 TIMEOUT: campaign never reached "
+                                "LOADED within 60s of a successful join\n");
+                        fflush(stderr);
+                        ffPhase = 3;
                     }
                 }
             }

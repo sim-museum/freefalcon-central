@@ -49,8 +49,30 @@ int FalconSendCampaign::Decode(VU_BYTE **buf, long *rem)
 {
     long init = *rem;
 
-    ShiAssert(dataBlock.dataSize >= 0);
+    // FF_LINUX (MP-1): this assertion used to sit HERE, before the memcpychk below --
+    // i.e. it tested dataSize before dataSize had been read off the wire, so it only
+    // ever saw the constructor's initialiser of -1 and fired on every single decode.
+    // Observed live on a joining peer: "[Failed: dataBlock.dataSize >= 0]". It checked
+    // a value that could not yet be meaningful, and the value that IS used moments
+    // later went entirely unchecked. Moved below the read, where it means something.
     memcpychk(&dataBlock, buf, sizeof(dataBlock), rem);
+
+    ShiAssert(dataBlock.dataSize >= 0);
+
+    // And a real guard: the decoded size feeds new[] and a copy length straight from
+    // the wire. ShiAssert does NOT halt in this build, so an assertion alone would let
+    // a negative or absurd size through to the allocation.
+    if (dataBlock.dataSize < 0 or dataBlock.dataSize > *rem)
+    {
+        fprintf(stderr, "[SENDCAMP] rejecting campaign block: dataSize=%d rem=%ld\n",
+                (int)dataBlock.dataSize, (long)*rem);
+        fflush(stderr);
+        dataBlock.campInfo = NULL;
+        dataBlock.dataSize = 0;
+        FalconEvent::Decode(buf, rem);
+        return init - *rem;
+    }
+
     dataBlock.campInfo = new uchar[dataBlock.dataSize];
     memcpychk(dataBlock.campInfo, buf, dataBlock.dataSize, rem);
     FalconEvent::Decode(buf, rem);
