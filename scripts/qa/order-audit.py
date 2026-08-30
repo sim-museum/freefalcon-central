@@ -22,6 +22,16 @@ WINDOW = 10
 G_BOUND = re.compile(r'\bif\s*\(\s*(\w+)\s*(>=|>|<|<=)\s*([\w.>\-]+)\s*\)')
 G_NULL  = re.compile(r'\bif\s*\(\s*(?:not\s+|!)\s*(\w+)\s*\)\s*$|'
                      r'\bif\s*\(\s*(\w+)\s*(?:==|not_eq|!=)\s*(?:NULL|nullptr|0)\s*\)')
+
+# Blind spot found 2026-08-30, validated against a known positive: G_NULL only
+# matches when the NULL test IS the whole condition. A guard written as
+#     if ((win == NULL) or (a == NULL) or (b == NULL))
+# never matched, so phonebk.cpp's CopyDataFromWindow -- which dereferences `win`
+# twice via FindControl before that very line -- scanned clean through the whole
+# ORDER-1 sweep. Match a NULL test ANYWHERE inside an if-condition and offer
+# every name it tests as a candidate.
+IF_LINE     = re.compile(r'\bif\s*\(')
+G_NULL_ANY  = re.compile(r'(\w+)\s*(?:==|not_eq|!=)\s*(?:NULL|nullptr|0)\b')
 BAILS   = re.compile(r'\b(return|continue|break|goto|throw)\b')
 DECL    = re.compile(r'^\s*(?:const\s+|static\s+|unsigned\s+)*[\w:]+\s*[*&]?\s*\**\s*%s\s*(?:[;=,)]|\[)')
 
@@ -100,6 +110,12 @@ def scan(path, out):
         m = G_NULL.search(s)
         if m: cands.append((m.group(1) or m.group(2), "null"))
 
+        # compound conditions -- see G_NULL_ANY above
+        if IF_LINE.search(s):
+            for nm in G_NULL_ANY.findall(s):
+                if (nm, "null") not in cands:
+                    cands.append((nm, "null"))
+
         for name, kind in cands:
             if not name or len(name) < 2 or name in ("if", "for", "while"):
                 continue
@@ -116,6 +132,14 @@ def scan(path, out):
                     continue                 # a declaration, not an access
                 if self_guarded(prev, name) or short_circuit(prev, name):
                     continue          # guarded in its own condition -- fine
+
+                # Linked-list walk: `curr = curr->next;` followed by `if (!curr)`
+                # is advance-then-test, the correct idiom, not a guard sequenced
+                # after its access. This shape was most of the noise once the
+                # compound-condition match was added.
+                if re.match(r'^\s*%s\s*=\s*%s\s*(?:->|\.)'
+                            % (re.escape(name), re.escape(name)), prev):
+                    continue
                 how = accesses(prev, name)
                 if how:
                     out.append((os.path.relpath(path, "/home/g/ff"), i + 1, kind,
