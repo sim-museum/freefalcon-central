@@ -3392,7 +3392,40 @@ void  DrawableParticleSys::PS_EmitterRun(void)
 
                     if (epos.z >= Part.GroundLevel)
                     {
+#ifdef FF_LINUX
+                        // FF_LINUX (BOOM-3): lift the emitted children slightly OFF the
+                        // surface instead of placing them exactly on it.
+                        //
+                        // BOOM-2 root cause, PO-verified: ground explosions lost the
+                        // depth test against terrain. ZFUNC is LESSEQUAL, so a truly
+                        // coplanar fragment would PASS -- which means the effect was
+                        // landing marginally BEHIND the terrain in depth, a precision
+                        // problem, not a placement one. Emitting a few feet toward the
+                        // camera clears it.
+                        //
+                        // This is deliberately NOT the FF_PS_NODEPTH diagnostic, which
+                        // disabled depth testing for the whole 2D flush and would also
+                        // have drawn effects that are legitimately behind hills. Here
+                        // the depth test stays on and only the spawn height moves, so
+                        // occlusion still works.
+                        //
+                        // positive z is DOWN, so subtracting raises it.
+                        // FF_PS_GROUND_LIFT=<ft> tunes it; 0 restores the old exact-
+                        // surface placement.
+                        {
+                            static float ffLift = -1.0f;
+
+                            if (ffLift < 0.0f)
+                            {
+                                const char *e = getenv("FF_PS_GROUND_LIFT");
+                                ffLift = e ? (float)atof(e) : 3.0f;
+                            }
+
+                            epos.z = Part.GroundLevel - ffLift;
+                        }
+#else
                         epos.z = Part.GroundLevel;
+#endif
                         // get ground type
                         int gtype = OTWDriver.GetGroundType(epos.x, epos.y);
 
