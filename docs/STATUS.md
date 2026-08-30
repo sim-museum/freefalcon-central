@@ -9677,3 +9677,96 @@ SINK-2 (does the rotation drop look right in view 0 now?), VIEW3-1 (were the bad
 frames inside the first ~15 s?), and BOOM-2's remaining question — whether a fireball
 is visible from a normal viewing distance, which is the one thing the harness has not
 yet been able to stage.
+
+## 2026-08-29/30 — six defects, a detector that had a blind spot, and four harnesses that lied
+
+Autonomous scrum, ~16 sprints. Two themes worth more than the fixes: **a static
+detector that had already "cleared" a file containing a live instance of the very
+family it hunts**, and **four separate harnesses whose silence was indistinguishable
+from success**. Both cost real time, and both are recorded here so the next session
+recognises them faster.
+
+### Fixed and verified
+
+| item | defect | verification |
+|---|---|---|
+| SINK-2 | `CheckHeight()` scaled the gear contact point by the gear **animation DOF** read back out of the drawable, so the physics depended on whether the animation had written it yet this frame. `SetGroundPosition` does `z = groundZ - minHeight`, so the standoff alternated 6.00ft ↔ 2.39ft and the jet jittered 3.6ft into the runway. | A/B on a scripted takeoff: contact-point collapses 65 → 0; roll clearance swing 2.4→5.0ft bouncing → 0.04ft stable at 6.00ft |
+| GEAR lights | The three "down and locked" indications compared that same animation DOF for **exact float equality**, so any stale read dropped all three. | derived from `gearPos`, the authority `surface.cpp` derives the DOF from |
+| ORDER-4 ×4 | Guards sequenced after their access: `phonebk.cpp` (`win` dereferenced twice before its NULL test, on the MP comms path), `psound.cpp` (`campos` 3× before its guard, `camvel` never tested), `weapon.cpp` (`targetPtr`, guard 10 lines late, non-halting `ShiAssert` above it), `cstringrc.cpp` (out-of-bounds **write** on a negative ID). | te-sweep 5/5, 0 crashes, 0 assertions |
+| CRLF | `ReadToken` strips `\n` but leaves the `\r` that precedes it, so whole-token compares fail. `save1.tri` contains `#ENDINIT^M$`; `cmpevent.cpp`'s `#ENDINIT`/`#ENDIF`/`#ELSE`/`#ENDSCRIPT` never matched. | `FF_DEBUG_CRLF=1` shows it stripping real tokens; campaign-sweep Korea+Balkans identical with and without |
+| BOOM-3 | Ground-impact particles are placed at exactly `GroundLevel` in **four** sites across two parallel emitter implementations; the lift reached one. | one `FFGroundImpactZ()` helper; `PSEM_WATERIMPACT` deliberately excluded |
+| MAV-1 | Not a defect at all — the harness pressed bare `0x53`, which is `SimDropTrack`, not `SimICPAG` (modifier 1 = shift). Without A-G, `curHardpoint` stays < 0 and the Maverick page is never drawn. | `[MAV1] MavSMSDisplay ENTERED: curHardpoint=4 curWeaponType=4` |
+| MP feature burial | `DeaggregateFromData` left `simdata.z` at 0, so every feature a joining peer received was buried at sea level. Only the sibling `Deaggregate` had the terrain placement. | both paths now share `FF_FeatureGroundZ()` |
+| MP port | `-port` was parsed in `winmain.cpp` and **not** in `main_linux.cpp`, so every instance took `CAPI_UDP_PORT` (2934) as its local port. Two peers on one machine collided — and two players on one box had no way off 2934. | `-port 2936` → `localPort=2936 remotePort=2934` |
+
+### The detector blind spot (the highest-yield item here)
+
+ORDER-1 swept the "guard after access" family and fixed nine instances.
+`phonebk.cpp` contained a tenth and scanned **clean**. The cause was exact: the
+scanner matched a NULL test only when it *was* the whole condition, so
+
+    if ((win == NULL) or (a == NULL) or (b == NULL))
+
+never matched. Widening it to compound conditions, then adding member-aware
+identifier matching (`drawPointer` vs `testFeature->drawPointer` are different
+objects) and treating bounds guards as dominating, took shipping-code candidates
+23 → 14 and produced **four** real defects instead of one.
+
+**Validate a detector against a known positive before trusting a clean run.** And
+scan a copy from `git show HEAD:path` — the first attempt used `git stash`, which
+also stashed the scanner and silently re-tested the old one, reporting clean
+either way.
+
+`scripts/qa/onecopy-audit.py` is new and generalises the other pattern seen twice
+here (BOOM-3's four sites, the two deaggregation paths): an `FF_LINUX` fix applied
+to one of several identical copies. It is a lead generator, not a prover — 115
+anchors tree-wide, most noise, and it correctly flags deliberate asymmetries like
+`PSEM_WATERIMPACT` that a human must dismiss.
+
+### Four harnesses that reported success while doing nothing
+
+Every one produced output that looked like a result:
+
+- `pgrep -f <pattern>` **matches the shell running it**, so `until ! pgrep -f
+  te-sweep.sh` waits on itself forever and a status check always says "running".
+  Three stacked waiters hung; a chained rebuild never ran; I reported a sweep as
+  in-flight when nothing was. Use `run_in_background` and the completion
+  notification, or `pgrep -x`.
+- `campaign-sweep.sh` iterates `for name in "$@"` over theaters. Invoked with no
+  arguments it runs **zero** missions and still prints `SWEEP COMPLETE`. That
+  empty run was nearly the regression evidence for the CRLF fix.
+- `FF_TEST_EXPLOSION` skipped every burst — `GetGroundLevel` answered the `0.0`
+  streaming sentinel at the throw point, 51 of 51 — so "zero emitter sites fired"
+  proved nothing. Repaired to walk the throw point back toward the aircraft;
+  25 bursts spawn where 0 did.
+- Rebuilding while a sweep was live swapped the binary underneath it. That sweep
+  was discarded rather than read; a mixed-binary sweep reporting clean is worse
+  than no sweep.
+
+My own `echo BUILD_OK` after a `grep` for errors did the same thing — printed on a
+failed build.
+
+### Retracted
+
+- Told the PO "the correlation is exact" between the gear-DOF collapse and the
+  `ON_GROUND` flicker, on two runs. Runs 3 and 4 refuted it: large clearance swing,
+  zero flicker. Final tally 1/4 with the old read, 0/3 with the fix — not
+  significant. **The GNDFLICK hysteresis was reverted unshipped** rather than
+  change ground-contact logic on an unproven benefit.
+- Said `FF_TEST_EXPLOSION` "has no trace at the spawn". It traces both outcomes; I
+  had grepped for "explos" while the tag is `[FF_TEST]`.
+- Attributed a `pass2` false positive to block-extent misjudgement. It was
+  substring matching.
+
+### Still open, and genuinely blocked on the PO
+
+#86 takeoff shudder, #102 Maverick TE (buildings + "U" corruption), #103 sloped-terrain
+bombing (needs *both* halves), #101 ripple intent. #103 also has a gap no harness here
+can close: which of the four emitter sites a real bomb exercises. `FF_DEBUG_PSGROUND=1`
+on one PO bomb run answers it.
+
+#83's scripted UI join is complete and measured, but the first two-instance run was
+**inconclusive** — peer A never hosted (`campaign files read: 0`) because `CONNECT`
+raises `COMMLINK_WIN` and the campaign clicks landed on it. Peer B connected correctly
+and found nothing, which says nothing about the join. Resume by adding the
+`ALERT_CANCEL` (577,468) dismiss and confirming peer A hosts *before* reading peer B.
