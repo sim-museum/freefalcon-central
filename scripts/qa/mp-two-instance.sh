@@ -27,9 +27,9 @@ BIN=${FF_BIN:-$REPO/build-relg/src/ffviper/FFViper}
 
 A_LOG=/tmp/mp-peerA.log
 B_LOG=/tmp/mp-peerB.log
-A_SECS=${A_SECS:-220}
+A_SECS=${A_SECS:-240}
 B_SECS=${B_SECS:-150}
-B_DELAY=${B_DELAY:-70}          # let peer A reach the campaign before B connects
+B_DELAY=${B_DELAY:-95}          # let peer A reach the campaign before B connects
 
 pgrep -f mutter-x11-frames >/dev/null || {
     setsid /usr/libexec/mutter-x11-frames >/dev/null 2>&1 &
@@ -47,8 +47,12 @@ echo "=== peer A (server + campaign host) starting ==="
 (
     cd "$GD" || exit 1
     export FF_DEBUG_MPCOMMS=1 FF_DEBUG_CAMPCODEC=0
-    # COMMS, SERV, CONNECT, then the campaign click track shifted past them
-    export FF_UI_CLICK="487,748@12;733,476@17;512,748@22;924,745@34;905,758@46;563,751@54;495,390@62;110,135@76"
+    # COMMS, SERV, CONNECT, dismiss COMMLINK_WIN, then the campaign track.
+    # The dismiss (ALERT_CANCEL 577,468) is essential: PB_CONNECT raises
+    # COMMLINK_WIN (357,282 310x203) over the screen, and without dismissing it
+    # every campaign click lands on that dialog -- the first run of this script
+    # reported "campaign files read: 0" for exactly that reason.
+    export FF_UI_CLICK="487,748@12;733,476@17;512,748@22;577,468@28;924,745@40;905,758@52;563,751@60;495,390@68;110,135@82"
     timeout -s INT "$A_SECS" "$BIN" -d "$GD" -w > "$A_LOG" 2>&1
 ) &
 A_PID=$!
@@ -83,6 +87,13 @@ grep -a "UIDUMP. window" "$B_LOG" | sort -u | head -12
 
 echo
 echo "=== did any game cross the wire? ==="
-printf "  peer B CREATE/SESSION msgs: %s\n" "$(grep -ac 'type=10\|type=11' "$B_LOG")"
-grep -a "JoinGame\|IsGame\|GotJoinData" "$B_LOG" | tail -5
+# Count what the code actually prints. The first version of this grepped for
+# "type=10|type=11" and reported 0 while peer B was demonstrably decoding a real
+# remote game -- the metric was measuring a string the build does not emit.
+printf "  peer B session decodes: %s\n" "$(grep -ac 'MPGAMEID. session decode' "$B_LOG")"
+printf "  peer B remote games remembered: %s\n" \
+    "$(grep -ac 'remembered REMOTE game' "$B_LOG")"
+grep -ao "gameId=[0-9]*/[0-9]*" "$B_LOG" | sort -u | sed 's/^/    /'
+echo "  (a local placeholder is 0/2; a real remote game has the form <n>/28007)"
+grep -a "JoinGame\|IsGame\|GotJoinData" "$B_LOG" | tail -3
 echo "=== MP TWO-INSTANCE COMPLETE ==="
