@@ -18,7 +18,22 @@ anchor line in the tree that is NOT followed by an FF_LINUX block.
 
 Deliberately crude. It is a lead generator, not a prover -- an anchor that
 appears in unrelated contexts will produce noise, and every hit needs reading.
-It earns its place if it surfaces one real gap per run.
+
+HONEST TRACK RECORD, so nobody over-trusts it: as of 2026-08-30 this tool has
+found ZERO defects on its own. Both instances of the pattern it exists for
+(BOOM-3's four emitter sites, objectiv.cpp's two deaggregation paths) were found
+by hand first; the tool reproduces the objectiv.cpp one when pointed at the
+pre-fix file, which is how it is validated, but it did not discover it.
+
+Of the 94 anchors it currently reports, the ones triaged were all false
+positives of one shape: BOILERPLATE anchors shared by sibling functions that
+legitimately differ. dxengine.cpp pairs the solid-stack drain with the alpha-stack
+drain because both open with `ObjectInstance *LastObj = NULL; float LastFog = 0;`,
+and the FF_LINUX difference is a diagnostic counter. That is not filterable by
+another regex -- distinguishing "same code, fix missing" from "different code,
+same boilerplate" needs a human.
+
+Use it as a place to start looking, not as a list of defects.
 
 Reads latin-1: ~30 files in this tree hold non-UTF-8 bytes (see CLAUDE.md), and
 an audit that skips them is not an audit.
