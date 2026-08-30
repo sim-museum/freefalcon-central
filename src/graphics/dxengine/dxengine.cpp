@@ -667,6 +667,32 @@ void CDXEngine::RestoreState(void)
         m_RenderState = m_StatesStack[--m_StatesStackLevel].RenderState;
     }
     else m_RenderState = DX_OTW;
+
+#ifdef FF_LINUX
+    // FF_LINUX (MAV-2): re-apply the DEVICE state for the mode we just restored.
+    //
+    // SetState() only assigns m_RenderState; SetViewMode() is what actually programs
+    // the device from it (texture stage COLOROP/ALPHAOP, TEXTUREFACTOR, ...).
+    // SaveState/RestoreState only ever pushed and popped the ENUM, so after a nested
+    // TV/IR pass -- the Maverick seeker video, which runs a full
+    // RenderIR::StartDraw/DrawScene/EndDraw into the MFD -- the enum said OTW again
+    // while the device was still programmed for DX_TV, with texture stages disabled.
+    //
+    // PO symptom: pressing U to bring up the Maverick video on MFD2 makes "the screen
+    // textures drop out and moving objects become polygons" -- i.e. the world draws
+    // untextured from then on.
+    //
+    // FF_NO_DXSTATE_REAPPLY=1 restores the old behaviour for A/B.
+    {
+        static int ffOff = -1;
+
+        if (ffOff < 0)
+            ffOff = getenv("FF_NO_DXSTATE_REAPPLY") ? 1 : 0;
+
+        if ( not ffOff and m_pD3DD)
+            SetViewMode();
+    }
+#endif
 }
 
 
