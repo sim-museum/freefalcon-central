@@ -2827,6 +2827,42 @@ void Camp_Exit(void)
 
 CampaignTime Camp_GetCurrentTime(void)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (ATO-1): a campaign-clock readout. Every earlier attempt to measure
+    // ATO behaviour lacked one -- the nearest available number, PalLight's
+    // "gametime", reads 0 here and says nothing about campaign time, so "the ATO
+    // generated nothing" could not be told apart from "the clock never moved far
+    // enough to matter". Placed HERE, not in SetTimeCompression, because that fires
+    // only when compression CHANGES and therefore cannot show advance at all.
+    // FF_DEBUG_CAMPCLOCK=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_CAMPCLOCK") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            static DWORD ffLast = 0;
+            DWORD ffNow = GetTickCount();
+
+            if (ffNow - ffLast >= 5000)
+            {
+                ffLast = ffNow;
+                const unsigned ffT = (unsigned)TheCampaign.GetCampaignTime();
+                const unsigned long ffSec = (unsigned long)(ffT / 1000);
+                fprintf(stderr, "[CAMPCLOCK] campTime=%u  day %lu %02lu:%02lu:%02lu\n",
+                        ffT,
+                        (unsigned long)(ffSec / 86400) + 1,
+                        (unsigned long)((ffSec % 86400) / 3600),
+                        (unsigned long)((ffSec % 3600) / 60),
+                        (unsigned long)(ffSec % 60));
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     return TheCampaign.GetCampaignTime();
 }
 
