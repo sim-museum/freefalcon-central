@@ -31,6 +31,11 @@ G_NULL  = re.compile(r'\bif\s*\(\s*(?:not\s+|!)\s*(\w+)\s*\)\s*$|'
 # ORDER-1 sweep. Match a NULL test ANYWHERE inside an if-condition and offer
 # every name it tests as a candidate.
 IF_LINE     = re.compile(r'\bif\s*\(')
+# Same as G_NULL's first alternative but WITHOUT the end-of-line anchor, so the
+# one-line form `if (not p) return;` is recognised. Used only when looking for a
+# guard that DOMINATES an access -- there the bail is on the same line, which is
+# exactly the shape the anchored pattern cannot see.
+G_NULL_DOM  = re.compile(r'\bif\s*\(\s*(?:not\s+|!)\s*(\w+)\s*\)')
 G_NULL_ANY  = re.compile(r'(\w+)\s*(?:==|not_eq|!=)\s*(?:NULL|nullptr|0)\b')
 BAILS   = re.compile(r'\b(return|continue|break|goto|throw)\b')
 DECL    = re.compile(r'^\s*(?:const\s+|static\s+|unsigned\s+)*[\w:]+\s*[*&]?\s*\**\s*%s\s*(?:[;=,)]|\[)')
@@ -137,9 +142,35 @@ def scan(path, out):
                 # is advance-then-test, the correct idiom, not a guard sequenced
                 # after its access. This shape was most of the noise once the
                 # compound-condition match was added.
-                if re.match(r'^\s*%s\s*=\s*%s\s*(?:->|\.)'
+                # allow an intervening cast: `p = (Foo *)p->next;`
+                if re.match(r'^\s*%s\s*=\s*(?:\([^)]*\)\s*)?%s\s*(?:->|\.)'
                             % (re.escape(name), re.escape(name)), prev):
                     continue
+                # Already-fixed sites: a hoisted `if (not X) return;` earlier in
+                # the same function dominates this access, and the original late
+                # guard is simply left in place as harmless defensive code. Both
+                # addobj.cpp and phonebk.cpp look exactly like this after their
+                # fixes, and a scanner that keeps re-reporting them stops getting
+                # read. Scan from the access up to the function head for a
+                # bailing guard on the same name.
+                dominated = False
+                for k in range(j - 1, -1, -1):
+                    if depth[k] == 0:
+                        break
+                    pk = lines[k].strip()
+                    if pk.startswith(("//", "*", "/*", "#")):
+                        continue
+                    gm = G_NULL.search(pk)
+                    gnames = [g for g in ((gm.group(1), gm.group(2)) if gm else ()) if g]
+                    gnames += G_NULL_DOM.findall(pk)
+                    if IF_LINE.search(pk):
+                        gnames += G_NULL_ANY.findall(pk)
+                    if name in gnames and BAILS.search("".join(lines[k:k + 3])):
+                        dominated = True
+                        break
+                if dominated:
+                    continue
+
                 how = accesses(prev, name)
                 if how:
                     out.append((os.path.relpath(path, "/home/g/ff"), i + 1, kind,
