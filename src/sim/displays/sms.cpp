@@ -1672,6 +1672,34 @@ void SMSClass::Exec(void)
                         ffCount, ffCount + 1, GetAGBRippleInterval(),
                         numCurrentWpn, (int)GetAGBPair(), curRippleCount,
                         (curWeapon and curWeapon->IsBomb()) ? 1 : 0);
+
+                // FF_LINUX (RIPPLE-1): numCurrentWpn sums hardPoint[i]->weaponCount
+                // for every hardpoint whose weaponId matches the current weapon
+                // (sms.cpp ~1820). The release clamps ripple to numCurrentWpn - 1, so
+                // a miscount here silently truncates the ripple. Dump the racks once
+                // so a genuine "only 2 left" can be told from a bad count or a
+                // weaponId that fails to match.
+                {
+                    static int ffDumped = 0;
+
+                    if ( not ffDumped and curWeapon and curWeapon->IsBomb())
+                    {
+                        ffDumped = 1;
+                        fprintf(stderr, "[RIPPLE] hardpoints: curHardpoint=%d curWeaponId=%d "
+                                "numHardpoints=%d\n",
+                                curHardpoint, (int)curWeaponId, numHardpoints);
+
+                        for (int ffI = 0; ffI < numHardpoints; ffI++)
+                        {
+                            if (hardPoint[ffI])
+                                fprintf(stderr, "[RIPPLE]   hp[%d] weaponId=%d count=%d%s\n",
+                                        ffI, (int)hardPoint[ffI]->weaponId,
+                                        (int)hardPoint[ffI]->weaponCount,
+                                        (hardPoint[ffI]->weaponId == curWeaponId) ? "  <-- counted" : "");
+                        }
+                    }
+                }
+
                 fflush(stderr);
             }
         }
