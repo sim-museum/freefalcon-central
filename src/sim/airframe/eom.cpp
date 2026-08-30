@@ -325,7 +325,25 @@ void AirframeClass::CalcBodyRates(float dt)
 
                     PtRelPos.x = cgloc - GetAeroData(AeroDataSet::NosGearX + i * 4);
                     PtRelPos.y = GetAeroData(AeroDataSet::NosGearY + i * 4);
+#ifdef FF_LINUX
+                    // Same DOF-read race as CheckHeight() -- see FFGearDofRatio().
+                    {
+                        static int ffNoFix2 = -1;
+
+                        if (ffNoFix2 < 0)
+                            ffNoFix2 = getenv("FF_NO_GEARDOF_FIX") ? 1 : 0;
+
+                        const float ffRng = GetAeroData(AeroDataSet::NosGearRng + i * 4);
+                        const float ffRatio2 = ffNoFix2
+                                               ? (ffRng > 0.0F
+                                                  ? geardof / (ffRng * DTR) : 0.0F)
+                                               : FFGearDofRatio(i);
+                        PtRelPos.z = (GetAeroData(AeroDataSet::NosGearZ + i * 4)
+                                      + GearExt - radius) * ffRatio2 + radius;
+                    }
+#else
                     PtRelPos.z = (GetAeroData(AeroDataSet::NosGearZ + i * 4) + GearExt - radius) * geardof / (GetAeroData(AeroDataSet::NosGearRng + i * 4) * DTR) + radius;
+#endif
 
                     MatrixMult(&((DrawableBSP*)platform->drawPointer)->orientation, &PtRelPos, &PtWorldPos);
 
@@ -1979,6 +1997,45 @@ void AirframeClass::ResetIntegrators(void)
     memset(olda01, 0, sizeof(SAVE_ARRAY));
 }
 
+#ifdef FF_LINUX
+// FF_LINUX (SINK-2): the ground standoff was read back out of the gear ANIMATION
+// DOF, so the physics depended on whether the animation had already written that
+// DOF this frame. Measured on a TE-02 takeoff roll: surface.cpp reports the DOF at
+// a steady 1.570 while CheckHeight() simultaneously computes a contact point of
+// exactly FusRadius -- the value the formula returns only when it reads the DOF as
+// zero. The airframe then alternates between a 6.00ft and a 2.39ft standoff, and
+// since SetGroundPosition() does z = groundZ - minHeight, the jet jitters 3.6ft
+// into the runway and back out. That is the takeoff "drop" the PO reports.
+//
+// surface.cpp writes the DOF as clamp((gearPos - 0.5) * 2, 0, 1) * NosGearRng * DTR,
+// so the ratio the physics wants is just that clamp. Compute it from gearPos --
+// identical whenever the DOF is current, and correct when it is not.
+// FF_NO_GEARDOF_FIX=1 restores the old DOF read.
+float AirframeClass::FFGearDofRatio(int i) const
+{
+    const float range = GetAeroData(AeroDataSet::NosGearRng + i * 4);
+
+    // Mirror surface.cpp's stuck/broken branch, which parks the leg at 0.6 of the
+    // NOSE gear's range regardless of which leg it is.
+    if ((gear[i].flags bitand GearData::GearStuck)
+        or (gear[i].flags bitand GearData::GearBroken))
+    {
+        if (range <= 0.0F)
+            return 0.0F;
+
+        return GetAeroData(AeroDataSet::NosGearRng) * 0.6F / range;
+    }
+
+    float pos = (gearPos - 0.5F) * 2.0F;
+
+    if (pos < 0.0F) pos = 0.0F;
+
+    if (pos > 1.0F) pos = 1.0F;
+
+    return pos;
+}
+#endif
+
 float AirframeClass::CheckHeight(void) const
 {
     // JB 010120
@@ -2030,11 +2087,25 @@ float AirframeClass::CheckHeight(void) const
                     float nosGearZ = GetAeroData(AeroDataSet::NosGearZ + i * 4);
                     float nosGearRng = GetAeroData(AeroDataSet::NosGearRng + i * 4);
                     float gearDof = platform->GetDOFValue(ComplexGearDOF[i]);
+#ifdef FF_LINUX
+                    static int ffNoFix = -1;
+
+                    if (ffNoFix < 0)
+                        ffNoFix = getenv("FF_NO_GEARDOF_FIX") ? 1 : 0;
+
+                    const float ffRatio = ffNoFix
+                                          ? (nosGearRng > 0.0F
+                                             ? gearDof / (nosGearRng * DTR) : 0.0F)
+                                          : FFGearDofRatio(i);
+                    PtRelPos.z =
+                        (nosGearZ + gearExtension[i] - radius) * ffRatio + radius;
+#else
                     PtRelPos.z =
                         (nosGearZ + gearExtension[i] - radius) *
                         gearDof / (nosGearRng * DTR) +
                         radius
                         ;
+#endif
                 }
                 else
                 {
@@ -2137,17 +2208,61 @@ float AirframeClass::CheckHeight(void) const
 
         if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_CHKHT") ? 1 : 0;
 
-        if (s_dbg)
+        // CheckHeight() transforms the gear contact points through the DRAW
+        // object's orientation matrix, so the physics ground standoff depends on
+        // render state. When the gear term collapses while the gear is healthy
+        // (gearPos 1.0, DOF at full range -- both measured), the matrix is the
+        // only remaining input. Dump it against the platform's own angles on the
+        // collapsed frames so the disagreement is measured, not inferred.
+        if (s_dbg and platform == SimDriver.GetPlayerEntity()
+            and deltzGear < 3.0F and platform->drawPointer)
+        {
+            const float *m = (const float *)
+                             &((DrawableBSP*)platform->drawPointer)->orientation;
+            fprintf(stderr,
+                    "[CHKHTX] COLLAPSE gear=%.2f | M=[%.3f %.3f %.3f][%.3f %.3f %.3f]"
+                    "[%.3f %.3f %.3f] | costhe=%.3f cosphi=%.3f sinthe=%.3f\n",
+                    deltzGear, m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8],
+                    platform->platformAngles.costhe, platform->platformAngles.cosphi,
+                    platform->platformAngles.sinthe);
+            fflush(stderr);
+        }
+
+        // The physics standoff is measured from groundZ, but what the PO sees is
+        // the airframe against the DRAWN terrain. If those two references differ,
+        // a perfectly healthy minHeight still renders as a sunk jet. Report both
+        // so the two failure modes are told apart instead of conflated.
+        extern float FF_DrawnGroundLevel(float xx, float yy);
+        const float ffDrawn = platform ? FF_DrawnGroundLevel(platform->XPos(),
+                                                             platform->YPos())
+                                       : 0.0F;
+        const bool ffDrawnOk = (ffDrawn < -0.5F or ffDrawn > 0.5F);
+
+        // Only the player: the counter is a single static shared by every
+        // aircraft in the mission, so an unfiltered probe interleaves samples
+        // from different airframes and the sequence cannot be read as a
+        // trajectory. FF_DEBUG_CHKHT_N tunes the interval (default 30).
+        if (s_dbg and platform == SimDriver.GetPlayerEntity())
         {
             static long c = 0;
+            static long every = -1;
 
-            if ((c++ % 120) == 0)
+            if (every < 0)
+            {
+                const char *e = getenv("FF_DEBUG_CHKHT_N");
+                every = e ? atol(e) : 30;
+
+                if (every < 1) every = 1;
+            }
+
+            if ((c++ % every) == 0)
             {
                 fprintf(stderr,
-                        "[CHKHT] radius=%.2f gearHt=%.2f | nose=%.2f wing=%.2f gear=%.2f body=%.2f -> deltz=%.2f minHeight=%.2f complex=%d\n",
+                        "[CHKHT] radius=%.2f gearHt=%.2f | nose=%.2f wing=%.2f gear=%.2f body=%.2f -> deltz=%.2f minHeight=%.2f complex=%d physGnd=%.2f drawnGnd=%.2f delta=%.2f\n",
                         radius, gearHt, deltzNose, deltzWing, deltzGear, deltzBody,
                         deltz, deltz - GROUND_TOLERANCE,
-                        platform ? (int)platform->IsComplex() : -1);
+                        platform ? (int)platform->IsComplex() : -1,
+                        groundZ, ffDrawn, ffDrawnOk ? (ffDrawn - groundZ) : -99999.0F);
                 fflush(stderr);
             }
         }

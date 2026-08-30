@@ -1580,6 +1580,11 @@ public:
     void PitchIt(float aoacmd, float dt);
     void RollIt(float pscmd, float dt);
     float CheckHeight(void) const;
+#ifdef FF_LINUX
+    // FF_LINUX (SINK-2): fraction of full travel for gear leg i, derived from
+    // gearPos rather than read back out of the animation DOF. See eom.cpp.
+    float FFGearDofRatio(int i) const;
+#endif
     void CheckGroundImpact(float dt);
 
     float GetOptimumCruise(void);

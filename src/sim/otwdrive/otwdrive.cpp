@@ -2965,12 +2965,83 @@ void OTWDriverClass::ObjectSetData(SimBaseClass *obj, Tpoint *simView, Trotation
             {
                 DWORD now = GetTickCount();
 
-                if (now - s_last > 1000)
+                // FF_LINUX (SINK-2): the reported drop happens AT wheels-off and is
+                // over in a moment, so a 1Hz sample cannot show it -- the transition
+                // fell between two samples (agl 6.3 -> 38.4). Log EVERY FRAME while
+                // low, and fall back to 1Hz above that, so the transient is captured
+                // rather than straddled. Also report the applied lift in feet and the
+                // drawn z, which is what the PO actually sees, instead of only the
+                // scale factor.
+                extern float FF_RunwayDecal(void);
+                const float ffLiftFt = FF_RunwayDecal() * ffLiftScale;
+
+                // ffAgl is only computed on the airborne path, so it reads -1 for
+                // the whole ground roll -- blind over exactly the frames SINK-2 is
+                // about. Measure clearance here independently. GetGroundLevel
+                // answers a flat 0.0f while terrain LOD is still streaming, so
+                // treat that as "no data" rather than "sea level".
+                const float ffGnd = GetGroundLevel(obj->XPos(), obj->YPos(), NULL);
+                const bool ffGndOk = (ffGnd < -0.5f or ffGnd > 0.5f);
+                const float ffClr = ffGndOk ? (ffGnd - obj->ZPos()) : -1.0f;
+
+                // Spend the sample budget AT the wheels-off transition, not on the
+                // ground roll. A flat per-frame cap was exhausted during the roll,
+                // so the edge itself fell back to 1Hz and got straddled -- twice.
+                // Instead keep a ring of recent frames and dump it when OnGround
+                // goes 1 -> 0, then log the next frames densely.
+                struct FFSample
+                {
+                    int og; float gs, sc, clr, gnd, z, lf;
+                };
+                enum { FF_RING = 96, FF_AFTER = 96 };
+                static FFSample s_ring[FF_RING];
+                static long s_n = 0;
+                static int s_after = -1;
+                static int s_wasGround = -1;
+
+                const float ffGs = (float)sqrt(obj->XDelta() * obj->XDelta()
+                                               + obj->YDelta() * obj->YDelta());
+                const int ffOg = obj->OnGround() ? 1 : 0;
+                const FFSample ffCur = { ffOg, ffGs, ffLiftScale, ffClr, ffGnd,
+                                         obj->ZPos(), ffLiftFt };
+
+                s_ring[s_n++ % FF_RING] = ffCur;
+
+                if (s_wasGround == 1 and ffOg == 0 and s_after < 0)
+                {
+                    fprintf(stderr, "[LIFT] === WHEELS OFF: dumping %d frames before ===\n",
+                            (int)(s_n < FF_RING ? s_n : FF_RING));
+                    const long have = s_n < FF_RING ? s_n : FF_RING;
+
+                    for (long k = s_n - have; k < s_n; k++)
+                    {
+                        const FFSample &r = s_ring[k % FF_RING];
+                        fprintf(stderr, "[LIFT] t%+ld OnGround=%d gs=%.1f scale=%.3f "
+                                "clr=%.2f gnd=%.2f zPos=%.2f liftFt=%.2f drawnZ=%.2f\n",
+                                k - (s_n - 1), r.og, r.gs, r.sc, r.clr, r.gnd, r.z, r.lf,
+                                r.z - r.lf);
+                    }
+
+                    s_after = FF_AFTER;
+                }
+
+                s_wasGround = ffOg;
+
+                if (s_after > 0)
+                {
+                    s_after--;
+                    fprintf(stderr, "[LIFT] t+%d OnGround=%d gs=%.1f scale=%.3f "
+                            "clr=%.2f gnd=%.2f zPos=%.2f liftFt=%.2f drawnZ=%.2f\n",
+                            FF_AFTER - s_after, ffOg, ffGs, ffLiftScale, ffClr, ffGnd,
+                            obj->ZPos(), ffLiftFt, obj->ZPos() - ffLiftFt);
+                }
+                else if (now - s_last > 1000)
                 {
                     s_last = now;
-                    fprintf(stderr, "[LIFT] OnGround=%d scale=%.3f agl=%.1f zPos=%.2f\n",
-                            obj->OnGround() ? 1 : 0, ffLiftScale, ffAgl, obj->ZPos());
-                    fflush(stderr);
+                    fprintf(stderr, "[LIFT] OnGround=%d gs=%.1f scale=%.3f agl=%.1f "
+                            "clr=%.2f gnd=%.2f zPos=%.2f liftFt=%.2f drawnZ=%.2f\n",
+                            ffOg, ffGs, ffLiftScale, ffAgl, ffClr, ffGnd, obj->ZPos(),
+                            ffLiftFt, obj->ZPos() - ffLiftFt);
                 }
             }
         }
