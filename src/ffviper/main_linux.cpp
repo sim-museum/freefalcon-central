@@ -1282,6 +1282,10 @@ static void setup_signal_handlers() {
 // peers on one machine do not both take CAPI_UDP_PORT for their local port.
 extern "C" unsigned short force_port;
 
+// FF_LINUX (TESWEEP-RACE): SDL ticks at FM_JOIN_SUCCEEDED, 0 until then.
+// Backs the "x,y@J<sec>" form of FF_UI_CLICK.
+static Uint32 g_ffJoinAtMs = 0;
+
 static void print_usage(const char* progname);
 static bool init_data_directory(const char* dataDir);
 static bool init_resource_manager(void);
@@ -2423,6 +2427,12 @@ bool ProcessGameMessages() {
 
             case FM_JOIN_SUCCEEDED:
                 fprintf(stderr, "[FM] FM_JOIN_SUCCEEDED received\n");
+                // FF_LINUX (TESWEEP-RACE): stamp when the load actually finished, so
+                // FF_UI_CLICK can fire relative to THIS instead of to process start.
+                // The sweep's fly click used an absolute time; when the campaign load
+                // drifted ~2s slower it began landing before the screen existed and
+                // every row reported sim=0, indistinguishable from real breakage.
+                g_ffJoinAtMs = SDL_GetTicks();
                 CampaignJoinSuccess();
                 if (!gMainHandler) {
                     QueuePendingMessage(FM_START_UI, 0, 0);
@@ -2844,7 +2854,7 @@ static void render_frame(void) {
         // messages a real mouse click produces - for automated UI testing.
         {
             static int s_clickInit = 0;
-            static struct { int x, y; Uint32 atMs; int fired; int dbl; } s_clicks[16];
+            static struct { int x, y; Uint32 atMs; int fired; int dbl; int afterJoin; } s_clicks[16];
             static int s_nClicks = 0;
             static Uint32 s_uiStart = 0;
             if (!s_clickInit) {
@@ -2856,12 +2866,25 @@ static void render_frame(void) {
                     for (char* tok = strtok(buf, ";"); tok && s_nClicks < 16; tok = strtok(NULL, ";")) {
                         int cx, cy; float at;
                         char dbl = 0;  // 'd' = double-click, 'r' = right-click
-                        if (sscanf(tok, "%d,%d@%f%c", &cx, &cy, &at, &dbl) >= 3) {
+                        int afterJoin = 0;
+                        // "x,y@J<sec>" fires <sec> after FM_JOIN_SUCCEEDED rather
+                        // than after process start -- the load time varies per
+                        // mission and with machine speed, so an absolute schedule
+                        // races it.
+                        if (sscanf(tok, "%d,%d@J%f%c", &cx, &cy, &at, &dbl) >= 3) {
+                            afterJoin = 1;
+                        } else if (sscanf(tok, "%d,%d@%f%c", &cx, &cy, &at, &dbl) >= 3) {
+                            afterJoin = 0;
+                        } else {
+                            continue;
+                        }
+                        {
                             s_clicks[s_nClicks].x = cx;
                             s_clicks[s_nClicks].y = cy;
                             s_clicks[s_nClicks].atMs = (Uint32)(at * 1000.0f);
                             s_clicks[s_nClicks].fired = 0;
                             s_clicks[s_nClicks].dbl = (dbl == 'd') ? 1 : (dbl == 'r') ? 2 : 0;
+                            s_clicks[s_nClicks].afterJoin = afterJoin;
                             s_nClicks++;
                         }
                     }
@@ -2871,7 +2894,17 @@ static void render_frame(void) {
                 if (!s_uiStart) s_uiStart = SDL_GetTicks();
                 Uint32 el = SDL_GetTicks() - s_uiStart;
                 for (int ci = 0; ci < s_nClicks; ci++) {
-                    if (!s_clicks[ci].fired && el >= s_clicks[ci].atMs) {
+                    bool ffDue;
+
+                    if (s_clicks[ci].afterJoin) {
+                        // not due at all until the join has happened
+                        ffDue = g_ffJoinAtMs
+                                && (SDL_GetTicks() - g_ffJoinAtMs) >= s_clicks[ci].atMs;
+                    } else {
+                        ffDue = el >= s_clicks[ci].atMs;
+                    }
+
+                    if (!s_clicks[ci].fired && ffDue) {
                         s_clicks[ci].fired = 1;
                         LPARAM lp = MAKELPARAM(s_clicks[ci].x, s_clicks[ci].y);
                         fprintf(stderr, "[FF_UI_CLICK] firing (%d,%d) at %ums\n", s_clicks[ci].x, s_clicks[ci].y, el);

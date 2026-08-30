@@ -15,7 +15,12 @@ for row in $(seq "$FIRST" "$LAST"); do
     # measured: mission N sits at y = 94 + N*17 (row 22 -> y 468, "22 20mm Cannon")
     y=$(( 94 + row * 17 ))
     log=/tmp/sw-$row.log
-    ( export FF_UI_CLICK="574,750@12;225,171@18;896,743@24;677,748@36;140,${y}@42;824,750@48;973,750@54"
+    # The fly click fires 3s AFTER FM_JOIN_SUCCEEDED (the @J form), not at a fixed
+    # 54s. It used to be absolute, and when the campaign load drifted ~2s slower
+    # the click began landing before the screen existed -- every row reported
+    # sim=0, which is indistinguishable from real breakage and cost an hour.
+    # Load time varies per mission, so there is no single constant to bump.
+    ( export FF_UI_CLICK="574,750@12;225,171@18;896,743@24;677,748@36;140,${y}@42;824,750@48;973,750@J3"
       timeout -s INT 105 "$BIN" -d "$GAMEDATA" -w > "$log" 2>&1 )
     name=$(grep -a "StartReadCampFile: type" "$log" | head -1 | sed "s/.*filename='//;s/'.*//")
     printf "row %2d  sim=%s crash=%s asserts=%s  %s\n" "$row" \
