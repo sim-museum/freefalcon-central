@@ -36,7 +36,7 @@ sed -i "s/^curTheater=.*/curTheater=1,4B6F72656100/" "$R"
 y=$(( 94 + 25 * 17 ))
 ( export FF_UI_CLICK="574,750@12;225,171@18;896,743@24;677,748@36;140,${y}@42;824,750@48;973,750@54"
   export FF_AP_MODE=1
-  export FF_SIM_KEY="0x53@60;0x3B@65;0x3C@70;0x1C@75;0xE@80;0x1F@85;SA0x3C@90"
+  export FF_SIM_KEY="S0x53@60;0x3B@65;0x3C@70;0x1C@75;0xE@80;0x1F@85;SA0x3C@90"
   timeout -s INT 220 "$BIN" -d "$GD" -w > /tmp/asan9-avionics.log 2>&1 ) 2>/dev/null
 report "avionics-keys" /tmp/asan9-avionics.log
 

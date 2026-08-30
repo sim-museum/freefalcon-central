@@ -29,12 +29,17 @@ run_batch() {
 
 # Rows matter: the GMRADAR-1 crash reproduces on row 24 (Mavericks) but NOT on
 # row 18 (A-G Radar Modes) with the same keys, so a single-row sweep proves very
-# little. Validated: pre-fix, row 24 + the 0x53 primer crashes; row 18 does not.
+# little. Validated: pre-fix, row 24 + the A-G primer crashes; row 18 does not.
+#
+# The A-G primer is S0x53, NOT 0x53. keystrokes.key binds SimICPAG ("ICP A-G")
+# to DIK 0x53 with modifier 1 = SHIFT; bare 0x53 is modifier 0, which is
+# SimDropTrack ("Radar-return to search"). Every run of this sweep before this
+# was pressing drop-track and never entering A-G, so its A-G coverage was void.
 for ROW in ${ROWS:-18 20 24 25 26}; do
     y=$(( 94 + ROW * 17 ))
     echo "--- row $ROW ---"
-    run_batch r${ROW}modes 0x53 0x3B 0x3C 0x1F 0x28 0x17 0x1C
-    run_batch r${ROW}radar 0x53 0x3D 0x3E 0x3F 0x41 0x42 0x43
-    run_batch r${ROW}misc  0x53 0x44 0x57 0x58 0xC9 0xD1 0xD2
+    run_batch r${ROW}modes S0x53 0x3B 0x3C 0x1F 0x28 0x17 0x1C
+    run_batch r${ROW}radar S0x53 0x3D 0x3E 0x3F 0x41 0x42 0x43
+    run_batch r${ROW}misc  S0x53 0x44 0x57 0x58 0xC9 0xD1 0xD2
 done
 echo "=== AVIONICS SWEEP COMPLETE ==="
