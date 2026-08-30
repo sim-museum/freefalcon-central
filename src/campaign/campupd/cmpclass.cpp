@@ -812,6 +812,33 @@ int CampaignClass::JoinCampaign(FalconGameType gametype, FalconGameEntity *game)
 
     masterSession = (FalconSessionEntity*) vuDatabase->Find(game->OwnerId());
 
+#ifdef FF_LINUX
+    // FF_LINUX (MP-1): this fallback makes a FAILED join look like a SUCCESSFUL one.
+    // If the master session cannot be resolved, JoinCampaign quietly loads a LOCAL
+    // campaign and returns LoadCampaign's success -- the caller sees 1 and concludes
+    // it joined. Report which branch is taken so a real join can be told from a
+    // local load. FF_DEBUG_MPCOMMS=1.
+    {
+        static int ffDbg = -1;
+
+        if (ffDbg < 0)
+            ffDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+
+        if (ffDbg)
+        {
+            fprintf(stderr, "[MPJOIN] JoinCampaign: ownerId=%u/%u masterSession=%p%s\n",
+                    (unsigned)game->OwnerId().creator_.value_,
+                    (unsigned)game->OwnerId().num_,
+                    (void*)masterSession,
+                    ( not masterSession) ? "  <-- NOT FOUND, falling back to LOCAL load"
+                    : (masterSession == vuLocalSessionEntity)
+                      ? "  <-- IS OURSELVES, falling back to LOCAL load"
+                      : "  <-- remote master, REAL join");
+            fflush(stderr);
+        }
+    }
+#endif
+
     if ( not masterSession or masterSession == vuLocalSessionEntity)
         return LoadCampaign(gametype, Scenario);
 

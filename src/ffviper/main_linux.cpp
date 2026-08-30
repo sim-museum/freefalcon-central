@@ -2690,6 +2690,78 @@ static void render_frame(void) {
             }
         }
 
+        // FF_LINUX (MP-1): FF_MP_JOIN=1 drives the JOIN the UI performs, using the
+        // game's own entry points in the game's own order (see 81d52df3):
+        //     1 resolve   vuDatabase->Find(remoteGameId)
+        //     2 select    gCommsMgr->LookAtGame(game)          -> UIComms::TargetGame_
+        //     3 preload   TheCampaign.RequestScenarioStats(game)
+        //     4 join      TheCampaign.JoinCampaign(type, game)
+        // Step 4 MUST wait for CAMP_PRELOADED: JoinCampaign (cmpclass.cpp:790) returns
+        // 0 immediately unless IsPreLoaded(), and that flag is only set once campaign
+        // data has arrived from the master. Calling it early looks like "join broken"
+        // when it is only out of order -- which is why the UI's join is two-phase.
+        {
+            extern unsigned g_ffRemoteGameCreator, g_ffRemoteGameNum;
+            static int ffJoin = -1;
+            static int ffPhase = 0;
+            static DWORD ffPhaseAt = 0;
+
+            if (ffJoin < 0)
+                ffJoin = getenv("FF_MP_JOIN") ? 1 : 0;
+
+            if (ffJoin and gCommsMgr)
+            {
+                if (ffPhase == 0 and g_ffRemoteGameNum)
+                {
+                    VU_ID ffId;
+                    ffId.creator_.value_ = g_ffRemoteGameCreator;
+                    ffId.num_ = g_ffRemoteGameNum;
+                    VuEntity *ffE = vuDatabase ? vuDatabase->Find(ffId) : NULL;
+
+                    if (ffE and ffE->IsGame())
+                    {
+                        FalconGameEntity *ffGame = (FalconGameEntity *)ffE;
+                        gCommsMgr->LookAtGame((VuGameEntity *)ffGame);
+                        const int ffRc = TheCampaign.RequestScenarioStats(ffGame);
+                        fprintf(stderr, "[MPJOIN] phase1 LookAtGame + RequestScenarioStats -> %d\n", ffRc);
+                        fflush(stderr);
+                        ffPhase = 1;
+                        ffPhaseAt = GetTickCount();
+                    }
+                }
+                else if (ffPhase == 1)
+                {
+                    // wait for the master's campaign data to arrive
+                    if (TheCampaign.IsPreLoaded())
+                    {
+                        VU_ID ffId;
+                        ffId.creator_.value_ = g_ffRemoteGameCreator;
+                        ffId.num_ = g_ffRemoteGameNum;
+                        VuEntity *ffE = vuDatabase ? vuDatabase->Find(ffId) : NULL;
+
+                        if (ffE and ffE->IsGame())
+                        {
+                            FalconGameEntity *ffGame = (FalconGameEntity *)ffE;
+                            const int ffRc = TheCampaign.JoinCampaign(
+                                                 (FalconGameType)ffGame->gameType, ffGame);
+                            fprintf(stderr, "[MPJOIN] phase2 JoinCampaign -> %d  (loaded=%d)\n",
+                                    ffRc, TheCampaign.IsLoaded() ? 1 : 0);
+                            fflush(stderr);
+                        }
+
+                        ffPhase = 2;
+                    }
+                    else if (GetTickCount() - ffPhaseAt > 30000)
+                    {
+                        fprintf(stderr, "[MPJOIN] phase1 TIMEOUT: CAMP_PRELOADED never set "
+                                "after 30s -- the master never sent campaign data\n");
+                        fflush(stderr);
+                        ffPhase = 2;
+                    }
+                }
+            }
+        }
+
         // FF_LINUX debug: scripted UI clicks via FF_UI_CLICK="x,y@sec;x,y@sec..."
         // (UI-surface coordinates, 1024x768). Posts the same WM_LBUTTONDOWN/UP
         // messages a real mouse click produces - for automated UI testing.
