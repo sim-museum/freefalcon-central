@@ -3043,6 +3043,34 @@ void SmsDrawable::MavSMSDisplay(void)
         return;
     }
 
+    // FF_LINUX (MAV-1): announce ONCE that the Maverick page is actually being
+    // drawn, with the state that gates it. The harness could never reach this
+    // page -- it pressed bare 0x53, which is SimDropTrack, not SimICPAG ("ICP
+    // A-G", modifier 1 = shift) -- so every earlier "cannot reproduce" was a
+    // key-binding bug, not evidence about the page. Trace entry rather than
+    // inferring it from pixels. FF_DEBUG_MAV=1.
+    {
+        static int s_dbg = -1;
+
+        if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_MAV") ? 1 : 0;
+
+        if (s_dbg)
+        {
+            static int ffSaid = 0;
+
+            if ( not ffSaid)
+            {
+                ffSaid = 1;
+                fprintf(stderr, "[MAV1] MavSMSDisplay ENTERED: curHardpoint=%d "
+                        "curWeaponType=%d realisticAvionics=%d\n",
+                        Sms ? Sms->curHardpoint : -999,
+                        Sms ? (int)Sms->curWeaponType : -999,
+                        (int)g_bRealisticAvionics);
+                fflush(stderr);
+            }
+        }
+    }
+
     {
         static int ffDbg = -1;
 

@@ -706,6 +706,45 @@ void ObjectiveClass::SendDeaggregateData(VuTargetEntity *target)
     FalconSendMessage(msg, TRUE);
 }
 
+#ifdef FF_LINUX
+// FF_LINUX: place a campaign feature on the terrain instead of at sea level.
+//
+// Both deaggregation paths set simdata.z = 0 and only Deaggregate() was fixed;
+// DeaggregateFromData() -- the path taken when a deaggregation arrives over the
+// wire -- still buried every feature. Measured on the original path:
+// placedZ=0.0 drawnGnd=-42.2 buriedBy=42.2, and a 30-40ft building is entirely
+// swallowed, which is the PO's "no visible buildings or vehicles".
+//
+// Returns the z to use, or leaves the caller's value alone by returning it
+// unchanged when terrain has no answer. The query returns exactly 0.0f before
+// terrain has streamed and accepting that is what buried the FF_TEST_EXPLOSION
+// bursts (e321710b), so the sentinel is rejected rather than baked in.
+//
+// GetFeatureOffset's z offset is applied on top, so features deliberately raised
+// relative to their objective keep that relationship. The unit path already does
+// this (unit.cpp:1806,2327); only the feature path did not.
+//
+// FF_NO_FEATURE_GROUND=1 restores sea-level placement for A/B.
+float FF_FeatureGroundZ(float x, float y, float zOffset, float fallback)
+{
+    static int ffOff = -1;
+
+    if (ffOff < 0)
+        ffOff = getenv("FF_NO_FEATURE_GROUND") ? 1 : 0;
+
+    if (ffOff)
+        return fallback;
+
+    extern float FF_DrawnGroundLevel(float xx, float yy);
+    const float ffGnd = FF_DrawnGroundLevel(x, y);
+
+    if (ffGnd < -0.5f and ffGnd > -99000.0f)
+        return ffGnd + zOffset;
+
+    return fallback;
+}
+#endif
+
 int ObjectiveClass::Deaggregate(FalconSessionEntity *session)
 {
     if ( not IsLocal() or not IsAggregate())
@@ -802,25 +841,8 @@ int ObjectiveClass::Deaggregate(FalconSessionEntity *session)
             // relative to their objective keep that relationship.
             //
             // FF_NO_FEATURE_GROUND=1 restores the old sea-level placement for A/B.
-            {
-                static int ffOff = -1;
-
-                if (ffOff < 0)
-                    ffOff = getenv("FF_NO_FEATURE_GROUND") ? 1 : 0;
-
-                if ( not ffOff)
-                {
-                    extern float FF_DrawnGroundLevel(float xx, float yy);
-                    const float ffGnd = FF_DrawnGroundLevel(simdata.x, simdata.y);
-
-                    // Reject the no-data sentinels rather than baking them in: this
-                    // query answers exactly 0.0f before terrain has streamed, and
-                    // accepting that is what buried the FF_TEST_EXPLOSION bursts
-                    // (e321710b). Leaving simdata.z alone keeps the old behaviour.
-                    if (ffGnd < -0.5f and ffGnd > -99000.0f)
-                        simdata.z = ffGnd + z;
-                }
-            }
+            // Shared with DeaggregateFromData -- see FF_FeatureGroundZ.
+            simdata.z = FF_FeatureGroundZ(simdata.x, simdata.y, z, simdata.z);
 #endif
 #ifdef FF_LINUX
             // FF_LINUX: TE2-2 -- the player's airbase never gets FEAT_FLAT_CONTAINER
@@ -1220,6 +1242,11 @@ void ObjectiveClass::DeaggregateFromData(VU_BYTE* data, long size)
         GetFeatureOffset(simdata.campSlot, &y, &x, &z);
         simdata.x = XPos() + x;
         simdata.y = YPos() + y;
+#ifdef FF_LINUX
+        // FF_LINUX: same terrain placement Deaggregate() got; this path had none,
+        // so wire-delivered features were all buried at sea level.
+        simdata.z = FF_FeatureGroundZ(simdata.x, simdata.y, z, simdata.z);
+#endif
         simdata.heading = (float)(FeatureEntryDataTable[fid].Facing) * DEG_TO_RADIANS;
         simdata.displayPriority = fc->Priority;
 

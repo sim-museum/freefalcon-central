@@ -44,6 +44,29 @@ void RenderIR::StartDraw(void)
     context.SetIRmode(TRUE);
     //realWeather->SetGreenMode(TRUE); // RV - I-Hawk - Do not force green
     // Enable DX engine TV Mode
+#ifdef FF_LINUX
+    // FF_LINUX (MAV-2): announce ONCE that the seeker-video pass actually runs.
+    // Without this, an A/B of the RestoreState fix compares two arms in which the
+    // pass may never have executed -- and "no difference" then means nothing.
+    // FF_DEBUG_MAV=1.
+    {
+        static int s_dbg = -1;
+
+        if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_MAV") ? 1 : 0;
+
+        if (s_dbg)
+        {
+            static int ffSaid = 0;
+
+            if ( not ffSaid)
+            {
+                ffSaid = 1;
+                fprintf(stderr, "[MAV2] RenderIR::StartDraw -- seeker video pass RUNNING\n");
+                fflush(stderr);
+            }
+        }
+    }
+#endif
     TheDXEngine.SaveState();
     TheDXEngine.SetState(DX_TV);
 }
