@@ -2817,10 +2817,22 @@ void RadarDopplerClass::GMMode(void)
                                         const float phys = OTWDriver.GetGroundLevel(fx, fy);
                                         // z is positive DOWN: buried when the feature
                                         // sits BELOW (greater z than) the drawn surface.
-                                        fprintf(stderr, "[BURIED] los=%d z=%.1f drawn=%.1f "
-                                                "phys=%.1f buriedBy=%.1f delta(d-p)=%.1f\n",
+                                        // Identify WHAT this is. z=0.0 on every
+                                        // sample is only meaningful once the object
+                                        // is known -- a campaign objective is at
+                                        // z=0 by design, a placed sim feature is
+                                        // not, and the two would mean opposite
+                                        // things.
+                                        fprintf(stderr, "[BURIED] id=%d los=%d z=%.1f drawn=%.1f "
+                                                "phys=%.1f buriedBy=%.1f delta(d-p)=%.1f "
+                                                "static=%d obj=%d unit=%d veh=%d\n",
+                                                (int)testFeature->Id().num_,
                                                 ffLos, fz, drawn, phys, fz - drawn,
-                                                drawn - phys);
+                                                drawn - phys,
+                                                testFeature->IsStatic() ? 1 : 0,
+                                                testFeature->IsObjective() ? 1 : 0,
+                                                testFeature->IsUnit() ? 1 : 0,
+                                                testFeature->IsVehicle() ? 1 : 0);
                                         fflush(stderr);
                                     }
                                 }
@@ -3200,10 +3212,22 @@ void RadarDopplerClass::GMMode(void)
                                         const float phys = OTWDriver.GetGroundLevel(fx, fy);
                                         // z is positive DOWN: buried when the feature
                                         // sits BELOW (greater z than) the drawn surface.
-                                        fprintf(stderr, "[BURIED] los=%d z=%.1f drawn=%.1f "
-                                                "phys=%.1f buriedBy=%.1f delta(d-p)=%.1f\n",
+                                        // Identify WHAT this is. z=0.0 on every
+                                        // sample is only meaningful once the object
+                                        // is known -- a campaign objective is at
+                                        // z=0 by design, a placed sim feature is
+                                        // not, and the two would mean opposite
+                                        // things.
+                                        fprintf(stderr, "[BURIED] id=%d los=%d z=%.1f drawn=%.1f "
+                                                "phys=%.1f buriedBy=%.1f delta(d-p)=%.1f "
+                                                "static=%d obj=%d unit=%d veh=%d\n",
+                                                (int)testFeature->Id().num_,
                                                 ffLos, fz, drawn, phys, fz - drawn,
-                                                drawn - phys);
+                                                drawn - phys,
+                                                testFeature->IsStatic() ? 1 : 0,
+                                                testFeature->IsObjective() ? 1 : 0,
+                                                testFeature->IsUnit() ? 1 : 0,
+                                                testFeature->IsVehicle() ? 1 : 0);
                                         fflush(stderr);
                                     }
                                 }
