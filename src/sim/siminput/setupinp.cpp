@@ -542,6 +542,30 @@ void CallInputFunction(unsigned long val, int state)
             }
             else
             {
+                // FF_LINUX (AVIONICS-1): report what the button lookup actually
+                // returns. MFD OSB bindings carry ids 1025-1059, all in this >=1000
+                // path, and driving them by key produced no page change at all. If
+                // GetButtonPointer returns NULL the callback receives NULL and does
+                // nothing SILENTLY -- indistinguishable from "the key never arrived".
+                // FF_DEBUG_KEYSTATE=1.
+                {
+                    static int ffDbg = -1;
+
+                    if (ffDbg < 0)
+                        ffDbg = getenv("FF_DEBUG_KEYSTATE") ? 1 : 0;
+
+                    if (ffDbg)
+                    {
+                        void *ffBtn = OTWDriver.pCockpitManager
+                                      ? (void*)OTWDriver.pCockpitManager->GetButtonPointer(buttonId)
+                                      : NULL;
+                        fprintf(stderr, "[BTNID] id=%d -> button=%p%s\n",
+                                buttonId, ffBtn,
+                                ffBtn ? "" : "   <-- NULL, callback will do nothing");
+                        fflush(stderr);
+                    }
+                }
+
                 //theFunc(val, state, OTWDriver.pCockpitManager->GetButtonPointer(buttonId));
                 CallFunc(theFunc, val, state, OTWDriver.pCockpitManager->GetButtonPointer(buttonId));
 
