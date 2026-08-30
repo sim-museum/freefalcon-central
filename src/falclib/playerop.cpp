@@ -56,7 +56,7 @@ void PlayerOptionsClass::Initialize(void)
      BldDeaggLevel = 5; // 0-5 (determines which buildings get deaggregated)
      PlayerBubble = 1.0F; // .5 - 2 (ratio by which to multiply player bubble size)
 
-     ACMIFileSize = 5;
+     ACMIFileSize = 0; // FF_LINUX (ACMI-1): 0 = unlimited, one tape per 3D session (PO decision)
 
      SimFlags =  SIM_NO_BLACKOUT bitor SIM_UNLIMITED_CHAFF bitor SIM_NAMETAGS bitor SIM_UNLIMITED_FUEL; // Sim flags
      SimFlightModel = FMSimplified; // Flight model type
@@ -85,7 +85,7 @@ void PlayerOptionsClass::Initialize(void)
     //THW 2004-01-17
     Season = 1; //Summer
 
-    ACMIFileSize = 5;
+    ACMIFileSize = 0; // FF_LINUX (ACMI-1): 0 = unlimited, one tape per 3D session (PO decision)
 
     SimFlags =  0; // Sim flags
     SimFlightModel = FMAccurate; // Flight model type

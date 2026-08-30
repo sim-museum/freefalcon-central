@@ -51,6 +51,14 @@ ACMIRecorder::ACMIRecorder(void)
     // default to 5 meg
     _maxBytesToWrite = (float)PlayerOptions.AcmiFileSize() * 1024 * 1024;
 
+#ifdef FF_LINUX
+    // FF_LINUX (ACMI-1): ACMIFileSize now defaults to 0 meaning UNLIMITED. StartRecording
+    // maps 0 -> FLT_MAX, but this constructor did not, so a 0 here meant a limit of zero
+    // bytes -- i.e. rotate on the first write. Mirror the same rule.
+    if (_maxBytesToWrite <= 0.0f)
+        _maxBytesToWrite = FLT_MAX;   // no rotation
+#endif
+
     // OW BC
 #if 1
     HANDLE handle = INVALID_HANDLE_VALUE;
