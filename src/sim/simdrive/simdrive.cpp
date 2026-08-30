@@ -859,20 +859,58 @@ void SimulationDriver::Cycle()
                     // through this harness was comparing two invisible bursts.
                     // Same family as the terrain-streaming transient: a ground query
                     // answers 0 before the data is there, and callers bake it in.
-                    float gz = OTWDriver.GetGroundLevel(pos.x, pos.y);
+                    // FF_LINUX (BOOM-3): walk the throw point back toward the
+                    // aircraft until the terrain query answers.
+                    //
+                    // Skipping outright made the harness useless for verifying the
+                    // ground-impact effects: a 160s run threw 51 bursts and skipped
+                    // every one, GetGroundLevel answering exactly 0.0 -- the
+                    // streaming sentinel -- at each throw point. Zero bursts spawned
+                    // looks identical to bursts that spawn and fail to render, which
+                    // is the ambiguity this harness exists to remove.
+                    //
+                    // The aircraft's own position is always over streamed terrain,
+                    // since it is being drawn, so retry at shrinking fractions and
+                    // fall back to directly beneath the aircraft. Still never accept
+                    // the 0.0 sentinel.
+                    float gz = 0.0f;
+                    {
+                        static const float ffFrac[] = { 1.0f, 0.5f, 0.25f, 0.1f, 0.0f };
+                        int ffI = 0;
 
-                    if (gz > -99000.0f and gz not_eq 0.0f)
-                    {
+                        for (; ffI < 5; ffI++)
+                        {
+                            const float fx = ac->XPos() + vx / vmag * ahead * ffFrac[ffI];
+                            const float fy = ac->YPos() + vy / vmag * ahead * ffFrac[ffI];
+                            gz = OTWDriver.GetGroundLevel(fx, fy);
+
+                            if (gz > -99000.0f and gz not_eq 0.0f)
+                            {
+                                pos.x = fx;
+                                pos.y = fy;
+                                break;
+                            }
+                        }
+
+                        if (ffI >= 5)
+                        {
+                            fprintf(stderr, "[FF_TEST] SKIP burst at (%.0f,%.0f): no terrain "
+                                    "data at any range (GetGroundLevel=%.1f)\n",
+                                    pos.x, pos.y, (double)gz);
+                            fflush(stderr);
+                            goto ffSkipBurst;
+                        }
+
+                        if (ffFrac[ffI] not_eq 1.0f)
+                        {
+                            fprintf(stderr, "[FF_TEST] throw shortened to %.0f%% "
+                                    "(%.0fft) -- no terrain at full range\n",
+                                    (double)(ffFrac[ffI] * 100.0f),
+                                    (double)(ahead * ffFrac[ffI]));
+                            fflush(stderr);
+                        }
+
                         pos.z = gz;
-                    }
-                    else
-                    {
-                        // No terrain data out there yet -- skip rather than bury the
-                        // burst. Silence would look exactly like a rendering failure.
-                        fprintf(stderr, "[FF_TEST] SKIP burst at (%.0f,%.0f): no terrain "
-                                "data (GetGroundLevel=%.1f)\n", pos.x, pos.y, (double)gz);
-                        fflush(stderr);
-                        goto ffSkipBurst;
                     }
                     fprintf(stderr, "[FF_TEST] GROUND burst at (%.0f,%.0f) z=%.1f (acZ=%.1f)\n",
                             pos.x, pos.y, pos.z, ac->ZPos());

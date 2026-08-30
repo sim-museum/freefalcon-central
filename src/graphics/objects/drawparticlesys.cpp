@@ -238,6 +238,71 @@ AList DrawableParticleSys::textureList;
 ProtectedAList DrawableParticleSys::paramList;
 AList DrawableParticleSys::dpsList;
 TRAIL_HANDLE DrawableParticleSys::TrailsHandle;
+#ifdef FF_LINUX
+// FF_LINUX (BOOM-3): where a ground-impact effect is spawned in z.
+//
+// BOOM-2's root cause, PO-verified: ground explosions lost the depth test against
+// the terrain they sit on. ZFUNC is LESSEQUAL, so a genuinely coplanar fragment
+// would PASS -- meaning the effect lands marginally BEHIND the surface in depth.
+// That is a precision problem, and every site that places a particle at exactly
+// GroundLevel has it. Emitting a few feet toward the camera clears it.
+//
+// There are FOUR such placements across two parallel emitter implementations --
+// SubEmitter::Run (PSEM_IMPACT, PSEM_EARTHIMPACT) and
+// DrawableParticleSys::PS_EmitterRun (the same two) -- and the original fix
+// reached only one of them. One helper so they cannot drift apart again.
+//
+// PSEM_WATERIMPACT deliberately does NOT use this: a splash belongs on the water
+// surface.
+//
+// The depth test stays ON. A ~3ft lift cannot defeat occlusion by a hill, so
+// effects legitimately behind terrain remain hidden -- that is the half of
+// BOOM-3 that must not regress, and it is why this is not the FF_PS_NODEPTH
+// diagnostic, which disables depth for the whole 2D flush.
+//
+// positive z is DOWN, so subtracting raises it.
+// FF_PS_GROUND_LIFT=<ft> tunes it; 0 restores exact-surface placement.
+float FFGroundImpactZ(float groundLevel, const char *site)
+{
+    static float ffLift = -1.0f;
+
+    if (ffLift < 0.0f)
+    {
+        const char *e = getenv("FF_PS_GROUND_LIFT");
+        ffLift = e ? (float)atof(e) : 3.0f;
+    }
+
+    // FF_DEBUG_PSGROUND=1 reports each site the FIRST time it fires. Three of the
+    // four were never observed executing -- they were fixed because they carry the
+    // identical coplanar placement, not because they had been seen to misbehave --
+    // and a fix to code that never runs is worth knowing about.
+    {
+        static int s_dbg = -1;
+
+        if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_PSGROUND") ? 1 : 0;
+
+        if (s_dbg and site)
+        {
+            static const char *s_seen[8] = { 0 };
+            static int s_n = 0;
+            bool known = false;
+
+            for (int i = 0; i < s_n; i++)
+                if (s_seen[i] == site) { known = true; break; }
+
+            if ( not known and s_n < 8)
+            {
+                s_seen[s_n++] = site;
+                fprintf(stderr, "[PSGROUND] first hit: %s (lift=%.2fft)\n", site, ffLift);
+                fflush(stderr);
+            }
+        }
+    }
+
+    return groundLevel - ffLift;
+}
+#endif
+
 float DrawableParticleSys::groundLevel;
 float DrawableParticleSys::cameraDistance;
 int DrawableParticleSys::reloadParameters = 0;
@@ -1065,7 +1130,11 @@ bool SubEmitter::Run(RenderOTW *renderer, ParticleNode *owner)
 
             if (owner->pos.z >= GroundLevel)
             {
+#ifdef FF_LINUX
+                epos.z = FFGroundImpactZ(GroundLevel, "SubEmitter/IMPACT");
+#else
                 epos.z = GroundLevel;
+#endif
                 qty += pep->rate[0].value;
                 // ok... done... then die...
                 Alive = false;
@@ -1080,7 +1149,11 @@ bool SubEmitter::Run(RenderOTW *renderer, ParticleNode *owner)
             if (owner->pos.z >= GroundLevel)
             {
                 int gtype = OTWDriver.GetGroundType(owner->pos.x, owner->pos.y);
+#ifdef FF_LINUX
+                epos.z = FFGroundImpactZ(GroundLevel, "SubEmitter/EARTHIMPACT");
+#else
                 epos.z = GroundLevel;
+#endif
 
 
                 if ( not (gtype == COVERAGE_WATER or gtype == COVERAGE_RIVER))
@@ -3352,7 +3425,12 @@ void  DrawableParticleSys::PS_EmitterRun(void)
 
                 // * EMIT ON GROUND * if hit the ground emit the requested quantity and die
             case PSEM_IMPACT:
+#ifdef FF_LINUX
+                    // see FFGroundImpactZ
+                    if (epos.z >= Part.GroundLevel) epos.z = FFGroundImpactZ(Part.GroundLevel, "PS_EmitterRun/IMPACT"), qty += Emitter.PEP->rate[0].value, Alive = false;
+#else
                     if (epos.z >= Part.GroundLevel) epos.z = Part.GroundLevel, qty += Emitter.PEP->rate[0].value, Alive = false;
+#endif
 
                 break;
 
@@ -3393,36 +3471,7 @@ void  DrawableParticleSys::PS_EmitterRun(void)
                     if (epos.z >= Part.GroundLevel)
                     {
 #ifdef FF_LINUX
-                        // FF_LINUX (BOOM-3): lift the emitted children slightly OFF the
-                        // surface instead of placing them exactly on it.
-                        //
-                        // BOOM-2 root cause, PO-verified: ground explosions lost the
-                        // depth test against terrain. ZFUNC is LESSEQUAL, so a truly
-                        // coplanar fragment would PASS -- which means the effect was
-                        // landing marginally BEHIND the terrain in depth, a precision
-                        // problem, not a placement one. Emitting a few feet toward the
-                        // camera clears it.
-                        //
-                        // This is deliberately NOT the FF_PS_NODEPTH diagnostic, which
-                        // disabled depth testing for the whole 2D flush and would also
-                        // have drawn effects that are legitimately behind hills. Here
-                        // the depth test stays on and only the spawn height moves, so
-                        // occlusion still works.
-                        //
-                        // positive z is DOWN, so subtracting raises it.
-                        // FF_PS_GROUND_LIFT=<ft> tunes it; 0 restores the old exact-
-                        // surface placement.
-                        {
-                            static float ffLift = -1.0f;
-
-                            if (ffLift < 0.0f)
-                            {
-                                const char *e = getenv("FF_PS_GROUND_LIFT");
-                                ffLift = e ? (float)atof(e) : 3.0f;
-                            }
-
-                            epos.z = Part.GroundLevel - ffLift;
-                        }
+                        epos.z = FFGroundImpactZ(Part.GroundLevel, "PS_EmitterRun/EARTHIMPACT");
 #else
                         epos.z = Part.GroundLevel;
 #endif
