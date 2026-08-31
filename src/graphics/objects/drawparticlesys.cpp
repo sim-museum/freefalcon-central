@@ -252,8 +252,14 @@ TRAIL_HANDLE DrawableParticleSys::TrailsHandle;
 // DrawableParticleSys::PS_EmitterRun (the same two) -- and the original fix
 // reached only one of them. One helper so they cannot drift apart again.
 //
-// PSEM_WATERIMPACT deliberately does NOT use this: a splash belongs on the water
-// surface.
+// PSEM_WATERIMPACT USES THIS TOO. It originally did not -- "a splash belongs on
+// the water surface" -- which is physically true and rendering-wise wrong: an
+// effect placed EXACTLY coplanar with a surface is what the depth test eats, which
+// is the whole finding of BOOM-2. The PO fired a Maverick into the open ocean
+// (2026-08-30, 260830_ocean_maverick.mp4): it was "swallowed up by the ocean", with
+// a single fireball above the water and then black smoke -- smoke rises, so only it
+// cleared the surface. The ocean is FLAT, so slope cannot explain it; exact-surface
+// placement can, and does.
 //
 // The depth test stays ON. A ~3ft lift cannot defeat occlusion by a hill, so
 // effects legitimately behind terrain remain hidden -- that is the half of
@@ -1173,7 +1179,7 @@ bool SubEmitter::Run(RenderOTW *renderer, ParticleNode *owner)
             if (owner->pos.z >= GroundLevel)
             {
                 int gtype = OTWDriver.GetGroundType(owner->pos.x, owner->pos.y);
-                epos.z = GroundLevel;
+                epos.z = FFGroundImpactZ(GroundLevel, "SubEmitter/WATERIMPACT");
 
 
                 if ((gtype == COVERAGE_WATER or gtype == COVERAGE_RIVER))
@@ -3488,7 +3494,7 @@ void  DrawableParticleSys::PS_EmitterRun(void)
             case PSEM_WATERIMPACT:
                     if (epos.z >= Part.GroundLevel)
                     {
-                        epos.z = Part.GroundLevel;
+                        epos.z = FFGroundImpactZ(Part.GroundLevel, "PS_EmitterRun/WATERIMPACT");
                         // get ground type
                         int gtype = OTWDriver.GetGroundType(epos.x, epos.y);
 
