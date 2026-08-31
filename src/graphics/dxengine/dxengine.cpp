@@ -893,8 +893,21 @@ void CDXEngine::SetRenderState(DXFlagsType Flags, DXFlagsType NewFlags, bool Ena
 
                 if (s_fixCK and m_AlphaTextureStage not_eq 0)
                 {
+                    // Unit 0 samples the keyed texture -- take alpha from it.
                     m_pD3DD->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
                     m_pD3DD->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+
+                    // ...and every unit between 0 and the alpha stage must FORWARD
+                    // that alpha. Measured 2026-08-30: programming unit 0 alone did
+                    // NOT clear the blue, because the fragment alpha is decided by
+                    // the LAST active unit, and units 1..3 are live under DX_TV.
+                    // D3DTA_CURRENT maps to GL_PREVIOUS in the compat layer, so
+                    // SELECTARG1/CURRENT is a true pass-through.
+                    for (DWORD ffSt = 1; ffSt <= m_AlphaTextureStage; ffSt++)
+                    {
+                        m_pD3DD->SetTextureStageState(ffSt, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+                        m_pD3DD->SetTextureStageState(ffSt, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+                    }
                 }
             }
 #endif
