@@ -5837,6 +5837,56 @@ void FF_LogGLState() {
 void FF_SimFrameEnd() {
     g_SimFrameCount++;
 
+    // FF_LINUX (MAVTEX-1): FF_DEBUG_TEXENV=1 dumps the COMPLETE texture-environment
+    // state of all four units once per 60 sim frames -- colour and alpha combine ops,
+    // every source, and whether the unit is enabled.
+    //
+    // Four mechanisms for the blue have now been proposed and killed by measurement
+    // (depth leak; key on the wrong stage; panel drawn in the wrong state; stale alpha
+    // on disabled units). Reading SetViewMode and reasoning about which piece survives
+    // has failed four times, so stop inferring: capture the real state on frames either
+    // side of the U press and DIFF them. Whatever the seeker pass actually leaves behind
+    // will be in that diff.
+    {
+        static int s_dbgTE = -1;
+
+        if (s_dbgTE < 0) s_dbgTE = getenv("FF_DEBUG_TEXENV") ? 1 : 0;
+
+        if (s_dbgTE and (g_SimFrameCount % 60) == 0)
+        {
+            for (int u = 0; u < 4; u++)
+            {
+                GLint cRGB = 0, s0R = 0, s1R = 0, s2R = 0;
+                GLint cA = 0, s0A = 0, s1A = 0, s2A = 0, mode = 0;
+                GLboolean on;
+                GLint boundTex = 0;
+
+                glActiveTexture(GL_TEXTURE0 + u);
+                on = glIsEnabled(GL_TEXTURE_2D);
+                glGetIntegerv(GL_TEXTURE_BINDING_2D, &boundTex);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &mode);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_RGB, &cRGB);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE0_RGB, &s0R);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE1_RGB, &s1R);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE2_RGB, &s2R);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, &cA);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, &s0A);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, &s1A);
+                glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE2_ALPHA, &s2A);
+                fprintf(stderr, "[TEXENV] f=%d u%d %s tex=%d mode=0x%X "
+                        "RGB(op=0x%X s0=0x%X s1=0x%X s2=0x%X) "
+                        "A(op=0x%X s0=0x%X s1=0x%X s2=0x%X)\n",
+                        (int)g_SimFrameCount, u, on ? "ON " : "off", boundTex,
+                        (unsigned)mode, (unsigned)cRGB, (unsigned)s0R,
+                        (unsigned)s1R, (unsigned)s2R,
+                        (unsigned)cA, (unsigned)s0A, (unsigned)s1A, (unsigned)s2A);
+            }
+
+            glActiveTexture(GL_TEXTURE0);
+            fflush(stderr);
+        }
+    }
+
     // FF_LINUX (MAVTEX-1 blue half): FF_DEBUG_DRAWCOUNT=1 reports, once per 60
     // sim frames, how many WORLD (non-RHW) and 2D/RHW primitives were drawn, plus
     // the live GL viewport and scissor box.
