@@ -246,8 +246,66 @@ void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
         }
         else if (LOD not_eq previousLOD)
         {
+#ifdef FF_LINUX
+            // FF_LINUX (BURIED-2): measured with the [BLDGZ] probe -- the nearest-
+            // post approximation returns QUANTIZED COARSE-POST heights (-131, -52,
+            // -209...) that miss the drawn surface by 30-100 ft in both directions
+            // when fine terrain has not streamed at the building's location. Nearest
+            // post at LOD 3-4 spacing can be a hilltop miles away. Buildings below
+            // the refined surface are invisible (the PO's "all buildings under the
+            // terrain"); ones above float. The runway workaround avoids exactly this
+            // by refetching accurate INTERPOLATED ground -- extend the same cure to
+            // ordinary buildings. FF_NO_BLDG_INTERP=1 restores the approximation.
+            {
+                static int s_noInterp = -1;
+
+                if (s_noInterp < 0) s_noInterp = getenv("FF_NO_BLDG_INTERP") ? 1 : 0;
+
+                position.z = s_noInterp
+                             ? renderer->viewpoint->GetGroundLevelApproximation(position.x, position.y)
+                             : renderer->viewpoint->GetGroundLevel(position.x, position.y);
+            }
+#else
             position.z = renderer->viewpoint->GetGroundLevelApproximation(position.x, position.y);
+#endif
             previousLOD = LOD;
+
+            // FF_LINUX (BURIED-2): FF_DEBUG_MESHZ=1 -- measure the burial at the
+            // moment it is drawn, for ORDINARY buildings (the runway/flat branch
+            // above has its own probe; this branch had none, and it is the one the
+            // PO's buried buildings take).
+            //
+            // position.z here is the NEAREST POST at the finest available LOD
+            // (GetGroundLevelApproximation does no interpolation), while the drawn
+            // terrain surface is the INTERPOLATED triangle mesh. On any slope those
+            // differ, and if the drawn surface sits above this z the building is
+            // buried by exactly the printed delta. This is the same nearest-vs-
+            // interpolated gap that sank ground explosions (BOOM-2), measured at
+            // the building-placement site instead of argued about.
+            {
+                static int s_dbgMZ = -1;
+
+                if (s_dbgMZ < 0) s_dbgMZ = getenv("FF_DEBUG_MESHZ") ? 1 : 0;
+
+                if (s_dbgMZ)
+                {
+                    static long s_n = 0;
+
+                    if ((s_n++ % 60) == 0)
+                    {
+                        extern float FF_DrawnGroundLevel(float x, float y);
+                        const float ffDrawn = FF_DrawnGroundLevel(position.x, position.y);
+                        const float ffAcc = renderer->viewpoint->GetGroundLevel(position.x, position.y);
+
+                        fprintf(stderr, "[BLDGZ] pos=(%.0f,%.0f) placedZ=%.1f "
+                                "interpGL=%.1f drawn=%.1f buriedBy=%.1f\n",
+                                position.x, position.y, position.z,
+                                ffAcc, ffDrawn,
+                                position.z - ffDrawn);   // >0 = below drawn surface (z is DOWN)
+                        fflush(stderr);
+                    }
+                }
+            }
         }
     }
 #else
