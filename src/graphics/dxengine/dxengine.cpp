@@ -75,6 +75,10 @@ float CDXEngine::m_LinearFogLevel;
 D3DCOLORVALUE CDXEngine::m_FogColor;
 DWORD CDXEngine::m_AlphaTextureStage;
 
+#ifdef FF_LINUX
+int g_ffInSeekerPass = 0;   // MAVTEX-1: nonzero while RenderIR/RenderTV own the state
+#endif
+
 D3DLIGHT7 CDXEngine::TheSun, CDXEngine::TheNVG, CDXEngine::TheTV;
 D3DCOLORVALUE CDXEngine::TheSunColour;
 
@@ -872,6 +876,7 @@ void CDXEngine::SetRenderState(DXFlagsType Flags, DXFlagsType NewFlags, bool Ena
 
                 if (s_dbgCK)
                 {
+                    extern int g_ffInSeekerPass;
                     static DWORD lastStage = 0xFFFFFFFF;
                     static int lastState = -1;
 
@@ -881,9 +886,9 @@ void CDXEngine::SetRenderState(DXFlagsType Flags, DXFlagsType NewFlags, bool Ena
                         lastStage = m_AlphaTextureStage;
                         lastState = (int)m_RenderState;
                         fprintf(stderr, "[CHROMA] key enabled with alphaStage=%lu "
-                                "renderState=%d%s\n",
+                                "renderState=%d inSeekerPass=%d%s\n",
                                 (unsigned long)m_AlphaTextureStage,
-                                (int)m_RenderState,
+                                (int)m_RenderState, g_ffInSeekerPass,
                                 m_AlphaTextureStage not_eq 0
                                 ? "   <-- NOT stage 0: keyed texture is on unit 0"
                                 : "");

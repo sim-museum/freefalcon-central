@@ -69,6 +69,14 @@ void RenderIR::StartDraw(void)
 #endif
     TheDXEngine.SaveState();
     TheDXEngine.SetState(DX_TV);
+#ifdef FF_LINUX
+    // FF_LINUX (MAVTEX-1): mark the seeker-pass bracket so the chroma-key probe can
+    // say whether a failing keyed draw happens INSIDE it (an ordering problem -- 2D
+    // overlays drawn while the pass owns the state) or OUTSIDE it (the state was
+    // never restored). Those need different fixes.
+    extern int g_ffInSeekerPass;
+    g_ffInSeekerPass++;
+#endif
 }
 
 void RenderIR::EndDraw(void)
@@ -81,7 +89,13 @@ void RenderIR::EndDraw(void)
     realWeather->SetGreenMode(FALSE);
     // Disable DX engine TV Mode
     TheDXEngine.RestoreState();
+#ifdef FF_LINUX
+    {
+        extern int g_ffInSeekerPass;
 
+        if (g_ffInSeekerPass > 0) g_ffInSeekerPass--;
+    }
+#endif
 }
 
 void RenderIR::ComputeVertexColor(TerrainVertex *vert, Tpost *post, float distance, float x, float y)
