@@ -132,6 +132,10 @@ DWORD Loader::MainLoopWrapper(LPVOID myself)
 
 
 // The actual main loader service loop.  Won't return until flagged to stop
+#ifdef FF_LINUX
+static long ffServicedTotal = 0;   // FF_DEBUG_STREAM: requests serviced since start
+#endif
+
 DWORD Loader::MainLoop()
 {
     LoaderQ *Active;
@@ -157,6 +161,9 @@ DWORD Loader::MainLoop()
                     // NOTE:  The callback is responsible for deleting the queue entry
                     ShiAssert((Active->callback not_eq NULL));
                     Active->callback(Active);
+#ifdef FF_LINUX
+                    ffServicedTotal++;
+#endif
                 }
                 else if (queueStatus == QUEUE_SORTING)
                 {
@@ -186,6 +193,32 @@ DWORD Loader::MainLoop()
         }
 
         // if any action done, restart after a delay, else go sleeping
+#ifdef FF_LINUX
+        // FF_LINUX (BURIED-2/streaming): FF_DEBUG_STREAM=1 -- loader throughput.
+        // Reports requests serviced, queue state and pause state every 50 cycles,
+        // so "the loader is starved/paused/slow" is measurable next to the
+        // [STREAM] finest-LOD metric rather than argued from the code.
+        {
+            static int s_dbgLdr = -1;
+
+            if (s_dbgLdr < 0) s_dbgLdr = getenv("FF_DEBUG_STREAM") ? 1 : 0;
+
+            if (s_dbgLdr)
+            {
+                static long s_cycles = 0;
+
+                if ((s_cycles++ % 50) == 0)
+                {
+                    fprintf(stderr, "[LOADER] cycle=%ld serviced=%ld qEmpty=%d "
+                            "paused=%d tick=%lums action=%d\n",
+                            s_cycles, ffServicedTotal, (int)queueIsEmpty,
+                            (int)(paused not_eq RUNNING),
+                            (unsigned long)TickDelay, (int)actionDone);
+                    fflush(stderr);
+                }
+            }
+        }
+#endif
         if (actionDone)
             Sleep(TickDelay);
         else

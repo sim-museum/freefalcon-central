@@ -138,6 +138,48 @@ void TViewPoint::Update(const Tpoint *position)
         blockLists[level].Update(X(), Y());
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX (BURIED-2/streaming): FF_DEBUG_STREAM=1 -- once per ~60 updates,
+    // report the FINEST LOD that actually has data at the viewer's own position,
+    // plus each LOD's loaded-vs-wanted range. This is the streaming health metric:
+    // after spawn it should be minLOD nearly always; if it climbs, terrain data is
+    // lagging the aircraft and every nearest-post/bake consumer inherits coarse
+    // answers. Claimed "Linux streaming lags Windows" has NOT yet been measured --
+    // this is the instrument that decides it.
+    {
+        static int s_dbgStream = -1;
+
+        if (s_dbgStream < 0) s_dbgStream = getenv("FF_DEBUG_STREAM") ? 1 : 0;
+
+        if (s_dbgStream)
+        {
+            static long s_n = 0;
+
+            if ((s_n++ % 60) == 0)
+            {
+                char buf[224];
+                int o = 0, finest = -1;
+
+                for (int L = minLOD; L <= maxLOD and o < (int)sizeof(buf) - 32; ++L)
+                {
+                    const int r = WORLD_TO_LEVEL_POST(X(), L);
+                    const int c = WORLD_TO_LEVEL_POST(Y(), L);
+                    const int have = blockLists[L].RangeFromCenter(r, c)
+                                     < blockLists[L].GetAvailablePostRange();
+
+                    if (have and finest < 0) finest = L;
+
+                    o += snprintf(buf + o, sizeof(buf) - o, "L%d=%s ", L,
+                                  have ? "ok" : "MISS");
+                }
+
+                fprintf(stderr, "[STREAM] finestAtViewer=%d %s\n", finest, buf);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     // TODO:  FIX THIS CRITICAL SECTION STUFF (NO NESTING)
     LeaveCriticalSection(&cs_update);
 
