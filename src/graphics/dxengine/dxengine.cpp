@@ -785,6 +785,32 @@ void CDXEngine::SetViewMode(void)
 
         case DX_OTW:
         default :
+#ifdef FF_LINUX
+            // FF_LINUX (MAVTEX-1): MEASURED, not inferred. A full texture-environment
+            // dump either side of the PO's U press (FF_DEBUG_TEXENV) differs in exactly
+            // one persistent way:
+            //     before   u3 off  tex=0
+            //     during   u3 ON   tex=54
+            // Units 1 and 2 are unchanged. The seeker pass (DX_TV) binds a texture to
+            // unit 3 and NEVER switches it off, so it stays enabled and bound for every
+            // later draw in the frame. Setting COLOROP/ALPHAOP to DISABLE does not turn
+            // a unit off -- the compat layer deliberately leaves GL_TEXTURE_2D to
+            // SetTexture -- so returning to DX_OTW left a live fourth unit sampling a
+            // stale texture over the 2D panel and the HUD.
+            //
+            // Four earlier theories for this blue were each killed by measurement; this
+            // one comes FROM the measurement. Unbind the higher units on the way back.
+            // FF_NO_TEXUNIT_CLEAR=1 restores the old behaviour for an A/B.
+            {
+                static int ffNoClear = -1;
+
+                if (ffNoClear < 0) ffNoClear = getenv("FF_NO_TEXUNIT_CLEAR") ? 1 : 0;
+
+                if ( not ffNoClear and m_pD3DD)
+                    for (DWORD ffU = 1; ffU <= 3; ffU++)
+                        m_pD3DD->SetTexture(ffU, NULL);
+            }
+#endif
             m_pD3DD->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
             m_pD3DD->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
             m_pD3DD->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
