@@ -9975,3 +9975,69 @@ current signal-to-noise on this tree is 0 real defects in 10 reports.
 
 Backlog open: #83 (lead refuted, next step above), #86, #101, #102, #103, #108.
 All awaiting PO input except #83. Cron loop deleted at PO request.
+
+## 2026-08-30 — MAVTEX-1 SOLVED and PO-confirmed
+
+### The defect
+
+Pressing "U" with a Maverick turned the 2D cockpit's canopy pure blue and reduced
+HUD numbers to unreadable blocks. One root cause, two faces.
+
+The seeker pass (`DX_TV`, `RenderIR::StartDraw`) binds a texture to **texture unit
+3 and never switches it off**. Returning to `DX_OTW` neutralised that unit's
+COLOROP/ALPHAOP but not the unit itself: in this compat layer those ops
+deliberately do NOT touch `GL_TEXTURE_2D`, which only `SetTexture` controls. Unit 3
+stayed live, sampling a stale texture over every later draw in the frame -- the 2D
+panel's keyed canopy hole (blue in view 2, the only view with one) and the HUD
+glyphs (blocks in all views, since glyphs are keyed everywhere).
+
+Fixed in `b81ba8c8`: `SetViewMode`'s `DX_OTW` case unbinds units 1-3.
+`FF_NO_TEXUNIT_CLEAR=1` reverts.
+
+    u3 across the U press, pre-fix:    off tex=0  ->  ON tex=54
+    u3 across the whole post-fix run:  off tex=0 in all 496 samples
+    pure-blue #0000F8 OTWPIX samples:  3-6 per run  ->  0
+
+PO confirmation: *"u in 2 view works!"* and *"HUD numbers work, nothing else off"*.
+
+### Also confirmed today
+
+`COLOROP=D3DTOP_DISABLE` sourced `GL_PRIMARY_COLOR` instead of `GL_PREVIOUS`,
+overwriting textured output with vertex colour -- the white-out. PO verified on the
+same profile: *"the aircraft that zooms away has texture, isn't naked white like
+before"*.
+
+### How it was found -- the method note
+
+Five mechanisms were proposed for the blue. **Four were killed by measurement**:
+depth-state leak (world proven submitted AND unclipped); chroma key on the wrong
+stage (bracket probe showed a clean partition); panel drawn in the wrong state
+(state toggles correctly every frame); stale alpha on disabled units (shipped, no
+change). All four came from reading `SetViewMode` and reasoning about which state
+survives.
+
+The fifth came from dumping the **full texture-environment state** either side of
+the PO's keypress and diffing it (`FF_DEBUG_TEXENV=1`). The diff contained exactly
+one persistent line.
+
+**When inference has failed repeatedly, stop inferring: capture real state and diff
+it.** Four wrong theories is the cost of not doing this sooner.
+
+### Retracted
+
+The water-impact lift has **no demonstrated effect**. Fireball counts across five
+runs were 1, 3, 2, 1, 3 at lifts of 0, 3, 10, 3, 3 ft -- noise at n=1 per condition.
+An earlier "dose response" claim drawn from the first two points was wrong. The
+lift is kept only for consistency with the four ground sites, and must not be cited
+as a fix.
+
+### New instruments, all reusable
+
+- `FF_DEBUG_TEXENV=1` — full state of all four texture units per 60 sim frames
+- `FF_DEBUG_OTWPIX=1` — out-the-window colour from the back buffer (X11 root
+  capture returns pure black on this machine, so screenshots cannot measure the
+  renderer here)
+- `FF_DEBUG_VIEWMODE=1` — every `SetOTWDisplayMode` call, so "did the view change"
+  is never confused with "the bug did not fire"
+- `FF_DEBUG_CHROMA=1` — chroma-key stage and render state, with seeker-pass nesting
+- `FF_DEBUG_DRAWCOUNT=1` — world vs RHW draw counts, viewport, scissor, alpha state
