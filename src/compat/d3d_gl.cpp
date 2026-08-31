@@ -5543,6 +5543,9 @@ extern void FF_AcquireGLContext();
 
 // Present the primary surface to the screen via OpenGL
 void FF_PresentPrimarySurface() {
+    extern void FF_ObjDrawFrameTick(const char *path);
+    FF_ObjDrawFrameTick("ui");
+
     static int frameCount = 0;
     frameCount++;
 
@@ -5834,8 +5837,41 @@ void FF_LogGLState() {
     fprintf(stderr, "  ClearColor=(%.2f,%.2f,%.2f,%.2f)\n", clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
 }
 
+// FF_LINUX (PIT2VIEW-1): object-draw census, callable from EVERY present path.
+//
+// The original report lived only in FF_SimFrameEnd -- and a 30-second dwell in
+// the 2D cockpit produced ONE print, proving mode 2 presents through a path
+// that never calls it. Counters then accumulate unprinted and get dumped
+// against whatever mode is current at the next print, which manufactured two
+// contradictory census results in one day. Every present path now ticks this,
+// tagging WHICH path presented the frame -- so "which pipeline composes each
+// view mode" is itself part of the answer.
+void FF_ObjDrawFrameTick(const char *path)
+{
+    static int s_dbgOD = -1;
+
+    if (s_dbgOD < 0) s_dbgOD = getenv("FF_DEBUG_OBJDRAW") ? 1 : 0;
+
+    extern int g_ffBspDraws, g_ffBsp3DDraws, g_ffBldgDraws, g_ffDisplayMode;
+    static long s_tick = 0;
+
+    if (s_dbgOD and (++s_tick % 60) == 0)
+    {
+        fprintf(stderr, "[OBJDRAW] tick=%ld path=%s mode=%d bspOTW=%d bsp3D=%d bldg=%d\n",
+                s_tick, path, g_ffDisplayMode,
+                g_ffBspDraws, g_ffBsp3DDraws, g_ffBldgDraws);
+        fflush(stderr);
+    }
+
+    g_ffBspDraws = 0;
+    g_ffBsp3DDraws = 0;
+    g_ffBldgDraws = 0;
+}
+
 void FF_SimFrameEnd() {
     g_SimFrameCount++;
+
+    FF_ObjDrawFrameTick("sim");
 
     // FF_LINUX (MAVTEX-1): FF_DEBUG_TEXENV=1 dumps the COMPLETE texture-environment
     // state of all four units once per 60 sim frames -- colour and alpha combine ops,

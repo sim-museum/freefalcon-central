@@ -74,6 +74,9 @@ DrawableBuilding::DrawableBuilding(int ID, Tpoint *pos, float heading, float s)
 void DrawableBuilding::Draw(class RenderOTW *renderer, int LOD)
 {
 #ifdef FF_LINUX
+    { extern int g_ffBldgDraws; g_ffBldgDraws++; }
+#endif
+#ifdef FF_LINUX
     {
         extern int g_ffRunwayDbg;
         static int s_rwyDbg = -1;

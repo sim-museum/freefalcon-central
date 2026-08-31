@@ -6,6 +6,9 @@
 #include "simveh.h"
 #include "fcc.h"
 #include "BeamRider.h"
+#ifdef FF_LINUX
+#include "classtbl.h"   // DOMAIN_SEA, for FF_AimZ's ship exclusion
+#endif
 
 #define MANEUVER_DEBUG
 #ifdef MANEUVER_DEBUG
@@ -18,6 +21,75 @@ extern float g_fTgtDZFactor;
 extern bool g_bNewSensorPrecision;
 extern bool g_bActivateDebugStuff;
 extern bool g_bActivateMissileDebug;
+
+
+#ifdef FF_LINUX
+// FF_LINUX (BURIED-2, targeting half): corrected aim z for on-ground targets.
+//
+// Measured in the PO's flights ([AIM] probe): locked ground entities carry a z
+// floating 13-18 ft ABOVE the drawn ground at their own (x,y) -- the height baked
+// when terrain data at their location was coarser than what is drawn now. The
+// PO watched the consequence twice: a Maverick sailing over a locked building,
+// and the seeker video showing a vehicle line "well below" where the HUD (the
+// drawn world) put it. Locking manually at the HUD position produced a HIT --
+// i.e. aiming at the drawn surface is correct, and is what this helper does.
+//
+// The 2001-era fix for the same defect (target.cpp, JB 010624) moved the ENTITY
+// to the drawn position and was disabled for corrupting multiplayer state. This
+// corrects only what the MISSILE aims at; the entity is never touched.
+//
+// Gates, deliberately conservative:
+//  - sim entity, reports OnGround, not sea domain (ships float legitimately)
+//  - drawn-ground query must return a usable value (the 0.0 sentinel means
+//    "terrain not streamed" and must never become an aimpoint -- e321710b)
+//  - correction capped at 100 ft: a larger disagreement means something else is
+//    wrong and the stored z is the safer bet
+// FF_NO_AIMZ_FIX=1 reverts. FF_DEBUG_AIM=1 logs each corrected read (throttled).
+static float FF_AimZ(SimObjectType *tp)
+{
+    FalconEntity *e = tp->BaseData();
+    const float ez = e->ZPos();
+
+    static int s_off = -1;
+
+    if (s_off < 0) s_off = getenv("FF_NO_AIMZ_FIX") ? 1 : 0;
+
+    if (s_off or not e->IsSim())
+        return ez;
+
+    SimBaseClass *sb = (SimBaseClass *)e;
+
+    if ( not sb->OnGround() or e->GetDomain() == DOMAIN_SEA)
+        return ez;
+
+    extern float FF_DrawnGroundLevel(float x, float y);
+    const float gnd = FF_DrawnGroundLevel(e->XPos(), e->YPos());
+
+    if (gnd > -0.5f or gnd < -90000.0f)      // sentinel / no data: keep stored z
+        return ez;
+
+    if (fabsf(gnd - ez) > 100.0f)            // sanity cap
+        return ez;
+
+    static int s_dbg = -1;
+
+    if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_AIM") ? 1 : 0;
+
+    if (s_dbg and fabsf(gnd - ez) > 2.0f)
+    {
+        static long s_n = 0;
+
+        if ((s_n++ % 120) == 0)
+        {
+            fprintf(stderr, "[AIMZ] corrected %.1f -> %.1f (%.1f ft) at (%.0f,%.0f)\n",
+                    ez, gnd, ez - gnd, e->XPos(), e->YPos());
+            fflush(stderr);
+        }
+    }
+
+    return gnd;
+}
+#endif
 
 void MissileClass::CheckGuidePhase(void)
 {
@@ -95,7 +167,11 @@ void MissileClass::CheckGuidePhase(void)
     {
         dxi = targetPtr->BaseData()->XPos() - x;
         dyi = targetPtr->BaseData()->YPos() - y;
+#ifdef FF_LINUX
+        dzi = FF_AimZ(targetPtr) - z;    // BURIED-2: aim at the drawn surface
+#else
         dzi = targetPtr->BaseData()->ZPos() - z;
+#endif
     }
 
     range = (float)sqrt(dxi * dxi + dyi * dyi + dzi * dzi);
@@ -263,13 +339,21 @@ void MissileClass::CommandGuide(void)
                 GuidenceTime =  runTime + Bwap;//me123
                 dxi = targetPtr->BaseData()->XPos() - x;
                 dyi = targetPtr->BaseData()->YPos() - y;
+#ifdef FF_LINUX
+                dzi = FF_AimZ(targetPtr) - z;    // BURIED-2: aim at the drawn surface
+#else
                 dzi = targetPtr->BaseData()->ZPos() - z;
+#endif
                 dxdoti = (targetPtr->BaseData()->XDelta() * LeadB) - (xdot * LeadA);
                 dydoti = (targetPtr->BaseData()->YDelta() * LeadB) - (ydot * LeadA);
                 dzdoti = (targetPtr->BaseData()->ZDelta() * LeadB) - (zdot * LeadA);
                 targetX = targetPtr->BaseData()->XPos();
                 targetY = targetPtr->BaseData()->YPos();
+#ifdef FF_LINUX
+                targetZ = FF_AimZ(targetPtr);    // BURIED-2: aim at the drawn surface
+#else
                 targetZ = targetPtr->BaseData()->ZPos();
+#endif
                 targetDX = targetPtr->BaseData()->XDelta();
                 targetDY = targetPtr->BaseData()->YDelta();
                 targetDZ = targetPtr->BaseData()->ZDelta();

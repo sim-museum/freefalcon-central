@@ -595,8 +595,26 @@ bool DrawableBSP::SetupVisibility(RenderOTW *renderer)
  This is the call used by the out the window terrain rendering system.
 \***************************************************************************/
 //void DrawableBSP::Draw( RenderOTW *renderer, int LOD )
+#ifdef FF_LINUX
+// FF_LINUX (PIT2VIEW-1): per-frame object-draw census, keyed by display mode.
+// PO observation: buildings/vehicles render ONLY in view 3 (virtual pit) and the
+// external padlock views -- not in 0, 1 or 2 -- while terrain and even particle
+// smoke draw fine there (smoke visible from a smokestack that itself is not).
+// These counters make the cull measurable: if draws are ~0 in modes 0/1/2 the
+// objects are culled upstream (display-list build); if nonzero they are drawn but
+// invisible (transform/z/state), which is a different hunt entirely.
+int g_ffBspDraws = 0;      // DrawableBSP::Draw(RenderOTW*) entries this frame
+int g_ffBsp3DDraws = 0;    // DrawableBSP::Draw(Render3D*) entries -- the OTHER overload;
+                           // if modes differ in WHICH overload runs, that is itself the finding
+int g_ffBldgDraws = 0;     // DrawableBuilding::Draw entries this frame
+int g_ffDisplayMode = -1;  // mirrored from SetOTWDisplayMode
+#endif
+
 void DrawableBSP::Draw(RenderOTW *renderer, int)
 {
+#ifdef FF_LINUX
+    g_ffBspDraws++;
+#endif
     ThreeDVertex labelPoint;
     float x, y;
 
@@ -829,6 +847,9 @@ ffVisOk:;
 \***************************************************************************/
 void DrawableBSP::Draw(Render3D *renderer)
 {
+#ifdef FF_LINUX
+    g_ffBsp3DDraws++;
+#endif
     ThreeDVertex labelPoint;
     float x, y;
 

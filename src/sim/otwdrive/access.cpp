@@ -576,6 +576,9 @@ int OTWDriverClass::GetHybridPitMode()
 void OTWDriverClass::SetOTWDisplayMode(OTWDisplayMode mode)
 {
 #ifdef FF_LINUX
+    { extern int g_ffDisplayMode; g_ffDisplayMode = (int)mode; }
+#endif
+#ifdef FF_LINUX
     // FF_LINUX (MAVTEX-1): report every display-mode change. The PO's white-out
     // happens "in 2 or 3 view", and a harness run could not be told apart from one
     // where the view key never took effect -- the keypress was logged, the mode
