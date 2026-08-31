@@ -1955,6 +1955,26 @@ void CDXEngine::FlushObjects(void)
     // Till objects to Draw
     while (TheVbManager.GetDrawItem(&objInst, &LodID, &AppliedState, &Lited, &LightOwner, &m_FogLevel))
     {
+#ifdef FF_LINUX
+        // FF_LINUX (PIT2VIEW-1) DIAGNOSTIC, not a fix: FF_OBJ_ONTOP=1 draws every
+        // batched object with ZFUNC=ALWAYS, so nothing can depth-reject or be
+        // painted over by later terrain. The PO's footage shows a city as extruded
+        // 3D blocks in 3-view and as FLAT TEXTURE in 1-view seconds apart, while
+        // every pipeline metric (submission, visibility, fragment state) measures
+        // identical across modes. This separates the last two families:
+        // buildings APPEAR in 1/2-view under this flag => they were drawn and
+        // overwritten (order/depth); still absent => they never reach the
+        // framebuffer (transform/projection). Expect harmless see-through-hills
+        // artifacts while enabled.
+        {
+            static int s_onTop = -1;
+
+            if (s_onTop < 0) s_onTop = getenv("FF_OBJ_ONTOP") ? 1 : 0;
+
+            if (s_onTop)
+                m_pD3DD->SetRenderState(D3DRENDERSTATE_ZFUNC, D3DCMP_ALWAYS);
+        }
+#endif
 
         // ok, just entered Pit Mode
         if (m_PitMode and not WasInPitMode)

@@ -5846,6 +5846,37 @@ void FF_LogGLState() {
 // contradictory census results in one day. Every present path now ticks this,
 // tagging WHICH path presented the frame -- so "which pipeline composes each
 // view mode" is itself part of the answer.
+void FF_DumpObjDrawState(void)
+{
+    extern int g_ffDisplayMode;
+    GLboolean dep = glIsEnabled(GL_DEPTH_TEST);
+    GLboolean at = glIsEnabled(GL_ALPHA_TEST);
+    GLboolean bl = glIsEnabled(GL_BLEND);
+    GLboolean tx = glIsEnabled(GL_TEXTURE_2D);
+    GLint dfunc = 0, afunc = 0, bsrc = 0, bdst = 0;
+    GLfloat aref = 0.0f;
+    GLboolean dmask = GL_FALSE, cmask[4] = {0, 0, 0, 0};
+    GLint vp[4] = {0, 0, 0, 0};
+
+    glGetIntegerv(GL_DEPTH_FUNC, &dfunc);
+    glGetIntegerv(GL_ALPHA_TEST_FUNC, &afunc);
+    glGetFloatv(GL_ALPHA_TEST_REF, &aref);
+    glGetIntegerv(GL_BLEND_SRC, &bsrc);
+    glGetIntegerv(GL_BLEND_DST, &bdst);
+    glGetBooleanv(GL_DEPTH_WRITEMASK, &dmask);
+    glGetBooleanv(GL_COLOR_WRITEMASK, cmask);
+    glGetIntegerv(GL_VIEWPORT, vp);
+    fprintf(stderr, "[OBJSTATE] mode=%d depth=%d/0x%X dmask=%d "
+            "alpha=%d/0x%X/%.2f blend=%d/0x%X-0x%X tex=%d "
+            "cmask=%d%d%d%d vp=%d,%d,%dx%d\n",
+            g_ffDisplayMode, (int)dep, (unsigned)dfunc, (int)dmask,
+            (int)at, (unsigned)afunc, aref,
+            (int)bl, (unsigned)bsrc, (unsigned)bdst, (int)tx,
+            (int)cmask[0], (int)cmask[1], (int)cmask[2], (int)cmask[3],
+            vp[0], vp[1], vp[2], vp[3]);
+    fflush(stderr);
+}
+
 void FF_ObjDrawFrameTick(const char *path)
 {
     static int s_dbgOD = -1;
@@ -5853,19 +5884,25 @@ void FF_ObjDrawFrameTick(const char *path)
     if (s_dbgOD < 0) s_dbgOD = getenv("FF_DEBUG_OBJDRAW") ? 1 : 0;
 
     extern int g_ffBspDraws, g_ffBsp3DDraws, g_ffBldgDraws, g_ffDisplayMode;
+    extern int g_ffBspInhibit, g_ffBspVisFail, g_ffBspReached;
     static long s_tick = 0;
 
     if (s_dbgOD and (++s_tick % 60) == 0)
     {
-        fprintf(stderr, "[OBJDRAW] tick=%ld path=%s mode=%d bspOTW=%d bsp3D=%d bldg=%d\n",
+        fprintf(stderr, "[OBJDRAW] tick=%ld path=%s mode=%d bspOTW=%d bsp3D=%d bldg=%d "
+                "inhibit=%d visFail=%d reached=%d\n",
                 s_tick, path, g_ffDisplayMode,
-                g_ffBspDraws, g_ffBsp3DDraws, g_ffBldgDraws);
+                g_ffBspDraws, g_ffBsp3DDraws, g_ffBldgDraws,
+                g_ffBspInhibit, g_ffBspVisFail, g_ffBspReached);
         fflush(stderr);
     }
 
     g_ffBspDraws = 0;
     g_ffBsp3DDraws = 0;
     g_ffBldgDraws = 0;
+    g_ffBspInhibit = 0;
+    g_ffBspVisFail = 0;
+    g_ffBspReached = 0;
 }
 
 void FF_SimFrameEnd() {

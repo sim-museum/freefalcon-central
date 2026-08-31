@@ -1823,6 +1823,26 @@ extern SIMLIB_IO_CLASS IO;   // Retro 31Dec2003
 
 void OTWDriverClass::RenderFrame()
 {
+#ifdef FF_LINUX
+    // FF_LINUX (PIT2VIEW-1): presents tick at 60fps in the 2D cockpit while
+    // RenderOTW::DrawScene never runs, and the only visible early-out here is the
+    // NULL viewPoint below. Trace the actual control flow per mode instead of
+    // deducing it. FF_DEBUG_OBJDRAW=1.
+    static int s_dbgRF = -1;
+
+    if (s_dbgRF < 0) s_dbgRF = getenv("FF_DEBUG_OBJDRAW") ? 1 : 0;
+
+    static long s_rfN = 0;
+    const int s_rfSay = (s_dbgRF and (s_rfN++ % 120) == 0);
+
+    if (s_rfSay)
+    {
+        extern int g_ffDisplayMode;
+        fprintf(stderr, "[RF] enter mode=%d viewPoint=%p\n",
+                g_ffDisplayMode, (void*)viewPoint);
+        fflush(stderr);
+    }
+#endif
     // FF_LINUX: Early exit if viewPoint not initialized
     // FF_LINUX: Safety check - viewPoint may be NULL during initialization
     if (!viewPoint) {
@@ -2776,6 +2796,15 @@ void OTWDriverClass::RenderFrame()
     //STOP_PROFILE("RENDER 3DPIT");
 
     //START_PROFILE("RENDER DRAWSCENE");
+#ifdef FF_LINUX
+    if (s_rfSay)
+    {
+        extern int g_ffDisplayMode;
+        fprintf(stderr, "[RF] pre-DrawScene mode=%d renderer=%p\n",
+                g_ffDisplayMode, (void*)renderer);
+        fflush(stderr);
+    }
+#endif
     renderer->DrawScene((struct Tpoint *) &headOrigin, (struct Trotation *) &cameraRot);
     //STOP_PROFILE("RENDER DRAWSCENE");
 

@@ -1138,6 +1138,35 @@ void RenderOTW::DrawScene(const Tpoint *offset, const Trotation *orientation)
     // Figure out which list would contain our eye point
     containingList = viewpoint->GetContainingList(position.z);
 
+#ifdef FF_LINUX
+    // FF_LINUX (PIT2VIEW-1): the census proved the 2D-pit world pass draws ZERO
+    // objects while terrain draws fine. Objects flow through the display-list
+    // walk below, which silently draws nothing if (a) this viewpoint is not the
+    // ready one, (b) the traversal cursor was never reset, or (c) containingList
+    // gates the whole block out. Report all three per mode. FF_DEBUG_OBJDRAW=1.
+    {
+        static int s_dbgOL = -1;
+
+        if (s_dbgOL < 0) s_dbgOL = getenv("FF_DEBUG_OBJDRAW") ? 1 : 0;
+
+        if (s_dbgOL)
+        {
+            static long s_n = 0;
+
+            if ((s_n++ % 120) == 0)
+            {
+                extern int g_ffDisplayMode;
+                fprintf(stderr, "[OBJLIST] mode=%d vp=%p ready=%d containing=%d "
+                        "eyeZ=%.0f terrList=%p\n",
+                        g_ffDisplayMode, (void*)viewpoint,
+                        (int)viewpoint->IsReady(), containingList, position.z,
+                        (void*)viewpoint->ObjectsInTerrain());
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
 
 
     // Setup the layers for the 2D DX Engine

@@ -604,6 +604,9 @@ bool DrawableBSP::SetupVisibility(RenderOTW *renderer)
 // objects are culled upstream (display-list build); if nonzero they are drawn but
 // invisible (transform/z/state), which is a different hunt entirely.
 int g_ffBspDraws = 0;      // DrawableBSP::Draw(RenderOTW*) entries this frame
+int g_ffBspInhibit = 0;    // ...of which bailed on inhibitDraw
+int g_ffBspVisFail = 0;    // ...of which bailed on SetupVisibility (frustum cull)
+int g_ffBspReached = 0;    // ...which reached the actual draw
 int g_ffBsp3DDraws = 0;    // DrawableBSP::Draw(Render3D*) entries -- the OTHER overload;
                            // if modes differ in WHICH overload runs, that is itself the finding
 int g_ffBldgDraws = 0;     // DrawableBuilding::Draw entries this frame
@@ -614,6 +617,31 @@ void DrawableBSP::Draw(RenderOTW *renderer, int)
 {
 #ifdef FF_LINUX
     g_ffBspDraws++;
+#endif
+#ifdef FF_LINUX
+    // FF_LINUX (PIT2VIEW-1): interleaved census PROVED objects are fully drawn in
+    // mode 2 (up to 299 buildings/frame) while the PO sees none there. Drawn but
+    // invisible. The MAVTEX-1 method applies: dump the ACTUAL GL state at the
+    // first object draw of each frame, per mode, and diff -- no theories first.
+    // FF_DEBUG_OBJSTATE=1.
+    {
+        static int s_dbgOS = -1;
+
+        if (s_dbgOS < 0) s_dbgOS = getenv("FF_DEBUG_OBJSTATE") ? 1 : 0;
+
+        if (s_dbgOS and g_ffBspDraws == 1)     // first object draw this frame
+        {
+            static long s_osN = 0;
+
+            if ((s_osN++ % 60) == 0)
+            {
+                // GL headers clash with this TU's own typedefs (define.h GLchar);
+                // the dump lives in d3d_gl.cpp which owns the real GL includes.
+                extern void FF_DumpObjDrawState(void);
+                FF_DumpObjDrawState();
+            }
+        }
+    }
 #endif
     ThreeDVertex labelPoint;
     float x, y;
@@ -636,6 +664,7 @@ void DrawableBSP::Draw(RenderOTW *renderer, int)
 #endif
         SetInhibitFlag(FALSE);
 #ifdef FF_LINUX
+        g_ffBspInhibit++;
         { extern int g_ffRunwayDbg; if (g_ffRunwayDbg && getenv("FF_DEBUG_RUNWAY")) fprintf(stderr, "[RUNWAY] DrawableBSP::Draw id=%d EARLY-RETURN inhibitDraw\n", id); }
 #endif
         return;
@@ -656,9 +685,12 @@ void DrawableBSP::Draw(RenderOTW *renderer, int)
         }
     }
 #endif
-    if ( not SetupVisibility(renderer)) return;
 #ifdef FF_LINUX
+    if ( not SetupVisibility(renderer)) { g_ffBspVisFail++; return; }
 ffVisOk:;
+    g_ffBspReached++;
+#else
+    if ( not SetupVisibility(renderer)) return;
 #endif
 
     // JB 010112
