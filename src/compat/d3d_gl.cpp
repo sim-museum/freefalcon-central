@@ -5823,12 +5823,34 @@ void FF_SimFrameEnd() {
 
             glGetIntegerv(GL_VIEWPORT, vp);
             glGetIntegerv(GL_SCISSOR_BOX, sc);
+            // MAVTEX-1: draw counts and the viewport turned out IDENTICAL before
+            // and during the blue -- the world is still submitted and not clipped,
+            // so it is being COVERED by the 2D panel whose chroma-key pixels draw
+            // opaque. The key is realised as alpha=0 at texture-upload time
+            // (DDCKEY_SRCBLT), so whether those pixels vanish depends entirely on
+            // the ALPHA pipeline. Report it.
+            GLboolean alphaTest = glIsEnabled(GL_ALPHA_TEST);
+            GLboolean blend = glIsEnabled(GL_BLEND);
+            GLint alphaFunc = 0, combineA0 = 0, src0A0 = 0;
+            GLfloat alphaRef = 0.0f;
+
+            glGetIntegerv(GL_ALPHA_TEST_FUNC, &alphaFunc);
+            glGetFloatv(GL_ALPHA_TEST_REF, &alphaRef);
+            glActiveTexture(GL_TEXTURE0);
+            glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, &combineA0);
+            glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, &src0A0);
+
             fprintf(stderr, "[DRAWCOUNT] frame=%d world=%d rhw=%d "
-                    "vp=%d,%d,%dx%d scissor=%s %d,%d,%dx%d\n",
+                    "vp=%d,%d,%dx%d scissor=%s %d,%d,%dx%d "
+                    "alphaTest=%s func=0x%X ref=%.2f blend=%s "
+                    "u0.combineA=0x%X u0.src0A=0x%X\n",
                     (int)g_SimFrameCount, g_WorldDrawCount_local,
                     g_RHWDrawCount_local,
                     vp[0], vp[1], vp[2], vp[3], scEnabled ? "ON" : "off",
-                    sc[0], sc[1], sc[2], sc[3]);
+                    sc[0], sc[1], sc[2], sc[3],
+                    alphaTest ? "ON" : "off", (unsigned)alphaFunc, alphaRef,
+                    blend ? "ON" : "off",
+                    (unsigned)combineA0, (unsigned)src0A0);
             fflush(stderr);
         }
     }
