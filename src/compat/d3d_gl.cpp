@@ -5800,6 +5800,39 @@ void FF_LogGLState() {
 void FF_SimFrameEnd() {
     g_SimFrameCount++;
 
+    // FF_LINUX (MAVTEX-1 blue half): FF_DEBUG_DRAWCOUNT=1 reports, once per 60
+    // sim frames, how many WORLD (non-RHW) and 2D/RHW primitives were drawn, plus
+    // the live GL viewport and scissor box.
+    //
+    // With the COLOROP=DISABLE fix in, the panel draws correctly textured but the
+    // out-the-window area still fills with the 2D panel's pure-blue chroma key --
+    // i.e. nothing is drawn BEHIND the canopy hole. That has exactly two shapes,
+    // and this tells them apart without guessing:
+    //   world==0                  -> the 3D world stopped being submitted at all
+    //   world>0 with a small vp/  -> the world IS submitted but clipped, e.g. the
+    //     scissor box                seeker pass left the viewport on the MFD rect
+    {
+        static int s_dbgDC = -1;
+
+        if (s_dbgDC < 0) s_dbgDC = getenv("FF_DEBUG_DRAWCOUNT") ? 1 : 0;
+
+        if (s_dbgDC and (g_SimFrameCount % 60) == 0)
+        {
+            GLint vp[4] = {0, 0, 0, 0}, sc[4] = {0, 0, 0, 0};
+            GLboolean scEnabled = glIsEnabled(GL_SCISSOR_TEST);
+
+            glGetIntegerv(GL_VIEWPORT, vp);
+            glGetIntegerv(GL_SCISSOR_BOX, sc);
+            fprintf(stderr, "[DRAWCOUNT] frame=%d world=%d rhw=%d "
+                    "vp=%d,%d,%dx%d scissor=%s %d,%d,%dx%d\n",
+                    (int)g_SimFrameCount, g_WorldDrawCount_local,
+                    g_RHWDrawCount_local,
+                    vp[0], vp[1], vp[2], vp[3], scEnabled ? "ON" : "off",
+                    sc[0], sc[1], sc[2], sc[3]);
+            fflush(stderr);
+        }
+    }
+
     // FF_LINUX: free GL objects released from non-GL threads
     extern void FF_DrainDeferredGLDeletes();
     FF_DrainDeferredGLDeletes();
