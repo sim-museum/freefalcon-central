@@ -10041,3 +10041,59 @@ as a fix.
   is never confused with "the bug did not fire"
 - `FF_DEBUG_CHROMA=1` — chroma-key stage and render state, with seeker-pass nesting
 - `FF_DEBUG_DRAWCOUNT=1` — world vs RHW draw counts, viewport, scissor, alpha state
+
+## 2026-08-31 — the depth-convention seam: found, fixed, PO-confirmed
+
+### The defect that hid a world
+
+`d3d_gl.cpp` loaded D3D projection matrices into OpenGL verbatim. D3D maps depth
+to clip z in [0, w]; GL expects [-w, +w]. Every world-projected object in the
+game has lived in the FAR HALF of the depth buffer since the port began, while
+terrain (via the correctly-converting RHW ortho path) spanned the full range —
+so buildings and vehicles lost the depth test to terrain that was actually
+*behind* them, in every view except the 3D pit, whose own projection fixup
+accidentally masked the seam.
+
+Fix (2458ccd8): convert on load — clip z' = 2·z − w. One line of arithmetic.
+`FF_NO_DEPTH_CONVERT=1` reverts.
+
+PO verdict, next flight: **"buildings appear at a great distance, 1, 2, SH 7
+view works"** — and a locked Maverick shot **hit the tower** it was aimed at
+(at the base — see residuals). Videos: 260831_maverick_tower.mp4.
+
+### How it was found
+
+The PIT2VIEW-1 investigation consumed SIX retracted readings (instrument holes,
+display artifacts, confounded designs — all logged in task #114) before the
+discipline of measure-at-the-defect-site closed in: interleaved census proved
+objects submitted equally in all views; bail-reason counters proved 308/309
+reached rasterization; state dumps proved fragment state identical; the PO's
+FF_OBJ_ONTOP flight proved they were being depth-rejected; and only then did
+reading the projection load path reveal the missing convention conversion.
+
+The chain of prior workarounds this likely explains: the runway "stilts" heavy
+polygon offset, the BOOM-2 depth-eaten explosions, and the 2001 drawn-position
+snap (target.cpp, JB 010624) — three generations of developers patching
+downstream symptoms of one upstream line.
+
+### Confirmed fixed this weekend (all PO-verified in flight)
+
+1. White-out on Maverick uncage (COLOROP=DISABLE overwrote textured output)
+2. Blue canopy + blocky HUD (seeker pass left texture unit 3 bound)
+3. Buildings scattered ±100 ft vs terrain (coarse nearest-post placement)
+4. Missile aimpoint float 13-18 ft (FF_AimZ: aim at the drawn surface)
+5. Objects invisible outside the 3D pit (the depth-convention seam)
+6. ACMI recordings destroyed at launch (preserve as .orphanN)
+
+### Residuals, honestly stated
+
+- The Maverick hit the tower at its BASE and did not destroy it. FF_AimZ aims at
+  drawn ground level; for tall structures the aimpoint should probably be
+  ground + a fraction of object height, and whether a base hit *should* kill a
+  tower is a damage-model question. Filed as MAVDMG-1.
+- Left MFD GM/GMT radar still blank (#115) — not the depth seam alone; its
+  private RTT path needs its own instrument.
+- 3D-pit depth interaction unverified headlessly (hybrid pit reverts <1s
+  unpanned); PO flew without reporting pit anomalies.
+- The stilts and other downstream workarounds should now be re-tested for
+  redundancy and removed one at a time, each with its own A/B.
