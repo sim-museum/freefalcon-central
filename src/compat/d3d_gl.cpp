@@ -4349,6 +4349,43 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
         case D3DTSS_ALPHAOP:
             switch (value) {
                 case D3DTOP_DISABLE:
+                    // FF_LINUX (MAVTEX-1): this was a NO-OP, and that is the alpha
+                    // twin of the COLOROP=DISABLE bug fixed for the white-out.
+                    //
+                    // D3D means "the pipeline stops here": stage N contributes
+                    // nothing. Doing nothing instead LEAVES the unit's alpha combine
+                    // exactly as the previous render state programmed it. The Maverick
+                    // seeker pass (DX_TV) programs units 1-3; when DX_OTW afterwards
+                    // "disables" them, their colour is now neutralised but their ALPHA
+                    // survives -- and they sit downstream of unit 0, so they overwrite
+                    // the chroma key's alpha. Key pixels then draw OPAQUE.
+                    //
+                    // That is both of the PO's remaining symptoms after pressing U:
+                    // the 2D canopy hole filling with the panel's pure-blue key colour
+                    // (view 2), and HUD glyphs becoming unreadable solid blocks (all
+                    // views) -- glyphs are keyed with a transparent surround.
+                    // Measured: every stage-3 keyed draw is INSIDE the seeker bracket
+                    // and correct, so nothing is mis-programmed when the key is set;
+                    // the damage is stale alpha state on the units downstream of it.
+                    //
+                    // Pass the previous unit's alpha through unchanged, which IS
+                    // "this stage does nothing". For unit 0 GL_PREVIOUS is the
+                    // incoming primary alpha, so the normal path is unchanged.
+                    // FF_NO_ALPHAOP_DISABLE_FIX=1 restores the old no-op.
+                    {
+                        static int ffOldAlphaDisable = -1;
+
+                        if (ffOldAlphaDisable < 0)
+                            ffOldAlphaDisable =
+                                getenv("FF_NO_ALPHAOP_DISABLE_FIX") ? 1 : 0;
+
+                        if ( not ffOldAlphaDisable)
+                        {
+                            glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+                            glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+                            glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_PREVIOUS);
+                        }
+                    }
                     break;
                 case D3DTOP_SELECTARG1:
                     glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
