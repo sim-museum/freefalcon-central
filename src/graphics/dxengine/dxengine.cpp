@@ -844,6 +844,60 @@ void CDXEngine::SetRenderState(DXFlagsType Flags, DXFlagsType NewFlags, bool Ena
             m_pD3DD->SetTextureStageState(m_AlphaTextureStage, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
             m_pD3DD->SetTextureStageState(m_AlphaTextureStage, D3DTSS_MAGFILTER, D3DTFG_POINT);
             m_pD3DD->SetTextureStageState(m_AlphaTextureStage, D3DTSS_MINFILTER, D3DTFN_POINT);
+#ifdef FF_LINUX
+            // FF_LINUX (MAVTEX-1, the blue half): the chroma key programs its alpha
+            // op on m_AlphaTextureStage, which is 0 for DX_OTW but 3 for DX_TV/DX_NVG.
+            // The PO's 2D cockpit fills with the panel's pure-blue key colour after
+            // the Maverick seeker pass -- and ONLY in view 2, the one view that has a
+            // key-coloured canopy hole; views 1 and 3 are clean. Measured: the world
+            // is still submitted and unclipped during the blue, so it is being
+            // COVERED by key pixels that failed to go transparent.
+            //
+            // If the panel is drawn while the engine still reads DX_TV, this programs
+            // unit 3 while the panel texture is bound to unit 0, so unit 0's alpha
+            // (zero at key pixels) is never selected and they draw opaque.
+            //
+            // FF_DEBUG_CHROMA=1   report the stage and render state actually used.
+            // FF_CHROMA_STAGE0=1  ALSO program stage 0, so the unit that samples the
+            //                     keyed texture selects its alpha. Opt-in: stage 0
+            //                     carries the ADDSMOOTH colour op under DX_TV, and the
+            //                     NVG pipeline deliberately computes alpha at stage 3
+            //                     (see NVG-3), so this must be measured, not assumed.
+            {
+                static int s_dbgCK = -1, s_fixCK = -1;
+
+                if (s_dbgCK < 0) s_dbgCK = getenv("FF_DEBUG_CHROMA") ? 1 : 0;
+
+                if (s_fixCK < 0) s_fixCK = getenv("FF_CHROMA_STAGE0") ? 1 : 0;
+
+                if (s_dbgCK)
+                {
+                    static DWORD lastStage = 0xFFFFFFFF;
+                    static int lastState = -1;
+
+                    if (m_AlphaTextureStage not_eq lastStage
+                        or (int)m_RenderState not_eq lastState)
+                    {
+                        lastStage = m_AlphaTextureStage;
+                        lastState = (int)m_RenderState;
+                        fprintf(stderr, "[CHROMA] key enabled with alphaStage=%lu "
+                                "renderState=%d%s\n",
+                                (unsigned long)m_AlphaTextureStage,
+                                (int)m_RenderState,
+                                m_AlphaTextureStage not_eq 0
+                                ? "   <-- NOT stage 0: keyed texture is on unit 0"
+                                : "");
+                        fflush(stderr);
+                    }
+                }
+
+                if (s_fixCK and m_AlphaTextureStage not_eq 0)
+                {
+                    m_pD3DD->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+                    m_pD3DD->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+                }
+            }
+#endif
         }
 
         // **************************************
