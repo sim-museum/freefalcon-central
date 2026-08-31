@@ -54,22 +54,57 @@ static float FF_AimZ(SimObjectType *tp)
 
     if (s_off < 0) s_off = getenv("FF_NO_AIMZ_FIX") ? 1 : 0;
 
-    if (s_off or not e->IsSim())
+    static int s_dbgWhy = -1;
+
+    if (s_dbgWhy < 0) s_dbgWhy = getenv("FF_DEBUG_AIM") ? 1 : 0;
+
+    // FF_LINUX: the PO locked a large building and the Maverick overshot HIGH AND
+    // RIGHT with zero [AIMZ] corrections logged -- so a gate below declined. Log
+    // WHICH one (throttled), because "the fix didn't engage" has four different
+    // fixes depending on the reason.
+#define FF_AIMZ_DECLINE(why) \
+    do { if (s_dbgWhy) { static long s_n = 0; if ((s_n++ % 120) == 0) { \
+        fprintf(stderr, "[AIMZ] DECLINED (%s) type=%d isSim=%d z=%.1f at (%.0f,%.0f)\n", \
+                (why), (int)e->Type(), (int)e->IsSim(), ez, e->XPos(), e->YPos()); \
+        fflush(stderr); } } } while (0)
+
+    if (s_off)
         return ez;
+
+    if ( not e->IsSim())
+    {
+        FF_AIMZ_DECLINE("not IsSim");
+        return ez;
+    }
 
     SimBaseClass *sb = (SimBaseClass *)e;
 
-    if ( not sb->OnGround() or e->GetDomain() == DOMAIN_SEA)
+    if ( not sb->OnGround())
+    {
+        FF_AIMZ_DECLINE("not OnGround");
         return ez;
+    }
+
+    if (e->GetDomain() == DOMAIN_SEA)
+    {
+        FF_AIMZ_DECLINE("sea domain");
+        return ez;
+    }
 
     extern float FF_DrawnGroundLevel(float x, float y);
     const float gnd = FF_DrawnGroundLevel(e->XPos(), e->YPos());
 
     if (gnd > -0.5f or gnd < -90000.0f)      // sentinel / no data: keep stored z
+    {
+        FF_AIMZ_DECLINE("ground sentinel");
         return ez;
+    }
 
     if (fabsf(gnd - ez) > 100.0f)            // sanity cap
+    {
+        FF_AIMZ_DECLINE("cap exceeded");
         return ez;
+    }
 
     static int s_dbg = -1;
 
