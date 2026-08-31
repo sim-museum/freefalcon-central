@@ -4514,7 +4514,62 @@ void D3D7Device::ApplyLights() {
 void D3D7Device::ApplyMatrices() {
     // Apply projection matrix
     glMatrixMode(GL_PROJECTION);
+#ifdef FF_LINUX
+    // FF_LINUX (PIT2VIEW-1 root): D3D projections map depth to clip z in [0, w];
+    // GL expects [-w, +w]. Loading the D3D matrix VERBATIM puts every world
+    // object in the FAR HALF of the depth buffer, while the RHW/terrain path
+    // (glOrtho(...,0,-1), "z_ndc = 2*z-1") converts correctly and spans the full
+    // range. Objects therefore depth-lose to terrain that is actually BEHIND
+    // them -- the PO-confirmed "buildings drawn and depth-rejected in every view
+    // except the 3D pit" (the pit's own projection fixup masks the seam there).
+    //
+    // Convert: clip z' = 2*z - w. In this row-vector matrix that is
+    //     P[i][2] = 2*P[i][2] - P[i][3]   for every row i.
+    // FF_DEBUG_DEPTHCONV=1 prints the z-column before/after once.
+    // FF_NO_DEPTH_CONVERT=1 reverts to the raw load.
+    {
+        static int s_off = -1;
+
+        if (s_off < 0) s_off = getenv("FF_NO_DEPTH_CONVERT") ? 1 : 0;
+
+        if ( not s_off)
+        {
+            float cp[16];
+
+            memcpy(cp, &projMatrix, sizeof(cp));
+
+            static int s_dbg = -1;
+
+            if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_DEPTHCONV") ? 1 : 0;
+
+            if (s_dbg)
+            {
+                static int said = 0;
+
+                if ( not said and cp[10] not_eq 0.0f)
+                {
+                    said = 1;
+                    fprintf(stderr, "[DEPTHCONV] raw z-col=(%.4f %.4f %.4f %.4f) "
+                            "w-col=(%.4f %.4f %.4f %.4f)\n",
+                            cp[2], cp[6], cp[10], cp[14],
+                            cp[3], cp[7], cp[11], cp[15]);
+                    fflush(stderr);
+                }
+            }
+
+            for (int i = 0; i < 4; i++)
+                cp[i * 4 + 2] = 2.0f * cp[i * 4 + 2] - cp[i * 4 + 3];
+
+            glLoadMatrixf(cp);
+        }
+        else
+        {
+            glLoadMatrixf((const float*)&projMatrix);
+        }
+    }
+#else
     glLoadMatrixf((const float*)&projMatrix);
+#endif
 
     // Apply modelview matrix using GL operations for correct D3D→GL convention.
     // D3D uses row-major matrices with row vectors: v' = v * W * V
