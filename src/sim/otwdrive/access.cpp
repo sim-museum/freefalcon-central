@@ -575,6 +575,25 @@ int OTWDriverClass::GetHybridPitMode()
 
 void OTWDriverClass::SetOTWDisplayMode(OTWDisplayMode mode)
 {
+#ifdef FF_LINUX
+    // FF_LINUX (MAVTEX-1): report every display-mode change. The PO's white-out
+    // happens "in 2 or 3 view", and a harness run could not be told apart from one
+    // where the view key never took effect -- the keypress was logged, the mode
+    // change was not. FF_DEBUG_VIEWMODE=1.
+    {
+        static int s_dbgVM = -1;
+
+        if (s_dbgVM < 0) s_dbgVM = getenv("FF_DEBUG_VIEWMODE") ? 1 : 0;
+
+        if (s_dbgVM)
+        {
+            fprintf(stderr, "[VIEWMODE] SetOTWDisplayMode(%d)%s\n", (int)mode,
+                    mode == Mode2DCockpit ? " = 2D COCKPIT"
+                    : mode == Mode3DCockpit ? " = 3D COCKPIT" : "");
+            fflush(stderr);
+        }
+    }
+#endif
     SimBaseClass *newObject;
     //SimObjectType *targetPtr;
 

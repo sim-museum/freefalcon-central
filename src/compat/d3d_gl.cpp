@@ -4071,16 +4071,40 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                 case D3DTOP_DISABLE:
                     // FF_LINUX: Do NOT call glDisable(GL_TEXTURE_2D) here.
                     // Only SetTexture() should control GL_TEXTURE_2D enable/disable.
-                    // COLOROP=DISABLE in D3D7 means "skip this stage, use vertex color."
-                    // Instead of disabling the texture unit (which leaks state into
-                    // subsequent draws that expect GL_TEXTURE_2D to still be enabled),
-                    // set GL_COMBINE to pass through vertex color. The null-texture check
-                    // in DrawIndexedPrimitiveVB handles the case where no texture is bound.
-                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
-                    glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_PRIMARY_COLOR);
-                    glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
-                    glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_PRIMARY_COLOR);
+                    // COLOROP=DISABLE in D3D7 means "the pipeline STOPS at this stage":
+                    // stage N and every higher stage contribute NOTHING.
+                    //
+                    // MAVTEX-1: sourcing PRIMARY_COLOR here does not mean "contribute
+                    // nothing" -- it means "REPLACE everything accumulated so far with
+                    // the vertex colour". For a unit with no texture bound that is
+                    // invisible, which is why normal rendering never showed it. But the
+                    // Maverick seeker pass (DX_TV) binds textures to units 1-3, and they
+                    // stay enabled after it. When DX_OTW then "disables" 1-3, unit 3
+                    // overwrote stage 0's textured result with the vertex colour --
+                    // white on the cockpit panel. That is the PO's white-out on pressing
+                    // U in view 2/3 (260830_white_out_3.mp4), and the #F8F8F8 plateau
+                    // the FF_DEBUG_OTWPIX probe recorded.
+                    //
+                    // GL_PREVIOUS passes the previous unit's result through untouched,
+                    // which IS "this stage does nothing". For stage 0 GL_PREVIOUS is
+                    // defined as the incoming primary colour, so stage 0 is unchanged
+                    // and the normal path keeps its old behaviour exactly.
+                    //
+                    // FF_NO_TSSDISABLE_FIX=1 restores the old PRIMARY_COLOR source.
+                    {
+                        static int ffOldDisable = -1;
+
+                        if (ffOldDisable < 0)
+                            ffOldDisable = getenv("FF_NO_TSSDISABLE_FIX") ? 1 : 0;
+
+                        const GLint src = ffOldDisable ? GL_PRIMARY_COLOR : GL_PREVIOUS;
+
+                        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+                        glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+                        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, src);
+                        glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+                        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, src);
+                    }
                     break;
                 case D3DTOP_SELECTARG1:
                     // FF_LINUX: Do NOT call glEnable(GL_TEXTURE_2D) here.
