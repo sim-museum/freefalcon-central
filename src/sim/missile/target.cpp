@@ -71,6 +71,46 @@ void MissileClass::SetTarget(SimObjectType* newTarget)
 
     if (newTarget)
     {
+#ifdef FF_LINUX
+        // FF_LINUX (BURIED-2, targeting half): FF_DEBUG_AIM=1 -- measure the lock.
+        //
+        // The PO locked a visible building and the Maverick "went way over" it.
+        // The drawn-position snap that once kept weapons and terrain-LOD-shifted
+        // ground objects in agreement (above, JB 010624) has been commented out
+        // since 2001 for multiplayer side effects, so EVERY on-ground target is
+        // aimed at its entity z -- for deaggregated features that is the height
+        // baked at mission load from whatever terrain LOD was streamed then,
+        // NOT the surface the object is drawn on now.
+        //
+        // This prints, once per lock: what was locked, its entity z, and the
+        // CURRENT interpolated drawn ground at its (x,y). The delta is the
+        // measured "way over" distance. Fix comes after the number, not before.
+        {
+            static int s_dbgAim = -1;
+
+            if (s_dbgAim < 0) s_dbgAim = getenv("FF_DEBUG_AIM") ? 1 : 0;
+
+            if (s_dbgAim and newTarget->BaseData())
+            {
+                FalconEntity *ffE = newTarget->BaseData();
+                const float ffX = ffE->XPos(), ffY = ffE->YPos(), ffZ = ffE->ZPos();
+                extern float FF_DrawnGroundLevel(float x, float y);
+                const float ffGnd = FF_DrawnGroundLevel(ffX, ffY);
+                int ffOnGnd = -1;
+
+                if (ffE->IsSim())
+                    ffOnGnd = ((SimBaseClass *)ffE)->OnGround() ? 1 : 0;
+
+                fprintf(stderr, "[AIM] lock type=%d isSim=%d isCamp=%d onGround=%d "
+                        "pos=(%.0f,%.0f) entityZ=%.1f drawnGnd=%.1f "
+                        "aimAboveGround=%.1f ft\n",
+                        (int)ffE->Type(), (int)ffE->IsSim(), (int)ffE->IsCampaign(),
+                        ffOnGnd, ffX, ffY, ffZ, ffGnd,
+                        ffGnd - ffZ);   // z is DOWN: positive = aim point is ABOVE the drawn ground
+                fflush(stderr);
+            }
+        }
+#endif
         if (launchState == Launching or launchState == InFlight)
         {
             // We need to copy the data if this missile is on it's own.
