@@ -15,6 +15,12 @@
 #include "falclib/include/playerop.h"
 #include "falclib/include/dispopts.h"
 
+#ifdef FF_LINUX
+// FF_LINUX (GMRADAR-3): surface GL info helper implemented in d3d_gl.cpp.
+extern "C" void FF_SurfaceGLInfo(IDirectDrawSurface7 *, unsigned *, int *);
+extern int g_FFGMQuadPending;   // see context.cpp (GMRADAR-3)
+#endif
+
 //MI
 extern bool g_bRealisticAvionics;
 extern bool g_bAGRadarFixes;
@@ -470,8 +476,42 @@ void RenderGMComposite::DrawComposite(Tpoint *center, float platformHdg)
         context.RestoreState(STATE_TEXTURE);
         context.SelectTexture1((intptr_t) rTexHandle);
         ClipAndDraw2DFan(vertArray, num);
+#ifdef FF_LINUX
+        g_FFGMQuadPending = 2;   // GMRADAR-3: right quad queued
+#endif
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX (GMRADAR-3): the sweep quads are the LAST hop of the GM image to
+    // the MFD. Report clip survival, the pixel-space bounds, and the sweep
+    // texture's GL id/dirty state, so 'quad never drawn' / 'drawn off-screen' /
+    // 'drawn with a stale texture' can be told apart. FF_DEBUG_GM=1.
+    {
+        static int s_on = -1;
+
+        if (s_on < 0) s_on = getenv("FF_DEBUG_GM") ? 1 : 0;
+
+        if (s_on)
+        {
+            static long s_n = 0;
+
+            if ((s_n++ % 120) == 0)
+            {
+                float xmin = 1e9f, xmax = -1e9f, ymin = 1e9f, ymax = -1e9f;
+
+                for (i = 0; i < num; i++)
+                {
+                    xmin = min(xmin, vertArray[i]->x); xmax = max(xmax, vertArray[i]->x);
+                    ymin = min(ymin, vertArray[i]->y); ymax = max(ymax, vertArray[i]->y);
+                }
+
+                fprintf(stderr, "[GM] rQuad num=%d px=[%.0f..%.0f]x[%.0f..%.0f] vcol=(%.2f,%.2f,%.2f,%.2f)\n",
+                        num, xmin, xmax, ymin, ymax, v0.r, v0.g, v0.b, v0.a);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
 
     // Reverse the direction of the beam edge to keep the clipping code consistent
     beam.Reverse();
@@ -536,6 +576,9 @@ void RenderGMComposite::DrawComposite(Tpoint *center, float platformHdg)
         context.RestoreState(STATE_TEXTURE);
         context.SelectTexture1((intptr_t) lTexHandle);
         ClipAndDraw2DFan(vertArray, num);
+#ifdef FF_LINUX
+        g_FFGMQuadPending = 2;   // GMRADAR-3: left quad queued
+#endif
     }
 
     // Put the beam back the way it was in case we need it again next time
@@ -823,6 +866,36 @@ void RenderGMComposite::NewImage(Tpoint *at, float platformHdg, BOOL replaceRigh
 
                 fprintf(stderr, "[GM] blitToTex hr=0x%lX srcRT=%dx%d nonzeroPx=%d checksum=%lu\n",
                         (unsigned long)hr, W, H, nz, sum);
+
+                // GMRADAR-3: same checksum on the DESTINATION texture surface,
+                // straight after the Blt -- distinguishes 'CPU copy failed'
+                // from 'GL upload failed'.
+                unsigned long dsum = 0; int dnz = 0; int dW = 0, dH = 0;
+                memset(&dd, 0, sizeof(dd)); dd.dwSize = sizeof(dd);
+
+                if (targetHandle->m_pDDS
+                    and SUCCEEDED(targetHandle->m_pDDS->Lock(NULL, &dd, DDLOCK_WAIT bitor DDLOCK_READONLY, NULL)))
+                {
+                    dW = dd.dwWidth; dH = dd.dwHeight;
+                    const unsigned char *px = (const unsigned char *)dd.lpSurface;
+                    const int bpp = dd.ddpfPixelFormat.dwRGBBitCount / 8;
+
+                    for (int yy = 0; yy < dH; yy += 8)
+                        for (int xx = 0; xx < dW; xx += 8)
+                        {
+                            const unsigned char *q = px + (size_t)yy * dd.lPitch + (size_t)xx * bpp;
+                            unsigned v = (bpp >= 3) ? (q[0] | (q[1] << 8) | (q[2] << 16)) : (q[0] | (q[1] << 8));
+                            dsum += v; if (v) dnz++;
+                        }
+
+                    targetHandle->m_pDDS->Unlock(NULL);
+                }
+
+                unsigned glTex = 0; int dirty = -1;
+                FF_SurfaceGLInfo(targetHandle->m_pDDS, &glTex, &dirty);
+
+                fprintf(stderr, "[GM] destTex %s %dx%d nonzeroPx=%d checksum=%lu glTex=%u dirty=%d\n",
+                        replaceRight ? "R" : "L", dW, dH, dnz, dsum, glTex, dirty);
                 fflush(stderr);
             }
         }

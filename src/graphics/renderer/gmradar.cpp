@@ -171,6 +171,29 @@ void RenderGMRadar::TransformScene(void)
         SkipDraw = TRUE;
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX (GMRADAR-3): the one number that decides whether the GM scope
+    // shows terrain or only the noise overlay. FF_DEBUG_GM=1.
+    {
+        static int s_on = -1;
+
+        if (s_on < 0) s_on = getenv("FF_DEBUG_GM") ? 1 : 0;
+
+        if (s_on)
+        {
+            static long s_n = 0;
+
+            if ((s_n++ % 60) == 0)
+            {
+                fprintf(stderr, "[GM] xform LOD=%d boxSize=%d avail=%d drawRadius=%d skip=%d\n",
+                        LOD, boxSize, viewpoint->GetAvailablePostRange(LOD),
+                        drawRadius, (int)SkipDraw);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     // Quit now if we don't have anything to draw
     if (SkipDraw)  return;
 

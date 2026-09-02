@@ -65,6 +65,15 @@ extern float g_fMipLodBias;
 
 static int m_nInstCount = 0;
 
+#ifdef FF_LINUX
+// FF_LINUX (GMRADAR-3): GL-state diagnostic helpers implemented in d3d_gl.cpp.
+extern "C" int FF_GLBound128(void);
+extern "C" void FF_GLDrawFlags(int *, int *, int *, int *, unsigned *);
+// Set by RenderGMComposite::DrawComposite when it queues sweep-quad vertices;
+// decremented at the FlushVB that drains them.
+int g_FFGMQuadPending = 0;
+#endif
+
 #ifdef _CONTEXT_RECORD_USED_STATES
 #include <set>
 static std::set<int> m_setStatesUsed;
@@ -2800,6 +2809,35 @@ void ContextMPR::FlushVB()
     ShiAssert(SUCCEEDED(hr));
 #endif
 
+#ifdef FF_LINUX
+    // FF_LINUX (GMRADAR-3): when the GM composite has queued its sweep quads,
+    // report the GL state in force at the flush that actually draws them --
+    // the queue site chose STATE_TEXTURE + the sweep texture, but the flush
+    // happens later and may run under different bindings. FF_DEBUG_GM=1.
+    {
+        extern int g_FFGMQuadPending;
+
+        if (g_FFGMQuadPending > 0)
+        {
+            g_FFGMQuadPending--;
+            static long s_n = 0;
+
+            if ((s_n++ % 60) == 0)
+            {
+                int blend = 0, atest = 0, ztest = 0, texOn = 0;
+                unsigned env = 0;
+                FF_GLDrawFlags(&blend, &atest, &ztest, &texOn, &env);
+                fprintf(stderr, "[GM] quadFlush prim=%d nVtx=%lu nIdx=%lu bound128=%d "
+                        "blend=%d atest=%d ztest=%d texOn=%d env=0x%X curTex1=0x%lX\n",
+                        nPrimType, (unsigned long)m_dwNumVtx, (unsigned long)m_dwNumIdx,
+                        FF_GLBound128(), blend, atest, ztest, texOn, env,
+                        (unsigned long)currentTexture1);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     if (m_dwNumIdx)
         hr = m_pD3DD->DrawIndexedPrimitiveVB((D3DPRIMITIVETYPE)nPrimType, m_pVB, m_dwStartVtx, m_dwNumVtx, m_pIdx, m_dwNumIdx, NULL);
     else
@@ -3094,6 +3132,44 @@ void ContextMPR::RenderPolyList(SPolygon *&pHead)
                 {
                     SetTexture2(pCur->textureID1);
                 }
+
+#ifdef FF_LINUX
+                // FF_LINUX (GMRADAR-3): the GM sweep textures are the only
+                // 128x128 textures in the sim frame. When one is bound for a
+                // poly-list draw, report the full draw state -- this is the
+                // exact moment the radar map should reach the MFD. FF_DEBUG_GM=1.
+                {
+                    static int s_gmDbg = -1;
+
+                    if (s_gmDbg < 0) s_gmDbg = getenv("FF_DEBUG_GM") ? 1 : 0;
+
+                    if (s_gmDbg and pCur->renderState >= STATE_TEXTURE)
+                    {
+                        int bind = FF_GLBound128();
+
+                        if (bind)
+                        {
+                            static long s_n = 0;
+
+                            if ((s_n++ % 120) == 0)
+                            {
+                                TLVERTEX *fv = pCur->pVertexList;
+                                int blend = 0, atest = 0, ztest = 0, texOn = 0;
+                                unsigned env = 0;
+                                FF_GLDrawFlags(&blend, &atest, &ztest, &texOn, &env);
+                                fprintf(stderr, "[GM] listDraw glTex=%d state=%d nV=%lu v0=(%.0f,%.0f,z=%.4f) col=0x%08lX "
+                                        "blend=%d atest=%d ztest=%d texOn=%d env=0x%X\n",
+                                        bind, (int)pCur->renderState,
+                                        (unsigned long)pCur->numVertices,
+                                        fv ? fv->sx : -1.f, fv ? fv->sy : -1.f, fv ? fv->sz : -1.f,
+                                        fv ? (unsigned long)fv->color : 0ul,
+                                        blend, atest, ztest, texOn, env);
+                                fflush(stderr);
+                            }
+                        }
+                    }
+                }
+#endif
 
                 verttot = pCur->numVertices;
                 m_pD3DD->DrawPrimitiveVB(D3DPT_TRIANGLEFAN, m_pVBB, vertcnt, verttot, 0);

@@ -4120,6 +4120,39 @@ void D3D7Device::ApplyTextureStageState(DWORD stage, D3DTEXTURESTAGESTATETYPE ty
                     // on untextured (gouraud) terrain → white patches.
                     glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
                     glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+
+                    // FF_LINUX (GMRADAR-3): must also re-program SOURCE0_RGB from the
+                    // stage's current COLORARG1 -- the exact colour twin of the ALPHAOP
+                    // SELECTARG1 fix below. COLOROP=DISABLE (MAVTEX-1 arm) rewrites
+                    // SOURCE0_RGB to GL_PREVIOUS, and ContextMPR::RestoreState skips its
+                    // COLORARG1 repair when the MPR state is unchanged -- so a textured
+                    // draw after a DISABLE 'replaced' the texture with the vertex colour.
+                    // Measured: the GM radar sweep quads drew with their 128x128 texture
+                    // bound and texturing on, yet output the never-set (black) vertex
+                    // colour, because the radar's own DX_DBS target pass disables stage 0
+                    // every sweep. FF_NO_GMSELARG_FIX=1 reverts.
+                    {
+                        static int ffNoSelArgFix = -1;
+
+                        if (ffNoSelArgFix < 0)
+                            ffNoSelArgFix = getenv("FF_NO_GMSELARG_FIX") ? 1 : 0;
+
+                        if ( not ffNoSelArgFix)
+                        {
+                            auto arg1Key = std::make_pair(stage, (D3DTEXTURESTAGESTATETYPE)D3DTSS_COLORARG1);
+                            auto it = textureStageStates.find(arg1Key);
+                            DWORD arg1 = (it != textureStageStates.end()) ? it->second : D3DTA_TEXTURE;
+
+                            if (arg1 == D3DTA_TEXTURE)
+                                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_TEXTURE);
+                            else if (arg1 == D3DTA_DIFFUSE)
+                                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_PRIMARY_COLOR);
+                            else if (arg1 == D3DTA_CURRENT)
+                                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_PREVIOUS);
+                            else if (arg1 == D3DTA_TFACTOR)
+                                glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_CONSTANT);
+                        }
+                    }
                     break;
                 case D3DTOP_MODULATE:
                 case D3DTOP_MODULATE2X:
@@ -5239,6 +5272,58 @@ static void FF_ReadbackFBOSurface(D3D7Surface *surf)
 
     glBindFramebuffer(GL_FRAMEBUFFER, prevFBO);
     surf->fboDirty = false;
+}
+
+// FF_LINUX (GMRADAR-3): let render-side diagnostics name a surface's GL texture
+// object and dirty state without knowing D3D7Surface's layout.
+extern "C" void FF_SurfaceGLInfo(IDirectDrawSurface7 *s, unsigned *glTex, int *dirty)
+{
+    D3D7Surface *surf = (D3D7Surface *)s;
+
+    if (glTex) *glTex = surf ? surf->glTexture : 0;
+
+    if (dirty) *dirty = surf ? (int)surf->isDirty : -1;
+}
+
+// FF_LINUX (GMRADAR-3): report the currently bound GL texture if its level 0 is
+// 128x128 (the GM sweep textures are the only such textures in a sim frame),
+// else 0. For diagnostics in code that cannot include GL headers.
+extern "C" int FF_GLBound128(void)
+{
+    GLint bind = 0, w = 0, h = 0;
+
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &bind);
+
+    if ( not bind) return 0;
+
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+    return (w == 128 and h == 128) ? (int)bind : 0;
+}
+
+// FF_LINUX (GMRADAR-3): snapshot of the draw-state flags relevant to a quad
+// silently coming out black.
+extern "C" void FF_GLDrawFlags(int *blend, int *atest, int *ztest, int *texOn, unsigned *env)
+{
+    if (blend) *blend = glIsEnabled(GL_BLEND);
+
+    if (atest) *atest = glIsEnabled(GL_ALPHA_TEST);
+
+    if (ztest) *ztest = glIsEnabled(GL_DEPTH_TEST);
+
+    if (texOn) *texOn = glIsEnabled(GL_TEXTURE_2D);
+
+    if (env)
+    {
+        GLint e = 0, comb = 0, src0 = 0;
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &e);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_RGB, &comb);
+        glGetTexEnviv(GL_TEXTURE_ENV, GL_SOURCE0_RGB, &src0);
+        // Packed: mode in the low 16 bits, combine op and source0 in the high
+        // bits reduced to their low bytes (enough to tell REPLACE/MODULATE and
+        // TEXTURE/PREVIOUS/PRIMARY apart in a hex dump).
+        *env = ((unsigned)(src0 & 0xFF) << 24) | ((unsigned)(comb & 0xFF) << 16) | ((unsigned)e & 0xFFFF);
+    }
 }
 
 // Helper function to copy pixels between surfaces
