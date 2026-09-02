@@ -10097,3 +10097,55 @@ downstream symptoms of one upstream line.
   unpanned); PO flew without reporting pit anomalies.
 - The stilts and other downstream workarounds should now be re-tested for
   redundancy and removed one at a time, each with its own A/B.
+
+## 2026-09-01 — GMRADAR-3: the GM map drew BLACK on the MFD (fixed); close-range hang hunt open
+
+PO flew the GMRADAR-2 verification in the Maverick TE and reported: radar OK at
+range, **diffuse blobs close in, GMT switch inert, then a machine-freezing hang**
+pointing at the vehicle column (hard reboot required). Journal from that boot
+shows no OOM and no GPU/kernel errors — an app-level wedge that froze the
+session.
+
+### GMRADAR-3 — found and fixed (e25ae0ea)
+
+Measured layer by layer with five instrumented autopilot flights:
+
+| layer | result |
+|---|---|
+| terrain into the radar viewpoint | healthy (`[GM] xform LOD=4 boxSize=15 avail=16 skip=0`) |
+| FBO image → sweep textures (CPU) | byte-identical checksums, isDirty set |
+| sweep quads onto the MFD | drawn every frame, 128×128 texture bound, texturing ON — output **black** |
+
+Root cause: the GL layer's `COLOROP=SELECTARG1` arm set `COMBINE/REPLACE` but
+never `SOURCE0_RGB`. The MAVTEX-1 `DISABLE` arm rewrites `SOURCE0_RGB=GL_PREVIOUS`,
+and `ContextMPR::RestoreState` skips its `COLORARG1` repair when the MPR state is
+unchanged — so after the GM radar's own `DX_DBS` target pass disables stage 0
+(**every sweep**), every `STATE_TEXTURE` draw replaced its texture with the
+never-set (black) vertex colour. The `ALPHAOP SELECTARG1` arm had already been
+fixed for the identical clobber; this is its colour twin. `FF_NO_GMSELARG_FIX=1`
+reverts. Verified: quad flush now reports `REPLACE(SOURCE0=GL_TEXTURE)` and the
+MFD shows the green map wedge under the arcs/cursor. What the PO read as "the
+radar working at distance" was the **overlay only** (arcs + cursor are drawn
+through non-textured paths and always survived); the map itself never did.
+
+**Lesson (GMRADAR-2 retro):** its verification metric — nonzero pixels in the
+render target — was satisfied by the noise overlay alone and said nothing about
+the map reaching the panel. Same class as `ff-validate-detectors`.
+
+### Open
+
+- **HANG-GM (the PO's hard freeze).** Not yet reproduced: 8-minute autopilot
+  flight to ~40 nm with GM up ran clean. `scripts/qa/gm-close-hang.sh` flies to
+  the target under gdb with a hard kill + memory cap and dumps all thread stacks
+  on a wedge. Candidates on the table: FTT/lock paths never exercised on Linux
+  (`AddTargetReturns` suppresses blips when locked; the PO may have designated),
+  the `FlushBlips` model-node walk, and terrain refetch storms from auto range
+  stepping. NOTE for attach-style debugging: yama blocks gdb -p from a sibling
+  shell — run the game AS a gdb child (the script does).
+- **GMT blips close-range visibility** — small-blip intensity math
+  (`r*32*gain*GainScale`) yields ~1% green for a truck at any NORM scale; needs
+  the Wine oracle for expected appearance before calling it a defect.
+
+New diagnostics (all `FF_DEBUG_GM=1`): `[GM] xform`, `[GM] rQuad`, `[GM] destTex`
+(+glTex/dirty), `[GM] listDraw`, `[GM] quadFlush` (packed env: src0/combine/mode).
+Helpers `FF_SurfaceGLInfo` / `FF_GLBound128` / `FF_GLDrawFlags` (d3d_gl.cpp).
