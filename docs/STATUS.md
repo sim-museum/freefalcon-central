@@ -10188,3 +10188,65 @@ build flying the same Maverick TE: if Windows shows the road convoy in GMT and
 Linux does not, suspect a deaggregation or detection-roll difference (cf. the
 RAND_MAX A/A detection bug 868827e4); if Windows is also empty until the movers
 deaggregate, it is by-design. Do not "fix" it before the oracle says which.
+
+## 2026-09-02 (cont.) — GMRADAR-4: the scope was washed out by its own noise overlay (fixed); mode switch and building returns measured
+
+PO report (video `260902_no_radar_hits.mp4`): "GM/GMT/SEA switch has no effect on
+display, radar does not show most buildings, mostly blank or diffuse shapes when
+approaching the target." The video shows the mode label cycling GM→SEA→GMT
+correctly while the picture stays a bright uniform green speckle at every range.
+The Wine oracle (`old/260822_wine_ff_TE_CCIP.mp4`, GM at 20/10 nm) shows the
+opposite: a near-black scope with faint terrain streaks and crisp bright returns.
+
+### GMRADAR-4 — noise overlay drawn at alpha 1.0 instead of 0.3 (fixed)
+
+New instrument `FF_GM_DUMP=<dir>` dumps the radar's 128×128 render target after
+the ground pass, after the target pass, and before/after the noise overlay.
+Before the fix the pre-noise image was near-black and the post-noise image had a
+green mean of **36/255** — exactly the raw noise texture (5 + rand(0..63)), i.e.
+the overlay's vertex alpha of 0.3 was ignored. Cause: `d3d_gl.cpp`'s chroma-key
+repair, applied to every alpha-tested XYZRHW textured draw in all three draw
+paths, forced `COMBINE_ALPHA=REPLACE` from the texture and alpha ref 0.5. Right
+for chroma-keyed draws (ALPHAOP=SELECTARG1), wrong for ALPHAOP=MODULATE, which
+is texture × vertex alpha. Fix: `FF_RHWChromaAlphaEnv()` honours MODULATE
+(sources texture × primary, ref 1/255 so key texels still drop). Predicted
+post-fix level 0.3 × 36.5 ≈ 11; **measured 10.8**. `FF_NO_RHW_ALPHAMOD_FIX=1`
+reverts; regression `scripts/qa/gm-noise-level.sh` (threshold 20).
+
+PO watching the post-fix harness flight: "GM returns crisp".
+
+### Mode switch — works; GMT/SEA are empty by design here
+
+Run cycling `SimRadarAGModeStep` GM→GMT→SEA→GM with `[GM] targets` counters:
+mode 14→16→17→14, the target list swaps from the feature list (157–333
+contacts drawn) to the mover list (0 contacts), and the terrain map keeps
+drawing in every mode (the composite is mode-agnostic in the original code).
+Nothing in the Maverick TE passes `GMTObjectContactTest` (sim objects 3–100
+ft/s; campaign objects never), so GMT/SEA show only the terrain — the PO's
+"milky way" is the coastal ridge. Whether Windows also paints terrain in GMT is
+still the open oracle question from the previous entry; the code says yes.
+
+### Building returns — drawn as designed, they were buried
+
+`[GM] blips`: 123 awake sim objects per pass, none clipped, radius **0.074 px**
+mean at 40 nm (radar sign 213 ft × 6.9e-6 × 64), intensity r·32·gain(9.31) ≈
+**22/255**, one pixel each; 34 campaign units draw as 2×2 at 255. Dump
+difference confirms: 120–144 bright pixels, 18 dim ones (clusters overlap at
+1900 ft/px). Same math as Windows; at 20/10 nm they reach 44/88. With the
+noise at 36 mean / 66 max they were invisible; at 11 / 22 they read.
+
+### Harness notes (cost the PO two overflights)
+
+- `FF_SIM_SCREENSHOT` times are **program** time; `FF_SIM_KEY` times are **sim**
+  time (latched ~56 s in). Screenshots requested at 40 s fire before the sim.
+- The 2D pit in these harness runs comes up on the left console view, so the
+  screenshots never show the MFD — use `FF_GM_DUMP`.
+- The autopilot overflies the Maverick target in ~60 s at 4× — every diagnostic
+  run now ends by 100–135 s program time.
+- Stepping the waypoint (`0x1F`) moved the map centre off the streamed terrain
+  and blanked the sweep for the rest of the run; not a display defect.
+- Window title hash is stamped at CMake configure time, so it lags HEAD (the
+  PO's post-fix videos said `71db2a8e`). Fixed this session: stamped per build.
+
+Open: GMT-empty oracle question (unchanged). No crash, 1 assertion site
+(atm.cpp:843, pre-existing) per run.

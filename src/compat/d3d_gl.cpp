@@ -462,6 +462,46 @@ static void D3DColorValueToGL(const D3DCOLORVALUE& cv, float* rgba) {
 // ============================================================
 // IDirect3DDevice7 vtable implementation
 // ============================================================
+
+#ifdef FF_LINUX
+// FF_LINUX (GMRADAR-4): the chroma-key repair below used to force fragment
+// alpha to come from the TEXTURE (COMBINE_ALPHA=REPLACE, ref 0.5) on every
+// alpha-tested XYZRHW textured draw. That is right for a chroma-keyed draw
+// (D3D ALPHAOP=SELECTARG1), but it also overrode draws whose D3D ALPHAOP is
+// MODULATE -- texture alpha x vertex alpha -- and silently threw the vertex
+// alpha away. Measured on the GM radar noise overlay (vertex alpha 0.3 over
+// an additive blend): expected green mean ~11/255, measured 36/255, i.e. the
+// overlay drew at alpha 1.0 and swamped the map. Honour MODULATE: keep the
+// key working (texture alpha 0 x anything = 0, still discarded at ref 1/255)
+// while letting vertex alpha through. FF_NO_RHW_ALPHAMOD_FIX=1 reverts.
+static void FF_RHWChromaAlphaEnv(const std::map<std::pair<DWORD, D3DTEXTURESTAGESTATETYPE>, DWORD>& tss)
+{
+    static int s_old = -1;
+
+    if (s_old < 0) s_old = getenv("FF_NO_RHW_ALPHAMOD_FIX") ? 1 : 0;
+
+    glActiveTexture(GL_TEXTURE0);
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+
+    auto it = tss.find(std::make_pair((DWORD)0, (D3DTEXTURESTAGESTATETYPE)D3DTSS_ALPHAOP));
+    const bool modulate = (it != tss.end()) and (it->second == D3DTOP_MODULATE);
+
+    if (modulate and not s_old)
+    {
+        glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE);
+        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_PRIMARY_COLOR);
+        glAlphaFunc(GL_GEQUAL, 1.0f / 255.0f);
+    }
+    else
+    {
+        glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
+        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE);
+        glAlphaFunc(GL_GEQUAL, 0.5f);
+    }
+}
+#endif
+
 static HRESULT STDMETHODCALLTYPE D3D7Dev_QueryInterface(IDirect3DDevice7* This, REFIID riid, void** ppv) {
     D3DGL_LOG("QueryInterface");
     *ppv = This;
@@ -1366,11 +1406,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
 #ifdef FF_LINUX
     // FF_LINUX: Fix chroma key transparency (see DrawIndexedPrimitiveVB for details)
     if (isXYZRHW && dev->textures[0] && glIsEnabled(GL_ALPHA_TEST)) {
-        glActiveTexture(GL_TEXTURE0);
-        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-        glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
-        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE);
-        glAlphaFunc(GL_GEQUAL, 0.5f);
+        FF_RHWChromaAlphaEnv(dev->textureStageStates);   // GMRADAR-4
     }
 #endif
 
@@ -2665,11 +2701,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     //    while keeping alpha=0xFF real pixels. The state-block-set ref of 1/255
     //    doesn't survive to draw time due to D3D device lifetime issues.
     if (isXYZRHW && dev->textures[0] && glIsEnabled(GL_ALPHA_TEST)) {
-        glActiveTexture(GL_TEXTURE0);
-        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-        glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
-        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE);
-        glAlphaFunc(GL_GEQUAL, 0.5f);
+        FF_RHWChromaAlphaEnv(dev->textureStageStates);   // GMRADAR-4
     }
 #endif
 
@@ -4835,11 +4867,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
 #ifdef FF_LINUX
     // FF_LINUX: Fix chroma key transparency (see DrawIndexedPrimitiveVB for details)
     if (isXYZRHW && textures[0] && glIsEnabled(GL_ALPHA_TEST)) {
-        glActiveTexture(GL_TEXTURE0);
-        glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-        glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
-        glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE);
-        glAlphaFunc(GL_GEQUAL, 0.5f);
+        FF_RHWChromaAlphaEnv(textureStageStates);   // GMRADAR-4
     }
 #endif
 

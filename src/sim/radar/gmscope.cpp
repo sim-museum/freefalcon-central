@@ -448,6 +448,7 @@ void RadarDopplerClass::GMMode(void)
                 next = &((*next)->next);
             }
         }
+
     } // end if elapsed time
 
 
@@ -2022,8 +2023,15 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
     // Clear target under cursor;
     targetUnderCursor = FalconNullId;
 
+#ifdef FF_LINUX
+    long ffWalk = 0, ffOut = 0, ffDrawn = 0, ffLockSkip = 0, ffDrop = 0, ffShaped = 0;
+#endif
+
     while (curNode)
     {
+#ifdef FF_LINUX
+        ffWalk++;
+#endif
         dx = curNode->Object()->XPos() - GMXCenter;
         dy = curNode->Object()->YPos() - GMYCenter;
 
@@ -2034,6 +2042,9 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
         if (F_ABS(rx) > groundMapRange and 
             F_ABS(ry) > groundMapRange)
         {
+#ifdef FF_LINUX
+            ffOut++;
+#endif
             curNode = curNode->next;
             continue;
         }
@@ -2052,7 +2063,15 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
                 if (g_bRealisticAvionics and g_bAGRadarFixes)
                 {
                     if ( not lockedTarget)
+                    {
                         renderer->DrawBlip(drawable, GainScale, Shaping);
+#ifdef FF_LINUX
+                        ffDrawn++; ffShaped++;
+#endif
+                    }
+#ifdef FF_LINUX
+                    else ffLockSkip++;
+#endif
                 }
                 else
                     renderer->DrawBlip(drawable, GainScale, Shaping);
@@ -2063,7 +2082,15 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
                 if (g_bRealisticAvionics and g_bAGRadarFixes)
                 {
                     if ( not lockedTarget)
+                    {
                         renderer->DrawBlip(curNode->Object()->XPos(), curNode->Object()->YPos());
+#ifdef FF_LINUX
+                        ffDrawn++;
+#endif
+                    }
+#ifdef FF_LINUX
+                    else ffLockSkip++;
+#endif
                 }
                 else
                     renderer->DrawBlip(curNode->Object()->XPos(), curNode->Object()->YPos());
@@ -2071,6 +2098,9 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
         }
         else
         {
+#ifdef FF_LINUX
+            ffDrop++;
+#endif
             if (lockedTarget and curNode->Object() == lockedTarget->BaseData())
             {
                 DropGMTrack();
@@ -2092,6 +2122,33 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
         curNode = curNode->next;
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX (GMRADAR-4): what the Targets pass actually put on the sweep.
+    {
+        static int s_on = -1;
+
+        if (s_on < 0) s_on = getenv("FF_DEBUG_GM") ? 1 : 0;
+
+        if (s_on)
+        {
+            static long s_n = 0;
+
+            if ((s_n++ % (getenv("FF_DEBUG_GM_EVERY") ? 1 : 20)) == 0)
+            {
+                fprintf(stderr, "[GM] targets mode=%d shaping=%d walked=%ld outOfRange=%ld scanRejected=%ld drawn=%ld (simAwake=%ld) lockSkipped=%ld locked=%d gain=%.2f\n",
+                        (int)mode, (int)Shaping, ffWalk, ffOut, ffDrop, ffDrawn, ffShaped, ffLockSkip,
+                        lockedTarget ? 1 : 0, GainScale);
+                fprintf(stderr, "[GM] blips n=%ld clipped=%ld drawn=%ld black=%ld shaped=%ld rMean=%.3f rMax=%.3f colorMean=%.1f | first: radius=%.1f sign=%.1f w2u=%g scaleX=%.1f rgain=%.2f\n",
+                        g_ffGMBlip.n, g_ffGMBlip.clipped, g_ffGMBlip.drawn, g_ffGMBlip.black, g_ffGMBlip.shaped,
+                        g_ffGMBlip.n ? g_ffGMBlip.rSum / g_ffGMBlip.n : 0.0f, g_ffGMBlip.rMax,
+                        g_ffGMBlip.drawn ? g_ffGMBlip.cSum / g_ffGMBlip.drawn : 0.0f,
+                        g_ffGMBlip.radius0, g_ffGMBlip.sign0, g_ffGMBlip.w2u, g_ffGMBlip.sx, g_ffGMBlip.gain);
+                fflush(stderr);
+            }
+        }
+    }
+    memset(&g_ffGMBlip, 0, sizeof(g_ffGMBlip));
+#endif
 }
 
 

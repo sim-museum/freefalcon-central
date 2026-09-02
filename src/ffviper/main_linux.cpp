@@ -124,6 +124,9 @@ extern "C" int initialize_windows_sockets(WSADATA *wsaData);
 #define WINDOW_HEIGHT 768
 int g_nWindowWidth = WINDOW_WIDTH;
 int g_nWindowHeight = WINDOW_HEIGHT;
+#ifdef FF_HAVE_GITHASH_H
+#include "ff_githash.h"   // generated per build by src/ffviper/CMakeLists.txt; "+" = dirty tree
+#endif
 #ifndef FF_GIT_HASH
 #define FF_GIT_HASH "dev"
 #endif

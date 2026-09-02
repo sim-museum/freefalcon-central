@@ -1,17 +1,38 @@
 
 # FF_LINUX: stamp the build with the git hash so the window title shows
-# exactly which version is running (avoids version-skew confusion)
-execute_process(
-    COMMAND git rev-parse --short HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE FF_GIT_HASH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET
-)
-if(NOT FF_GIT_HASH)
-    set(FF_GIT_HASH "unknown")
+# exactly which version is running (avoids version-skew confusion).
+# Stamped at BUILD time, not configure time: the configure-time version lagged
+# HEAD for days (the PO's post-fix videos still read a week-old hash), which
+# mis-dated evidence in STATUS.md. A tiny script regenerates ff_githash.h on
+# every build and only touches the file when the hash actually changed, so
+# main_linux.cpp recompiles only on a new commit.
+set(FF_GITHASH_DIR ${CMAKE_CURRENT_BINARY_DIR}/githash)
+file(MAKE_DIRECTORY ${FF_GITHASH_DIR})
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/githash.cmake
+"execute_process(COMMAND git rev-parse --short HEAD WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}\"
+    OUTPUT_VARIABLE H OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+execute_process(COMMAND git status --porcelain --untracked-files=no WORKING_DIRECTORY \"${CMAKE_SOURCE_DIR}\"
+    OUTPUT_VARIABLE D ERROR_QUIET)
+if(NOT H)
+    set(H \"unknown\")
+elseif(D)
+    set(H \"\${H}+\")
 endif()
-add_compile_definitions(FF_GIT_HASH="${FF_GIT_HASH}")
+set(NEW \"#define FF_GIT_HASH \\\"\${H}\\\"\\n\")
+set(OUT \"${FF_GITHASH_DIR}/ff_githash.h\")
+if(EXISTS \"\${OUT}\")
+    file(READ \"\${OUT}\" OLD)
+else()
+    set(OLD \"\")
+endif()
+if(NOT OLD STREQUAL NEW)
+    file(WRITE \"\${OUT}\" \"\${NEW}\")
+endif()
+")
+add_custom_target(ff_githash ALL
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/githash.cmake
+    BYPRODUCTS ${FF_GITHASH_DIR}/ff_githash.h
+    COMMENT "Stamping git hash")
 # FFViper - Main executable
 # Note: The main source files are in ui library (winmain.cpp, f4config.cpp)
 # This creates the executable by linking all the libraries together
@@ -32,6 +53,9 @@ int main(int argc, char** argv) { (void)argc; (void)argv; return 0; }
 endif()
 
 add_executable(FFViper ${FFVIPER_MAIN})
+add_dependencies(FFViper ff_githash)
+target_include_directories(FFViper PRIVATE ${FF_GITHASH_DIR})
+target_compile_definitions(FFViper PRIVATE FF_HAVE_GITHASH_H=1)
 
 # Link all the libraries
 target_link_libraries(FFViper

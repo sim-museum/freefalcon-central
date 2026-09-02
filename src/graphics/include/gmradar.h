@@ -27,6 +27,16 @@ typedef struct GroundMapVertex: public MPRVtxClr_t
 } GroundMapVertex;
 
 
+#ifdef FF_LINUX
+struct FF_GMBlipStatT
+{
+    long n, clipped, drawn, black, shaped;
+    float rSum, rMax, cSum;
+    float radius0, sign0, w2u, sx, gain;
+};
+extern FF_GMBlipStatT g_ffGMBlip;
+#endif
+
 class RenderGMRadar : public Render3D
 {
 public:

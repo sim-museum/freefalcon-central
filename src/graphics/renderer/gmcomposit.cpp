@@ -118,6 +118,75 @@ static void FF_GMTick(const char *stage)
 }
 #endif
 
+#ifdef FF_LINUX
+// FF_LINUX (GMRADAR-4): dump the GM render target as a PPM so the sweep image
+// can be inspected directly (the MFD in a video is three blends removed from
+// it). FF_GM_DUMP=<dir> writes <dir>/gm_<tag>_<n>.ppm for every 4th call, 300 max.
+static void FF_GMDumpSurface(ImageBuffer *buf, const char *tag)
+{
+    static const char *s_dir = NULL;
+    static int s_init = 0;
+
+    if ( not s_init) { s_init = 1; s_dir = getenv("FF_GM_DUMP"); }
+
+    if ( not s_dir or not buf or not buf->targetSurface()) return;
+
+    static long s_n[4] = {0, 0, 0, 0};
+    int ti = (tag[0] == 'p' and tag[1] == 'r') ? 0 : tag[0] == 'p' ? 1 : tag[0] == 'g' ? 2 : 3;
+    long n = s_n[ti]++;
+
+    if ((n % 4) not_eq 0 or n / 4 >= 300) return;
+
+    DDSURFACEDESC2 dd; memset(&dd, 0, sizeof(dd)); dd.dwSize = sizeof(dd);
+
+    if (FAILED(buf->targetSurface()->Lock(NULL, &dd, DDLOCK_WAIT bitor DDLOCK_READONLY, NULL))) return;
+
+    const int W = dd.dwWidth, H = dd.dwHeight;
+    const int bpp = dd.ddpfPixelFormat.dwRGBBitCount / 8;
+    const unsigned rm = dd.ddpfPixelFormat.dwRBitMask, gm = dd.ddpfPixelFormat.dwGBitMask, bm = dd.ddpfPixelFormat.dwBBitMask;
+    char path[512];
+    snprintf(path, sizeof(path), "%s/gm_%s_%04ld.ppm", s_dir, tag, n / 4);
+    FILE *f = fopen(path, "wb");
+
+    if (f)
+    {
+        fprintf(f, "P6\n%d %d\n255\n", W, H);
+
+        for (int y = 0; y < H; y++)
+        {
+            const unsigned char *row = (const unsigned char *)dd.lpSurface + (size_t)y * dd.lPitch;
+
+            for (int x = 0; x < W; x++)
+            {
+                unsigned v = 0;
+                memcpy(&v, row + (size_t)x * bpp, bpp > 4 ? 4 : bpp);
+                unsigned char rgb[3];
+                unsigned masks[3] = {rm, gm, bm};
+
+                for (int c = 0; c < 3; c++)
+                {
+                    unsigned m = masks[c];
+
+                    if ( not m) { rgb[c] = 0; continue; }
+
+                    int shift = 0, bits = 0;
+                    while ( not ((m >> shift) bitand 1)) shift++;
+                    while ((m >> (shift + bits)) bitand 1) bits++;
+                    unsigned val = (v bitand m) >> shift;
+                    rgb[c] = (unsigned char)(bits >= 8 ? val : (val * 255) / ((1u << bits) - 1));
+                }
+
+                fwrite(rgb, 1, 3, f);
+            }
+        }
+
+        fclose(f);
+    }
+
+    buf->targetSurface()->Unlock(NULL);
+}
+#endif
+
 RenderGMComposite::RenderGMComposite()
 {
     lTexHandle = rTexHandle = nTexHandle = NULL;
@@ -688,6 +757,9 @@ bool RenderGMComposite::BackgroundGeneration(Tpoint *from, Tpoint *at, float pla
                 radar.StartDraw();
                 radar.DrawScene();
                 radar.EndDraw();
+#ifdef FF_LINUX
+                FF_GMDumpSurface(DisplayOptions.bRender2Texture ? m_pRenderTarget : m_pRenderBuffer, "grnd");
+#endif
                 break;
 
             case Features:
@@ -704,6 +776,9 @@ bool RenderGMComposite::BackgroundGeneration(Tpoint *from, Tpoint *at, float pla
                 tgtDrawCB(tgtDrawCBparam, &radar, Shaped);
                 radar.FlushDrawnTargets();
                 radar.EndDraw();
+#ifdef FF_LINUX
+                FF_GMDumpSurface(DisplayOptions.bRender2Texture ? m_pRenderTarget : m_pRenderBuffer, "tgts");
+#endif
                 break;
 
             case Finish:
@@ -765,6 +840,9 @@ void RenderGMComposite::NewImage(Tpoint *at, float platformHdg, BOOL replaceRigh
         radar.context.SetViewportAbs(0, 0, m_pRenderTarget->targetXres(), m_pRenderTarget->targetYres());
     }
 
+#ifdef FF_LINUX
+    FF_GMDumpSurface(DisplayOptions.bRender2Texture ? m_pRenderTarget : m_pRenderBuffer, "pre");
+#endif
     float Alpha = 0.3f;
 
     if (Shaped) Alpha = 0.7f;
@@ -813,6 +891,10 @@ void RenderGMComposite::NewImage(Tpoint *at, float platformHdg, BOOL replaceRigh
     // radar.context.InvalidateState();
 
     radar.EndDraw();
+
+#ifdef FF_LINUX
+    FF_GMDumpSurface(DisplayOptions.bRender2Texture ? m_pRenderTarget : m_pRenderBuffer, "post");
+#endif
 
     static RECT rcBlit = { 0, 0, GM_TEXTURE_SIZE, GM_TEXTURE_SIZE };
 

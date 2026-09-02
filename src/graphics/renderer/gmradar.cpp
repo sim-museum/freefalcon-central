@@ -564,6 +564,13 @@ void RenderGMRadar::DrawBlip(float worldX, float worldY)
 }
 
 
+#ifdef FF_LINUX
+// FF_LINUX (GMRADAR-4): per-pass statistics of the sim-object blip path, so
+// 'buildings not on the scope' can be split into never-called / clipped /
+// intensity-rounds-to-black. Reset+printed by RadarDopplerClass::AddTargetReturns.
+FF_GMBlipStatT g_ffGMBlip;
+#endif
+
 void RenderGMRadar::DrawBlip(DrawableObject* drawable, float GainScale, bool Shaped)
 {
     float x,  y;
@@ -578,6 +585,17 @@ void RenderGMRadar::DrawBlip(DrawableObject* drawable, float GainScale, bool Sha
         r = drawable->Radius() * worldToUnitScale * scaleX;
     else
         r = drawable->GetRadarSign() * worldToUnitScale * scaleX; // +/-1 * scale to pixels
+
+#ifdef FF_LINUX
+    g_ffGMBlip.n++;
+    g_ffGMBlip.rSum += r;
+    if (r > g_ffGMBlip.rMax) g_ffGMBlip.rMax = r;
+    if (g_ffGMBlip.n == 1)
+    {
+        g_ffGMBlip.radius0 = drawable->Radius(); g_ffGMBlip.sign0 = drawable->GetRadarSign();
+        g_ffGMBlip.w2u = worldToUnitScale; g_ffGMBlip.sx = scaleX; g_ffGMBlip.gain = gain;
+    }
+#endif
 
     // Decide if a spot will suffice or if we need to do a full render
     if ( not Shaped or r < 2.0f)
@@ -602,11 +620,22 @@ void RenderGMRadar::DrawBlip(DrawableObject* drawable, float GainScale, bool Sha
             (y + 1.0f >= bottomPixel) or
             (y      <= topPixel)
         )
+        {
+#ifdef FF_LINUX
+            g_ffGMBlip.clipped++;
+#endif
             return;
+        }
 
         float BlitColor = r * 32.0f * gain * GainScale;
 
         if (BlitColor > 255.0f) BlitColor = 255.0f;
+
+#ifdef FF_LINUX
+        g_ffGMBlip.drawn++;
+        g_ffGMBlip.cSum += BlitColor;
+        if (BlitColor < 1.0f) g_ffGMBlip.black++;
+#endif
 
         SetColor(0xFF000000 bitor (F_I32(BlitColor) << 8));
         Render2DPoint(x,      y);
@@ -627,6 +656,9 @@ void RenderGMRadar::DrawBlip(DrawableObject* drawable, float GainScale, bool Sha
 
         if (r > 255.0f) r = 255.0f;
 
+#ifdef FF_LINUX
+        g_ffGMBlip.shaped++;
+#endif
         TheDXEngine.SetBlipIntensity(r);
         drawable->Draw(this);
     }
