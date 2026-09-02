@@ -10149,3 +10149,42 @@ the map reaching the panel. Same class as `ff-validate-detectors`.
 New diagnostics (all `FF_DEBUG_GM=1`): `[GM] xform`, `[GM] rQuad`, `[GM] destTex`
 (+glTex/dirty), `[GM] listDraw`, `[GM] quadFlush` (packed env: src0/combine/mode).
 Helpers `FF_SurfaceGLInfo` / `FF_GLBound128` / `FF_GLDrawFlags` (d3d_gl.cpp).
+
+## 2026-09-02 — PO video confirms GMRADAR-3 fix; ACMI-4 exit crash fixed; GMT still empty
+
+Two PO videos. `260831_maverick_tower.mp4` is a **pre-fix** run (build 71db2a8e):
+GM scope black, weapon-camera Maverick run, then **ESC→E and the window vanished**.
+`260902_no_GMT_maverick.mp4` is **post-GMRADAR-3**: the GM ground map now renders
+(green terrain + contact blips in the left MFD) — fix confirmed on the PO's own
+flight — but **GMT mode goes empty near the target** (mode label GMT, scope dark,
+"NOT SOI", no moving-target blips).
+
+### ACMI-4 — the "window disappeared" is a bad_alloc SIGABRT on sim exit (fixed, f8adc16d)
+
+Reproduced live (the PO flew the instance I launched, hit ESC→E, it aborted).
+Backtrace: `ACMITape::Import` (acmitape.cpp:1002) ← `ACMI_ImportFile` ←
+`StartLoop` (simloop.cpp:1421, the post-shutdown import). `new
+ACMI_CallRec[import_count]` with `import_count` read verbatim from the `.flt` the
+recorder leaves for every flight; on a malformed tape it reads garbage —
+**measured 3135156925 → a 62 GB alloc** — `new[]` throws, nothing catches it,
+process aborts. **The line's own comment already named it a bad_alloc vector and
+only ever added a trace.** Fixed: reject count outside [0, 65536] and bail; plus
+a try/catch around the exit-path `ACMI_ImportFile()` so no tape parse can ever
+kill the exit again. `-test-ia` auto-exit: pre-fix SIGABRT every time, post-fix
+0 crashes, returns to menu. `FF_NO_ACMI_COUNT_GUARD=1` reverts.
+
+Note: the tape is still malformed (that's why the count is garbage) — tapes won't
+import until the `.flt` write/read layout is reconciled, but that is cosmetic now,
+not fatal. Relates to the long-standing ACMI-3 capture-chain gap.
+
+### GMT empty near target — OPEN, needs the Wine oracle
+
+GM shows the vehicles as ground contacts; GMT shows nothing. `GMTObjectContactTest`
+(gmscope.cpp:150) under realistic avionics **returns 0 for every campaign
+(non-sim) object**, and speed-filters sim objects to 3–100 ft/s — so a stationary
+or still-aggregated convoy never appears in GMT even while GM paints it. This is
+original FreeFalcon logic, not obviously a port bug. Decide it against the Windows
+build flying the same Maverick TE: if Windows shows the road convoy in GMT and
+Linux does not, suspect a deaggregation or detection-roll difference (cf. the
+RAND_MAX A/A detection bug 868827e4); if Windows is also empty until the movers
+deaggregate, it is by-design. Do not "fix" it before the oracle says which.
