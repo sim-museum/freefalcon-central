@@ -999,6 +999,41 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 }
 #endif
                 F4Assert(Import_Callsigns == NULL);
+
+#ifdef FF_LINUX
+                // ACMI-4: import_count is unvalidated file data fed straight to
+                // new[]. On a truncated or mis-parsed .flt (the recorder leaves
+                // one on disk for every flight, imported on the way out of the
+                // sim) it reads as garbage; the resulting new[] throws bad_alloc,
+                // and there is no catch anywhere above -- so leaving a mission
+                // aborts the whole process (SIGABRT) and the window vanishes.
+                // The known-good bound: a real tape's callsign list tops out in
+                // the hundreds (entity ids run to 477). Reject anything outside a
+                // generous ceiling and bail cleanly instead of allocating it.
+                // Same unbounded-file-count class as the ACMI-1 stride fix and the
+                // TE/campaign decode guards. FF_NO_ACMI_COUNT_GUARD=1 reverts.
+                {
+                    static int ffNoGuard = -1;
+
+                    if (ffNoGuard < 0) ffNoGuard = getenv("FF_NO_ACMI_COUNT_GUARD") ? 1 : 0;
+
+                    if ( not ffNoGuard and (import_count < 0 or import_count > 65536))
+                    {
+                        if (getenv("FF_DEBUG_ACMI"))
+                        {
+                            fprintf(stderr, "[ACMI] rejecting bogus callsign count=%ld "
+                                    "(would alloc %ld bytes) -- import bailed\n",
+                                    import_count, (long)(import_count * (long)sizeof(ACMI_CallRec)));
+                            fflush(stderr);
+                        }
+
+                        import_count = 0;
+                        CleanupACMIImportPositionData(flightFile, rawPositionData);
+                        return FFAcmiBail(__LINE__, flightFile);
+                    }
+                }
+#endif
+
                 Import_Callsigns = new ACMI_CallRec[import_count];
                 F4Assert(Import_Callsigns not_eq NULL);
 

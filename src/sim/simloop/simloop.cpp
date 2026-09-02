@@ -9,6 +9,9 @@
 ***************************************************************************/
 #include "stdhdr.h"
 #ifdef FF_LINUX
+#include <exception>   // ACMI-4: catch tape-import throws on sim exit
+#endif
+#ifdef FF_LINUX
 #include <fenv.h>
 #include <pthread.h>
 #endif
@@ -1413,7 +1416,30 @@ void SimulationLoopControl::StartLoop(void)
 
         // M.N. moved ACMI import after sim shutdown
         // Sim doesn't need to continue running when we import the ACMI
+#ifdef FF_LINUX
+        // ACMI-4: importing the just-recorded flight must never abort the exit.
+        // A malformed .flt used to throw std::bad_alloc out of ACMITape::Import
+        // (unbounded new[]) with no catch above -- so leaving a mission killed the
+        // whole process and the window vanished. The count guard inside Import is
+        // the real fix; this catch guarantees that any future tape-parse failure
+        // degrades to "no tape written" instead of a SIGABRT on the way out.
+        try
+        {
+            ACMI_ImportFile();
+        }
+        catch (const std::exception &e)
+        {
+            fprintf(stderr, "[ACMI] import threw on exit (%s) -- skipped, exit continues\n", e.what());
+            fflush(stderr);
+        }
+        catch (...)
+        {
+            fprintf(stderr, "[ACMI] import threw on exit -- skipped, exit continues\n");
+            fflush(stderr);
+        }
+#else
         ACMI_ImportFile();
+#endif
 
 #ifdef FF_LINUX
         // Release the GL context back to the main thread before returning to UI
