@@ -88,6 +88,30 @@ static bool FF_GMSkip(const char *what)
 }
 #endif
 
+#ifdef FF_LINUX
+// FF_LINUX (GMRADAR-2): count how often each GM stage actually runs, so a blank
+// display can be told apart from a display that is never asked to draw.
+// FF_DEBUG_GM=1.
+static void FF_GMTick(const char *stage)
+{
+    static int s_on = -1;
+
+    if (s_on < 0) s_on = getenv("FF_DEBUG_GM") ? 1 : 0;
+
+    if ( not s_on) return;
+
+    static long s_n[4] = {0, 0, 0, 0};
+    int i = stage[0] == 'n' ? 0 : stage[0] == 'd' ? 1 : stage[0] == 'b' ? 2 : 3;
+
+    if ((s_n[i]++ % 30) == 0)
+    {
+        fprintf(stderr, "[GM] stage=%s call#%ld r2t=%d\n",
+                stage, s_n[i], (int)DisplayOptions.bRender2Texture);
+        fflush(stderr);
+    }
+}
+#endif
+
 RenderGMComposite::RenderGMComposite()
 {
     lTexHandle = rTexHandle = nTexHandle = NULL;
@@ -363,6 +387,9 @@ void RenderGMComposite::DrawComposite(Tpoint *center, float platformHdg)
 {
 #ifdef FF_LINUX
     if (FF_GMSkip("draw")) return;
+#ifdef FF_LINUX
+    FF_GMTick("draw");
+#endif
 #endif
 
     float Px, Py, x, y, dx, dy;
@@ -553,6 +580,9 @@ bool RenderGMComposite::BackgroundGeneration(Tpoint *from, Tpoint *at, float pla
 {
 #ifdef FF_LINUX
     if (FF_GMSkip("bg")) return false;
+#ifdef FF_LINUX
+    FF_GMTick("bg");
+#endif
 #endif
 
     OpName operation;
@@ -657,6 +687,9 @@ void RenderGMComposite::NewImage(Tpoint *at, float platformHdg, BOOL replaceRigh
 {
 #ifdef FF_LINUX
     if (FF_GMSkip("new")) return;
+#ifdef FF_LINUX
+    FF_GMTick("new");
+#endif
 #endif
 
     TextureHandle *targetHandle;
@@ -750,6 +783,51 @@ void RenderGMComposite::NewImage(Tpoint *at, float platformHdg, BOOL replaceRigh
     // Now blit the final viewport image to the texture
     ImageBuffer *pSrcBuffer = DisplayOptions.bRender2Texture ? m_pRenderTarget : m_pRenderBuffer;
     HRESULT hr = targetHandle->m_pDDS->Blt(NULL, pSrcBuffer->targetSurface(), NULL, DDBLT_WAIT, NULL);
+#ifdef FF_LINUX
+    // FF_LINUX (GMRADAR-2): the full pipeline runs (bg/draw/new all fire) but the
+    // PO's MFD is blank -- so either this blit-to-texture fails, or the source
+    // render target is empty. Report blit success + a cheap checksum of the
+    // source surface, so 'renders nothing' is told from 'renders but doesn't
+    // reach the panel'. FF_DEBUG_GM=1.
+    {
+        static int s_on = -1;
+
+        if (s_on < 0) s_on = getenv("FF_DEBUG_GM") ? 1 : 0;
+
+        if (s_on)
+        {
+            static long s_n = 0;
+
+            if ((s_n++ % 60) == 0)
+            {
+                unsigned long sum = 0; int nz = 0; int W = 0, H = 0;
+                DDSURFACEDESC2 dd; memset(&dd, 0, sizeof(dd)); dd.dwSize = sizeof(dd);
+
+                if (pSrcBuffer and pSrcBuffer->targetSurface()
+                    and SUCCEEDED(pSrcBuffer->targetSurface()->Lock(NULL, &dd, DDLOCK_WAIT bitor DDLOCK_READONLY, NULL)))
+                {
+                    W = dd.dwWidth; H = dd.dwHeight;
+                    const unsigned char *px = (const unsigned char *)dd.lpSurface;
+                    const int bpp = dd.ddpfPixelFormat.dwRGBBitCount / 8;
+
+                    for (int yy = 0; yy < H; yy += 8)
+                        for (int xx = 0; xx < W; xx += 8)
+                        {
+                            const unsigned char *q = px + (size_t)yy * dd.lPitch + (size_t)xx * bpp;
+                            unsigned v = (bpp >= 3) ? (q[0] | (q[1] << 8) | (q[2] << 16)) : (q[0] | (q[1] << 8));
+                            sum += v; if (v) nz++;
+                        }
+
+                    pSrcBuffer->targetSurface()->Unlock(NULL);
+                }
+
+                fprintf(stderr, "[GM] blitToTex hr=0x%lX srcRT=%dx%d nonzeroPx=%d checksum=%lu\n",
+                        (unsigned long)hr, W, H, nz, sum);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
     ShiAssert(SUCCEEDED(hr));
 
     if ( not DisplayOptions.bRender2Texture)

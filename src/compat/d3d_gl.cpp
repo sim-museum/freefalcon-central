@@ -262,6 +262,7 @@ struct D3D7Surface : public IDirectDrawSurface7 {
 
     // FF_LINUX: FBO support for render-to-texture
     GLuint fboId;           // OpenGL Framebuffer Object ID (0 = none)
+    bool fboDirty = true;   // GMRADAR-2: FBO rendered since last readback into pixelData
 
     // FF_LINUX: Color key (chroma key) support
     bool hasColorKey;       // True if SetColorKey was called with a valid key
@@ -628,6 +629,9 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This,
     D3D7Surface* newTarget = (D3D7Surface*)lpNewRT;
     D3DGL_LOG("SetRenderTarget surf=%p isPrimary=%d", (void*)newTarget, newTarget ? newTarget->isPrimary : -1);
     dev->renderTarget = newTarget;
+#ifdef FF_LINUX
+    if (newTarget and newTarget->fboId) newTarget->fboDirty = true;  // GMRADAR-2
+#endif
 
 
     // FF_LINUX: FBO-based render target switching for RTT (render-to-texture)
@@ -5190,6 +5194,53 @@ static HRESULT STDMETHODCALLTYPE DDS7_AddOverlayDirtyRect(IDirectDrawSurface7* T
     return DD_OK;
 }
 
+// FF_LINUX (GMRADAR-2): pull an FBO-backed surface's rendered pixels back into
+// its CPU pixelData buffer. The GM radar (and any RTT surface) renders into a GL
+// texture via its FBO; Lock() and Blt() both read pixelData, which is never
+// refreshed from the FBO -- so the GM radar's own render target checksummed as
+// entirely ZERO while the pipeline ran every frame, and the MFD stayed blank.
+// glReadPixels the FBO into pixelData. No-op for non-FBO / non-dirty surfaces.
+static void FF_ReadbackFBOSurface(D3D7Surface *surf)
+{
+    if ( not surf or not surf->fboId or not surf->pixelData) return;
+
+    // Already pulled back since the last render into this FBO -- skip the reread.
+    if ( not surf->fboDirty) return;
+
+    extern SDL_GLContext g_GLContext;
+
+    if ( not g_GLContext or not SDL_GL_GetCurrentContext()) return;
+
+    GLint prevFBO = 0;
+
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, surf->fboId);
+
+    const int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
+    // GL rows are bottom-up; the DD surface is top-down. Read into a temp then flip.
+    const int w = surf->width, h = surf->height;
+    static std::vector<unsigned char> tmp;
+
+    tmp.resize((size_t)w * h * 4);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(0, 0, w, h, GL_BGRA, GL_UNSIGNED_BYTE, tmp.data());
+
+    for (int y = 0; y < h; y++)
+    {
+        const unsigned char *srcRow = tmp.data() + (size_t)(h - 1 - y) * w * 4;
+        unsigned char *dstRow = surf->pixelData + (size_t)y * surf->pitch;
+
+        if (bpp == 4)
+            memcpy(dstRow, srcRow, (size_t)w * 4);
+        else
+            for (int x = 0; x < w; x++)
+                memcpy(dstRow + (size_t)x * bpp, srcRow + (size_t)x * 4, bpp);
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, prevFBO);
+    surf->fboDirty = false;
+}
+
 // Helper function to copy pixels between surfaces
 static void CopySurfacePixels(D3D7Surface* dst, int dstX, int dstY, int dstW, int dstH,
                                D3D7Surface* src, int srcX, int srcY, int srcW, int srcH) {
@@ -5205,6 +5256,11 @@ static void CopySurfacePixels(D3D7Surface* dst, int dstX, int dstY, int dstW, in
                 (void*)dst->pixelData, (void*)src->pixelData);
         return;
     }
+
+#ifdef FF_LINUX
+    // FF_LINUX (GMRADAR-2): refresh an FBO source from its render target before copy.
+    if (src->fboId) FF_ReadbackFBOSurface(src);
+#endif
 
     int dstBpp = dst->pixelFormat.dwRGBBitCount ? dst->pixelFormat.dwRGBBitCount / 8 : 4;
     int srcBpp = src->pixelFormat.dwRGBBitCount ? src->pixelFormat.dwRGBBitCount / 8 : 4;
@@ -6233,6 +6289,13 @@ static HRESULT STDMETHODCALLTYPE DDS7_Lock(IDirectDrawSurface7* This, LPRECT lpD
     surf->AllocatePixelBuffer();
 
     if (!surf->pixelData) return DDERR_OUTOFMEMORY;
+
+#ifdef FF_LINUX
+    // FF_LINUX (GMRADAR-2): if this is an FBO render target being locked for
+    // reading, pull the rendered pixels back first (see helper).
+    if (surf->fboId and not (dwFlags bitand DDLOCK_WRITEONLY))
+        FF_ReadbackFBOSurface(surf);
+#endif
 
     // Fill in the surface description
     memset(lpDDSurfaceDesc, 0, sizeof(DDSURFACEDESC2));
