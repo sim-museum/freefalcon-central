@@ -10250,3 +10250,84 @@ noise at 36 mean / 66 max they were invisible; at 11 / 22 they read.
 
 Open: GMT-empty oracle question (unchanged). No crash, 1 assertion site
 (atm.cpp:843, pre-existing) per run.
+
+## 2026-09-02 (cont.) — GNDMOVE-1: the Maverick TE's tank column never moved, which is why GMT was blank
+
+PO: "for sure GMT should find the line of moving tanks — make it so", against
+`260902_tanks_moving.mp4` (Wine), where the tanks are visibly moving when he
+overflies them. **Note this overrides the oracle**: Wine's GMT is also empty, so
+GMT-empty is not a Linux regression. What *is* a Linux regression is that our
+tanks do not move at all — and that turned out to be the whole cause.
+
+### The column was frozen, not slow
+
+Measured over a 100 s Maverick TE run: **480 ground sim objects, every one at
+Vt 0.0, and three tracked vehicles moved 0.0 ft** across the run, while their
+campaign unit cheerfully reported `U_MOVING` / 40 ft/s. The GMT mover list was
+empty (`list=0`) for the entire flight — nothing to draw, so a blank scope.
+
+### Root cause: a TE battalion is loaded with an objective but no destination
+
+`[GNDMOVE] decodeWP` at unit-load time (the probe added this session) shows the
+mission file's own record:
+
+```
+decodeWP ent=4004  decoded=0 listLen=0 current_wp=0 dest_raw=(0,0)   <- tank battalion
+decodeWP ent=20006 decoded=0 listLen=7 current_wp=4 dest_raw=(658,440) <- a flight
+```
+
+Flights load full routes; the battalions load with **`dest_x/dest_y == 0` and zero
+waypoints**. `PickFinalLocation()` is the only code that turns an objective into a
+destination, and its only real caller is `BattalionClass::SetUnitOrders()`, which
+opens with
+
+```cpp
+if (neworders == GetOrders() and oid == GetUnitObjectiveID())
+    return;
+```
+
+— exactly the state the load stream leaves behind (measured: `obj=406 orders=1`
+already set, and `SetUnitOrders` is never called again for these units). So the
+destination is never computed. `GetUnitDestination()` then hits its
+`dest_x == 0` branch and returns **`(-1,-1)`**; `GetUnitGridPath(x, y → -1, -1)`
+fails every time; `GetNextMoveDirection()` stays `Here`; the unit never moves —
+but `MoveUnit` has already called `SetMoving(1)`, which is the 40 ft/s lie the
+campaign layer keeps reporting. Same "guard/precondition sequenced so the real
+work never runs" shape as the rest of this family.
+
+Fix (`battalio.cpp`, `MoveUnit`, before `GetUnitDestination`): if the destination
+is unset and the unit has an objective, call `PickFinalLocation()` — the game's
+own function, the way `SetUnitOrders` would have. Self-limiting (it always writes
+a destination when an objective exists, so it runs once per unit).
+`FF_NO_GNDMOVE_DEST_FIX=1` reverts.
+
+### Measured, fix vs. revert (same seed, same 100 s flight)
+
+| | `FF_NO_GNDMOVE_DEST_FIX=1` | fixed |
+|---|---|---|
+| sim vehicle Vt | 0.00 | **59.99 ft/s** |
+| distance moved per interval | 0.0 ft | **~10 ft** |
+| `simSpeedOK` (inside the 3–100 GMT gate) | 0 / 480 | **480 / 480** |
+| **GMT mover list** | **0** | **48** |
+| contact pixels added to the sweep target | 0, 0, 0 | 5, 5, 5 |
+
+The GM-mode feature pass is 136 pixels in both — unchanged control.
+
+Regression: `scripts/qa/gmt-movers.sh` (PASS `list=48 simVtMax=59.9
+moved=10.0ft`; reproduces FAIL `list=0` under the revert flag — validated in both
+directions). Campaign sweep unchanged: Korea `camps_read=8 asserts=4 crash=0`,
+identical with and without the fix (both asserts pre-existing, air-side).
+
+### Correction to GMRADAR-5 (8b8ac056)
+
+That commit's premise — "most of a moving column are asleep sim objects with
+Vt 0, judge them by their campaign unit" — is **not** what was happening here.
+With the tanks moving, the census reads `simAwake=480`, `unitMovers=0`,
+`asleep withUnit=0`: every ground vehicle in this TE is awake, and Vt was 0
+because they genuinely were not moving. The sleeping-mover fallback has still
+never been observed to fire and is unproven; it is kept (behind
+`FF_NO_GMT_SLEEPING_MOVERS=1`) as defensible campaign-mode robustness, not as
+the cause of anything. **GNDMOVE-1 is what makes GMT paint the column.**
+
+Open: PO acceptance flight — GMT contacts at usable range, and slaving the
+Maverick seeker to a GMT track.

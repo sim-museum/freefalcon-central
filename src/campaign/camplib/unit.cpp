@@ -6829,6 +6829,32 @@ void UnitClass::DecodeWaypoints(VU_BYTE **stream, long *rem)
         w = w->GetNextWP();
     }
 
+#ifdef FF_LINUX
+    // FF_LINUX (GNDMOVE-1): how many waypoints a unit decodes, and whether
+    // current_wp ends up pointing at one. FF_DEBUG_GNDMOVE=1.
+    {
+        static int s_on = -1;
+
+        if (s_on < 0) s_on = getenv("FF_DEBUG_GNDMOVE") ? 1 : 0;
+
+        if (s_on)
+        {
+            static int s_k = 0;
+
+            if (s_k++ < 40)
+            {
+                int n = 0;
+
+                for (WayPoint q = wp_list; q and n < 99; q = q->GetNextWP()) n++;
+
+                fprintf(stderr, "[GNDMOVE] decodeWP ent=%u decoded=%d listLen=%d current_wp=%d dest_raw=(%d,%d)\n",
+                        (unsigned)share_.id_.num_, (int)count, n, (int)current_wp, (int)dest_x, (int)dest_y);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     update_active_flight(this);
 }
 

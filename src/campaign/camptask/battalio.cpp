@@ -488,6 +488,43 @@ int BattalionClass::MoveUnit(CampaignTime time)
     // Check if we have a valid objective
     lo = GetUnitObjective();
 
+#ifdef FF_LINUX
+    // FF_LINUX (GNDMOVE-1): the whole reason a battalion does or does not move.
+    // Reports the decision tree at MoveUnit entry for the first few battalions.
+    // FF_DEBUG_GNDMOVE=1.
+    {
+        static int s_on = -1;
+
+        if (s_on < 0) s_on = getenv("FF_DEBUG_GNDMOVE") ? 1 : 0;
+
+        if (s_on)
+        {
+            static int s_k = 0;
+
+            if (s_k++ < 60)
+            {
+                GridIndex ex, ey, dxx, dyy;
+                int nwp = 0;
+                GetLocation(&ex, &ey);
+                GetUnitDestination(&dxx, &dyy);
+
+                for (WayPoint q = GetFirstUnitWP(); q and nwp < 99; q = q->GetNextWP()) nwp++;
+
+                WayPoint cw = GetCurrentUnitWP();
+                GridIndex wx = -1, wy = -1;
+
+                if (cw) cw->GetWPLocation(&wx, &wy);
+
+                fprintf(stderr, "[GNDMOVE] enter bn=%d loc=(%d,%d) obj=%d parent=%d tactic=%d orders=%d dest=(%d,%d) nwp=%d curwp=(%d,%d) moving=%d gametype=%d\n",
+                        GetCampID(), (int)ex, (int)ey, lo ? lo->GetCampID() : -1, Parent() ? 1 : 0,
+                        (int)GetUnitTactic(), (int)GetOrders(), (int)dxx, (int)dyy, nwp,
+                        (int)wx, (int)wy, Moving() ? 1 : 0, (int)FalconLocalGame->GetGameType());
+                fflush(stderr);
+            }
+        }
+    }
+#endif
+
     if (
  not lo or (
             Parent() and (FalconLocalGame->GetGameType() == game_Campaign) and 
@@ -508,6 +545,15 @@ int BattalionClass::MoveUnit(CampaignTime time)
         {
 #ifdef ROBIN_DEBUG
             MonoPrint("Error: Battalion %d not assigned - vegitating instead.\n", GetCampID());
+#endif
+#ifdef FF_LINUX
+            if (getenv("FF_DEBUG_GNDMOVE"))
+            {
+                static int s_v = 0;
+
+                if (s_v++ < 10)
+                    fprintf(stderr, "[GNDMOVE] VEGITATE bn=%d (no objective, not parent)\n", GetCampID());
+            }
 #endif
             SetLastCheck(GetLastCheck() + CampaignMinutes);
             return 0;
@@ -594,6 +640,29 @@ int BattalionClass::MoveUnit(CampaignTime time)
     {
         PickFinalLocation();
     }
+
+#ifdef FF_LINUX
+    // FF_LINUX (GNDMOVE-1): a TE battalion loads with orders and an objective but with
+    // dest_x/dest_y == 0 -- measured, entity 4004 decodes as dest_raw=(0,0) with zero
+    // waypoints, while the flights in the same file decode full routes.
+    // PickFinalLocation() is the only code that turns an objective into a destination,
+    // and its only real caller -- SetUnitOrders() -- short-circuits on
+    // "orders and objective are already what I was asked for", which is exactly the
+    // state the load stream leaves behind. So it never runs, GetUnitDestination()
+    // hands back (-1,-1), every grid path to that fails, GetNextMoveDirection() stays
+    // Here, and the column sits still for the whole mission -- while SetMoving(1) keeps
+    // reporting 40 ft/s to the campaign. Compute it the way SetUnitOrders would have.
+    // Self-limiting: PickFinalLocation always writes a destination when an objective
+    // exists, so this runs once per unit. FF_NO_GNDMOVE_DEST_FIX=1 reverts.
+    {
+        static int s_off = -1;
+
+        if (s_off < 0) s_off = getenv("FF_NO_GNDMOVE_DEST_FIX") ? 1 : 0;
+
+        if ( not s_off and (GetDestX() == 0 or GetDestY() == 0) and GetUnitObjective())
+            PickFinalLocation();
+    }
+#endif
 
     GetUnitDestination(&nx, &ny);
 
@@ -1192,6 +1261,15 @@ void BattalionClass::PickFinalLocation(void)
 
     if ( not o)
     {
+#ifdef FF_LINUX
+        if (getenv("FF_DEBUG_GNDMOVE"))
+        {
+            static int s_k = 0;
+
+            if (s_k++ < 20)
+                fprintf(stderr, "[GNDMOVE] PickFinalLocation bn=%d NO OBJECTIVE -> dest left unset\n", GetCampID());
+        }
+#endif
         // KCK: We should pick a retreat path during the next cycle.
         return;
     }
@@ -1278,6 +1356,15 @@ void BattalionClass::PickFinalLocation(void)
 
     SetUnitDestination(dx, dy);
     SetTempDest(0);
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_GNDMOVE"))
+    {
+        static int s_k = 0;
+
+        if (s_k++ < 40)
+            fprintf(stderr, "[GNDMOVE] PickFinalLocation bn=%d set dest=(%d,%d)\n", GetCampID(), (int)dx, (int)dy);
+    }
+#endif
 }
 
 float BattalionClass::GetSpeedModifier() const
