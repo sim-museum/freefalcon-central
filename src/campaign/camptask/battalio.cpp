@@ -752,7 +752,20 @@ int BattalionClass::MoveUnit(CampaignTime time)
 
         if (GetNextMoveDirection() == Here)
         {
+#ifdef FF_LINUX
+            const int ffPathLen = GetUnitGridPath(&temp_path, x, y, nx, ny);
+            if (getenv("FF_DEBUG_GNDMOVE"))
+            {
+                static int s_k = 0;
+                if (s_k++ < 40)
+                    fprintf(stderr, "[GNDMOVE] battalion %d path %d,%d -> %d,%d: len=%d cost=%d awake=%d cover=%d/%d\n",
+                            GetCampID(), x, y, nx, ny, ffPathLen, (int)temp_path.GetCost(), IsAwake() ? 1 : 0,
+                            (int)GetCover(x, y), (int)GetCover(nx, ny));
+            }
+            if (ffPathLen <= 0)
+#else
             if (GetUnitGridPath(&temp_path, x, y, nx, ny) <= 0)
+#endif
             {
 #ifdef LOG_ERRORS
                 char buffer[1280], name1[80], timestr[80];

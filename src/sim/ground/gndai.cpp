@@ -1074,6 +1074,29 @@ void GNDAIClass::Order_Battalion(void)
                 parent_unit->GetLocation(&gridX, &gridY);
                 moveDir = parent_unit->GetNextMoveDirection();
                 through_x = through_y = 0.0F;
+#ifdef FF_LINUX
+                // FF_LINUX (GNDMOVE-1): why a deaggregated battalion lead does or does not
+                // move. FF_DEBUG_GNDMOVE=1, first lead seen, every ~60 calls.
+                {
+                    static int s_on = -1;
+                    if (s_on < 0) s_on = getenv("FF_DEBUG_GNDMOVE") ? 1 : 0;
+                    if (s_on)
+                    {
+                        static GNDAIClass *s_who = NULL;
+                        static long s_n = 0;
+                        if ( not s_who) s_who = this;
+                        if (s_who == this and (s_n++ % 60) == 0)
+                        {
+                            fprintf(stderr, "[GNDMOVE] lead unit=%d moveState=%d flags=0x%x moveDir=%d grid=(%d,%d) cover=%d form=%d pos=(%.0f,%.0f) ideal=(%.0f,%.0f) vt=%.2f maxvel=%.1f moving=%d dest=%s\n",
+                                    parent_unit->GetCampID(), (int)moveState, (unsigned)moveFlags, (int)moveDir,
+                                    (int)gridX, (int)gridY, (int)GetCover(gridX, gridY), (int)formation,
+                                    self->XPos(), self->YPos(), ideal_x, ideal_y, self->GetVt(), maxvel,
+                                    parent_unit->Moving() ? 1 : 0, parent_unit->GetNextMoveDirection() < 8 ? "path" : "none");
+                            fflush(stderr);
+                        }
+                    }
+                }
+#endif
 
                 if (moveDir < 8)
                 {
@@ -1162,6 +1185,15 @@ void GNDAIClass::Order_Battalion(void)
             if (GetCover(cx, cy) == Water and not (o and o->GetType() == TYPE_BRIDGE))
             {
                 // that's it, we don't move anymore
+#ifdef FF_LINUX
+                if (getenv("FF_DEBUG_GNDMOVE"))
+                {
+                    static int s_k = 0;
+                    if (s_k++ < 5)
+                        fprintf(stderr, "[GNDMOVE] WATER HALT unit=%d grid=(%d,%d) cover=%d obj=%d\n",
+                                parent_unit->GetCampID(), (int)cx, (int)cy, (int)GetCover(cx, cy), o ? 1 : 0);
+                }
+#endif
                 moveState = GNDAI_MOVE_HALTED;
                 ideal_x = self->XPos();
                 ideal_y = self->YPos();

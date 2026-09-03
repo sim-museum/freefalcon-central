@@ -33,6 +33,54 @@ extern SIMLIB_IO_CLASS IO;
 
 #define  DEFAULT_OBJECT_RADIUS        50.0F
 
+#ifdef FF_LINUX
+// FF_LINUX (GMRADAR-5): the speed the GMT/SEA mover filter should read.
+//
+// SimMoverClass::GetVt() is |delta|, and only an AWAKE vehicle runs the
+// ground Exec that sets a delta. Deaggregation wakes vehicles "by percentage"
+// (SimulationDriver, KCK: "Decide not to wake some ground vehicles"), so most
+// of a moving column are sim objects with Vt == 0 whose campaign unit reports
+// 40 ft/s (U_MOVING). Measured in the Maverick TE: 480 ground sim objects,
+// every one at Vt 0.0, mover list empty, GMT blank -- while the tanks drove
+// across the screen. Before the 2013 "sfr: removed VT" change the ground AI
+// stamped Vt itself. An asleep vehicle's motion IS its unit's motion, so use
+// that. FF_NO_GMT_SLEEPING_MOVERS=1 reverts.
+static long g_ffGMUnitSeen, g_ffGMUnitMoving, g_ffGMNoUnit;
+static char g_ffGMUnitNote[96];
+static float FF_GMMoverVt(FalconEntity *e, int *fromUnit)
+{
+    static int s_off = -1;
+
+    if (s_off < 0) s_off = getenv("FF_NO_GMT_SLEEPING_MOVERS") ? 1 : 0;
+
+    if (fromUnit) *fromUnit = 0;
+
+    float vt = e->GetVt();
+
+    if ( not s_off and e->IsSim() and not ((SimBaseClass*)e)->IsAwake())
+    {
+        CampBaseClass *unit = ((SimBaseClass*)e)->GetCampaignObject();
+
+        if (unit)
+        {
+            vt = unit->GetVt();
+
+            if (fromUnit) *fromUnit = 1;
+
+            g_ffGMUnitSeen++;
+            if (unit->GetVt() > 0.0f) g_ffGMUnitMoving++;
+            if ( not g_ffGMUnitNote[0])
+                snprintf(g_ffGMUnitNote, sizeof(g_ffGMUnitNote), "unit id=%u type=%d vt=%.1f isUnit=%d",
+                         (unsigned)unit->Id().num_, (int)unit->Type(), unit->GetVt(), (int)unit->IsUnit());
+        }
+        else
+            g_ffGMNoUnit++;
+    }
+
+    return vt;
+}
+#endif
+
 SensorClass* FindLaserPod(SimMoverClass* theObject); //MI
 extern float g_fCursorSpeed;
 extern bool g_bRealisticAvionics;
@@ -464,8 +512,15 @@ void RadarDopplerClass::GMMode(void)
         {
             if (mode == GMT)
             {
-                if (lockedTarget->BaseData()->IsSim() and (lockedTarget->BaseData()->GetVt() < g_fGMTMinSpeed or
-                        lockedTarget->BaseData()->GetVt() > g_fGMTMaxSpeed))
+#ifdef FF_LINUX
+                // GMRADAR-5: judge a locked asleep vehicle by its unit's motion too,
+                // or the lock on a sleeping tank drops on the next frame.
+                const float ffLockVt = FF_GMMoverVt(lockedTarget->BaseData(), NULL);
+#else
+                const float ffLockVt = lockedTarget->BaseData()->GetVt();
+#endif
+                if (lockedTarget->BaseData()->IsSim() and (ffLockVt < g_fGMTMinSpeed or
+                        ffLockVt > g_fGMTMaxSpeed))
                     DropGMTrack();
                 else if (lockedTarget->BaseData()->IsCampaign() and lockedTarget->BaseData()->GetVt() <= 0.0F)
                     DropGMTrack();
@@ -3518,6 +3573,13 @@ void RadarDopplerClass::GMMode(void)
     }
 
     // Now Do the movers
+#ifdef FF_LINUX
+    // FF_LINUX (GMRADAR-5): why a ground object does or does not enter the
+    // GMT/SEA mover list. FF_DEBUG_GM=1, printed every 10th rebuild.
+    static long ffMv[12]; // 0 walked 1 onGround 2 simSpeedOK 3 simAwake 4 campMoving 5 still 6 seen 7 cone 8 los 9 simGround 10 added
+    static float ffVtMin = 1e9f, ffVtMax = -1e9f;
+    static struct { int have; unsigned id; float lx, ly, cx, cy, vt, uvt; int awake, utype; } ffTrk[3];
+#endif
     curNode = GMMoverListRoot;
     lastList = NULL;
     testObject = (SimBaseClass*)objectWalker.GetFirst();
@@ -3539,8 +3601,45 @@ void RadarDopplerClass::GMMode(void)
 
     while (testObject)
     {
+#ifdef FF_LINUX
+        ffMv[0]++;
+#endif
         if (testObject->OnGround())
         {
+#ifdef FF_LINUX
+            ffMv[1]++;
+            if (testObject->IsSim())
+            {
+                ffMv[9]++;
+                const float vt = testObject->GetVt();
+                if (vt < ffVtMin) ffVtMin = vt;
+                if (vt > ffVtMax) ffVtMax = vt;
+
+                // GMRADAR-5: follow three ground vehicles so 'Vt is zero' can be told
+                // from 'they do not move at all'.
+                for (int k = 0; k < 3; k++)
+                {
+                    if ( not ffTrk[k].have)
+                    {
+                        ffTrk[k].have = 1; ffTrk[k].id = (unsigned)testObject->Id().num_;
+                        ffTrk[k].lx = testObject->XPos(); ffTrk[k].ly = testObject->YPos();
+                        ffTrk[k].cx = ffTrk[k].lx; ffTrk[k].cy = ffTrk[k].ly;
+                        ffTrk[k].vt = vt; ffTrk[k].awake = testObject->IsAwake() ? 1 : 0;
+                        CampBaseClass *u = testObject->GetCampaignObject();
+                        ffTrk[k].uvt = u ? u->GetVt() : -1.0f; ffTrk[k].utype = u ? (int)u->Type() : -1;
+                        break;
+                    }
+                    else if (ffTrk[k].id == (unsigned)testObject->Id().num_)
+                    {
+                        ffTrk[k].cx = testObject->XPos(); ffTrk[k].cy = testObject->YPos();
+                        ffTrk[k].vt = vt; ffTrk[k].awake = testObject->IsAwake() ? 1 : 0;
+                        CampBaseClass *u = testObject->GetCampaignObject();
+                        ffTrk[k].uvt = u ? u->GetVt() : -1.0f; ffTrk[k].utype = u ? (int)u->Type() : -1;
+                        break;
+                    }
+                }
+            }
+#endif
             if (isEmitting)
             {
                 // Check for visibility
@@ -3560,12 +3659,24 @@ void RadarDopplerClass::GMMode(void)
                             testObject->drawPointer->GetClass() == DrawableObject::Guys)
                             FilterThis = TRUE;
 
+#ifdef FF_LINUX
+                        int ffFromUnit = 0;
+                        const float ffVt = FF_GMMoverVt(testObject, &ffFromUnit);
+#else
+                        const float ffVt = testObject->GetVt();
+#endif
                         if (testObject->IsSim() and not FilterThis and 
-                            testObject->GetVt() > g_fGMTMinSpeed and 
-                            testObject->GetVt() < g_fGMTMaxSpeed)
+                            ffVt > g_fGMTMinSpeed and 
+                            ffVt < g_fGMTMaxSpeed)
                         {
+#ifdef FF_LINUX
+                            ffMv[2]++;
+#endif
                             if (testObject->IsAwake())
                             {
+#ifdef FF_LINUX
+                                ffMv[3]++;
+#endif
                                 radius = 2.0F * testObject->drawPointer->Radius();
                                 /*  JB 010624 Why? Setting the position like this screws up multiplayer and entitys' movement
                                 if (testObject->GetDomain() not_eq DOMAIN_SEA) // JB carrier (otherwise ships stop when you turn on your GM radar)
@@ -3576,16 +3687,28 @@ void RadarDopplerClass::GMMode(void)
                             }
                             else
                             {
+#ifdef FF_LINUX
+                                // GMRADAR-5: asleep, but its unit is moving -- a real mover.
+                                radius = ffFromUnit ? DEFAULT_OBJECT_RADIUS : 0.0F;
+                                if (ffFromUnit) ffMv[11]++;
+#else
                                 radius = 0.0F;
+#endif
                             }
                         }
                         // 2002-04-03 MN added check for moving campaign objects
                         else if (testObject->IsCampaign() and testObject->GetVt()) // campaign units only return 40 or 0 knots, depending on U_MOVING flag
                         {
+#ifdef FF_LINUX
+                            ffMv[4]++;
+#endif
                             radius = DEFAULT_OBJECT_RADIUS;
                         }
                         else
                         {
+#ifdef FF_LINUX
+                            ffMv[5]++;
+#endif
                             radius = 0.0F;
                         }
                     }
@@ -3636,11 +3759,20 @@ void RadarDopplerClass::GMMode(void)
                             if (testObject->IsSim() and not OTWDriver.CheckLOS(platform, testObject))
                             {
                                 canSee = 0.0F;  // LOS is blocked
+#ifdef FF_LINUX
+                                ffMv[8]++;
+#endif
                             }
+#ifdef FF_LINUX
+                            else ffMv[6]++;
+#endif
                         }
                         else
                         {
                             canSee = 0.0F;   // Outside of cone
+#ifdef FF_LINUX
+                            ffMv[7]++;
+#endif
                         }
                     }
                 }
@@ -3768,6 +3900,44 @@ void RadarDopplerClass::GMMode(void)
         }
     }
 
+#ifdef FF_LINUX
+    {
+        static int s_on = -1;
+
+        if (s_on < 0) s_on = getenv("FF_DEBUG_GM") ? 1 : 0;
+
+        if (s_on)
+        {
+            static long s_n = 0;
+
+            if ((s_n++ % 10) == 0)
+            {
+                int nm = 0;
+
+                for (GMList *q = GMMoverListRoot; q; q = q->next) nm++;
+
+                fprintf(stderr, "[GM] movers mode=%d emit=%d list=%d | walked=%ld onGround=%ld simGround=%ld simVt=[%.1f..%.1f] simSpeedOK=%ld simAwake=%ld unitMovers=%ld campMoving=%ld still=%ld seen=%ld cone=%ld los=%ld\n",
+                        (int)mode, (int)isEmitting, nm, ffMv[0], ffMv[1], ffMv[9],
+                        ffMv[9] ? ffVtMin : 0.0f, ffMv[9] ? ffVtMax : 0.0f,
+                        ffMv[2], ffMv[3], ffMv[11], ffMv[4], ffMv[5], ffMv[6], ffMv[7], ffMv[8]);
+                fprintf(stderr, "[GM] asleep: withUnit=%ld unitMoving=%ld noUnit=%ld first{%s}\n",
+                        g_ffGMUnitSeen, g_ffGMUnitMoving, g_ffGMNoUnit, g_ffGMUnitNote);
+                for (int k = 0; k < 3; k++)
+                {
+                    if ( not ffTrk[k].have) continue;
+                    const float ddx = ffTrk[k].cx - ffTrk[k].lx, ddy = ffTrk[k].cy - ffTrk[k].ly;
+                    fprintf(stderr, "[GM] trk%d id=%u t=%.0fs awake=%d vt=%.2f moved=%.1fft unitType=%d unitVt=%.1f\n",
+                            k, ffTrk[k].id, SimLibElapsedTime * 0.001, ffTrk[k].awake, ffTrk[k].vt,
+                            (float)sqrt(ddx * ddx + ddy * ddy), ffTrk[k].utype, ffTrk[k].uvt);
+                    ffTrk[k].lx = ffTrk[k].cx; ffTrk[k].ly = ffTrk[k].cy;
+                }
+                fflush(stderr);
+                memset(ffMv, 0, sizeof(ffMv)); ffVtMin = 1e9f; ffVtMax = -1e9f;
+                g_ffGMUnitSeen = g_ffGMUnitMoving = g_ffGMNoUnit = 0; g_ffGMUnitNote[0] = 0;
+            }
+        }
+    }
+#endif
     // Delete anthing after curNode
     tmpList = curNode;
 
@@ -3812,8 +3982,15 @@ void RadarDopplerClass::GMMode(void)
         {
             if (mode == GMT)
             {
-                if (lockedTarget->BaseData()->IsSim() and (lockedTarget->BaseData()->GetVt() < g_fGMTMinSpeed or
-                        lockedTarget->BaseData()->GetVt() > g_fGMTMaxSpeed))
+#ifdef FF_LINUX
+                // GMRADAR-5: judge a locked asleep vehicle by its unit's motion too,
+                // or the lock on a sleeping tank drops on the next frame.
+                const float ffLockVt = FF_GMMoverVt(lockedTarget->BaseData(), NULL);
+#else
+                const float ffLockVt = lockedTarget->BaseData()->GetVt();
+#endif
+                if (lockedTarget->BaseData()->IsSim() and (ffLockVt < g_fGMTMinSpeed or
+                        ffLockVt > g_fGMTMaxSpeed))
                     DropGMTrack();
                 else if (lockedTarget->BaseData()->IsCampaign() and lockedTarget->BaseData()->GetVt() <= 0.0F)
                     DropGMTrack();
