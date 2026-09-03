@@ -76,6 +76,15 @@ public:
     void StartScene(Tpoint *from, Tpoint *at, float upHdg);
     void TransformScene(void);
     void DrawScene(void);
+#ifdef FF_LINUX
+    // FF_LINUX (GMRADAR-6): GMT/SEA are moving-target modes; when set, DrawScene
+    // clears the sweep and returns without painting the terrain map, so the mover
+    // blips are the picture instead of being buried under a full-brightness map.
+    void SetMoversOnly(bool b)
+    {
+        ffMoversOnly = b;
+    }
+#endif
     void DrawFeatures(void);
     void PrepareToDrawTargets(void);
     void FlushDrawnTargets(void);
@@ -108,6 +117,9 @@ protected:
 
 protected:
     BOOL SkipDraw; // Disables drawing the rest of a scene (reset in ComputeScene)
+#ifdef FF_LINUX
+    bool ffMoversOnly; // GMRADAR-6: suppress the ground map (GMT/SEA)
+#endif
 
     Tpoint cameraPos; // Camera position in world space
     Tpoint centerPos; // Center of attention in world space (COA)

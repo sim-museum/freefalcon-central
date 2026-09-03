@@ -58,6 +58,9 @@ void RenderGMRadar::Setup(ImageBuffer *imageBuffer)
     Render3D::Setup(imageBuffer);
 
     // Start our parameters marked uninitialized
+#ifdef FF_LINUX
+    ffMoversOnly = false;
+#endif
     gain = 1.0f;
     LOD = -1;
     range = -1.0f;
@@ -303,6 +306,15 @@ void RenderGMRadar::DrawScene(void)
     // Clear the display
     ClearDraw();
 
+#ifdef FF_LINUX
+    // GMRADAR-6: in GMT/SEA the ground map is suppressed -- the cleared sweep IS the
+    // background, and only the moving-target blips are drawn over it. Without this the
+    // composite paints an identical terrain map in all three modes (it has no idea
+    // which mode it is in), so GM/GMT/SEA look the same and a handful of sub-pixel
+    // mover blips are invisible under it. The ClearDraw() above still runs, so the
+    // previous sweep is not left smeared on the target.
+    if (ffMoversOnly) return;
+#endif
 
     // Quit now if we don't have anything to draw
     if (SkipDraw)  return;
@@ -635,6 +647,40 @@ void RenderGMRadar::DrawBlip(DrawableObject* drawable, float GainScale, bool Sha
         g_ffGMBlip.drawn++;
         g_ffGMBlip.cSum += BlitColor;
         if (BlitColor < 1.0f) g_ffGMBlip.black++;
+#endif
+
+#ifdef FF_LINUX
+        // GMRADAR-6: on the dark GMT/SEA scope a mover has to read as a contact, not as
+        // one sub-pixel dot. A tank's footprint at 40 nm computes to r ~= 0.07 px, so
+        // BlitColor = r * 32 * gain * GainScale lands around 24/255 in a SINGLE pixel --
+        // against the ~11/255 the noise overlay adds, that is not a target, it is a
+        // speck. Give movers an intensity floor and the full 2x2 block so a column of
+        // them reads as a line. GM is untouched: there, hundreds of features drawn at
+        // their computed intensity ARE the picture, and flooring them would wash it out.
+        // FF_GM_MOVER_INTENSITY=<0-255> tunes the floor (0 disables it).
+        if (ffMoversOnly)
+        {
+            static int s_floor = -1;
+
+            if (s_floor < 0)
+            {
+                const char *e = getenv("FF_GM_MOVER_INTENSITY");
+                s_floor = e ? atoi(e) : 200;
+
+                if (s_floor < 0) s_floor = 0;
+
+                if (s_floor > 255) s_floor = 255;
+            }
+
+            if (BlitColor < (float)s_floor) BlitColor = (float)s_floor;
+
+            SetColor(0xFF000000 bitor (F_I32(BlitColor) << 8));
+            Render2DPoint(x,        y);
+            Render2DPoint(x,        y + 1.0f);
+            Render2DPoint(x + 1.0f, y);
+            Render2DPoint(x + 1.0f, y + 1.0f);
+            return;
+        }
 #endif
 
         SetColor(0xFF000000 bitor (F_I32(BlitColor) << 8));

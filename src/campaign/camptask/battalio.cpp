@@ -662,6 +662,87 @@ int BattalionClass::MoveUnit(CampaignTime time)
         if ( not s_off and (GetDestX() == 0 or GetDestY() == 0) and GetUnitObjective())
             PickFinalLocation();
     }
+
+    // FF_LINUX (GNDMOVE-2, PO-directed): keep a Tactical Engagement's armour moving.
+    // Once a battalion reaches the cover position PickFinalLocation picked for it, it
+    // has arrived and correctly stops -- measured, the Maverick TE's column drove for
+    // 74 s and then sat for the rest of the mission, so there was a 74-second window in
+    // which it was a moving target at all. The PO wants a sustained line of movers to
+    // work GMT and the Maverick against, so on arrival we send the unit back to its
+    // objective, and from the objective back out to cover: it patrols that leg for the
+    // length of the mission.
+    //
+    // Deliberate deviation from stock behaviour, not a port fix -- a defending
+    // battalion parking in cover is correct campaign logic. Scoped to TE only so
+    // campaign ground movement is untouched, and it only ever uses two points the unit
+    // has already pathed to, so it cannot walk the column into water or off the map.
+    // FF_NO_TE_ROVING_ARMOR=1 reverts to arrive-and-stop.
+    {
+        static int s_off = -1;
+
+        if (s_off < 0) s_off = getenv("FF_NO_TE_ROVING_ARMOR") ? 1 : 0;
+
+        Objective ro = GetUnitObjective();
+
+        if ( not s_off and ro and GetMovementType() not_eq NoMove and
+             FalconLocalGame and FalconLocalGame->GetGameType() == game_TacticalEngagement)
+        {
+            GridIndex ax, ay, ox, oy;
+            GetUnitDestination(&ax, &ay);
+
+            if (getenv("FF_DEBUG_GNDMOVE"))
+            {
+                static int s_r = 0;
+
+                if (s_r++ < 40)
+                {
+                    ro->GetLocation(&ox, &oy);
+                    fprintf(stderr, "[GNDMOVE] rove bn=%d loc=(%d,%d) dest=(%d,%d) obj=(%d,%d) arrived=%d\n",
+                            GetCampID(), (int)x, (int)y, (int)ax, (int)ay, (int)ox, (int)oy,
+                            (ax == x and ay == y) ? 1 : 0);
+                    fflush(stderr);
+                }
+            }
+
+            // Arrived: destination is where we already are.
+            if (ax == x and ay == y)
+            {
+                ro->GetLocation(&ox, &oy);
+
+                if (ox not_eq x or oy not_eq y)
+                {
+                    SetUnitDestination(ox, oy);  // head back in to the objective
+                    ClearUnitPath();
+                    DisposeWayPoints();
+                }
+                else
+                {
+                    // Standing ON the objective. PickFinalLocation() is no help here --
+                    // measured, FindBestCover returns the objective's own cell, so both
+                    // ends of the patrol collapse to one point and the column parks.
+                    // Head back out to a neighbouring cell instead, choosing one the
+                    // unit can actually path to so we never send it into water or off
+                    // the map. The next arrival sees loc not_eq objective and turns it
+                    // round again, so it shuttles that leg for the rest of the mission.
+                    int picked = 0;
+
+                    for (int rh = 0; rh < 8 and not picked; rh++)
+                    {
+                        const GridIndex cx = (GridIndex)(x + dx[rh]);
+                        const GridIndex cy = (GridIndex)(y + dy[rh]);
+
+                        if (GetUnitGridPath(&temp_path, x, y, cx, cy) > 0)
+                        {
+                            SetUnitDestination(cx, cy);
+                            ClearUnitPath();
+                            DisposeWayPoints();
+                            picked = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
 #endif
 
     GetUnitDestination(&nx, &ny);

@@ -44,6 +44,12 @@ public:
     {
         radar.SetGain(newGain);
     };
+#ifdef FF_LINUX
+    void SetMoversOnly(bool b)
+    {
+        radar.SetMoversOnly(b);
+    };
+#endif
 
     float GetRange(void)
     {

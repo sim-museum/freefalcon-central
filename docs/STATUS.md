@@ -10331,3 +10331,85 @@ the cause of anything. **GNDMOVE-1 is what makes GMT paint the column.**
 
 Open: PO acceptance flight — GMT contacts at usable range, and slaving the
 Maverick seeker to a GMT track.
+
+## 2026-09-02 (cont.) — GMRADAR-6 / GNDMOVE-2: a dark GMT scope, visible movers, and a column that keeps moving
+
+PO flew 77fb54d2 and reported two things: **"hit a moving tank using maverick view
+only"** — the GNDMOVE-1 fix confirmed in the air — and **"GM/GMT/SEA showed the
+same image exactly, no line of tanks visible in GMT"**.
+
+### CORRECTION to the GNDMOVE-1 entry: the "480 ground sim objects" figure was 10x high
+
+The `[GM] movers` counters accumulated across the ten passes between prints while
+`list` was the instantaneous list length, so every `walked`/`onGround`/`seen`
+figure read ten times high. There are **48** ground sim objects in this TE, not
+480. The counters now reset every pass. The *ratios* in the GNDMOVE-1 entry are
+unaffected (none moving → all moving; empty list → full list); only the absolute
+counts were wrong. Corrected census, post-fix:
+`list=48 walked=49 onGround=48 simVt=[59.9..59.9] simSpeedOK=48 seen=48 cone=0 los=0`
+— every ground object is moving and every one of them reaches the GMT list.
+
+### GMRADAR-6 — GMT looked identical to GM because the composite has no idea what mode it is in
+
+`gmcomposit.cpp`'s `case Ground:` calls `radar.DrawScene()` unconditionally; the
+mode only ever selected *which target list* is overlaid (`gmscope.cpp`, movers +
+`GainScale=4.0` for GMT/SEA). So all three modes painted the same terrain map.
+On top of that a mover's blip is `r * 32 * gain * GainScale` with `r ≈ 0.07 px` at
+40 nm — about **24/255 in a single pixel**, against the ~11/255 the noise overlay
+adds. Not a target; a speck.
+
+Fix, per the PO's choice of a moving-target-only scope: plumb the mode into the
+composite (`SetMoversOnly`), and in `RenderGMRadar::DrawScene` clear the sweep and
+return without painting terrain when it is set — the `ClearDraw()` still runs, so
+no smearing. Movers additionally get an intensity floor (default 200,
+`FF_GM_MOVER_INTENSITY`) and the full 2x2 block. GM is deliberately untouched:
+there, hundreds of features at their computed intensity *are* the picture.
+
+Measured (same flight, GM dumps 0000-0001 vs GMT dumps 0002-0003):
+
+| | GM | GMT |
+|---|---|---|
+| ground-map mean | 3.93 / 3.99 | **0.00 / 0.00** |
+| contact pixels | 132 | 12 |
+| contact max | 255 | 200 |
+| post-noise mean / max | 10.7 / 19 | 10.9 / **216** |
+
+`FF_NO_GMT_DARK_SCOPE=1` reverts. GMRADAR-4's noise regression still passes
+(`postGreenMean=10.8`, threshold 20).
+
+### GNDMOVE-2 — the column arrived and parked (PO-directed change, not a port fix)
+
+Measured: the column drove for **74 s** (`unitVt` 40 → 0 at `t=33379s`) and then
+sat for the rest of the mission, because `PickFinalLocation` correctly parks a
+defending battalion in cover — and here `FindBestCover` returns the objective's
+own cell, so both ends of any patrol collapse to one point. On arrival the unit is
+now sent back to its objective, and from the objective out to a **reachable**
+neighbouring cell (chosen with `GetUnitGridPath`, so it can never be walked into
+water or off the map). Result: `unitVt` never drops to 0 across a 240 s run, and
+the column shuttles `(539,571) ↔ (539,572)` for the whole mission.
+
+This is a deliberate deviation from stock behaviour, scoped to TE only;
+campaign ground movement is untouched. `FF_NO_TE_ROVING_ARMOR=1` reverts.
+
+### STILL OPEN — the contacts are not where the PO expects them
+
+PO on the new build: **"GMT showed only a group of contacts up on a hill on the
+right, nothing on the plain on the left where the tanks are."** The instrument
+side says the list is complete and the geometry is central: new `FF_DEBUG_GMPOS`
+reports all 48 movers at `rx ≈ -0.03`, `ry ≈ 0.03..0.12` (normalised, i.e. a tight
+clump just left of and ahead of the scope centre), `cone=1` for every sample,
+`los=0` rejections. So the tanks *are* in the list and *are* being drawn.
+
+Two candidates, neither yet settled:
+1. The scope centre is `at + heading * GM_OVERSCAN * range`, while the **rejection**
+   math in `gmscope.cpp` uses the un-offset `GMat`. Terrain and blips share
+   `centerPos` so they should agree, but this mismatch is unverified.
+2. The contacts the PO sees may be a *different* unit, with the column he was
+   shooting somewhere else on the scope.
+
+Settling it needs the MFD and the outside view at the same instant, which the
+harness cannot produce (the 2D pit comes up on the left console view). Two
+suspect lines found while reading, both unverified and both left alone:
+`gmscope.cpp:2113` culls a target only when it is out of range on **both** axes
+(`and`, likely should be `or`), and the scan-width test at `:2127` *draws* when
+`F_ABS(rx) > 1.0F` — i.e. when the target is outside the scope width.

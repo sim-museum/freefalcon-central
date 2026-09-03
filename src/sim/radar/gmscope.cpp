@@ -1217,6 +1217,22 @@ void RadarDopplerClass::SetGMScan(void)
     {
         ((RenderGMComposite*)privateDisplay)->SetRange(groundMapRange, groundMapLOD);
 
+#ifdef FF_LINUX
+        // GMRADAR-6: GM paints the ground map; GMT and SEA are moving-target modes and
+        // paint only their movers on a dark scope. PO report: "GM/GMT/SEA showed the
+        // same image exactly, no line of tanks visible in GMT" -- the composite draws
+        // the terrain map unconditionally (gmcomposit.cpp, case Ground) because it has
+        // no notion of the radar mode, and mode only selects which target list overlays
+        // on top. FF_NO_GMT_DARK_SCOPE=1 reverts to a map in every mode.
+        {
+            static int s_off = -1;
+
+            if (s_off < 0) s_off = getenv("FF_NO_GMT_DARK_SCOPE") ? 1 : 0;
+
+            ((RenderGMComposite*)privateDisplay)->SetMoversOnly( not s_off and mode not_eq GM);
+        }
+#endif
+
         // ((RenderGMComposite*)privateDisplay)->SetGimbalLimit( azScan );
         //MI take the azimuth we've selected thru the OSB
         if ( not g_bRealisticAvionics or not g_bAGRadarFixes)
@@ -2106,6 +2122,34 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
 
         rx /= groundMapRange;
         ry /= groundMapRange;
+
+#ifdef FF_LINUX
+        // FF_LINUX (GMRADAR-7): where each mover lands on the scope, so "the contacts
+        // are in the wrong place" can be told from "the tanks are not in the list".
+        // FF_DEBUG_GMPOS=1.
+        {
+            static int s_on = -1;
+
+            if (s_on < 0) s_on = getenv("FF_DEBUG_GMPOS") ? 1 : 0;
+
+            if (s_on and mode not_eq GM)
+            {
+                static long s_p = 0;
+
+                if ((s_p % 400) < 6)
+                {
+                    const bool inCone = ((ry + 1.0F) / (F_ABS(rx) + 0.001F) > 0.57F or F_ABS(rx) > 1.0F);
+                    fprintf(stderr, "[GMPOS] mode=%d id=%u world=(%.0f,%.0f) ctr=(%.0f,%.0f) rng=%.0f rx=%.3f ry=%.3f cone=%d\n",
+                            (int)mode, (unsigned)curNode->Object()->Id().num_,
+                            curNode->Object()->XPos(), curNode->Object()->YPos(),
+                            GMXCenter, GMYCenter, groundMapRange, rx, ry, inCone ? 1 : 0);
+                    fflush(stderr);
+                }
+
+                s_p++;
+            }
+        }
+#endif
 
         // Check for scan width NOTE 0.57 = tan(30) (90.0 - the azimuth limit)
         if ((ry + 1.0F) / (F_ABS(rx) + 0.001F) > 0.57F or F_ABS(rx) > 1.0F)
@@ -3932,9 +3976,14 @@ void RadarDopplerClass::GMMode(void)
                     ffTrk[k].lx = ffTrk[k].cx; ffTrk[k].ly = ffTrk[k].cy;
                 }
                 fflush(stderr);
-                memset(ffMv, 0, sizeof(ffMv)); ffVtMin = 1e9f; ffVtMax = -1e9f;
-                g_ffGMUnitSeen = g_ffGMUnitMoving = g_ffGMNoUnit = 0; g_ffGMUnitNote[0] = 0;
             }
+
+            // FF_LINUX: reset EVERY pass, not only on the passes that print. These
+            // counters used to accumulate across the 10 passes between prints while
+            // "list" was the instantaneous list length, so every walked/onGround/seen
+            // figure read 10x high and looked like a 10:1 decimation that was not there.
+            memset(ffMv, 0, sizeof(ffMv)); ffVtMin = 1e9f; ffVtMax = -1e9f;
+            g_ffGMUnitSeen = g_ffGMUnitMoving = g_ffGMNoUnit = 0; g_ffGMUnitNote[0] = 0;
         }
     }
 #endif
