@@ -10413,3 +10413,34 @@ suspect lines found while reading, both unverified and both left alone:
 `gmscope.cpp:2113` culls a target only when it is out of range on **both** axes
 (`and`, likely should be `or`), and the scan-width test at `:2127` *draws* when
 `F_ABS(rx) > 1.0F` — i.e. when the target is outside the scope width.
+
+### GMRADAR-7 — measured from the PO's own flight: the contacts are drawn right of centre
+
+Second PO flight, on 9c29dbcc with `FF_DEBUG_GMPOS` logging his flight rather than
+the autopilot's. 174 mover samples:
+
+- **134 of 172 samples are right of scope centre** (`rx > 0`), mean `rx = +0.105`,
+  range `-0.099 .. +0.304`.
+- The mover list was full the entire flight — `list=48` for 1075 samples and
+  `list=47` for 621, never below 44.
+- The drawn contacts are **the tank column**: 56 distinct entity ids, running from
+  28114 up, the same ids tracked as moving at 59.99 ft/s.
+- Every sample passed the cone test (`cone=1`, 174/174); zero LOS rejections.
+
+So the list is complete, the contacts are the right vehicles, and they are being
+drawn — **right of centre**. That matches the PO's report exactly ("a group of
+contacts up on a hill on the right") while he places the tanks on the plain to the
+left. Leading hypothesis is therefore a lateral discrepancy between the blip's 2D
+transform (`RenderGMRadar::DrawBlip`: `x = (dx * ScaledSIN + dy * ScaledCOS + dCtrX) * dScaleX`)
+and the 3D terrain render the map comes from, which would mirror or offset the
+contacts against the map underneath them. Not yet proven: the PO's left/right is
+from the cockpit view while the scope is heading-oriented, and the aircraft heading
+is not currently logged beside `rx`. **Next step: log `platformHdg` and the player's
+world position alongside each `[GMPOS]` sample**, which makes the expected bearing
+computable and settles mirror-vs-offset without needing a frame capture.
+
+Corroboration for the two suspect lines noted in the previous entry — they do fire:
+**12 of 174 samples were drawn with `|ry| > 1`**, i.e. beyond the scope's own range,
+which is what `gmscope.cpp:2113`'s both-axes (`and`) range cull and `:2127`'s
+`or F_ABS(rx) > 1.0F` draw condition permit. Still not changed; they affect which
+targets are drawn, not where, so they are not the primary suspect for this symptom.
