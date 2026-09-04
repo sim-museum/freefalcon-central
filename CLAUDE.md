@@ -4310,3 +4310,50 @@ symptoms all came from state or branches that quietly exclude the case in hand.*
 | `FF_DEBUG_HANDOFF=1` | What the unguarded radar handoff would have returned |
 | `FF_NO_SEEKER_TTG_FIX=1` | Revert the SEEKER-1 fix (missiles with no radar of their own go active again) |
 | `FF_FCC_HANDOFF_RADAR=1` | Revert HANDOFF-2 — the FCC ground list asks for the emitter vehicle again |
+
+
+## Environment: this machine's game data is PARTIALLY STAGED (2026-09-03)
+
+Two separate failures on this box traced to the same cause — data still packed rather than
+extracted — and neither is a code defect. Both are fixed in place; recorded so the next person does
+not re-diagnose them as port bugs.
+
+**1. Startup SIGSEGV — `sim/` was missing.** `readin.cpp` opens `sim/misdata/mistypes.lst`; that
+file existed only under `Zips/sim/MISDATA/`. `SimlibFileClass::Open` returned NULL, `F4Assert`
+only REPORTED it (it does not halt in this build), and the next line dereferenced the null:
+
+```
+[Failed:  mslList] Assertion at 50  src/sim/missile/readin.cpp
+=== CRASH: SIGSEGV (signal 11) ===  ReadAllMissileData <- SetNewTheater <- init_game_core
+```
+
+Fixed with a symlink: `FreeFalcon6/sim -> Zips/sim` (additive; `rm` it to revert).
+
+⚠️ **The null-deref is a genuine port bug worth its own item**: a missing data file should say so,
+not segfault. `F4Assert(mslList)` reports and continues straight into `mslList->GetNext()`.
+
+**2. A blank terrain wedge — no `.pcx` tiles were extracted.** The PO saw one flat slice of terrain
+in an otherwise correct scene, and reported the same slice in an older build, i.e. it survives
+rebuilds. The log names the file:
+
+```
+[Failed to open .../terrdata/korea/texture/LFORR20F.pcx]
+[Failed to read terrain texture. CD Error?]   terrtex.cpp:926
+[Failed:  pTile->bits[res]]                   terrtex.cpp:930
+```
+
+There were **zero** `.pcx` files in that directory under any case; all 4,592 were still inside
+`texture.zip` (178 MB). The far-detail `fartiles.dds` loaded fine, which is why most of the view was
+correct and only the near-detail tile was blank. Extracted in place with `unzip -n` (4,350 tiles,
+zip preserved, nothing overwritten) → **zero terrain-texture failures on the next run, and the PO
+confirmed the slice is gone.**
+
+**The general lesson for this install:** when something is missing or blank, check whether the asset
+is still inside a `.zip` before suspecting the port. `Zips/` and `terrdata/korea/texture/texture.zip`
+were both staged; other archives may be too (`Zips/Simdata.zip`, `Zips/simdata1.zip`).
+
+**Build note (also this date):** `extern/usr` was empty, so the build failed on `GL/glew.h` and the
+i386 SDL2 config indirection. GLEW is not installable from this box's configured repos. The vendored
+headers were recovered from a `free-falcon` tree in the user's TRASH (deleted 23 Aug) — **headers and
+static libs only, 88 `.h` + 4 `.a`; no data, no binaries.** The build is from `origin/develop`
+`0183db9d`, clean tree.
