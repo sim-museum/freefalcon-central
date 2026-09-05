@@ -2136,13 +2136,41 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
             {
                 static long s_p = 0;
 
-                if ((s_p % 400) < 6)
+                // GMRADAR-8 S441: the 400/6 cadence samples 6 contacts per ~8 frames, and a
+                // run that holds the GMT scope for only a few seconds therefore yields ONE frame
+                // -- which is what happened in S440 and is why its dHdg=0 could not discriminate
+                // anything. The hypothesis under test is dynamic (lag proportional to turn rate),
+                // so the sampling has to span frames. Settable rather than retuned in place.
+                static long s_every = -1, s_take = -1;
+                if (s_every < 0) s_every = getenv("FF_DEBUG_GMPOS_EVERY") ? atol(getenv("FF_DEBUG_GMPOS_EVERY")) : 400;
+                if (s_take  < 0) s_take  = getenv("FF_DEBUG_GMPOS_N")     ? atol(getenv("FF_DEBUG_GMPOS_N"))     : 6;
+                if (s_every < 1) s_every = 1;
+                if ((s_p % s_every) < s_take)
                 {
                     const bool inCone = ((ry + 1.0F) / (F_ABS(rx) + 0.001F) > 0.57F or F_ABS(rx) > 1.0F);
-                    fprintf(stderr, "[GMPOS] mode=%d id=%u world=(%.0f,%.0f) ctr=(%.0f,%.0f) rng=%.0f rx=%.3f ry=%.3f cone=%d\n",
+                    // GMRADAR-8: the previous entry's stated next step -- log the platform heading
+                    // and world position beside rx/ry, so the EXPECTED bearing of each contact is
+                    // computable and "mirrored" can be told from "offset" without a frame capture.
+                    // Also log headingForDisplay and its difference from the live yaw: gmscope.cpp
+                    // rotates the MAP by (Yaw - headingForDisplay) at :1622, but these blips are
+                    // transformed with headingForDisplay and get NO such correction, so any lag
+                    // between the two rotates the contacts against the map beneath them. If dHdg is
+                    // consistently non-zero and tracks the rx bias, that is the defect; if dHdg is
+                    // ~0 while rx stays biased, this hypothesis is dead and the transform itself is.
+                    const float dxw = curNode->Object()->XPos() - platform->XPos();
+                    const float dyw = curNode->Object()->YPos() - platform->YPos();
+                    const float trueBrg = (float)atan2((double)dyw, (double)dxw);
+                    const float relBrg  = trueBrg - platform->Yaw();
+                    fprintf(stderr, "[GMPOS] mode=%d id=%u world=(%.0f,%.0f) ctr=(%.0f,%.0f) rng=%.0f "
+                                    "rx=%.3f ry=%.3f cone=%d yaw=%.4f hfd=%.4f dHdg=%.4f "
+                                    "plat=(%.0f,%.0f) trueBrg=%.4f relBrg=%.4f gndrng=%.0f\n",
                             (int)mode, (unsigned)curNode->Object()->Id().num_,
                             curNode->Object()->XPos(), curNode->Object()->YPos(),
-                            GMXCenter, GMYCenter, groundMapRange, rx, ry, inCone ? 1 : 0);
+                            GMXCenter, GMYCenter, groundMapRange, rx, ry, inCone ? 1 : 0,
+                            platform->Yaw(), headingForDisplay,
+                            (float)(platform->Yaw() - headingForDisplay),
+                            platform->XPos(), platform->YPos(),
+                            trueBrg, relBrg, (float)sqrt((double)(dxw*dxw + dyw*dyw)));
                     fflush(stderr);
                 }
 

@@ -11586,3 +11586,67 @@ and the PO's symptom is not in the blip path at all — at which point the map/t
 the thing to look at, since "higher than they are" could equally be the ground moving, not the tanks.
 
 **GMRADAR-8: 2 sprints.**
+
+### GMRADAR-8 sprint 3 (2026-09-05) — 432 samples: the transform is correct to the instrument's own precision; hypothesis 2 STILL untestable
+
+**Fixed S440's stated limitation.** Its six samples all came from one frame because the logger's
+cadence was hard-coded `(s_p % 400) < 6`. Now `FF_DEBUG_GMPOS_EVERY` / `FF_DEBUG_GMPOS_N` set it, and
+a longer run of the GMT recipe gives **432 samples across 16 platform positions**.
+
+## ⭐ The blip transform is correct, and the residual is the LOG's precision, not the renderer's error
+
+Drawn-vs-expected across all 432, bucketed by expected radius:
+
+| expected r | n | median radial error | median angular error |
+|---|---|---|---|
+| < 0.05 | 50 | **2.52 %** | 0.457° |
+| 0.05–0.15 | 204 | 0.561 % | 0.165° |
+| 0.15–0.30 | 97 | 0.313 % | 0.105° |
+| > 0.30 | 81 | **0.144 %** | 0.058° |
+
+**The error scales as 1/r, which is the signature of a fixed absolute quantum, not of a transform
+bug.** The instrument prints `rx`/`ry` to three decimals, so one unit of printing precision is
+0.001 — and the worst outlier in the set sits at expected r = 0.0081, where **0.001 is 12.27 %**
+against a measured 13.21 %. The tail is my own format string, not the scope. Median angular error
+over the whole set is **+0.006°**.
+
+So: **in level flight the contacts are drawn where they belong, to the limit of what this instrument
+can resolve.** S440 said this from six samples; it now rests on 432 across sixteen positions.
+
+## Also: the "off the top of the scope" symptom did not reproduce
+
+GMRADAR-7 recorded **12 of 174** samples drawn with `|ry| > 1`. This run: **0 of 432**, with `ry`
+spanning −0.183 … +0.491. Whatever produced GMRADAR-7's overshoots is not present in this recipe.
+
+## ⚠️ Hypothesis 2 is STILL untested, and this run cannot test it
+
+**All 432 samples share ONE yaw value (−2.2655) and `dHdg = 0.0000`.** `FF_AP_MODE=1` does follow the
+route, but this TE's leg is straight for the entire GMT window, so the aircraft never turns. A
+hypothesis about lag proportional to turn rate cannot be examined by a run with no turn — and a
+second, larger null changes nothing about that. Recorded as untested for the second sprint running
+rather than allowed to drift into "probably fine".
+
+**Concrete ways to get a turning sample, for whoever picks this up:**
+1. a TE whose route turns inside the GMT window (the Maverick TE does not);
+2. `FF_AP_MODE=0` (Intelligent/Combat) — it also follows the route but may manoeuvre;
+3. AP off plus an injected roll input, which needs a control-injection hook this port does not have;
+4. ask the PO — their own TE-9 report is from a flown sortie, so *they* had turns. Their log with
+   `FF_DEBUG_GMPOS=1` on the 260905 image would settle it, and per this sprint's predecessor that
+   image now carries the instrument.
+
+Option 4 is the cheapest and is the recommendation.
+
+## ⚠️ A harness failure that read exactly like a game failure
+
+The first attempt reported `GMT movers: never reached GMT (mode 16)  FAIL` with zero samples. The
+game was fine. I had copied the gate to `/tmp` to raise its 100 s timeout, and the copy computes
+`REPO` from `${BASH_SOURCE[0]}` — so `FF_BIN` resolved to `/tmp/build/src/ffviper/FFViper`, and the
+log's only line was `timeout: failed to execute process: No such file or directory`. **A gate that
+reports a domain failure when its binary is missing will send the next reader after the wrong
+thing.** Fixed by passing `FF_BIN` explicitly; noted because the same trap applies to every
+repo-relative script copied out of the tree.
+
+**Unrelated flakiness, recorded not chased:** the long run reported `movedPerInterval=0.0ft FAIL`
+where the short run gave `9.8ft PASS`, with the mover list still populated (43 vs 48).
+
+**GMRADAR-8: 3 sprints.**
