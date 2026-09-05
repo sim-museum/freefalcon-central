@@ -11724,3 +11724,55 @@ missing rotation correction at `:2109` as its leading candidate.**
 **Next for whoever picks it up:** the vertical symptom is not in the blip path. The map/terrain drawn
 *beneath* the contacts is the remaining candidate — "tanks higher than they are" is equally consistent
 with the ground being drawn too low.
+
+### PIT-1 sprint 1 (2026-09-05) — the probe is rebuilt to read at the right instant; NO reading obtained yet
+
+Rank 3 (second half). PIT-1's blocking question is unchanged: **where does the runway end, in ground
+distance, in each view** — screen rows are meaningless across cameras.
+
+## The instrument fix, which is what the 2026-08-17 attempt asked for
+
+That attempt captured the world matrices during the world pass but **read the depth buffer at end of
+frame**, and got `depth=0.999999` on every sample with a recovered eye of `(-1.0, -5.3, -0.9)`. Its
+own note named the cause: by capture time the cockpit pass owns the depth buffer.
+
+`FF_ProbeDepthStripImpl(when, w, h)` now runs **at the moment the world matrices are taken**, inside
+`FF_NoteWorldMatrices`, once per frame. The end-of-frame read is **kept and labelled**, so a single
+run produces both `[DEPTHPROBE:worldpass]` and `[DEPTHPROBE:swap]` lines — **the old broken reading
+becomes the control for the new one**, and the recovered `eye` is the positive control: a
+cockpit-local pass gives single digits, the world camera gives world coordinates.
+
+Builds clean. **It has not yet produced a single line of output**, for two reasons that were both
+mine.
+
+## ⚠️ Two harness failures, neither of them the game
+
+1. **The first run never entered the sim.** `FF_VIEW_SCRIPT`'s clock starts at sim entry, and with no
+   click script the game sat in the UI at 60 FPS (`doUI=1`) for the whole run. The earlier PIT-1
+   runs must have been driven into a flight by something this invocation lacked.
+2. ⭐ **The second run deadlocked on my own GL lock, and the cause generalises.** The recipe starts
+   `mutter-x11-frames` as a background daemon, and I started it *inside* a `flock` block — so the
+   daemon **inherited the lock's file descriptor** and held the lock for the rest of its life. Every
+   later `flock` on that file blocked, and the run produced no log at all. `fuser -v` on the lock
+   named the holder outright. Released by killing that exact PID (not a pattern — `pkill -f`
+   self-matches).
+
+   **Rule for every gate here: never start a long-lived background process inside a `flock` block.**
+   Start it before taking the lock, or close the descriptor. A lock silently held by a daemon nobody
+   associates with the lock is indistinguishable from "the game hangs".
+
+   Also worth carrying: `pgrep -x mutter-x11-frames` **cannot match** — the name is 17 characters and
+   `-x` compares against the 15-character comm field. The original recipe's `pgrep -f` is correct
+   here, and my substitution of `-x` for it was wrong.
+
+## State on handover
+
+* Probe restructured and building; **unvalidated** — it has never printed.
+* Next run needs the GMT recipe's click sequence (`FF_UI_CLICK=...`, which reliably reaches a
+  rendered cockpit) plus `FF_VIEW_SCRIPT` and `FF_PROBE_DEPTH`, with `mutter-x11-frames` started
+  **outside** the lock.
+* First thing to check in that output is the `eye` on the `worldpass` line. If it is still
+  single-digit, the batch filter is still catching a cockpit pass and the fix is the filter, not the
+  timing.
+
+**PIT-1: 1 sprint. Nothing measured; the instrument is one working run away.**

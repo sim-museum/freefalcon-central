@@ -1576,6 +1576,8 @@ struct FF_ProbeIndexed {
 // because by capture time the 2D overlay has replaced them.
 static GLfloat s_worldMV[16], s_worldPR[16];
 static bool    s_worldMatsValid = false;
+static long s_probeFrame = 0;
+static void FF_ProbeDepthStripImpl(const char* when, int w, int h);
 
 static void FF_NoteWorldMatrices(DWORD nVerts) {
     static int s_want = -1;
@@ -1601,6 +1603,23 @@ static void FF_NoteWorldMatrices(DWORD nVerts) {
     glGetFloatv(GL_MODELVIEW_MATRIX, s_worldMV);
     glGetFloatv(GL_PROJECTION_MATRIX, s_worldPR);
     s_worldMatsValid = true;
+
+    // PIT-1 S443: READ THE DEPTH STRIP HERE, at the same instant the matrices are taken.
+    // The 2026-08-17 attempt captured matrices during the world pass but read depth at end of
+    // frame, and every sample came back depth=0.999999 with a recovered eye of (-1.0,-5.3,-0.9):
+    // by then the cockpit pass owned the depth buffer, so suspect and evidence came from
+    // different instants. Same defect this log has recorded three times elsewhere. Reading here
+    // makes them one instant. The end-of-frame read is KEPT and labelled, so the old broken
+    // reading is the control for the new one in the same run.
+    {
+        static long s_frameGuard = -1;
+        if (s_frameGuard != s_probeFrame) {
+            s_frameGuard = s_probeFrame;
+            GLint vp[4] = {0,0,0,0};
+            glGetIntegerv(GL_VIEWPORT, vp);
+            if (vp[2] > 0 && vp[3] > 0) FF_ProbeDepthStripImpl("worldpass", vp[2], vp[3]);
+        }
+    }
 }
 
 static bool FF_InvertMatrix4(const double m[16], double inv[16]) {
@@ -1642,6 +1661,11 @@ static bool FF_InvertMatrix4(const double m[16], double inv[16]) {
 
 // FF_PROBE_DEPTH="x,y0,y1,step" (window coords, y from TOP).
 void FF_ProbeDepthStrip(int w, int h) {
+    s_probeFrame++;          /* a new frame: allow one world-pass read */
+    FF_ProbeDepthStripImpl("swap", w, h);
+}
+
+static void FF_ProbeDepthStripImpl(const char* when, int w, int h) {
     static int s_x = -1, s_y0 = 0, s_y1 = 0, s_step = 0;
     if (s_x == -2) return;
     if (s_x == -1) {
@@ -1650,12 +1674,12 @@ void FF_ProbeDepthStrip(int w, int h) {
             s_x = -2;
             return;
         }
-        fprintf(stderr, "[DEPTHPROBE] strip x=%d y=%d..%d step=%d\n", s_x, s_y0, s_y1, s_step);
+        fprintf(stderr, "[DEPTHPROBE:%s] strip x=%d y=%d..%d step=%d\n", when, s_x, s_y0, s_y1, s_step);
     }
 
     if (!s_worldMatsValid) {
-        fprintf(stderr, "[DEPTHPROBE] no world matrices captured this frame - largest batch seen was nVerts=%u (depthTest=%d fbo=%d)\n",
-                (unsigned)s_maxBatch, s_maxBatchDepth, s_maxBatchFbo);
+        fprintf(stderr, "[DEPTHPROBE:%s] no world matrices captured this frame - largest batch seen was nVerts=%u (depthTest=%d fbo=%d)\n",
+                when, (unsigned)s_maxBatch, s_maxBatchDepth, s_maxBatchFbo);
         fflush(stderr);
         return;
     }
@@ -1672,7 +1696,7 @@ void FF_ProbeDepthStrip(int w, int h) {
         }
 
     if (!FF_InvertMatrix4(mvp, inv)) {
-        fprintf(stderr, "[DEPTHPROBE] MVP not invertible\n");
+        fprintf(stderr, "[DEPTHPROBE:%s] MVP not invertible\n", when);
         fflush(stderr);
         return;
     }
@@ -1683,7 +1707,7 @@ void FF_ProbeDepthStrip(int w, int h) {
         eye[0] = mvInv[12]; eye[1] = mvInv[13]; eye[2] = mvInv[14];
     }
 
-    fprintf(stderr, "[DEPTHPROBE] eye=(%.1f, %.1f, %.1f)\n", eye[0], eye[1], eye[2]);
+    fprintf(stderr, "[DEPTHPROBE:%s] eye=(%.1f, %.1f, %.1f)\n", when, eye[0], eye[1], eye[2]);
 
     for (int y = s_y0; y <= s_y1; y += s_step) {
         int gy = h - 1 - y;   // GL origin is bottom-left
@@ -1695,8 +1719,8 @@ void FF_ProbeDepthStrip(int w, int h) {
         glReadPixels(s_x, gy, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, rgb);
 
         if (d >= 1.0f) {
-            fprintf(stderr, "[DEPTHPROBE] y=%4d depth=far   rgb=(%3d,%3d,%3d) (sky/nothing)\n",
-                    y, rgb[0], rgb[1], rgb[2]);
+            fprintf(stderr, "[DEPTHPROBE:%s] y=%4d depth=far   rgb=(%3d,%3d,%3d) (sky/nothing)\n",
+                    when, y, rgb[0], rgb[1], rgb[2]);
             continue;
         }
 
@@ -1714,7 +1738,8 @@ void FF_ProbeDepthStrip(int w, int h) {
         double dx = wx - eye[0], dy = wy - eye[1], dz = wz - eye[2];
         double dist = sqrt(dx * dx + dy * dy + dz * dz);
 
-        fprintf(stderr, "[DEPTHPROBE] y=%4d depth=%.6f rgb=(%3d,%3d,%3d) world=(%.1f, %.1f, %.1f) dist=%.1f\n",
+        fprintf(stderr, "[DEPTHPROBE:%s] y=%4d depth=%.6f rgb=(%3d,%3d,%3d) world=(%.1f, %.1f, %.1f) dist=%.1f\n",
+                when,
                 y, (double)d, rgb[0], rgb[1], rgb[2], wx, wy, wz, dist);
     }
 
