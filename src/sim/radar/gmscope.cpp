@@ -1288,6 +1288,22 @@ void RadarDopplerClass::GMDisplay(void)
         viewFrom.z = platform->ZPos();
 
         headingForDisplay = platform->Yaw();
+#ifdef FF_LINUX
+        // GMRADAR-8 S442: A POSITIVE CONTROL FOR HYPOTHESIS 2, because no recipe here can make
+        // the aircraft turn (S440/S441: 432 samples, one yaw value, dHdg identically 0).
+        // headingForDisplay is latched from the live yaw here; a real turn makes it LAG. Setting
+        // FF_GM_HFD_BIAS=<radians> subtracts a fixed lag, which is exactly the condition a turn
+        // produces -- and it feeds BOTH consumers as a turn would: the blip transform through
+        // cosAz/sinAz (:782), and the map rotation (platform->Yaw() - headingForDisplay) at :1622.
+        // So the question "how far does a given lag move a contact, and in which direction"
+        // becomes measurable without flying a turn. Default off; this is a diagnostic, not a fix.
+        {
+            static float s_bias = 0.0F;
+            static int   s_init = 0;
+            if (!s_init) { s_init = 1; const char* b = getenv("FF_GM_HFD_BIAS"); if (b) s_bias = (float)atof(b); }
+            headingForDisplay -= s_bias;
+        }
+#endif
         mlSinCos(&trig, headingForDisplay);
 
         if ( not lockedTarget)

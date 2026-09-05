@@ -11650,3 +11650,77 @@ repo-relative script copied out of the tree.
 where the short run gave `9.8ft PASS`, with the mover list still populated (43 vs 48).
 
 **GMRADAR-8: 3 sprints.**
+
+### GMRADAR-8 sprint 4 (2026-09-05) — ⭐ hypothesis 2 REFUTED for GMRADAR-8, and strongly IMPLICATED for GMRADAR-7
+
+Two sprints failed to test hypothesis 2 because no recipe here turns the aircraft. **So I stopped
+trying to produce the condition and injected it instead.**
+
+`FF_GM_HFD_BIAS=<radians>` subtracts a fixed lag from `headingForDisplay` at the point it is latched
+from the live yaw (`:1290`). That is exactly what a turn does, and it reaches **both** consumers the
+way a turn would — the blip transform via `cosAz/sinAz` (`:782`) and the map rotation
+`(Yaw - headingForDisplay)` (`:1622`). Default off; a diagnostic, not a fix.
+
+**The instrument proves it can speak:** control arm `dHdg=0.0000` (474 samples), injected arm
+`dHdg=0.0999` (463 samples). This is the first run in three sprints where `dHdg` is not zero.
+
+## The result: a heading lag moves contacts SIDEWAYS, not up
+
+48 contact ids matched across both arms, bias = 0.10 rad (5.73°):
+
+| | Δrx (lateral) | Δry (vertical) |
+|---|---|---|
+| median | **+0.1082** | −0.0069 |
+| mean abs | 0.1090 | 0.0303 |
+| max abs | 0.1367 | 0.0926 |
+
+**Direction of vertical movement: 21 contacts up, 25 down** — no consistent sign. Lateral movement is
+consistent in sign across all 48 and **~16× the median vertical**.
+
+**This is geometry, and it is worth stating plainly because it settles the item:** a heading lag
+*rotates* the picture about the scope centre, so it displaces contacts **tangentially**. For contacts
+ahead of the aircraft — near the top of the scope, which is where the tanks are — tangential is
+**horizontal**. A rotation cannot systematically move an ahead-contact upward.
+
+### ⛔ So GMRADAR-8's opening premise is wrong
+
+That entry says GMRADAR-8 is *"very likely the same open defect [GMRADAR-7] seen from a different
+angle, not something that regressed"*. **Measured: it is not.** GMRADAR-7's symptom is a lateral bias
+and GMRADAR-8's is vertical, and the mechanism under test produces one and not the other. They are
+two defects, and the PO's "this used to be fixed" deserves a fresh look rather than being folded into
+GMRADAR-7.
+
+### ⭐ And the same run implicates hypothesis 2 in GMRADAR-7, hard
+
+GMRADAR-7 measured **mean rx = +0.105** drawn right of centre. A **0.10 rad** injected lag produces
+**Δrx = +0.108** — matching in sign and to 3 % in magnitude. That is not proof, but it is a strong
+quantitative fit from an independent direction: a real heading lag of about 0.1 rad (5.7°) would
+reproduce GMRADAR-7's recorded bias almost exactly. **Recommend GMRADAR-7 be picked up with the
+missing rotation correction at `:2109` as its leading candidate.**
+
+## Honest limits
+
+* **The per-id match fell back to means.** Zero exact `(id, platform position)` pairs existed across
+  the two arms, so each id's Δ mixes in some genuine motion between runs. The `rx` conclusion
+  survives that easily — the signal is 16× the noise and consistent in sign across all 48 ids — and
+  the `ry` conclusion is a null about *direction*, which mixing cannot manufacture.
+* **A fixed lag is not a turn-rate-driven lag.** For the question asked here — which way does a lag
+  move a contact — they are equivalent. For "how large is the real lag in a turn", they are not, and
+  that still needs a turning sortie.
+* **Still worth the PO's log.** `FF_DEBUG_GMPOS=1` on the 260905 image during a real TE-9 sortie
+  would give the actual `dHdg` in a turn, and would show whether the vertical symptom appears at all
+  in the blip data or lives somewhere else entirely.
+
+## GMRADAR-8 closes its 4-sprint pass
+
+| question | state |
+|---|---|
+| is the instrument shipped? | ✅ yes, in 260905 (S440) |
+| is the blip transform correct? | ✅ yes in level flight, to the log's own precision, 432 samples (S441) |
+| does a heading lag cause the vertical symptom? | ⛔ **NO — refuted by injection** (S442) |
+| does a heading lag explain GMRADAR-7's lateral bias? | ⭐ strong quantitative fit, +0.108 vs +0.105 |
+| what causes GMRADAR-8's vertical symptom? | **open** — not the blip transform, not a heading lag |
+
+**Next for whoever picks it up:** the vertical symptom is not in the blip path. The map/terrain drawn
+*beneath* the contacts is the remaining candidate — "tanks higher than they are" is equally consistent
+with the ground being drawn too low.
