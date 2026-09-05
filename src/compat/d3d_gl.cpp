@@ -1578,6 +1578,7 @@ static GLfloat s_worldMV[16], s_worldPR[16];
 static bool    s_worldMatsValid = false;
 static long s_probeFrame = 0;
 static void FF_ProbeDepthStripImpl(const char* when, int w, int h);
+static bool FF_InvertMatrix4(const double m[16], double inv[16]);
 
 static void FF_NoteWorldMatrices(DWORD nVerts) {
     static int s_want = -1;
@@ -1600,8 +1601,39 @@ static void FF_NoteWorldMatrices(DWORD nVerts) {
     if (!depthOn) return;
     if (fb != 0) return;
 
-    glGetFloatv(GL_MODELVIEW_MATRIX, s_worldMV);
-    glGetFloatv(GL_PROJECTION_MATRIX, s_worldPR);
+    {
+        // PIT-1 S444: FILTER ON THE POSITIVE CONTROL ITSELF.
+        // S443 fixed the capture INSTANT and the depth buffer duly changed (near-plane values
+        // instead of a uniform far plane) -- but the recovered eye was still (-1.0, -5.3, -0.9),
+        // i.e. the nVerts>=512 + depthTest + fbo==0 filter still selects a COCKPIT-LOCAL pass.
+        // Batch size cannot tell those apart. The eye can: a world camera sits at FreeFalcon world
+        // coordinates (tens of thousands of feet), a cockpit-local pass at single digits. So
+        // recover the eye BEFORE accepting the matrices and require it to be a plausible world
+        // position. The check that validates the measurement becomes the check that selects it,
+        // which is the only version of this that cannot quietly pass on the wrong pass.
+        // FF_PROBE_MINEYE overrides the threshold; FF_PROBE_EYETRACE=1 logs every candidate so a
+        // frame with NO world-scale pass is distinguishable from a frame that was never sampled.
+        GLfloat mv[16], pr[16];
+        glGetFloatv(GL_MODELVIEW_MATRIX, mv);
+        glGetFloatv(GL_PROJECTION_MATRIX, pr);
+
+        double dmv[16], dinv[16], ex = 0, ey = 0, ez = 0;
+        for (int i = 0; i < 16; i++) dmv[i] = mv[i];
+        if (FF_InvertMatrix4(dmv, dinv)) { ex = dinv[12]; ey = dinv[13]; ez = dinv[14]; }
+        const double eyeMag = sqrt(ex*ex + ey*ey + ez*ez);
+
+        static double s_minEye = -1.0;
+        if (s_minEye < 0) { const char* m = getenv("FF_PROBE_MINEYE"); s_minEye = m ? atof(m) : 0.0; }  /* S444: default OFF -- a 1000 ft threshold rejected the CORRECT pass, see below */
+
+        if (getenv("FF_PROBE_EYETRACE"))
+            fprintf(stderr, "[DEPTHPROBE:cand] nVerts=%u eye=(%.1f, %.1f, %.1f) |eye|=%.1f %s\n",
+                    (unsigned)nVerts, ex, ey, ez, eyeMag,
+                    eyeMag >= s_minEye ? "ACCEPT" : "reject");
+
+        if (eyeMag < s_minEye) return;   /* a cockpit-local pass, not the world camera */
+
+        for (int i = 0; i < 16; i++) { s_worldMV[i] = mv[i]; s_worldPR[i] = pr[i]; }
+    }
     s_worldMatsValid = true;
 
     // PIT-1 S443: READ THE DEPTH STRIP HERE, at the same instant the matrices are taken.

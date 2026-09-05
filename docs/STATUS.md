@@ -11776,3 +11776,63 @@ mine.
   timing.
 
 **PIT-1: 1 sprint. Nothing measured; the instrument is one working run away.**
+
+### PIT-1 sprints 2–3 (2026-09-05) — ⛔ **S443's own handover conclusion was WRONG.** The pass was right all along; the sampling MOMENT is the defect
+
+## Sprint 2: the probe finally speaks, and the positive control fails as predicted
+
+With the click sequence that reaches a rendered cockpit and `mutter-x11-frames` started **outside**
+the lock, the probe printed for the first time — 13 lines per view. The recovered eye:
+`eye=(-1.0, -5.3, -0.9)`. S443's handover said: *"if it is still single-digit, the batch filter is
+still catching a cockpit pass and the fix is the filter, not the timing."*
+
+**Also visible, and it matters:** the depth values CHANGED. S443's failure was a uniform
+`depth=0.999999`; now `y=200,250` read `0.999999` (far) and `y>=300` read `0.000000` (near). So the
+timing fix did move the read into a live pass. Both views produced byte-identical numbers.
+
+## Sprint 3: filtered on the positive control — and got 0 of 18,298
+
+`FF_PROBE_MINEYE` (accept only matrices whose recovered eye is a plausible world position) plus
+`FF_PROBE_EYETRACE=1` (log every candidate, so "no world-scale pass exists" is distinguishable from
+"nothing was sampled"):
+
+| view | candidate batches | accepted |
+|---|---|---|
+| 1 (2D pit) | 18,298 | **0** |
+| 4 (3-view) | 18,334 | **0** |
+
+**Not one large, depth-tested, default-framebuffer batch in either whole run has a world-scale eye.**
+That is not a silent instrument — 18,298 candidates were examined and traced, with `nVerts` up to
+1515.
+
+## ⛔ The retraction, and it is of my own conclusion from last sprint
+
+**FreeFalcon renders the world EYE-RELATIVE** — the world is translated to the camera rather than the
+camera placed in the world — so a modelview whose inverse translation sits at ~the origin is the
+**correct and expected** shape for the world pass. The decisive evidence is in S443's own output and
+I read past it: the far-plane sample unprojects to `dist=263534` ft = **43.4 nautical miles**. That
+is a terrain frustum. A cockpit-local pass has a far plane of a few feet.
+
+So:
+* **the pass being sampled was the world pass all along**;
+* S443's *"the filter is catching a cockpit pass"* is **withdrawn**, and the `FF_PROBE_MINEYE`
+  threshold built on it is defaulted to **0 (off)**, because at 1000 ft it rejects the correct pass.
+  It is kept as a diagnostic, not a gate;
+* ⭐ **and eye-relative unprojection is exactly what PIT-1 wants anyway** — the item's question is
+  "how far from the eye, in feet, does the runway end", not "where in the world is it". The premise
+  never needed fixing.
+
+## What is actually wrong, stated precisely
+
+At the moment of the first qualifying batch the depth buffer contains **only near (0.000000) and far
+(0.999999) values** — no geometry depth. The terrain has not been drawn yet. S443 moved the read from
+"after the cockpit pass" to "before the terrain pass"; both are wrong, in opposite directions.
+
+**Next, and it is the whole remaining problem:** sample at the **last** world-pass batch of the
+frame, after terrain has written depth and before the cockpit pass begins. The frame's draw sequence
+is the thing to instrument — count qualifying batches per frame under `FF_PROBE_EYETRACE`, find the
+index after which `nVerts` collapses to cockpit scale, and read there. The candidate trace added this
+sprint already logs exactly the data needed to find that index offline.
+
+**PIT-1: 3 sprints. Still nothing measured — but the remaining question is now one specific
+question, and two wrong answers are eliminated with evidence rather than suspicion.**
