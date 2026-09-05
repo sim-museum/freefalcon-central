@@ -10444,3 +10444,1145 @@ Corroboration for the two suspect lines noted in the previous entry — they do 
 which is what `gmscope.cpp:2113`'s both-axes (`and`) range cull and `:2127`'s
 `or F_ABS(rx) > 1.0F` draw condition permit. Still not changed; they affect which
 targets are drawn, not where, so they are not the primary suspect for this symptom.
+
+
+---
+
+## BALKANS-CRASH — the campaign-entry crash is a heap-buffer-overflow in the name table, found and fixed
+
+**Symptom (PO, 2026-09-04):** "I was running the ff appImage in 260904, switched to balkans,
+campaign, window disappears". Earlier the same day: "the free falcon appImage crashed on entry to
+3D in the Balkans theater". No terminal output, no core file.
+
+**Why there was no evidence.** apport IS invoked (the kernel saw a fatal signal, logged at
+17:24:32) but discards the report with "executable was modified after program start" -- the binary
+lives in the AppImage's `/tmp/.mount_XXXX`, and that mount disappears when the process dies. So
+**AppImages systematically defeat crash reporting**; a vanishing window is all the user ever gets.
+`ulimit -c` is 0 here too, so "no coredump" proves nothing either way.
+
+**Three faithful reproductions did NOT crash.** In-session theater switch to Balkans (confirmed by
+`[THEATER] after switch to 'Balkans'`), into the campaign (7 markers), into 3D (3 markers), with the
+PO's exact shipped binary, up to 320 s. That is not evidence of no bug -- see below.
+
+**ASAN found it on the first run:**
+
+```
+ERROR: AddressSanitizer: heap-buffer-overflow
+READ of size 2 at ... 0 bytes after a 4592-byte region
+  #0 ReadNameString            camplib/name.cpp:192
+  #1 ObjectiveClass::GetName   camplib/objectiv.cpp:2291
+  #2 C_Map::AddObjective       ui/campaign/cmap.cpp:550
+  #3 UI_Refresher::AddMapItem  ui/common/urefresh.cpp:329
+  #6 CampaignSetup             ui/campaign/campaign.cpp:1172
+  allocated by LoadNames       camplib/name.cpp:84  <- via LoadTheater()
+```
+
+**The bug.** `NameIndex = new short[NameEntries]` (valid 0..NameEntries-1), but the table holds
+OFFSETS: `size = NameIndex[sid + 1] - NameIndex[sid]`, so entry i+1 marks the end of string i. The
+last entry is therefore a sentinel and the highest legal sid is **NameEntries-2**. A Balkans
+objective asks for sid **2295** when the table holds **2296** entries (max legal 2294), three times
+while the campaign map is populated.
+
+**Why it is fatal there and survivable here.** Without a sanitizer that read returns whatever
+adjacent heap happens to sit after the table -- a garbage string length. Whether that is harmless
+or lethal depends on allocation layout, which varies by machine, driver and campaign state. The
+reproductions above were reading *lucky* garbage. This is the general lesson: for a
+memory-corruption bug, "could not reproduce" is not evidence of absence, and a sanitizer changes
+what reproduction means -- it reports the bad access itself, not the eventual symptom.
+
+**Fix:** refuse the out-of-range id and return an empty string, the same defensive shape as the
+null-table guard two lines above (`JB 010731 CTD`). A missing name beats a corrupted heap.
+`FF_DEBUG_NAMES=1` reports each rejection, so the amount of out-of-range Balkans data is a number
+rather than a guess. Verified: **ASAN errors 1 -> 0**, Balkans and 3D still reached.
+
+**Still open, and NOT claimed fixed by this:** whether the empty Balkans debrief has the same root.
+That screen resolves names through the same path and needs all three of `win`,
+`MissionEvaluator` and `flight_data`; a heap corrupted during campaign setup is a plausible cause,
+but it has not been demonstrated. `FF_DEBUG_DEBRIEF=1` names which pointer is null.
+
+
+---
+
+## 🔲 BACKLOG — LOD-1: TE-2 entry to 3D aborts with "double free or corruption", cause identified, FIX UNPROVEN
+
+**Symptom (PO, 2026-09-04):** "loaded TE 2 to test takeoff 0 view, window exited when I was
+supposed to enter 3D". It followed a COMPLETE Balkans campaign mission in the same session.
+
+**Established from the PO's crash log (not inference):**
+
+```
+[RenderFirstFrame] Cockpit defaults loaded, calling PreLoadScene...
+double free or corruption (out)
+=== CRASH: SIGABRT (signal 6) ===
+  ObjectLOD::Load            objectlod.cpp:372
+  ObjectLOD::UpdateLods
+  ObjectLOD::WaitUpdates     objectlod.cpp:500
+  RenderOTW::PreLoadScene    otw.cpp:878
+  OTWDriverClass::RenderFirstFrame
+  SimulationLoopControl::StartLoop
+  FF_ThreadTrampoline                      <- a worker thread, not main
+```
+
+**Mechanism.** `LodBuffer` / `LodBufferSize` are STATIC members -- one scratch buffer shared by
+every LOD load -- and `Load()` resizes it unguarded:
+
+```c
+if (filesize > LodBufferSize) free(LodBuffer), LodBufferSize = filesize, LodBuffer = malloc(...);
+```
+
+Two threads that both see `filesize > LodBufferSize` both free the same pointer. `WaitUpdates()`
+looks protective -- `SetPause(true)` then spin on `Paused()` -- but that is a LOADER interlock
+only: another thread calling WaitUpdates finds `Paused()` already true and runs
+`UpdateLods -> Load` itself, so two NON-loader threads can be inside `Load()` together. Even short
+of the abort they then share the buffer's contents.
+
+**A candidate fix exists and is NOT proven.** `FF_LODLOAD_LOCK()` (a recursive mutex over the whole
+of `Load()`, mirroring texbank.cpp's `FF_TEXBANK_LOCK`; `FF_NO_LODLOCK=1` reverts). It is written
+and builds. It must NOT be described as fixing this bug, because:
+
+* the PO's sequence was reproduced -- campaign flight, exit 3D, TE-2 into 3D, four 3D entries --
+  and did NOT crash;
+* the NEGATIVE CONTROL (`FF_NO_LODLOCK=1`, i.e. the defect as shipped) did not crash either.
+
+A control that cannot reproduce the fault proves nothing about the cure. The race is real by
+inspection and by the PO's backtrace; whether the lock closes the one that killed the session is
+open.
+
+**Decisive next step: ThreadSanitizer.** TSan reports the DATA RACE ITSELF whether or not anything
+crashes -- which is exactly how ASAN cracked BALKANS-CRASH above after three failed reproductions.
+Build `-fsanitize=thread`, run campaign-flight -> TE-2 -> 3D, and look for a race on
+`ObjectLOD::LodBuffer`. Do that before shipping or discarding the lock.
+
+
+---
+
+## 🔲 BACKLOG — MP-1: how to run FF multiplayer, and text cannot be typed into the UI at all
+
+**PO, 2026-09-04:** *"how to run ff multiplayer - cannot type URL anywhere"*.
+**Evidence:** `/home/admin/Videos/260904_ff_multiplayer.mp4` (17 MB, 23:29). PO-recorded, keep it.
+
+### Two items, and the second is the blocker
+
+**(a) No documented route to run FF multiplayer.** Which instance hosts, what the joiner enters,
+which port. Unknown whether the AppImage needs to expose anything. Documentation-or-packaging
+question; decide which before writing.
+
+**(b) Typed characters never reach the UI. This is not a comms bug -- it is missing input
+plumbing, and it blocks every text field in the game, not just the server address.**
+
+Measured 2026-09-04:
+
+| check | result |
+|---|---|
+| `WM_CHAR` in `src/ffviper/main_linux.cpp` | **0 occurrences** -- the Linux path never sends it |
+| `case WM_CHAR:` in `src/ui95/chandler.cpp:2927` | **commented out**, marked "NOLONGER USED" |
+| `SDL_StartTextInput` / `SDL_TEXTINPUT` anywhere in `src/` | **none** |
+| what main_linux DOES deliver | `WM_KEYDOWN` x2, `WM_KEYUP` x2 -- and nothing else |
+| edit controls that need text | `C_EditBox` used in `src/ui/src/comms/info.cpp` (game name, max players, ...) and elsewhere |
+
+So the UI has edit boxes and the message that carries characters into them is neither generated by
+the Linux input path nor handled by the control handler. `WM_KEYDOWN` carries a VIRTUAL KEY, not a
+character: it cannot produce text without either a keyboard-layout translation step or SDL's text
+input events.
+
+**Do not start in the comms screens.** The PO's symptom ("cannot type URL anywhere") is the visible
+edge of a global gap; fixing it in one dialog would be fixing the wrong layer. Likely shape of the
+work:
+
+1. Enable SDL text input (`SDL_StartTextInput`) and translate `SDL_TEXTINPUT` events into `WM_CHAR`
+   in `main_linux.cpp`, alongside the existing `WM_KEYDOWN`/`WM_KEYUP` delivery.
+2. Re-enable the `WM_CHAR` case in `ui95/chandler.cpp:2927` and route it to the focused control.
+3. Verify against a field that is easy to reach and easy to see -- the logbook callsign, not a
+   multiplayer address -- then re-test the PO's case.
+
+**Check before building:** confirm no OTHER path already feeds characters in (some ports translate
+in the control itself). If some field somewhere DOES accept typing today, that is the mechanism to
+extend rather than a second one to add. The registry's `PilotCallsign`/`PilotName` currently hold
+defaults ("Viper" / "Joe Pilot"), which is consistent with never having been typed, but is not
+proof.
+
+### Not started
+No sprints have been run against this item.
+
+
+---
+
+## 🔲 BACKLOG — RWY-3: remove the "objects on stilts" bandaid now the root cause is fixed
+
+**PO, 2026-09-04:** *"need to fix ff 'objects on stilts' bandaid from before root cause was found.
+Right now, the 0 view on TE 2 shows the aircraft dropping 3 m when all wheels leave the runway.
+Also -- with a plane on the runway, when I press ESC and then E to exit, the view shows the
+aircraft embedded 3 m or so into the runway. This is supposed to be fixed already."*
+
+### This is a follow-up the notes already called for
+
+The PIT2VIEW-1 entry (2026-08-31) names the stilts as one of THREE generations of downstream
+workarounds for a single upstream defect -- the missing depth-convention conversion -- and closes:
+
+> *"The stilts and other downstream workarounds should now be re-tested for redundancy and removed
+> one at a time, each with its own A/B."*
+
+That has not been done. The PO is now seeing the cost of leaving them in.
+
+### The stack of compensations still in place
+
+| where | what |
+|---|---|
+| `graphics/objects/drawbldg.cpp:207` | per-frame accurate ground refetch **+ 3 ft decal + heavy polygon offset** |
+| `dxengine/dxengine.cpp:2225` | `FF_SetRunwayDepthBias` (slope-scaled `glPolygonOffset`) so the decal wins the depth test |
+| `otwdrive/otwdrive.cpp` | `FF_RunwayDecal()` 3 ft **+ `FF_GEAR_LIFT` 2 ft**, both faded over `FF_GEAR_LIFT_FADE` (25 ft AGL) |
+
+drawbldg.cpp:207 states the exit test explicitly: the Linux workaround exists because the coarse
+`GetGroundLevelApproximation` was returning 0 at airfields, and **"if it now agrees with the
+accurate value, the workaround is obsolete and the original path would put runway, terrain and
+wheels on one plane."** `FF_DEBUG_RUNWAY=1` prints `GetGroundLevel`, `approx` and their delta every
+120 frames. **Run that first** -- it decides the whole item before any code is touched.
+
+### The two symptoms are opposite signs of the same stack
+
+1. **Drops ~3 m as the wheels leave the runway** (TE-2, view 0). This is SINK-2: the visual lift is
+   full on the ground and tapers to zero by 25 ft AGL, so the drawn aircraft loses the standoff as
+   it rotates. A candidate fix exists and is **opt-in and unverified** --
+   `FF_GEAR_LIFT_BYGEAR=1` drives the gear term from `gearPos` instead of altitude, on the reasoning
+   that the drawn gear being longer than the physics standoff is true only while the gear is DOWN.
+   The PO has not yet reported on it by eye.
+2. **Embedded ~3 m in the runway on the ESC->E exit view.** Same stack, opposite sign: a view that
+   does NOT apply the lift shows the aircraft where the physics actually has it, below the drawn
+   runway surface. Worth checking whether that view path calls the lift at all -- if the fix is
+   "apply the bandaid in one more place", that is a fourth workaround and the wrong direction.
+
+### Order of work
+
+1. `FF_DEBUG_RUNWAY=1` -- does accurate now agree with approx at an airfield? If yes, the decal and
+   polygon offset are dead code and come out first, one at a time with an A/B each.
+2. Only then judge the gear lift: with runway, terrain and wheels on one plane, the 3 ft + 2 ft
+   visual standoff may have nothing left to compensate for and should also go.
+3. Re-test both PO symptoms, and the earlier TE-09 "buried on the runway" video, against whatever
+   remains.
+
+**Do not add a compensation to the exit view.** Every one of these was added to hide a symptom of
+the same upstream bug, and that bug is fixed.
+
+### Not started
+No sprints have been run against this item.
+
+
+### RWY-3 addendum — sprint 1: the exit-view symptom narrows to OnGround(), and both experiments are already built
+
+The PO's two symptoms have OPPOSITE signs, and reading the apply site explains why that matters:
+
+```c
+if (obj->OnGround())  ffLiftScale = 1.0f;          // otwdrive.cpp ~2925
+else                  ffLiftScale = 1 - agl/FADE;  // tapers to 0 by 25 ft AGL
+...
+if (ffLiftScale > 0.0f) {                          // ~3052
+    simView->z -= FF_RunwayDecal() * ffLiftScale;  // 3 ft decal
+    simView->z -= extra * gearScale;               // + 2 ft gear (now gear-driven, opt-in)
+}
+```
+
+* **"drops ~3 m as the wheels leave"** -- the taper. Understood; `FF_GEAR_LIFT_BYGEAR=1` is the
+  candidate fix and is still awaiting the PO's eye.
+* **"embedded ~3 m in the runway on the ESC->E exit view"** -- NOT explained by the taper. An
+  aircraft ON the runway has `OnGround()` true, hence scale 1.0, hence the full 5 ft lift: it should
+  be drawn HIGH, not buried. So either `OnGround()` reads FALSE in that view, or that view never
+  reaches this block at all. Those need different fixes and the log distinguishes them.
+
+**Two instruments already exist; neither has been run against these symptoms.**
+
+* `FF_DEBUG_LIFT=1` prints, EVERY FRAME while low (built that way because a 1 Hz sample straddled
+  the wheels-off transient):
+  `[LIFT] OnGround=%d gs=%.1f scale=%.3f agl=%.1f clr=%.2f gnd=%.2f zPos=%.2f liftFt=%.2f drawnZ=%.2f`
+  -- park on the runway, press ESC then E, and read `OnGround` and `scale`.
+* `FF_DEBUG_RUNWAY=1` prints `GetGroundLevel` vs the coarse `approx` and their delta every 120
+  frames. `drawbldg.cpp:207` states its own exit condition: if those now AGREE at an airfield, the
+  3 ft decal + heavy polygon offset are obsolete and come out.
+
+**Order stands: run FF_DEBUG_RUNWAY first.** If the approximation is fixed, the decal goes, and the
+whole stack may collapse before anyone touches the gear lift.
+
+**Not done:** both need a real flight on the display, which was occupied by the bob gate suite.
+Queued. **Sprints on RWY-3: 1.**
+
+
+### RWY-3 sprint 2-4 — MEASURED: the runway workaround's own exit condition is MET
+
+`drawbldg.cpp:207` states when the Linux workaround becomes obsolete:
+
+> *"The whole Linux workaround -- per-frame accurate refetch + 3ft decal + heavy polygon offset --
+> exists because that approximation was returning 0 at airfields. If it now agrees with the
+> accurate value, the workaround is obsolete and the original path would put runway, terrain and
+> wheels on one plane."*
+
+**Measured 2026-09-05** (`FF_DEBUG_RUNWAY=1`, campaign flight to 3D, Korea):
+
+```
+[RUNWAY] flat GetGroundLevel=-26.0 approx=-26.0 delta=0.0 decal=3.0 -> z=-29.0
+```
+
+* **1958 of 1958 samples: delta = 0.0.** Not one disagreement.
+* Three distinct ground levels sampled (0.0, -26.0, -157.0), so the probe saw real varied terrain
+  rather than a constant -- the instrument can speak, and its zero is a measurement, not silence.
+* -26.0 is the airfield, matching `[LIFT] gnd=-26.00` from the same run. The condition is met
+  exactly where it was said to fail.
+
+**So the approximation is fixed and the workaround is dead weight.** The 3 ft decal and the heavy
+`glPolygonOffset` are compensating for an error that no longer occurs, and they are what put the
+PO's aircraft 3 m out in both directions.
+
+**Also measured, parked on the runway:**
+
+```
+[LIFT] OnGround=1 scale=1.000 clr=5.99 gnd=-26.00 zPos=-31.99 liftFt=3.00 drawnZ=-34.99
+```
+
+Full lift applied on the ground, physics standoff 5.99 ft (the gear-contact figure). So the parked
+case is healthy -- which makes the PO's "embedded 3 m on the ESC->E exit view" a property of THAT
+VIEW, not of the ground query. Still to be measured with the same instrument from inside that view.
+
+**Next sprint (not this one -- 4 sprints used):** remove the workarounds ONE AT A TIME, each behind
+an env switch so the PO can A/B by eye, in the order the original note gives: decal first, then the
+polygon offset, then the gear lift. The PO's eye is the oracle for a visual standoff; do not default
+any removal on before they have looked.
+
+**Sprints on RWY-3: 4 (this turn).**
+
+
+## 2026-09-05 — GMRADAR-8 (PO's TE-9 report: "GMT shows tanks higher on the screen than they are")
+
+PO filed this as a REGRESSION ("this used to be fixed"). No prior fix for a vertical GMT offset
+exists in STATUS.md or in the commit history — the closest is **GMRADAR-7, which is still OPEN** and
+measured contacts drawn RIGHT of centre (mean rx = +0.105). So this is very likely the same open
+defect seen from a different angle, not something that regressed. Worth saying plainly to the PO
+rather than hunting for a fix that was never there.
+
+Already-measured corroboration from GMRADAR-7: **12 of 174 samples were drawn with |ry| > 1**, i.e.
+past the top of the scope — which is literally "higher on the screen than they actually are".
+
+### Two hypotheses examined this sprint; the first is DEAD
+
+1. **Centre/scale mismatch — DEAD.** `GMXCenter` is offset half a `tdisplayRange` ahead of the
+   aircraft while blips normalise by `groundMapRange`, and those differ by 4x-16x per mode
+   (`* 0.5F` NORM, `* 0.125F` EXP/DBS1, `* 0.03F` DBS2), which looked like every blip being scaled
+   against the wrong half-height. It is not: the centre assignment at :2067 is mode-aware — NORM
+   uses platform + half range, every other mode centres on `GMat` — so each mode's centre and its
+   `groundMapRange` agree. Ruled out by reading, no run needed.
+
+2. **Blip/map heading lag — LIVE, and it fits the symptom.** At :1622 the MAP is rotated by
+   `AdjustRotationAboutOrigin(platform->Yaw() - headingForDisplay)`. The BLIPS at :2109 are
+   transformed with `headingForDisplay` alone and get **no** corresponding correction. Any lag
+   between the scan-latched `headingForDisplay` and the live yaw therefore rotates the contacts
+   against the map beneath them — displacing them both laterally (GMRADAR-7's rx bias) and
+   vertically (the PO's "higher"), by an amount that grows with turn rate.
+
+### Instrument extended (this is GMRADAR-7's own stated next step)
+
+`FF_DEBUG_GMPOS=1` now logs `yaw`, `hfd` (headingForDisplay), `dHdg` (their difference), the
+player's world position, and each contact's TRUE bearing and ground range beside `rx`/`ry`. That
+makes the expected screen position computable, so mirror-vs-offset-vs-rotation is settled from the
+log without a frame capture. **Read: if `dHdg` is consistently non-zero and tracks the `rx` bias,
+hypothesis 2 is the defect; if `dHdg` is ~0 while `rx` stays biased, hypothesis 2 is dead too and
+the transform itself is next.**
+
+### DO NOT ask the PO to run this yet — it is not in the shipped image
+
+Audited `~/Documents/260904/FreeFalcon-x86_64.AppImage`: it contains `FF_DEBUG_GMPOS` but the OLD
+format string (`... rx=%.3f ry=%.3f cone=%d`), with none of the new heading fields. **A repack is
+required before the PO can gather this data.**
+
+A note on how that audit nearly went wrong: `strings FFViper | grep -c dHdg` returned **1** for the
+shipped image, which would have meant the new instrument was already there. It was matching
+**`windHdg`**. A substring grep for a short identifier is not a presence test — match the whole
+format string, as done above. See the `fixed-in-dev-is-not-shipped` and `grep-skips-non-ascii`
+notes; this is the same family.
+
+
+### RWY-3 sprints 5-8 (2026-09-05) — the removal switches already exist; all five are SHIPPED
+
+The previous entry's next step was "add an env switch per workaround so the PO can A/B by eye".
+**No new code was needed — every switch is already there**, which is worth recording because I was
+about to write them:
+
+| workaround | switch | default |
+|---|---|---|
+| 3 ft runway decal (and the paired gear lift, same constant) | `FF_RUNWAY_ZLIFT=0` | 3.0 |
+| heavy slope-scaled `glPolygonOffset` | `FF_RUNWAY_NOBIAS=1` | on (-16,-2048 class) |
+| polygon-offset strength, for a partial back-off | `FF_RUNWAY_BIAS=f,u` | — |
+| gear-driven lift instead of OnGround | `FF_GEAR_LIFT_BYGEAR=1` | off |
+| the measuring instrument | `FF_DEBUG_RUNWAY=1` | off |
+
+`FF_RUNWAY_ZLIFT` is read by `FF_RunwayDecal()` and used BOTH by `drawbldg.cpp` (where the runway is
+drawn) and by `otwdrive.cpp` (the compensating aircraft lift), so setting it to 0 removes both halves
+coherently — the two cannot drift apart in an A/B.
+
+**Verified present in the shipped artifacts**, by extracting the binaries and matching whole strings
+(`grep -cx`, not a substring — `dHdg`/`windHdg` last turn is why): all five markers are in BOTH the
+newly packed image and the `260904` image the PO already has. **So the PO can A/B this today without
+waiting for a repack.** This also updates an earlier report of mine: `FF_GEAR_LIFT_BYGEAR` was
+missing when I checked on 2026-09-04, and the Sep-4 22:33 repack has since carried it in.
+
+### A units discrepancy, stated before the measurement rather than after
+
+The PO describes the aircraft "dropping 3 m" and sitting "3 m or so" into the runway. The code's
+offset is **3.0 FEET** — `[LIFT] liftFt=3.00`, and `zPos=-31.99` / `drawnZ=-34.99` are feet. 3 ft is
+0.91 m. Either the PO's estimate is a rough eyeball of a ~1 m error, or something scales the visible
+offset by ~3x and the decal alone does not explain it.
+
+**Prediction, recorded before the run so it can be wrong:** the step in drawn z at wheels-off is
+**≈3.0 ft (0.91 m)**. If it measures ≈10 ft, the decal is not the whole story and the remaining ~7 ft
+is a second effect that the A/B above would not remove.
+
+Running `scripts/qa/takeoff-probe.sh` to measure it. Note the script points `BIN` at
+`build-relg/src/ffviper/FFViper`, **which does not exist** — it would have failed on a stale path; a
+copy pointed at `build/` is being used. Fix the checked-in script's default when convenient.
+
+**Sprints on RWY-3: 8.**
+
+
+### RWY-3 sprints 9-10 — MEASURED at wheels-off: my prediction was WRONG, and the symptom is not here
+
+Scripted takeoff rotated (`WHEELS OFF` present, 13234 `[RUNWAY]` + 239 `[LIFT]` samples, so the
+instrument spoke). The transition:
+
+    t-1  OnGround=1  scale=1.000  liftFt=3.00  zPos=-28.37  drawnZ=-31.37
+    t+0  OnGround=0  scale=0.904  liftFt=2.71  zPos=-28.37  drawnZ=-31.09
+
+**The step is 0.28 ft (8.5 cm), not 3 ft.** I predicted ~3.0 ft on the record and that was wrong:
+the lift is not switched off at wheels-off, it is FADED by `scale`, and the fade is gradual —
+scale 0.904 -> 0.667 and liftFt 2.71 -> 2.00 across the 95 frames that follow, with no jump anywhere
+in the dump.
+
+**So the drawn-z path contains no instantaneous drop at wheels-off — neither 3 m nor 3 ft.** The
+PO's "aircraft drops 3 m when all wheels leave the runway" is therefore NOT the decal/lift handoff,
+which is the thing this whole RWY-3 line of investigation assumed. Worth stating plainly: had the
+prediction not been written down first, 0.28 ft could easily have been reported as "small, direction
+consistent, close enough" and the wrong cause would have been confirmed.
+
+Total lift travel is still 3 ft = 0.91 m, spread over ~2-3 s. That could conceivably read as a slow
+sag, but not as the sharp 3 m drop described.
+
+**Next sprint — measure the view the PO is actually using.** The previous entry already suspected
+this ("a property of THAT VIEW, not of the ground query") and the numbers now support it: the model's
+drawn z is smooth, so a visible jump must come from the camera/placement path of view 0 and of the
+ESC->E exit view. Drive those two views with `FF_DEBUG_LIFT=1` + `FF_DEBUG_RUNWAY=1` and read the
+same fields from inside them.
+
+**Do not ship any workaround removal on the strength of this.** The A/B switches are all present and
+shipped (previous entry), but nothing measured so far shows the workaround causing the PO's symptom.
+
+Also, for the checked-in harness: `scripts/qa/takeoff-probe.sh` defaults `BIN` to
+`build-relg/src/ffviper/FFViper`, which does not exist. The run fails with
+`timeout: failed to execute process`, and the script then prints **"DID NOT ROTATE (expected ~half
+the time) -- rerun before concluding anything"** — an intermittency message on top of a hard path
+error, which invites an endless rerun loop. Point it at `build/` or honour `$FF_BIN`.
+
+**Sprints on RWY-3: 10.**
+
+
+### RWY-3 sprints 11-12 — A/B captures ready for the PO's eye
+
+Since the numeric path shows no jump, the next thing that can decide RWY-3 is the PO's eye, so the
+comparison is now four images rather than an argument:
+
+    /tmp/rwy_ab/decal_on_ff_view_0.bmp    chase view, decal ON  (shipped default)
+    /tmp/rwy_ab/decal_on_ff_view_1.bmp    orbit view, decal ON
+    /tmp/rwy_ab/decal_off_ff_view_0.bmp   chase view, FF_RUNWAY_ZLIFT=0
+    /tmp/rwy_ab/decal_off_ff_view_1.bmp   orbit view, FF_RUNWAY_ZLIFT=0
+
+Parked aircraft, same TE, same scripted route, only `FF_RUNWAY_ZLIFT` differs.
+
+**The arms are proven distinct before asking anyone to look** -- a same-looking A/B is worthless if
+both arms secretly ran the same configuration:
+
+    decal_on   liftFt=3.00  zPos=-31.99  drawnZ=-34.99
+    decal_off  liftFt=0.00  zPos=-31.99  drawnZ=-31.99
+
+and the four BMPs have four different md5s.
+
+**Question for the PO, needing only a look:** in `decal_off`, does the parked jet sit ON the tarmac
+(gear visible, no sinking) -- and does the runway still render continuously into the distance, or
+does it start dissolving into the terrain as it recedes? That second half is what the decal and the
+polygon offset were added for (RWY-2), so removing the decal may trade one artefact for the other.
+Both must be judged in the same image.
+
+**Sprints on RWY-3: 12.** At the limit: unless the PO's look resolves it, this is the last turn
+before the Fable 5.1 label.
+
+
+## 2026-09-05 — MP-1 sprints 1-4: the "missing WM_CHAR plumbing" diagnosis is WRONG; two real defects found
+
+**Retract the plan in the MP-1 backlog entry.** It concluded that characters never reach the UI
+because `WM_CHAR` is neither generated by `main_linux.cpp` nor handled by `chandler.cpp`, and
+proposed adding `SDL_StartTextInput` -> `WM_CHAR` plus re-enabling the commented-out handler. That
+would have been a whole new input path built alongside a working one.
+
+**The character path already exists.** `chandler.cpp:2905`, in the LIVE `WM_KEYDOWN` case:
+
+    Ascii = AsciiChar(Key, ShiftStates);
+    if (not CurWindow_->CheckKeyboard(Key, Ascii, ShiftStates, Repeat))
+        CheckHotKeys(Key, Ascii, ShiftStates, Repeat);
+
+`CheckKeyboard(DKScanCode, **Ascii**, ShiftStates, RepeatCount)` takes the character as its second
+argument, and `C_EditBox` overrides it. Characters are meant to arrive through WM_KEYDOWN, not
+WM_CHAR. (The commented-out WM_CHAR case calls `CheckKeyboard(message,wParam,lParam)` — three
+arguments against a four-argument virtual. It could not have compiled; "NOLONGER USED" is accurate.)
+
+### Defect 1 — the scancode is posted in the wrong parameter, so `Key` is always 0
+
+`chandler.cpp:2886` decodes the DirectInput scancode from **lParam**, Win32-style:
+
+    Key = (uchar)(((lParam >> 16) bitand 0xff) bitor ((lParam >> 17) bitand 0x80));
+
+`main_linux.cpp:2067` posts:
+
+    PostGameMessage(WM_KEYDOWN, dikCode, 0);       // scancode in wParam, lParam = 0
+
+So `Key` decodes to **0** on every keystroke, `AsciiChar(0, 0)` is 0, and every edit box receives a
+null character. This is the PO's "cannot type a URL anywhere", and it is global to the UI exactly as
+they observed.
+
+**Fix:** encode the scancode into lParam in the layout the decoder expects — bits 16-23 the
+scancode, bit 24 the extended flag (the `>> 17 bitand 0x80` term reads bit 24), bits 0-15 the repeat
+count:
+
+    long lp = ((long)(dikCode bitand 0x7f) << 16)
+            bitor ((dikCode bitand 0x80) ? (1L << 24) : 0L)
+            bitor 1L;                                  // repeat count
+    PostGameMessage(WM_KEYDOWN, dikCode, lp);          // leave wParam as-is for other consumers
+
+Do the same for `WM_KEYUP` (:2075) so anything reading the pair stays consistent.
+
+### Defect 2 — `GetKeyState` is a stub, so `ShiftStates` is always 0
+
+`src/compat/compat_winuser.h:686`:
+
+    static inline SHORT GetKeyState(int nVirtKey) { (void)nVirtKey; return 0; }
+
+The keydown case builds `ShiftStates` from four `GetKeyState` calls (SHIFT, MENU, CONTROL, CAPITAL)
+and a fifth for NUMLOCK. All return 0, so even with Defect 1 fixed only unshifted characters would
+arrive: no capitals, no symbols, no Ctrl/Alt hotkeys. Same bug class as the uninit-read-fed-by-a-stub
+family that has already produced several defects in this port.
+
+**Fix:** route it to the live SDL modifier state. `GetKeyState` is a static inline in a header
+included very widely, so add an `extern "C" int FF_GetKeyState(int vk);` implemented in
+`main_linux.cpp` from `SDL_GetModState()` (KMOD_SHIFT/CTRL/ALT/CAPS/NUM) and have the inline call it.
+Note `src/compat/winuser.h` is a SYMLINK to `compat_winuser.h` (identical md5, mode 120000) — edit
+the target, never the link.
+
+### Verification plan, before touching a multiplayer screen
+
+The backlog entry is right about this: test on a field that is easy to reach and easy to see (the
+logbook callsign), not a multiplayer address. Add a trace at the `CheckKeyboard` call printing
+`Key`/`Ascii`/`ShiftStates` — with Defect 1 present it must read `Key=0 Ascii=0`, which is the
+control that proves the instrument and the diagnosis before either fix goes in.
+
+**Sprints on MP-1: 4 (this turn). Not implemented yet — next turn.**
+
+
+### MP-1 sprints 5-8 — THREE defects fixed (two verified, one not yet); a third was found on the way
+
+**Defect 1 — scancode in the wrong parameter. FIXED and VERIFIED.**
+`main_linux.cpp` now builds the Win32 lParam (`FF_KeyLParam`: bits 0-15 repeat, 16-23 scancode, 24
+extended) for both WM_KEYDOWN and WM_KEYUP. Measured with `FF_DEBUG_KEYS=1` on real keystrokes:
+
+    before:  wParam=45 lParam=0x0       -> Key=0  Ascii=0
+    after:   wParam=45 lParam=0x2d0001  -> Key=45 Ascii=45
+             wParam=30 lParam=0x1e0001  -> Key=30 Ascii=97('a')
+
+**Defect 3 (found while verifying 1) — `BuildAscii()` CORRUPTS the ascii table on Linux. FIXED and
+VERIFIED.** The post-fix measurement showed `a`->'a' and `y`->'y' correct but `c`->'.', `x`->'-',
+`z`->',' -- Ascii exactly equal to Key. Cause: `Key_Chart` (sim/siminput/ascii.cpp) is a complete,
+correct, DIK-indexed static table, and `BuildAscii()` overwrites it from `VkKeyScan` +
+`MapVirtualKey` -- where the compat `MapVirtualKeyA` is a stub that **returns its input unchanged**,
+so `scan` is a virtual-key code, not a scancode. Every printable char whose code collides with a real
+DIK index lands on the wrong row. `BuildAscii()` is now skipped on Linux (`FF_BUILDASCII=1` restores
+it), and a startup `[asciitab]` dump makes the claim checkable in both arms:
+
+    skipped:            DIK_Z(44)='z'  DIK_X(45)='x'  DIK_C(46)='c'   all OK
+    FF_BUILDASCII=1:    DIK_Z(44)=','  DIK_X(45)='-'  DIK_C(46)='.'   WRONG
+
+DIK_A(30) and DIK_Y(21) are the controls -- no printable char collides with those indices, and they
+are correct in BOTH arms, which is why the corruption looked intermittent.
+
+**Defect 2 — `GetKeyState` stub. IMPLEMENTED, NOT YET VERIFIED.** It now answers from
+`SDL_GetModState()` (0x8000 down for SHIFT/CTRL/ALT, 0x0001 toggled for CAPS/NUM), declared in
+`compat_winuser.h` behind an `#ifdef __cplusplus` guard because that header is included from C
+translation units too (that was a build break, now fixed). **Not proven working:** the one keystroke
+run that captured capitals reported `Shift=0`, and there is a real design concern behind it --
+`GetKeyState` is queried when the message is HANDLED, while `PostGameMessage` queues it, so the live
+modifier state may already have changed by then. If shift proves unreliable in use, the fix is to
+capture `event.key.keysym.mod` at POST time and carry it with the message rather than re-reading it
+later. Stated here rather than discovered later.
+
+### A harness caveat worth more than it looks
+
+X11 injection into SDL is unreliable and its failure is SILENT: after the BuildAscii change, three
+consecutive runs produced ZERO `[keys]` lines, which reads exactly like "the fix broke typing". It
+was the harness -- `xdotool search --class` returned a window id that persisted across different
+PIDs, and `xdotool type --window` uses XSendEvent, which SDL discards in many builds. **That is why
+Defect 3's verification was done with a startup table dump instead of keystrokes:** a deterministic
+check that cannot be silently empty. Do not trust a zero from the keystroke harness.
+
+**Remaining for MP-1:** part (a), the multiplayer HOW-TO, is untouched -- and it is now worth doing,
+because with typing fixed the address field should actually accept input. Test on the logbook
+callsign first (easy to reach, easy to see), then the comms screens.
+
+**Sprints on MP-1: 8.**
+
+
+### RWY-3 — PARKED: WAITING FOR FABLE 5.1 (12 sprints, and the remaining step is not mine)
+
+Applying the standing cadence rule. RWY-3 has had 12 sprints without resolution, and what it now
+needs is not another measurement: the four A/B captures are sitting in `/tmp/rwy_ab/` and the
+question ("does the parked jet sit on the tarmac, and does the runway still render continuously into
+the distance?") can only be answered by the PO's eye.
+
+State on parking, so it resumes cold:
+
+* Every removal switch exists and is SHIPPED in the PO's own 260904 image -- `FF_RUNWAY_ZLIFT=0`,
+  `FF_RUNWAY_NOBIAS=1`, `FF_RUNWAY_BIAS=f,u`, `FF_GEAR_LIFT_BYGEAR=1`, `FF_DEBUG_RUNWAY=1`.
+* The workaround's own stated exit condition IS met: 1958/1958 samples show the coarse ground
+  approximation agreeing exactly with the accurate one (delta 0.0).
+* The wheels-off transition is NOT the PO's symptom: measured step 0.28 ft, and the lift fades
+  smoothly rather than switching off. My prediction of ~3 ft was wrong and is recorded as such.
+* Therefore the visible jump, if real, lives in the VIEW path, not the drawn-z path -- that is the
+  first thing to measure when this is un-parked.
+* Units discrepancy still open: the code offset is 3 ft (0.91 m); the PO describes 3 m.
+
+Un-park trigger: the PO looks at `/tmp/rwy_ab/decal_{on,off}_ff_view_{0,1}.bmp`.
+
+
+### LOD-1 sprints 1-2 (2026-09-05) — ThreadSanitizer build configured and building
+
+The item's stated decisive step. `build-tsan/` configured with `-fsanitize=thread
+-fno-omit-frame-pointer -g` (RelWithDebInfo), mirroring how `build-asan/` is set up — the build that
+cracked BALKANS-CRASH after three failed reproductions.
+
+The reason this is the right instrument, restated so it is not lost: **both arms of the last attempt
+were silent.** The PO's exact sequence did not crash with the lock, and the negative control
+(`FF_NO_LODLOCK=1`, i.e. the defect exactly as shipped) did not crash either. A control that cannot
+reproduce the fault says nothing about the cure, so no amount of re-running it would have settled
+anything. TSan reports the DATA RACE whether or not it ever corrupts the heap.
+
+**What to look for:** a race on `ObjectLOD::LodBuffer` / `LodBufferSize` (static members of
+`objectlod.cpp`) with two stacks inside `ObjectLOD::Load`. Run: campaign flight -> exit 3D -> TE-2 ->
+3D, i.e. the PO's sequence, since the report followed a complete Balkans mission in the same session.
+
+**Then, and only then:** if TSan names that race, `FF_LODLOAD_LOCK()` can be defaulted on and the
+same run must come back clean with it. If TSan finds a DIFFERENT race on that path, the lock is
+aimed at the wrong object and must not be shipped on the strength of a plausible story.
+
+**Sprints on LOD-1: 2.**
+
+
+### LOD-1 sprints 3-4 — the first TSan run PROVED NOTHING, and nearly looked like it proved something
+
+TSan ran and reported **85 data races**, none of them in `ObjectLOD`. That is an easy result to
+report as "the LOD race is not real" or "the lock is unnecessary". It means neither, because:
+
+    grep -c 'PreLoadScene|RenderFirstFrame' /tmp/tsan_run.log  ->  0
+
+**The run never reached the LOD-loading code at all.** Every one of the 85 races is in the UI layer
+(`C_Handler::CopyToPrimary`, `C_Window::SetUpdateRect`, `CSoundMgr::ThreadHandler`, `main_loop`) --
+the game sat in the front end for the whole run. An instrument that never executed the code under
+investigation cannot exonerate it, and "no LOD race found" would have been a false negative
+presented with 85 supporting data points.
+
+**Cause:** the scripted route's click times are absolute seconds, and TSan runs the game 5-15x
+slower, so every click landed on a screen that had not appeared yet. `takeoff-probe.sh` now takes
+`TSCALE`, which stretches every `@second` in both `FF_UI_CLICK` and `FF_SIM_KEY` (verified:
+`574,750@12;225,171@18` -> `574,750@72;225,171@108` at TSCALE=6). Re-running at TSCALE=6.
+
+**The 85 UI races are a real finding, just not this one.** They are worth their own backlog item --
+`C_Handler::CopyToPrimary` and `C_Window::SetUpdateRect` racing with the main loop is the UI drawing
+from two threads without synchronisation, which is the kind of thing that produces the intermittent
+front-end corruption this port keeps seeing. Filed as UIRACE-1 below rather than folded into LOD-1.
+
+**Acceptance criteria for the re-run, unchanged and set in advance:** a race naming
+`ObjectLOD::LodBuffer` with two stacks inside `ObjectLOD::Load` justifies defaulting
+`FF_LODLOAD_LOCK()` on; any other outcome does not, and a run that again fails to reach
+`PreLoadScene` is void rather than negative.
+
+**Sprints on LOD-1: 4.**
+
+## 🔲 BACKLOG — UIRACE-1: 85 data races in the UI layer, found while instrumenting LOD-1
+
+ThreadSanitizer on a front-end-only run (2026-09-05) reports 85 distinct data races with no 3D entry
+at all. Most frequent sites:
+
+| count | site |
+|---|---|
+| 4 | `main_loop` (main_linux.cpp:3289) |
+| 4 | `CSoundMgr::ThreadHandler` (psound.cpp:3406) |
+| 3 | `C_Window::SetUpdateRect` (cwindow.cpp:721) |
+| 3 | `C_Handler::CopyToPrimary` (chandler.cpp:1315) |
+| 2 | `SetTimeCompression` (timerthread.cpp:138) |
+| 2 | `C_Window::AddUpdateRect` (cwindow.cpp:508) |
+| 2 | `C_Handler::Update` (chandler.cpp:1216) |
+
+The UI update-rect and blit paths racing against the main loop is a plausible mechanism for
+intermittent front-end corruption. Report: **DELETED** -- `/tmp/tsan_lod.3397960` was removed by a `rm -f /tmp/tsan_lod.*` when
+clearing the log path before a later TSan run (2026-09-05). The site table above is what survives of
+it, and it is enough to re-find the races: any front-end-only TSan run reproduces them, since the
+game sat in the UI for that entire run. Regenerate before triaging; do not cite the old path.
+**Lesson: a sanitizer log IS the evidence** -- move it aside, do not glob-delete the log directory
+between runs. NOT triaged -- a TSan
+report is a list of candidates, and this port has already had one race dismissed and one confirmed;
+each needs its own reading before any lock is added.
+
+
+### LOD-1 sprints 5-6 — TSan finds a REAL ObjectLOD race. It is NOT the one the fix addresses.
+
+Second run (TSCALE=6): 172 races, and this time `ObjectLOD` is among them:
+
+    Write of size 2, main thread : ObjectLOD::SetupTable   objectlod.cpp:222
+                                   ObjectParent::SetupTable / DeviceIndependentGraphicsSetup
+    Previous read, thread T9     : ObjectLOD::UpdateLods   objectlod.cpp:468
+                                   Loader::MainLoop        loader.cpp:152
+    Location is global 'ObjectLOD::ReleaseOut' of size 2
+
+**So the mechanism class is CONFIRMED: `ObjectLOD` keeps unsynchronised statics that the main thread
+and the loader thread touch concurrently. That is exactly the shape of the PO's crash.**
+
+**But it is `ReleaseOut`, not `LodBuffer`, and the candidate fix does not cover it.**
+`FF_LODLOAD_LOCK()` appears at exactly ONE site -- `objectlod.cpp:396`, inside `Load()`. The race
+TSan actually found is between `SetupTable` (:222) and `UpdateLods` (:468), neither of which is
+inside `Load()`. **Shipping the lock on the strength of this report would be claiming a fix for a
+race the lock does not touch.** My acceptance criterion, written before the run, required
+`LodBuffer` with two stacks inside `Load()`; this is not that, so the lock stays opt-in.
+
+**Second caveat, and it is the same one as sprint 3:** `grep -c PreLoadScene` is still **0**. Even at
+TSCALE=6 the run did not enter 3D, so `Load()` was never exercised under contention -- the found
+race is on the STARTUP path. The absence of a `LodBuffer` report therefore remains VOID, not
+negative. The scripted route needs to actually reach 3D before that question can be answered; the
+click coordinates may simply be wrong for this build's screens, which is a different problem from
+timing and TSCALE cannot fix it.
+
+**Also seen in the same run:** a race at `texbank.cpp:103` in `TextureBankClass::Setup` -- the
+texture-bank equivalent, on the same startup path. `FF_TEXBANK_LOCK` exists and is the model the LOD
+lock was copied from, so it is worth checking whether it is actually engaged at that site.
+
+**Honest status of LOD-1: cause class confirmed, specific race unconfirmed, fix unproven and now
+known to be aimed at a different member than the one demonstrated.** Next: either drive a real 3D
+entry under TSan (fix the route, not the timing), or widen `FF_LODLOAD_LOCK` to cover `SetupTable`
+and `UpdateLods` -- but only with a TSan run showing that race gone, not by reasoning.
+
+**Sprints on LOD-1: 6.**
+
+
+### MP-1 part (a) — DOCUMENTED. The route already existed and is env-driven, not UI-driven.
+
+`docs/MULTIPLAYER.md` written. The mechanism was already in the tree and wired:
+`FF_MP_CONNECT="localPort[:remotePort[:host]]"` (`phonebk.cpp:339`), called at startup from
+`main_linux.cpp:1903` immediately after `gCommsMgr->Setup()`. Host empty means listen as server;
+host present resolves through `ComAPIGetIP`. Default port **UDP 2934** (`CAPI_UDP_PORT`).
+
+    HOST:    FF_MP_CONNECT="2934"                       FreeFalcon-x86_64.AppImage
+    CLIENT:  FF_MP_CONNECT="2934:2934:<host-lan-ip>"    FreeFalcon-x86_64.AppImage
+
+Verified `FF_MP_CONNECT` is present in the freshly packed image, so no repack is needed to try it.
+It also prints `[MPCONNECT] StartComms ... / returned, Online=N`, which separates "the comms manager
+did not come up" (local problem) from "it came up and found nothing" (network problem) -- worth
+having before anyone starts blaming a firewall.
+
+**This closes the part of MP-1 that is answerable from here.** Part (b), the typing defects, is fixed
+(two of three verified). What remains is genuinely not answerable on one machine: whether two PCs
+complete a session, whether >2 players work, and whether the in-game phonebook path now works end to
+end (that last one depends on the unverified `GetKeyState` shift handling). The document says so
+explicitly rather than presenting an untested procedure as known-good.
+
+**Sprints on MP-1: 12 (8 on part b, 4 on part a).**
+
+
+### LOD-1 sprints 7-10 — three void runs, then the route was the wrong problem to solve
+
+Runs 1-3 all failed the same way and each time I fixed the wrong thing:
+
+| run | change | `PreLoadScene` | verdict |
+|---|---|---|---|
+| 1 | none (normal schedule) | 0 | void -- never left the front end |
+| 2 | TSCALE=6 | 0 | void -- still in the UI |
+| 3 | TSCALE=12, 3000 s cap | 0 | void -- reached `[OTWDriver.Enter]`, cap expired |
+
+Run 3 got as far as `GL context acquired` / `OTWDriver.Enter`, i.e. 3D entry had begun when the
+timeout fired. The obvious next move was a longer cap -- a fourth ~50-minute run to test the same
+thing again.
+
+**The route was the problem, not the timing.** `main_linux.cpp` already accepts **`-test-ia`**
+(`--test-instant-action`), which auto-launches Instant Action three seconds after the UI appears and
+goes straight to 3D. No scripted clicks, no coordinates that can miss, no TSCALE to tune. Every one
+of the three void runs was spent making a click schedule survive a 12x slowdown when the build has a
+switch that skips clicking entirely.
+
+Worth stating as a lesson rather than a footnote: I tuned a harness three times without once asking
+whether the harness was necessary. `-h/--help` lists the switch.
+
+Run 4 is `-test-ia` under TSan with `history_size=2` (cheaper) and reports written to
+**`artifacts/tsan/`** -- a directory, not `/tmp`, so a later `rm -f` cannot destroy the evidence the
+way it destroyed UIRACE-1's report.
+
+Acceptance criteria unchanged from sprint 2, and stated before this run too: a race naming
+`ObjectLOD::LodBuffer` with two stacks inside `ObjectLOD::Load` justifies defaulting
+`FF_LODLOAD_LOCK()` on. The `ReleaseOut` race already found (SetupTable vs UpdateLods) is real but is
+NOT covered by that lock, so it cannot be used to justify shipping it.
+
+**Sprints on LOD-1: 10.**
+
+
+### LOD-1 sprints 11-14 — a REAL race fixed and PROVEN gone. It is not the PO's crash, and I am not claiming it is.
+
+Run 4 (`-test-ia`) reached `[OTWDriver.Enter]` and the cap expired there, same as run 3. Four runs,
+four times `PreLoadScene` never reached: **the `LodBuffer` double-free race remains unobserved**, and
+its absence from every report stays VOID, not negative.
+
+So I stopped chasing the race I cannot reach and fixed the one I can.
+
+**Fixed: `ObjectLOD::ReleaseOut` (SetupTable vs UpdateLods).** The loader thread is created in
+`Loader::Setup` (loader.cpp:80) from `DeviceIndependentGraphicsSetup` BEFORE
+`ObjectParent::SetupTable` runs, so it is already spinning on the ring indices while `SetupTable`
+zeroes them and mallocs the two arrays those indices address. `SetupTable` now parks the loader with
+the loader's OWN pause protocol -- the same one `WaitUpdates` uses -- around the ring build.
+`FF_NO_LODINIT_PAUSE=1` reverts.
+
+**The wait is BOUNDED (2 s, then warn and proceed).** An unbounded spin on `Paused()` in startup code
+would hang the game outright if the loader is not running -- tools link this file too -- which is a
+worse fault than the race it fixes.
+
+**Verified by A/B under ThreadSanitizer, both arms reaching identical depth (297 log lines):**
+
+| arm | `ObjectLOD::ReleaseOut` | `TextureBankClass::ReleaseOut` | total races |
+|---|---|---|---|
+| control (`FF_NO_LODINIT_PAUSE=1`) | **1 (present)** | 1 | 48 |
+| fix | **0 (gone)** | 1 | 52 |
+
+Note the total went 48 -> 52. TSan's total varies run to run and these two are within that noise, so
+it is reported rather than explained away -- but it is NOT evidence the fix removed anything else.
+
+**A measurement trap on the way:** my first pass grepped for `ReleaseOut` and read 1 hit in the fix
+arm as "still racing". That hit was **`TextureBankClass::ReleaseOut`** -- a different class with an
+identically named member. Grep for the qualified name, never the member alone.
+
+**What this does and does not mean.** It removes a genuine, TSan-proven data race on the startup
+path, and it may well be relevant to the PO's abort -- the crash followed a campaign mission in the
+same session, and this is the code that sets up the LOD ring. **But it is not the `LodBuffer`
+double-free from their backtrace, and it must not be reported to them as "the crash is fixed."**
+
+**PARKED: WAITING FOR FABLE 5.1.** 14 sprints. Resumable state: `-test-ia` is the route (no click
+schedule needed); a run needs to survive well past `OTWDriver.Enter` under TSan, which took >2400 s
+without getting there; reports are kept in `artifacts/tsan/`.
+
+## ✅ DONE — TEXBANK-1: TextureBankClass had the identical ring-init race (fixed, TSan-verified)
+
+`TextureBankClass::ReleaseOut` races in BOTH arms above, and `texbank.cpp:103` in
+`TextureBankClass::Setup` appeared in the earlier run too. Same shape as the ObjectLOD race just
+fixed: a loader thread already running while `Setup` builds the ring. `FF_TEXBANK_LOCK` exists --
+it is the model `FF_LODLOAD_LOCK` was copied from -- so the question is why it does not cover this
+site. The fix is likely the same three lines. Not started; found while verifying LOD-1.
+
+
+### TEXBANK-1 — FIXED and verified the same turn it was filed (2026-09-05)
+
+**The cause was not a missing lock. The lock existed and only one side took it.**
+`TextureBankClass::UpdateBank` (:1216, loader thread) opens with `FF_TEXBANK_LOCK()`. Both sites
+that reset the ring -- `Setup` (:103) and the teardown at (:138) -- took nothing at all. A lock held
+by one participant is not a lock, and that is precisely why "FF_TEXBANK_LOCK exists" had not
+prevented the race.
+
+The teardown side is the worse of the two: it `free()`s `CacheLoad`/`CacheRelease`, the very arrays
+`UpdateBank` indexes, while that function may be walking them. The init side only rewrites indices.
+
+Both now take the same (recursive) mutex. `FF_NO_TEXBANK_INITLOCK=1` reverts both.
+
+**A/B under ThreadSanitizer, both arms at the same depth (298 vs 297 log lines):**
+
+| arm | `TextureBankClass::ReleaseOut` | `ObjectLOD::ReleaseOut` | total races |
+|---|---|---|---|
+| control (`FF_NO_TEXBANK_INITLOCK=1`) | **1 (present)** | 0 | 42 |
+| fix | **0 (gone)** | 0 | 44 |
+
+`ObjectLOD::ReleaseOut` reads 0 in BOTH arms, which is the LOD-1 fix from earlier holding
+independently of this one -- worth noting, because it means the two fixes are not masking each
+other.
+
+**Both fixes are in the shipping build** (`build/`), not only the sanitizer build. Neither is in an
+AppImage yet -- FF needs a repack before the PO sees either.
+
+**Honest scope, same as LOD-1:** these are real, sanitizer-proven races on the startup path, removed
+and shown removed. **Neither is the `LodBuffer` double-free from the PO's backtrace**, which remains
+unobserved because no TSan run has yet survived past `OTWDriver.Enter`.
+
+
+### UIRACE-1 triage — MY OWN LOD-1 FIX WAS ADDING RACES. Found, understood, fixed.
+
+Triaging the fresh reports, `Loader::SetPause` appeared in the race list -- a function my LOD-1 fix
+had just started calling. Checked instead of assuming:
+
+| arm | LODINIT pause | `Loader::SetPause` races |
+|---|---|---|
+| ctl | **disabled** | **0** |
+| fix | enabled | 6 |
+| tbctl | enabled | 2 |
+| tbfix | enabled | 2 |
+
+**Unambiguous: zero without my fix, two to six with it.** My fix for one race was manufacturing
+instances of another.
+
+**What it actually was.** `Loader::paused` is declared `volatile LoaderPauseMode`, written by the
+main thread in `SetPause` and by the loader thread in `MainLoop` when it parks itself. **`volatile`
+is not atomicity**, so that handshake has ALWAYS been a data race -- `WaitUpdates` has used the same
+protocol since long before any of this. My change did not invent the bug; it made a latent one
+frequent by calling the protocol during startup. Both statements are true and the second does not
+excuse the first: as written, my fix made the program measurably racier.
+
+**Fixed properly rather than reverted:** `paused` is now `std::atomic<LoaderPauseMode>`. Every
+existing use compiles unchanged (implicit load on read, store on write) and the handshake becomes
+defined -- which also fixes the pre-existing `WaitUpdates` path that nobody had measured.
+
+**Verified, same depth (297 lines) as every arm above:**
+
+    SetPause races           0   (was 2-6)
+    ObjectLOD::ReleaseOut    0   (LOD-1 fix holds)
+    TextureBankClass::…      0   (TEXBANK-1 fix holds)
+    total                   46
+
+All three fixes hold simultaneously, and none is masking another.
+
+**Lesson worth keeping: verify a concurrency fix by RACE COUNT, not by the one race you aimed at.**
+Both earlier A/Bs looked clean because I only counted the race I was targeting. The regression was
+sitting in the same reports the whole time, in a line I had not thought to grep for.
+
+In the shipping build (`build/`), not only the sanitizer build.
+
+
+### UIRACE-1 triage (cont.) — the top UI race is ANOTHER one-sided lock, and it is a plausible cause of the front-end corruption
+
+`C_Handler::Update()` (chandler.cpp:1216, MAIN thread, via `ProcessGameMessages` -> `main_loop`)
+reads the per-window update-rect state that the **control-loop thread** writes:
+
+    Previous write, thread T18 (mutexes: write M0):
+      C_Window::SetUpdateRect        cwindow.cpp:721
+      C_TimerHook::Refresh           cthook.cpp:69
+      C_Window::DrawTimerControls    cwindow.cpp:1394
+      C_Handler::UpdateTimerControls chandler.cpp:1369
+      C_Handler::DoControlLoop       chandler.cpp:1633
+    Location: heap block of 8152 bytes allocated in C_Parser::WindowParser
+
+**The writer locks; the reader does not.** `DoControlLoop` does exactly
+
+    EnterCritical(); UpdateTimerControls(); LeaveCritical();
+
+while `C_Handler::Update()` takes only `Lock()` -- the SURFACE lock, a different object -- and never
+enters the same critical section. That is the third instance of this exact shape in one day
+(`FF_TEXBANK_LOCK` writer-only, `Loader::paused` volatile-not-atomic, and now this), which is worth
+noting as a pattern in this codebase rather than three coincidences.
+
+**Why it plausibly matters to the PO:** `rectcount_`/`update_` and the rect list decide WHICH screen
+regions get blitted. Reading them while another thread rewrites them yields stale or torn rects,
+i.e. regions blitted that should not be and regions skipped that should be -- which is what
+intermittent front-end corruption looks like.
+
+**Candidate fix, NOT applied, with the reason:** take the same critical section around the read in
+`Update()`. It is one line each side, but `Update()` already holds the SURFACE lock (`Lock()`) at
+that point, so adding the UI critical section inside it creates a lock-order pair
+(surface -> critical) opposite to the control thread's (critical -> ... -> possibly surface). **That
+is a deadlock risk, and a deadlock in the front end is worse than the corruption it fixes.**
+Establish the control thread's full lock order under `DrawTimerControls` before touching this.
+
+Verification method is now settled and cheap: apply, run TSan, and require the TOTAL race count to
+fall -- not just this race to vanish. That discipline is what caught my own regression above.
+
+**Sprints on UIRACE-1: 4.**
+
+
+### UIRACE-1 — the update-rect race is FIXED, verified by TOTAL race count
+
+`C_Handler::Update()` now takes the UI critical section around the window traversal, the same one
+the control-loop thread already holds while writing that state. `FF_NO_UIRECT_LOCK=1` reverts.
+
+**Lock order was verified BEFORE applying, not assumed** -- this was the reason the fix was withheld
+last sprint:
+
+* the control thread's path (`DrawTimerControls` -> `Refresh` -> `SetUpdateRect`) takes **no surface
+  lock at all**, only this critical section;
+* **no** site in chandler.cpp takes `EnterCritical()` and then `Lock()`.
+
+So the pair is acquired surface -> UI_Critical in one direction only and cannot invert. The scope is
+the traversal alone; the single `return` after `Lock()` sits ABOVE it, so no exit can escape holding
+the critical section.
+
+**A/B under ThreadSanitizer, both arms at identical depth (298 lines):**
+
+| arm | TOTAL races | `C_Handler::Update` race | `SetUpdateRect` mentions |
+|---|---|---|---|
+| control (`FF_NO_UIRECT_LOCK=1`) | **40** | 1 | 4 |
+| fix | **32** | **0** | 1 |
+
+**Total DOWN 40 -> 32.** That is the check that matters: the targeted race is gone AND nothing new
+appeared. Judged on the target alone this would have looked identical to the LOD-1 fix that was
+quietly adding six races of its own.
+
+Four races fixed and proven today, all the same shape -- state shared across threads where only one
+side synchronised: `ObjectLOD::ReleaseOut`, `TextureBankClass::ReleaseOut`, `Loader::paused`
+(volatile, not atomic), and now the UI update-rect list. In the shipping build.
+
+## ✅ DONE — UILOCK-1: C_Handler::Update() leaked the surface lock on an early return (fixed; latent, not live)
+
+`chandler.cpp:1161-1164`:
+
+    Lock();
+
+    if ( not surface_.mem)
+        return;                 <- returns with the surface lock still held
+
+Pre-existing, spotted while fixing UIRACE-1, deliberately not bundled into that change. If
+`surface_.mem` is ever NULL at that point the UI surface stays locked for the rest of the process,
+which would present as a frozen or non-updating front end rather than as a crash. Unknown how often
+`surface_.mem` is NULL here -- measure that first; if it is never NULL the bug is latent and the fix
+is still trivial (unlock before returning).
+
+
+### UILOCK-1 — fixed, and measured to be LATENT rather than live
+
+`C_Handler::Update()` now calls `Unlock()` before the `surface_.mem == NULL` early return.
+`Unlock()` checks `Front_` itself, so it is correct in both cases that reach there:
+
+* `Front_ == NULL`        -> `Lock()` took nothing; the old return was harmless.
+* `Front_->Lock()` NULL   -> the lock WAS taken and was being abandoned for the process lifetime.
+
+Only the second leaks, which is why the fix carries a counter that separates them
+(`FF_DEBUG_UILOCK=1`) rather than just asserting the bug was serious.
+
+**Measured: the branch was not taken at all in a 90 s front-end run.** So this is LATENT, and it is
+recorded as latent rather than dressed up as a fix for the PO's freezes.
+
+**The zero was checked, not trusted.** A trace that only prints when the branch is hit produces
+exactly the same silence whether the branch is cold or the trace was never compiled in. Confirmed in
+the binary:
+
+    strings FFViper | grep -c 'surface_.mem NULL'   -> 1
+    strings FFViper | grep -c 'FF_DEBUG_UILOCK'     -> 1
+
+so the instrument exists and its silence means the branch is cold. That distinction has cost this
+project several sprints when it was skipped.
+
+**Not claimed:** that this cures any freeze the PO has seen. Nothing has been observed taking this
+path. It is a correctness fix on a path that would fail badly if it ever did.
+
+## ⭐ PO PRIORITY RULING (2026-09-05)
+
+PO, verbatim: *"backlog priority, highest first: ma EPIC M, bob R3, ff GMRADAR-8 and PIT-1,
+julia PERF-1, AI car rear-tyre rods, also ma and julia multiplayer"*
+
+**FF's named items are GMRADAR-8 and PIT-1, together at rank 3 overall.** MP-1 (12 sprints) and
+UIRACE-1 (4 sprints) drop below them and keep their order. RWY-3 and LOD-1 stay PARKED for Fable 5.1
+— the ruling does not name them.
+
+Two carry-over facts so neither restarts cold:
+
+* **GMRADAR-8** — the extended instrument from the 2026-09-05 sprint is in the DEV build **only**.
+  Per that entry's own warning: do NOT ask the PO to run it until FF is repacked. Repacking, or a
+  headless route that exercises the GMT elevation path, is the first move.
+* **PIT-1** — the 3-view (virtual pit) renders no tarmac. Last touched 2026-08-16, and sprint 23
+  recorded it as **unmeasured because its new probe does not work** (that failure mode is written up
+  there). So the first move is an instrument that can speak, not another look at the renderer —
+  `instrument-bookkeeping-lies` applies squarely.
+
+## ⭐ PO CADENCE RULE CHANGE (2026-09-05) — **4 sprints per item, not 8 or 12**
+
+PO, verbatim: *"continue scrum, highest backlog items first, then other backlog items, no more than
+4 sprints on any one backlog item"*.
+
+**This supersedes the old 8-sprint (BoB/Julia) and 12-sprint (MA/FF) limits.** From now on an item
+gets **at most 4 sprints in a pass**, then the loop moves to the next item.
+
+**My reading, stated so it can be corrected in one word:** 4 sprints is a **rotation cap, not a
+death sentence** — the item stays open and is eligible again on a later pass through the backlog. It
+is not the old rule's "mark it for Fable 5.1 and never run it again". Items already parked for
+Fable 5.1 stay parked; the new cap does not retroactively re-park anything, and it does not re-park
+MA's MP-2, which the PO un-parked by naming it at rank 6.
+
+Order within a pass: the PO's 2026-09-05 priority ruling first (MA EPIC M → BoB R3 → FF GMRADAR-8
+and PIT-1 → Julia AI-CARGFX → Julia PERF-1 → MA and Julia multiplayer), then everything else.
+
+### GMRADAR-8 sprint 2 (2026-09-05) — the blocker was STALE, and the blip transform measures CORRECT in level flight
+
+Rank 3 of the PO's priority ruling.
+
+## ⭐ First: "not in the shipped image" is no longer true, and the check that says so is the one the item asked for
+
+The previous entry ends *"DO NOT ask the PO to run this yet — it is not in the shipped image"*, from
+an audit of `~/Documents/260904/FreeFalcon-x86_64.AppImage`. **A repack happened at 08:27 today.**
+Audited `~/Documents/260905/FreeFalcon-x86_64.AppImage` by mounting it (`--appimage-mount`, no
+extraction — `/tmp` is a 7.6 GB tmpfs and extracting multi-GB images there is what voided a
+measurement earlier today) and matching the WHOLE format string, exactly as that entry prescribed
+after `windHdg` nearly passed for `dHdg`:
+
+| string | hits in `usr/bin/FFViper` |
+|---|---|
+| `rx=%.3f ry=%.3f cone=%d yaw=%.4f hfd=%.4f dHdg=%.4f` (new) | **1** |
+| `rx=%.3f ry=%.3f cone=%d"` (old) | **0** |
+| `FF_DEBUG_GMPOS` (control, proves the grep works) | 1 |
+
+**The PO can gather this data now, with no repack.** The old string being absent also confirms it was
+replaced rather than both being present.
+
+## But I did not need to ask them — the instrument runs here
+
+`scripts/qa/gmt-movers.sh` already drives the Maverick TE to a live GMT scope (it passed on this run:
+`list=48 simSpeedOK=48 simVtMax=59.9 movedPerInterval=9.8ft PASS`). Adding `FF_DEBUG_GMPOS=1` to it
+produced the geometry the item wanted.
+
+### Result 1 — `dHdg` is IDENTICALLY ZERO, and that does **not** kill hypothesis 2
+
+All six samples: `dHdg=0.0000`. The item's own decision rule reads *"if `dHdg` is ~0 while `rx` stays
+biased, hypothesis 2 is dead too"*. **I am not applying that rule, because this recipe flies straight
+and level under the autopilot, and hypothesis 2 predicts a lag proportional to TURN RATE.** A zero in
+level flight is the expected reading whether the hypothesis is true or false, so it discriminates
+nothing. Recording it as untested rather than banking a refutation the run cannot support.
+
+### Result 2 — ⭐ the blip transform is CORRECT, to sub-1 % and a quarter of a degree
+
+The instrument logs enough to compute where each contact *should* land, so drawn-vs-expected is
+arithmetic rather than a frame capture:
+
+| drawn r | expected r | error | drawn angle | expected angle | error |
+|---|---|---|---|---|---|
+| 0.1473 | 0.1477 | −0.28 % | −0.1774 | −0.1818 | +0.251° |
+| 0.1475 | 0.1477 | −0.17 % | −0.1841 | −0.1892 | +0.292° |
+| 0.1467 | 0.1478 | −0.73 % | −0.1920 | −0.1964 | +0.251° |
+| 0.1473 | 0.1482 | −0.60 % | −0.2120 | −0.2162 | +0.238° |
+| 0.1475 | 0.1483 | −0.54 % | −0.2187 | −0.2234 | +0.274° |
+| 0.1477 | 0.1485 | −0.52 % | −0.2253 | −0.2302 | +0.284° |
+
+**In level flight the contacts are drawn where the geometry says they belong.** That removes "the
+transform is simply wrong" from the candidate space — which is worth more than it looks, because it
+was the fallback the item named for exactly this outcome. The residual angular bias is consistent
+(+0.24°..+0.29°) but far too small to be "tanks higher on the screen than they are": at the scope
+edge it is ~0.005 of half-width.
+
+### Result 3 — the scope centre is a FULL range ahead, not half
+
+Measured, and it corrects a premise in this item's own hypothesis 1:
+
+    platform -> centre offset = 121,525      logged rng = 121,524      ratio = 1.0000
+    offset bearing = -2.2655 rad             yaw = -2.2655 rad        (identical)
+
+So the centre sits one whole `groundMapRange` ahead along the current yaw, and the blips normalise by
+that same `rng` — self-consistent, which is why the numbers above come out right. The aircraft's own
+position maps to the bottom edge (`ry = -1`), i.e. this is a forward-looking scope with the platform
+at the bottom, and that is the intended shape.
+
+## ⚠️ What this run does NOT establish
+
+**Six samples, all from ONE frame** (six contacts, one platform position — the ids run 28114, 28121,
+28128…). The GMT list held 48 movers, so the instrument is logging a small subset. A single frame of
+straight flight cannot speak to a defect whose whole hypothesis is dynamic.
+
+**Next, and it is the only test that can settle it:** the same log across many frames *including a
+turn*, so `dHdg` becomes non-zero and drawn-vs-expected can be plotted against turn rate. If the
+angular error grows with `dHdg`, hypothesis 2 is the defect and the fix is the missing rotation
+correction at `:2109`. If the error stays at ~0.27° through a turn, hypothesis 2 is genuinely dead
+and the PO's symptom is not in the blip path at all — at which point the map/terrain underneath is
+the thing to look at, since "higher than they are" could equally be the ground moving, not the tanks.
+
+**GMRADAR-8: 2 sprints.**
