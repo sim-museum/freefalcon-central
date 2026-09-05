@@ -1577,6 +1577,7 @@ struct FF_ProbeIndexed {
 static GLfloat s_worldMV[16], s_worldPR[16];
 static bool    s_worldMatsValid = false;
 static long s_probeFrame = 0;
+static double s_lastWorldFar = 0.0;
 static void FF_ProbeDepthStripImpl(const char* when, int w, int h);
 static bool FF_InvertMatrix4(const double m[16], double inv[16]);
 
@@ -1584,6 +1585,60 @@ static void FF_NoteWorldMatrices(DWORD nVerts) {
     static int s_want = -1;
     if (s_want == -1) s_want = getenv("FF_PROBE_DEPTH") ? 1 : 0;
     if (!s_want) return;
+
+    // PIT-1 S445: READ AT THE WORLD -> COCKPIT TRANSITION.
+    // S443 read at the FIRST qualifying batch (terrain not yet drawn: depth held only near and
+    // far). The original 2026-08-17 probe read at end of frame (cockpit owned the depth buffer).
+    // Both are wrong in opposite directions, and neither can be fixed by choosing a batch SIZE.
+    // What separates the two passes is the FRUSTUM: S444 measured the world far plane at
+    // 263,534 ft = 43.4 nm, while a cockpit-local pass is a few feet. So classify every batch by
+    // its far plane -- cheap, no readback -- and fire the depth read on the first cockpit-scale
+    // batch that FOLLOWS world-scale ones. That instant is after terrain has written depth and
+    // before the cockpit overwrites it, which is the only moment the strip means anything.
+    // FF_PROBE_FARMIN overrides the world/cockpit boundary (feet).
+    {
+        GLfloat pr[16];
+        glGetFloatv(GL_PROJECTION_MATRIX, pr);
+        // Column-major perspective: pr[10] = -(f+n)/(f-n), pr[14] = -2fn/(f-n)  =>  f = pr[14]/(pr[10]+1)
+        const double denom = (double)pr[10] + 1.0;
+        const double farPlane = (fabs(denom) > 1e-9) ? fabs((double)pr[14] / denom) : 0.0;
+
+        static double s_farMin = -1.0;
+        if (s_farMin < 0) { const char* m = getenv("FF_PROBE_FARMIN"); s_farMin = m ? atof(m) : 10000.0; }
+
+        static long s_seenWorldFrame = -1;
+        const bool isWorld = (farPlane >= s_farMin);
+
+        // S445 diagnostic: a zero transition count must distinguish "no world-scale batch" from
+        // "no cockpit-scale batch after one" from "matrices never valid". Report the far-plane
+        // range actually seen, plus the three counters, rather than leaving the null ambiguous.
+        if (getenv("FF_PROBE_FARTRACE")) {
+            static double fmin = 1e30, fmax = -1e30;
+            static long nAll = 0, nWorld = 0, nCock = 0, rep = 0;
+            nAll++; if (isWorld) nWorld++; else nCock++;
+            if (farPlane < fmin) fmin = farPlane;
+            if (farPlane > fmax) fmax = farPlane;
+            if ((rep++ % 20000) == 0)
+                fprintf(stderr, "[DEPTHPROBE:far] n=%ld world=%ld cockpit=%ld far=[%.1f..%.1f] thresh=%.1f matsValid=%d\n",
+                        nAll, nWorld, nCock, fmin, fmax, s_farMin, s_worldMatsValid ? 1 : 0);
+        }
+
+        if (isWorld) {
+            s_seenWorldFrame = s_probeFrame;          // world pass is live this frame
+        } else if (s_seenWorldFrame == s_probeFrame) {
+            // First cockpit-scale batch after world-scale ones: the transition.
+            s_seenWorldFrame = -1;                     // once per frame
+            if (s_worldMatsValid) {
+                GLint vp[4] = {0,0,0,0};
+                glGetIntegerv(GL_VIEWPORT, vp);
+                if (getenv("FF_PROBE_EYETRACE"))
+                    fprintf(stderr, "[DEPTHPROBE:xition] far=%.0f ft -> cockpit far=%.0f ft, reading strip\n",
+                            s_lastWorldFar, farPlane);
+                if (vp[2] > 0 && vp[3] > 0) FF_ProbeDepthStripImpl("xition", vp[2], vp[3]);
+            }
+        }
+        if (isWorld) s_lastWorldFar = farPlane;
+    }
 
     // The terrain batches are large, depth-tested and go to the default
     // framebuffer; that is the pass whose depth we are unprojecting.
@@ -1645,7 +1700,7 @@ static void FF_NoteWorldMatrices(DWORD nVerts) {
     // reading is the control for the new one in the same run.
     {
         static long s_frameGuard = -1;
-        if (s_frameGuard != s_probeFrame) {
+        if (getenv("FF_PROBE_FIRSTBATCH") && s_frameGuard != s_probeFrame) {   /* S445: the first-batch read is now OFF by default -- it samples before terrain draws */
             s_frameGuard = s_probeFrame;
             GLint vp[4] = {0,0,0,0};
             glGetIntegerv(GL_VIEWPORT, vp);

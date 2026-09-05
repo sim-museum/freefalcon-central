@@ -11836,3 +11836,53 @@ sprint already logs exactly the data needed to find that index offline.
 
 **PIT-1: 3 sprints. Still nothing measured — but the remaining question is now one specific
 question, and two wrong answers are eliminated with evidence rather than suspicion.**
+
+### PIT-1 sprint 4 (2026-09-05) — ⛔ **the whole depth-unprojection approach is invalid.** The GL matrices are constants
+
+Read at the world→cockpit **frustum transition** instead of at a batch size, since S444 had measured
+the world far plane at 43.4 nm against a cockpit's few feet. **Zero transitions fired, in both
+views.** A zero from a new instrument is a claim about the instrument, so it was traced:
+
+    [DEPTHPROBE:far] n=3200001 world=0 cockpit=3200001 far=[0.4..0.4] thresh=10000.0 matsValid=1
+
+**3.2 million batches. The far plane is 0.4 for every one of them — a range of exactly zero.**
+
+## What that means, and it retracts S444 as well as S443
+
+The GL projection matrix at this hook **never changes**, so it does not describe the camera.
+FreeFalcon's D3D compat submits **pre-transformed vertices** — the same shape BoB found in its own
+renderer (*"`is2D` is NEVER false on this path: every primitive reaching `draw_fvf` is already
+transformed"*). The GL modelview/projection are fixed scaffolding, not a view.
+
+Therefore:
+
+* ⛔ **S444's "the world far plane is 263,534 ft = 43.4 nm, so this is a terrain frustum" is
+  WITHDRAWN.** That number came from inverting a matrix that is not a camera. I read a meaningless
+  product as the decisive evidence, and it is the second conclusion in this item I have had to take
+  back in two sprints.
+* ⛔ The constant `eye=(-1.0, -5.3, -0.9)` was never a cockpit pass *or* an eye-relative world
+  camera. **It is a constant** — the same three numbers every frame, in every view, because the
+  matrix producing them never varies.
+* ⛔ **Depth unprojection cannot answer PIT-1's question at all.** You cannot recover feet-from-the-eye
+  from a depth buffer using matrices that carry no camera. The 2026-08-17 probe, S443's re-timing,
+  S444's filter and this sprint's transition trigger are all four built on that premise, and the
+  premise is false. Everything from `FF_PROBE_DEPTH` downward should be treated as void, not merely
+  unvalidated.
+
+## The one thing that did work, and what to do instead
+
+The instrument bookkeeping did its job: every null in this item was traced rather than believed —
+"no transitions" produced a counter that named the reason in one run, and "0 of 18,298" the sprint
+before. That is the only reason four sprints of wrong premise cost measurement time rather than
+producing a confident wrong answer about the runway.
+
+**The correct source is the SIM's own camera, not GL.** GMRADAR-8 read `platform->Yaw()`,
+`XPos()`, `YPos()` straight from the sim and computed screen geometry from them successfully this
+same day — that is the pattern. PIT-1's question ("at what ground distance does the runway end in
+each view") should be answered by logging the sim-side eye position, view direction and FOV per view,
+then converting the *existing* tarmac/grass strip rows to ground distances arithmetically. No depth
+buffer, no unprojection, no GL matrices.
+
+**PIT-1 rotates out at 4 of 4 sprints, still unmeasured.** What it gained: four candidate methods
+eliminated with evidence, the wrong ones named so nobody rebuilds them, and the right source
+identified. What it did not gain: a number.
