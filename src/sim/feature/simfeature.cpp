@@ -280,6 +280,30 @@ int SimFeatureClass::Wake()
     //RViewPoint* viewpoint = OTWDriver.GetViewpoint(); // JB 010616 safer
     //if (viewpoint)
     z = OTWDriver.GetApproxGroundLevel(XPos(), YPos());
+#ifdef FF_LINUX
+    // RWY-3 (PO: "the runway pulled away from me like a carpet"): a feature that wakes at range
+    // is placed on whatever LOD has streamed in and then re-snapped as finer terrain arrives,
+    // so 12 of 31 runway posts stepped through -14 -> -20 -> -23 -> -25 ft during an approach.
+    // Place it on the FINEST level's posts from the start (read synchronously from the post
+    // file); the later re-snaps then find nothing to move. FF_NO_FEATURE_FINEST=1 reverts.
+    {
+        static int s_fin = -1;
+        if (s_fin < 0) s_fin = getenv("FF_NO_FEATURE_FINEST") ? 0 : 1;
+        float zf;
+        if (s_fin and OTWDriver.GetFinestGroundLevel(XPos(), YPos(), &zf))
+        {
+            static int s_fdbg = -1, s_fn = 0;
+            if (s_fdbg < 0) s_fdbg = getenv("FF_DEBUG_RESNAP") ? 1 : 0;
+            if (s_fdbg and s_fn++ < 40)
+            {
+                fprintf(stderr, "[FINEST] feature id=%d pos=(%.0f,%.0f) approxZ=%.2f finestZ=%.2f\n",
+                        (int)Id().num_, XPos(), YPos(), z, zf);
+                fflush(stderr);
+            }
+            z = zf;
+        }
+    }
+#endif
     //else
     // z = 0.0;
     SetPosition(XPos(), YPos(), z);

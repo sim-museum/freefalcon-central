@@ -154,6 +154,7 @@ void TLevel::Setup(int level, int width, int height, const char *mapPath)
     sprintf(filename, "%s\\Theater.l%0d", mapPath, level);
 #endif
 
+    strncpy(peekFileName, filename, sizeof(peekFileName) - 1); peekFileName[sizeof(peekFileName) - 1] = 0;   // RWY-3
     if (postFileMap.Open(filename, FALSE, not g_bUseMappedFiles) == false)
         return;
 
@@ -534,6 +535,57 @@ void TLevel::PreProcessBlock(LoaderQ* request)
 // Set the address of the block data for a specific terrain data block
 // If the pointer provided is NULL, remove the pointer from the database
 // and replace the file offset.
+// RWY-3: see tlevel.h. Returns false only when the post is outside the level or the file
+// read fails; the caller then falls back to the streamed (coarse) answer.
+bool TLevel::PeekPostZ(int levelPostRow, int levelPostCol, float *z)
+{
+    if (not IsReady() or not z) return false;
+    int r = LEVEL_POST_TO_LEVEL_BLOCK(levelPostRow);
+    int c = LEVEL_POST_TO_LEVEL_BLOCK(levelPostCol);
+    if (r < 0 or c < 0 or r >= (int)blocks_high or c >= (int)blocks_wide) return false;
+    const int pr = LEVEL_POST_TO_BLOCK_POST(levelPostRow);
+    const int pc = LEVEL_POST_TO_BLOCK_POST(levelPostCol);
+    DWORD offset;
+    EnterCriticalSection(&cs_blockArray);
+    tBlockAddress a = blocks[r * blocks_wide + c];
+    if (not (a.offset bitand 0x00000001))
+    {
+        TBlock *b = a.ptr;                                     // owned: maybe already in memory
+        if (b and b->Posts())
+        {
+            *z = b->Post(pr, pc)->z;
+            LeaveCriticalSection(&cs_blockArray);
+            return true;
+        }
+        offset = b ? (b->fileOffset >> 1) : 0;
+    }
+    else
+        offset = a.offset >> 1;
+    LeaveCriticalSection(&cs_blockArray);
+    if (offset == 0 and not (r == 0 and c == 0)) return false;
+    if (not (peekBlockR == r and peekBlockC == c))            // not the cached block: read it
+    {
+        if (not peekOpen)
+        {
+            peekOpen = peekFile.Open(peekFileName, FALSE, TRUE) ? true : false;
+            if (not peekOpen) return false;
+        }
+        if (g_LargeTerrainFormat)
+        {
+            if (not peekFile.ReadDataAt(offset, peekBlock, sizeof(peekBlock))) return false;
+        }
+        else
+        {
+            static TdiskPost oldBlock[POSTS_PER_BLOCK];
+            if (not peekFile.ReadDataAt(offset, oldBlock, sizeof(oldBlock))) return false;
+            for (int i = 0; i < POSTS_PER_BLOCK; ++i) peekBlock[i].z = oldBlock[i].z;
+        }
+        peekBlockR = r; peekBlockC = c;
+    }
+    *z = -(float)peekBlock[pr * POSTS_ACROSS_BLOCK + pc].z;   // disk z is feet ASL; Tpost z is DOWN
+    return true;
+}
+
 void TLevel::SetBlockPtr(UINT r, UINT c, TBlock *block)
 {
     ShiAssert((c < blocks_wide) and (r < blocks_high));

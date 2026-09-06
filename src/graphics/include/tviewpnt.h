@@ -138,6 +138,10 @@ public:
     // If the third argument is provided to the exact version, then the normal
     // will also be returned
     float GetGroundLevelApproximation(float x, float y);
+    // RWY-3 (FF_LINUX): ground height from the FINEST level's posts regardless of what has
+    // streamed in, read synchronously (TLevel::PeekPostZ). Same triangle split as
+    // GetGroundLevel so the two agree exactly once the fine block is resident. false = no data.
+    bool GetGroundLevelFinest(float x, float y, float *z);
 #ifdef FF_LINUX
     // FF_LINUX (TERRAIN-Z): post height at a forced LOD, for measuring the
     // physics-vs-rendered terrain disagreement. -99999 if that LOD has no data.

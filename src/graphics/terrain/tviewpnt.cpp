@@ -632,6 +632,33 @@ float TViewPoint::FFPostZAtLOD(float x, float y, int lod)
 
 #endif
 
+bool TViewPoint::GetGroundLevelFinest(float x, float y, float *z)
+{
+    const int LOD = minLOD;
+    TLevel *lvl = TheMap.Level(LOD);
+    if (not lvl or not z) return false;
+    const int row = WORLD_TO_LEVEL_POST(x, LOD);
+    const int col = WORLD_TO_LEVEL_POST(y, LOD);
+    float z1, z2, z3;
+    if (not lvl->PeekPostZ(row, col, &z1) or not lvl->PeekPostZ(row + 1, col + 1, &z3)) return false;
+    const float x_pos = x - LEVEL_POST_TO_WORLD(row, LOD);
+    const float y_pos = y - LEVEL_POST_TO_WORLD(col, LOD);
+    const float fpp = lvl->FTperPOST();
+    if (x_pos >= y_pos)
+    {
+        if (not lvl->PeekPostZ(row + 1, col, &z2)) return false;
+        // plane through p1 (row,col), p2 (row+1,col), p3 (row+1,col+1)
+        *z = z1 + (z2 - z1) * (x_pos / fpp) + (z3 - z2) * (y_pos / fpp);
+    }
+    else
+    {
+        if (not lvl->PeekPostZ(row, col + 1, &z2)) return false;
+        // plane through p1 (row,col), p2 (row,col+1), p3 (row+1,col+1)
+        *z = z1 + (z3 - z2) * (x_pos / fpp) + (z2 - z1) * (y_pos / fpp);
+    }
+    return true;
+}
+
 float TViewPoint::GetGroundLevelApproximation(float x, float y)
 {
     int LOD;

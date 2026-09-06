@@ -12258,3 +12258,19 @@ vehicle. Pass = seeker aim point within one vehicle length of an actual tank. Th
   GMRADAR-8 stays OPEN as not-reproduced: the sleeping/awake hypothesis predicts exactly this
   run-to-run variance. Next repro needs `FF_DEBUG_GMPOS=1` (the [GMUNIT] line now also prints
   the drawable position). The `[GM] quadFlush` terminal flood is gated behind FF_DEBUG_GM (af57352c).
+
+### RWY-3 — UN-PARKED (Fable 5.1, 2026-09-06): features now placed on the FINEST terrain level from the first frame
+The parked record's mechanism was already right: a feature that Wakes at range is placed on
+whatever LOD has streamed in and re-snapped as finer terrain arrives (`FF_ServiceFeatureResnaps`),
+so 12 of 31 runway posts stepped −14 → −20 → −23 → −25 ft during an approach — the PO's "carpet".
+Fix: `TLevel::PeekPostZ` reads one post synchronously from the level's post file on a PRIVATE
+handle (the loader shares `postFileMap`'s file pointer, so that one cannot be touched from the sim
+thread), with a one-block cache; `TViewPoint::GetGroundLevelFinest` bilinear-interpolates the four
+finest-level posts with the same triangle split as `GetGroundLevel`, so the two agree exactly once
+the block is resident; `OTWDriverClass::GetFinestGroundLevel` wraps it; `SimFeatureClass::Wake`
+uses it in place of the approximation. The resnap queue stays as a safety net and now finds nothing
+to move. `FF_NO_FEATURE_FINEST=1` reverts; `FF_DEBUG_RESNAP=1` prints `[FINEST] approxZ vs finestZ`.
+**Acceptance (unchanged): no runway post may change elevation during an approach.** Verification
+needs a display run: TE-02 with `FF_DEBUG_RUNWAY=1 FF_DEBUG_RESNAP=1`, count posts whose logged
+elevation changes; control with `FF_NO_FEATURE_FINEST=1` must reproduce the 12/31. Requested from
+the PO together with the PIT-1 capture. Built clean; packed as the 260906 FreeFalcon AppImage.

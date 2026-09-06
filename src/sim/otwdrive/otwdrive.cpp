@@ -3589,6 +3589,17 @@ float OTWDriverClass::GetApproxGroundLevel(float x, float y)
     return (0.0F);
 }
 
+bool OTWDriverClass::GetFinestGroundLevel(float x, float y, float *z)
+{
+    InitViewpoint();
+    bool ok = false;
+    F4EnterCriticalSection(cs_update);
+    if (viewPoint and viewPoint->IsReady())
+        ok = viewPoint->GetGroundLevelFinest(x, y, z);
+    F4LeaveCriticalSection(cs_update);
+    return ok;
+}
+
 void OTWDriverClass::GetAreaFloorAndCeiling(float *floor, float *ceiling)
 {
     InitViewpoint();

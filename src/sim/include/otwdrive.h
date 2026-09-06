@@ -319,6 +319,7 @@ public:
 
     float GetGroundLevel(float x, float y, Tpoint* normal = NULL);
     float GetApproxGroundLevel(float x, float y);
+    bool  GetFinestGroundLevel(float x, float y, float *z);   // RWY-3: finest-LOD posts, synchronous
     void GetAreaFloorAndCeiling(float *floor, float *ceiling);
     int   GetGroundIntersection(euler* dir, vector* point);
 

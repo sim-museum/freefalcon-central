@@ -46,6 +46,11 @@ public:
     ~TLevel() {};
 
     void Setup(int level, int width, int height, const char *mapPath);
+    // RWY-3 (FF_LINUX): read ONE post's elevation for this level synchronously, whether or not
+    // its block is streamed in -- from the block in memory when it is, else straight from the
+    // post file on a private handle (the loader thread shares postFileMap's file pointer, so
+    // that handle cannot be used from the sim thread). Feet, positive DOWN, like Tpost::z.
+    bool PeekPostZ(int levelPostRow, int levelPostCol, float *z);
     void Cleanup(void);
 
 
@@ -102,6 +107,11 @@ protected:
     UINT blocks_high; // How many blocks high is this level
 
     tBlockAddress *blocks; // Point to an array of pointers to blocks (NULL means not loaded)
+    char peekFileName[260];   // RWY-3: the post file, for the private peek handle
+    FileMemMap peekFile;      // RWY-3: opened lazily by PeekPostZ (nomap), never by the loader
+    bool peekOpen = false;
+    int peekBlockR = -1, peekBlockC = -1;          // one-block cache for the peek path
+    TNewdiskPost peekBlock[POSTS_PER_BLOCK];
 
     float feet_per_post;
     float feet_per_block;
