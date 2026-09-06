@@ -195,6 +195,22 @@ int RadarDopplerClass::InitialGroundContactTest(
     return 0;
 }
 
+#ifdef FF_LINUX
+// GMRADAR-8 (PO 2026-09-05/06: "GMT shows targets above the tanks, then nothing at all"). An
+// AWAKE mover is drawn only as the SHAPED blip from its drawable; when that shape yields nothing
+// on this port the vehicle vanishes from GMT exactly as it wakes -- while the Maverick page still
+// shows it. In GMT (moving-target) modes also drop a point blip at the vehicle's true sim position,
+// which is what the seeker aims at. FF_GMT_POINTBLIP=0 reverts.
+static void FF_GMTPointBlip(RenderGMRadar *renderer, FalconEntity *obj, int mode)
+{
+    static int s_on = -1;
+    if (s_on < 0) s_on = (getenv("FF_GMT_POINTBLIP") and getenv("FF_GMT_POINTBLIP")[0] == '0') ? 0 : 1;
+    if (not s_on or not renderer or not obj) return;
+    if (mode == (int)RadarDopplerClass::GM) return;       // GM (fixed) keeps the shaped return only
+    renderer->DrawBlip(obj->XPos(), obj->YPos());
+}
+#endif
+
 int RadarDopplerClass::GMTObjectContactTest(FalconEntity *contact)
 {
     // Begine GMT test
@@ -2210,6 +2226,7 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
                         renderer->DrawBlip(drawable, GainScale, Shaping);
 #ifdef FF_LINUX
                         ffDrawn++; ffShaped++;
+                        FF_GMTPointBlip(renderer, curNode->Object(), (int)mode);
 #endif
                     }
 #ifdef FF_LINUX
@@ -2217,7 +2234,12 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
 #endif
                 }
                 else
+                {
                     renderer->DrawBlip(drawable, GainScale, Shaping);
+#ifdef FF_LINUX
+                    FF_GMTPointBlip(renderer, curNode->Object(), (int)mode);
+#endif
+                }
             }
             else
             {

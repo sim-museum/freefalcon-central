@@ -12274,3 +12274,8 @@ to move. `FF_NO_FEATURE_FINEST=1` reverts; `FF_DEBUG_RESNAP=1` prints `[FINEST] 
 needs a display run: TE-02 with `FF_DEBUG_RUNWAY=1 FF_DEBUG_RESNAP=1`, count posts whose logged
 elevation changes; control with `FF_NO_FEATURE_FINEST=1` must reproduce the 12/31. Requested from
 the PO together with the PIT-1 capture. Built clean; packed as the 260906 FreeFalcon AppImage.
+- GMRADAR-8 (2026-09-06): while not reproduced, the one code path that fits both PO reports is
+  shipped as a switch: in GMT modes an AWAKE mover now also gets a point blip at its sim position
+  (`FF_GMTPointBlip`, `FF_GMT_POINTBLIP=0` reverts). A vehicle can no longer vanish from the scope
+  as it wakes. Verification: the PO's next TE-9 flight (blips persist as the tanks come within the
+  awake bubble; the lock point equals the Maverick's).
