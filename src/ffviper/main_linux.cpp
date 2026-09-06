@@ -63,6 +63,7 @@
 
 // UI system (for gMainHandler)
 #include "ui95/chandler.h"
+#include "ui95/ctree.h"   /* S6: UIDUMP walks tree items */
 #include "ui/include/falcuser.h"
 #include "ui/include/uicomms.h"  // FF_LINUX: For gCommsMgr
 #include "ui/include/logbook.h"  // FF_LINUX: For LogBook / UI_logbk
@@ -91,6 +92,7 @@ extern int doUI;
 extern void ReadCampAIInputs(char* name);
 extern int LoadTactics(char *name);
 extern void InitVU();
+#include "ascii.h"
 extern void BuildAscii();
 
 // Campaign/mission lifecycle externs
@@ -1850,8 +1852,46 @@ static bool init_game_core(void) {
 
     // Build ASCII key mappings
     fprintf(stderr, "  Building key mappings...\n");
-    BuildAscii();
-    fprintf(stderr, "  [main_linux] BuildAscii() returned\n");
+    /* MP-1: BuildAscii() CORRUPTS the ascii table on Linux -- do not call it.
+       `Key_Chart` (sim/siminput/ascii.cpp) is a complete, correct, DIK-indexed static table with
+       the shifted variants in Ascii[1]. BuildAscii() rebuilds entries from VkKeyScan +
+       MapVirtualKey, and the compat MapVirtualKey is a stub that RETURNS ITS INPUT UNCHANGED
+       (compat_winuser.h:1074), so `scan` is a virtual-key code rather than a scancode and each
+       write lands on the wrong row. Every printable character whose code collides with a real DIK
+       index overwrites that key: measured, DIK_C(46)->'.', DIK_X(45)->'-', DIK_Z(44)->',' while
+       DIK_A(30) and DIK_Y(21) survived because no printable char maps onto those indices.
+       Skipping it leaves the correct static table in place. FF_BUILDASCII=1 restores the old
+       behaviour for comparison. */
+    if (getenv("FF_BUILDASCII")) {
+        BuildAscii();
+        fprintf(stderr, "  [main_linux] BuildAscii() returned (FF_BUILDASCII=1)\n");
+    } else {
+        fprintf(stderr, "  [main_linux] BuildAscii() SKIPPED -- static Key_Chart kept (MP-1)\n");
+    }
+
+    /* MP-1: dump the rows the corruption lands on, so the claim is checkable WITHOUT having to
+       inject keystrokes (X11 input injection into SDL proved unreliable and its silence is
+       indistinguishable from a broken fix). DIK_Z=44 DIK_X=45 DIK_C=46 collide with ',' '-' '.';
+       DIK_A=30 and DIK_Y=21 do not and act as the controls that must be unchanged in both arms. */
+    {
+        extern struct ASCII_TABLE Key_Chart[256];
+        static const struct { int dik; const char* name; char want; } probe[] = {
+            { 30, "DIK_A", 'a' }, { 21, "DIK_Y", 'y' },
+            { 44, "DIK_Z", 'z' }, { 45, "DIK_X", 'x' }, { 46, "DIK_C", 'c' },
+        };
+        const bool dumpTab = getenv("FF_DEBUG_KEYS") != NULL;   /* keep normal startup quiet */
+        for (unsigned i = 0; dumpTab && i < sizeof(probe)/sizeof(probe[0]); ++i) {
+            char got = Key_Chart[probe[i].dik].Ascii[0];
+            fprintf(stderr, "  [asciitab] %s(%d) unshifted='%c'(%d) shifted='%c'(%d) %s\n",
+                    probe[i].name, probe[i].dik,
+                    (got >= 32 && got < 127) ? got : '.', (int)got,
+                    (Key_Chart[probe[i].dik].Ascii[1] >= 32 && Key_Chart[probe[i].dik].Ascii[1] < 127)
+                        ? Key_Chart[probe[i].dik].Ascii[1] : '.',
+                    (int)Key_Chart[probe[i].dik].Ascii[1],
+                    (got == probe[i].want) ? "OK" : "WRONG");
+        }
+        fflush(stderr);
+    }
 
     // FF_LINUX: Initialize comms manager (required for campaign loading)
     fprintf(stderr, "  Initializing comms manager...\n");
@@ -2019,6 +2059,37 @@ static void cleanup(void) {
 }
 
 // Convert SDL events to Windows-style messages
+/* MP-1: the live modifier state, for the compat GetKeyState (see compat_winuser.h). ui95 asks
+   for VK_SHIFT / VK_MENU / VK_CONTROL with the 0x80 "down" test, and for VK_CAPITAL / VK_NUMLOCK
+   with the 0x01 "toggled" test, so both bits have to be answered correctly. */
+extern "C" SHORT FF_GetKeyState(int nVirtKey)
+{
+    const SDL_Keymod m = SDL_GetModState();
+    SHORT r = 0;
+
+    switch (nVirtKey) {
+        case VK_SHIFT:   if (m & KMOD_SHIFT) r |= (SHORT)0x8000; break;
+        case VK_CONTROL: if (m & KMOD_CTRL)  r |= (SHORT)0x8000; break;
+        case VK_MENU:    if (m & KMOD_ALT)   r |= (SHORT)0x8000; break;
+        case VK_CAPITAL: if (m & KMOD_CAPS)  r |= (SHORT)0x0001; break;
+        case VK_NUMLOCK: if (m & KMOD_NUM)   r |= (SHORT)0x0001; break;
+        default: break;
+    }
+
+    return r;
+}
+
+/* MP-1: build the Win32 lParam a WM_KEYDOWN/WM_KEYUP carries, in the layout ui95's handler
+   decodes: bits 0-15 repeat count, bits 16-23 scancode, bit 24 extended. Written once here so the
+   down and up paths cannot drift apart. */
+static long FF_KeyLParam(int dikCode)
+{
+    long lp = 1L;                                   /* repeat count = 1 */
+    lp |= ((long)(dikCode & 0x7f)) << 16;           /* scancode */
+    if (dikCode & 0x80) lp |= (1L << 24);           /* extended key */
+    return lp;
+}
+
 static void handle_sdl_events(void) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -2064,7 +2135,16 @@ static void handle_sdl_events(void) {
                 {
                     int dikCode = ConvertSDLToDIK(event.key.keysym.scancode);
                     if (dikCode != 0) {
-                        PostGameMessage(WM_KEYDOWN, dikCode, 0);
+                        // MP-1: lParam MUST carry the scancode in the Win32 layout. UI95's key
+                        // handler (ui95/chandler.cpp) decodes
+                        //     Key = ((lParam >> 16) & 0xff) | ((lParam >> 17) & 0x80)
+                        // i.e. bits 16-23 = scancode, bit 24 = extended flag, bits 0-15 = repeat.
+                        // Posting lParam = 0 made Key decode to 0 for EVERY keystroke, so
+                        // AsciiChar(0,0) was 0 and no character could ever reach an edit box --
+                        // the PO's "cannot type a URL anywhere", global to the whole UI.
+                        // Measured before the fix: wParam=45 lParam=0x0 -> Key=0 Ascii=0.
+                        // wParam keeps the raw DIK code: other consumers already read it there.
+                        PostGameMessage(WM_KEYDOWN, dikCode, FF_KeyLParam(dikCode));
                         FF_PushKeyEvent(dikCode, true);
                     }
                 }
@@ -2074,7 +2154,8 @@ static void handle_sdl_events(void) {
                 {
                     int dikCode = ConvertSDLToDIK(event.key.keysym.scancode);
                     if (dikCode != 0) {
-                        PostGameMessage(WM_KEYUP, dikCode, 0);
+                        // MP-1: same encoding on the way up, so anything pairing down/up agrees.
+                        PostGameMessage(WM_KEYUP, dikCode, FF_KeyLParam(dikCode) | (1L << 31));
                         FF_PushKeyEvent(dikCode, false);
                     }
                 }
@@ -3093,6 +3174,41 @@ static void render_frame(void) {
                                     c->GetID(), c->GetX(), c->GetY(), c->GetW(), c->GetH(),
                                     w->GetX() + c->GetX() + c->GetW() / 2,
                                     w->GetY() + c->GetY() + c->GetH() / 2);
+                            /* MPTEST-FF S6 (2026-09-06): a TREE's rows are what a join script has
+                               to click, and a control rect says nothing about them. Walk the items
+                               (root -> Child/Next, depth-first) and print each with its own click
+                               point: item x_/y_ are tree-relative, the Item_ carries its size. */
+                            /* dynamic_cast returned NULL for CAMPAIGN_TREE (40211) even though the
+                               game itself C-casts that control to C_TreeList, so do as the game does:
+                               known tree ids, C-cast. FF_DUMP_TREE_IDS="id,id,..." extends the list. */
+                            C_TreeList* tl = NULL;
+                            {
+                                static const char* ids = getenv("FF_DUMP_TREE_IDS") ? getenv("FF_DUMP_TREE_IDS") : "40211";
+                                char buf[128]; strncpy(buf, ids, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
+                                for (char* t = strtok(buf, ","); t; t = strtok(NULL, ","))
+                                    if (atol(t) == c->GetID()) { tl = (C_TreeList*)c; break; }
+                            }
+                            if (tl)
+                            {
+                                TREELIST* stack[64]; int sp = 0; int n = 0;
+                                if (tl->GetRoot()) stack[sp++] = tl->GetRoot();
+                                while (sp > 0 && n < 64)
+                                {
+                                    TREELIST* it = stack[--sp];
+                                    for (; it && n < 64; it = it->Next)
+                                    {
+                                        long iw = it->Item_ ? it->Item_->GetW() : 0;
+                                        long ih = it->Item_ ? it->Item_->GetH() : 0;
+                                        fprintf(stderr,
+                                                "[UIDUMP]     item id=%ld type=%ld at %ld,%ld %ldx%ld state=%ld click=%ld,%ld\n",
+                                                it->ID_, it->Type_, it->x_, it->y_, iw, ih, it->state_,
+                                                w->GetX() + c->GetX() + it->x_ + (iw > 0 ? iw / 2 : 8),
+                                                w->GetY() + c->GetY() + it->y_ + (ih > 0 ? ih / 2 : 6));
+                                        n++;
+                                        if (it->Child && sp < 64) stack[sp++] = it->Child;
+                                    }
+                                }
+                            }
                         }
                     }
 

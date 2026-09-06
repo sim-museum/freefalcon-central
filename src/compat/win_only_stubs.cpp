@@ -23,14 +23,16 @@ int gDumping = 0;
 
 void InitDebug(void) {}
 void MonoPrint(char *fmt, ...) {
-#ifdef FF_MONO_TO_STDERR
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
+    /* MPTEST-FF S6 (2026-09-06): the join path reports ONLY through MonoPrint ("Requesting campaign
+       preload", "Starting remote game", "Failed to join game"), and this stub dropped it all, so a
+       join could neither be seen to succeed nor to fail. FF_DEBUG_MONO=1 sends it to stderr with a
+       [MONO] prefix; the default stays silent. */
+    static int on = -1;
+    if (on < 0) on = getenv("FF_DEBUG_MONO") ? 1 : 0;
+    if (!on || !fmt) return;
+    va_list ap; va_start(ap, fmt);
+    fputs("[MONO] ", stderr); vfprintf(stderr, fmt, ap); fflush(stderr);
     va_end(ap);
-#else
-    (void)fmt;
-#endif
 }
 void MonoLocate(unsigned char x, unsigned char y) { (void)x; (void)y; }
 void MonoGetLoc(int *x, int *y) { if (x) *x = 0; if (y) *y = 0; }

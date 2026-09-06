@@ -79,8 +79,10 @@ echo "=== peer B (client) starting on port 2936 ==="
         campaign) nav="924,745@34" ;;
         *)        nav="874,748@34;924,745@50" ;;
     esac
-    export FF_UI_CLICK="487,748@12;512,748@18;577,468@26;$nav"
-    export FF_DUMP_UI="30;45"          # after connect: find the game-list screen
+    # S6 (2026-09-06): PEER_B_EXTRA appends clicks after the screen nav, e.g. the JOIN tab, the
+    # listed game row and the commit -- so the join can be driven without editing this file.
+    export FF_UI_CLICK="487,748@12;512,748@18;577,468@26;$nav${PEER_B_EXTRA:+;$PEER_B_EXTRA}"
+    export FF_DUMP_UI="${PEER_B_DUMP:-30;45}"   # after connect: find the game-list screen (S6: PEER_B_DUMP overrides)
     timeout -s INT "$B_SECS" "$BIN" -d "$GD" -w -port 2936 > "$B_LOG" 2>&1
 ) &
 B_PID=$!
