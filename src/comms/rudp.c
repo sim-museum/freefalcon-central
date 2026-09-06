@@ -1435,7 +1435,14 @@ extern "C" {
             ){*/
             id = ((ComAPIHeader *)cudp->recv_buffer.buf)->id;
 
+#ifdef FF_LINUX
+            /* MPTEST-FF S3: see udp.c -- same-host peers are not "ourself"; only our own port is. */
+            if (id == cudp->whoami and
+                (getenv("FF_MP_SELF_BY_IP") or
+                 ((struct sockaddr_in *)(&in_addr))->sin_port == cudp->recAddress.sin_port))
+#else
             if (id == cudp->whoami)
+#endif
             {
                 /* From ourself */
                 continue;

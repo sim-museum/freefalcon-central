@@ -12294,3 +12294,16 @@ the PO together with the PIT-1 capture. Built clean; packed as the 260906 FreeFa
 - **SETUP-1**: the recorded site (`UpdateKeyMapButton`, `KeyDescrips[Map.key2]` strcat) no longer
   exists anywhere in `src/` -- the key-map code was rewritten since 2026-08-14. Marked not
   applicable; if Setup still crashes it is a different site and needs a fresh backtrace.
+
+**MPTEST-FF — S3 (Fable 5.1, 2026-09-06): the one-way silence has a mechanism, read from the code, and the
+receivers are fixed for it.** `udp.c`/`rudp.c` drop a packet as "from me" when its header `id` equals
+`whoami` -- and `whoami` is the HOST IP (`ComIPHostIDGet`). On one machine a second instance has the
+same IP, so every packet from the other process is discarded as a self-echo; the single hit S2 saw
+was the exception, not the rule. The original authors had the right test commented out ("sfr: added
+port info"): the one socket both sends and receives, so a real echo carries our own bound port.
+Restored under FF_LINUX: from-me = same id AND source port == `recAddress.sin_port`.
+`FF_MP_SELF_BY_IP=1` reverts. Built clean; NOT yet run -- the loopback gate needs the display.
+**Expected next blocker, stated before the run:** `vusessn.cpp:320` builds the sender's session id
+from the same header id (`senderid.creator_ = ComAPIQuery(COMAPI_ID)`), so two same-host sessions
+share a creator id and the host may resolve "sender" to itself. If the gate now shows bytes crossing
+both ways but no session forming, that is where to look, not the transport.

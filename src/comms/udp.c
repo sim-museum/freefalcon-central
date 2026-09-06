@@ -846,7 +846,21 @@ int ComUDPGet(com_API_handle c)
              (((struct sockaddr_in *)(&in_addr))->sin_addr.s_addr == cudp->whoami) and 
              (((struct sockaddr_in *)(&in_addr))->sin_port == CAPI_htons(ComAPIGetMySendPort()))
              )){*/
+#ifdef FF_LINUX
+            /* MPTEST-FF S3: "from me" meant "same host IP" (whoami IS the host address), which on
+               one machine also discards every packet from a SECOND FF instance -- two processes on
+               this box could never form a session (S2's "the client never hears the host"). The
+               commented test above already had the answer: qualify by source PORT. This socket both
+               sends and receives, so a genuine self-echo carries our own bound port and a loopback
+               peer carries its own. FF_MP_SELF_BY_IP=1 restores the IP-only test. */
+            int ffFromMe = (((ComAPIHeader *)cudp->recv_buffer.buf)->id == cudp->whoami);
+            if (ffFromMe and not getenv("FF_MP_SELF_BY_IP") and
+                ((struct sockaddr_in *)(&in_addr))->sin_port not_eq cudp->recAddress.sin_port)
+                ffFromMe = 0;
+            if (not ffFromMe)
+#else
             if (((ComAPIHeader *)cudp->recv_buffer.buf)->id not_eq cudp->whoami)
+#endif
             {
                 // sets lastsender
                 cudp->lastsender = ((struct sockaddr_in *)(&in_addr))->sin_addr.s_addr;
