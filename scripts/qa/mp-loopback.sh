@@ -83,11 +83,16 @@ if [ "$(( ${host_rok:-0} + ${client_rok:-0} ))" -eq 0 ]; then
 else
   say PASS "packets cross the loopback" "host=$host_rok client=$client_rok"
 fi
-if [ "$(( ${host_eg:-0} + ${client_eg:-0} ))" -gt 0 ]; then
-  say FAIL "no COMAPI_EMPTYGROUP refusals" "host=$host_eg client=$client_eg -- the peer was never ADDED to the group"
-else
-  say PASS "no COMAPI_EMPTYGROUP refusals" ""
-fi
+# EMPTYGROUP is reported, NOT failed on. S1 read these refusals as "the peer is never added to the
+# group". [MPSEND] members= shows that is wrong: members=0 only for the first three sends, BEFORE
+# discovery, and then 1 and 2. The group fills. These are a startup ORDERING artefact -- the game
+# sends before it has anyone to send to -- not the blocker.
+say INFO "COMAPI_EMPTYGROUP refusals (startup only)" "host=${host_eg:-0} client=${client_eg:-0}"
+for r in host client; do
+  m=$(grep -a '\[MPSEND\] call=' "$OUT/$r.log" 2>/dev/null | tail -1 | sed -n 's/.*members=\([0-9]*\).*/\1/p')
+  printf "  %-6s final send-group members=%s\n" "$r" "${m:-0}"
+  [ "${m:-0}" -ge 1 ] || say FAIL "$r ends with members in its send group" "members=${m:-0}"
+done
 
 echo "  ---- evidence that the two ends met ----"
 grep -a '\[MPCOMMS\]\|\[MPCONNECT\]' "$OUT/host.log"   | tail -6 | sed 's/^/    host   /'

@@ -11973,7 +11973,46 @@ is what turned a false pass into the EMPTYGROUP finding.
 listening host can legitimately read 0 there and receive fine afterwards. The packet evidence
 decides.
 
-**Next:** find where a peer is supposed to be added to the UDP/RUDP group after connect
-(`ComAPICreateGroup` in `InitCommsStuff`, and whatever the session/game-list handshake calls), and
-trace both ends of that ONE message. The gate currently FAILS on the EMPTYGROUP check by design —
-it is documenting a live defect, and should go green when the peers join each other's groups.
+**MPTEST-FF — S2 (2026-09-05). ⚠️ S1's CONCLUSION WAS WRONG, and the existing traces say so.**
+
+S1 read the `COMAPI_EMPTYGROUP` refusals as *"neither peer is ever added to the other's group"*.
+**That is false.** `[MPGROUP]` and `[MPSEND]` (both already in the tree from an earlier MP-1 sprint,
+both behind `FF_DEBUG_MPCOMMS`, and both present in S1's own logs — I did not read them) show the
+opposite:
+
+    host   [MPGROUP] AddDanglingSession owner=767792 addr ip=0x7f000001 recv=2944 -> ComUDPOpen=OK
+    host   [MPGROUP] ComAPIAddToGroup(global=..., member=...) -> 0
+    client [MPGROUP] AddDanglingSession owner=807255 addr ip=0x7f000001 recv=2934 -> ComUDPOpen=OK
+
+**Each peer discovers the other by IP and port and adds it to the group, successfully.** And the
+member count at send time climbs:
+
+    host    call=1 members=0 ... call=4 members=1 ... call=9..13 members=2
+    client  call=1 members=0 ... call=4 members=1 ... call=7..12 members=2
+
+So `members=0` — and therefore EMPTYGROUP — applies only to the **first three sends, before
+discovery**. It is a startup ORDERING artefact (the game sends before it has anyone to send to),
+not the blocker. The gate now reports it as INFO and asserts on the final member count instead.
+
+**⭐ THE REAL BLOCKER IS DIRECTIONAL.** Both ends reach `members=2` and keep sending 30-byte
+messages. Received bytes:
+
+    host    49 recv calls returned 0, ONE returned 30 bytes
+    client  51 recv calls returned 0, NONE returned bytes
+
+**The host hears the client once. The client never hears the host at all** — despite the host having
+the client's real address in its group and sending to it repeatedly. That asymmetry, not group
+membership, is what stops a session forming.
+
+**Hypotheses for S3, in the order they are cheap to test:** (a) the host's group also holds a
+**broadcast** member — its first `AddDanglingSession` is `ip=0xffffffff` — and a failed send to that
+entry may abort or poison the loop before the real member is reached; (b) the sends are all `oob=1`
+and `ComAPISendDummy` targets `recvPort+1..+3`, so the host may be talking to a port the client is
+not reading; (c) the client's receive path is polled from somewhere that does not run in this state.
+`[MPSEND]` already prints per-call; adding the destination address to it would separate (a) from (b)
+in one run.
+
+**Method note, for the next person and for me:** the traces that answered this were already in the
+tree and already enabled in S1's run. S1 reached a confident wrong conclusion by reading only the
+counters it had gone looking for. Grep the log for every tag before theorising, not just the one the
+hypothesis predicts.
