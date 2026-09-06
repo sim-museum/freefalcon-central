@@ -2227,6 +2227,26 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
                     if ( not lockedTarget)
                     {
                         renderer->DrawBlip(curNode->Object()->XPos(), curNode->Object()->YPos());
+                        // EPIC "3 m" / GMT (PO 2026-09-05: "GMT shows targets well above the actual
+                        // tanks, up behind them on the hill"). This branch draws NON-awake / non-sim
+                        // entries -- campaign UNITS -- as a point blip at the object's own position,
+                        // i.e. a battalion's centroid, which can sit up the road from the vehicles
+                        // the Maverick page shows. Say what each point blip actually is.
+                        // FF_DEBUG_GMPOS=1 (same flag as the shaped-blip census).
+                        {
+                            static int s_gu = -1; static long s_gn = 0;
+                            if (s_gu < 0) s_gu = getenv("FF_DEBUG_GMPOS") ? 1 : 0;
+                            if (s_gu and s_gn++ < 120)
+                            {
+                                FalconEntity *fe = curNode->Object();
+                                const float gx = fe->XPos(), gy = fe->YPos();
+                                fprintf(stderr, "[GMUNIT] id=%u unit=%d sim=%d awake=%d pos=(%.0f,%.0f) z=%.1f gnd=%.1f\n",
+                                        (unsigned)fe->Id().num_, fe->IsUnit() ? 1 : 0, fe->IsSim() ? 1 : 0,
+                                        (fe->IsSim() and ((SimBaseClass*)fe)->IsAwake()) ? 1 : 0,
+                                        gx, gy, fe->ZPos(), OTWDriver.GetGroundLevel(gx, gy));
+                                fflush(stderr);
+                            }
+                        }
 #ifdef FF_LINUX
                         ffDrawn++;
 #endif
@@ -2237,6 +2257,26 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
                 }
                 else
                     renderer->DrawBlip(curNode->Object()->XPos(), curNode->Object()->YPos());
+                        // EPIC "3 m" / GMT (PO 2026-09-05: "GMT shows targets well above the actual
+                        // tanks, up behind them on the hill"). This branch draws NON-awake / non-sim
+                        // entries -- campaign UNITS -- as a point blip at the object's own position,
+                        // i.e. a battalion's centroid, which can sit up the road from the vehicles
+                        // the Maverick page shows. Say what each point blip actually is.
+                        // FF_DEBUG_GMPOS=1 (same flag as the shaped-blip census).
+                        {
+                            static int s_gu = -1; static long s_gn = 0;
+                            if (s_gu < 0) s_gu = getenv("FF_DEBUG_GMPOS") ? 1 : 0;
+                            if (s_gu and s_gn++ < 120)
+                            {
+                                FalconEntity *fe = curNode->Object();
+                                const float gx = fe->XPos(), gy = fe->YPos();
+                                fprintf(stderr, "[GMUNIT] id=%u unit=%d sim=%d awake=%d pos=(%.0f,%.0f) z=%.1f gnd=%.1f\n",
+                                        (unsigned)fe->Id().num_, fe->IsUnit() ? 1 : 0, fe->IsSim() ? 1 : 0,
+                                        (fe->IsSim() and ((SimBaseClass*)fe)->IsAwake()) ? 1 : 0,
+                                        gx, gy, fe->ZPos(), OTWDriver.GetGroundLevel(gx, gy));
+                                fflush(stderr);
+                            }
+                        }
             }
         }
         else
