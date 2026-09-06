@@ -12169,3 +12169,22 @@ ground level."*
 
 **Harness note:** the measurement runs draw on the PO's display. Stop launching them unasked.
 
+**The submerged jet — the record already had it, and the PO's frame confirms it.** 2026-08-15,
+`FF_DEBUG_CAM`: *"the submerging is depth-bias occlusion. Pulled hard enough to beat the terrain, the
+polygon offset (−32, −8192) also makes the tarmac beat the AIRCRAFT, so the surface draws over the
+jet's lower fuselage. Raising the view angle exposes more of that plane."* And its own conclusion:
+*"the only real fix is the one this item has always named: ground contact must use the surface that
+is drawn"* — i.e. draw the runway ON the terrain the wheels rest on, so the bias can drop to a value
+that beats terrain without beating aircraft. It was *"left for explicit PO sign-off"*. RWY-3 then
+measured that the decal's original reason (the approximation returning 0 at airfields) no longer
+occurs (1958/1958 delta = 0.0), and this epic measured physics = drawn terrain to 0.00 ft on the
+runway. So the whole compensation stack (3 ft decal + heavy bias + 5 ft aircraft lift) is
+compensating for nothing and is what hides the jet. **The PO has now signed off on fixing this epic
+"completely throughout".**
+
+**A/B, prepared, needs the display:** parked on the runway, chase + orbit screenshots, default vs
+`FF_RUNWAY_ZLIFT=0 FF_RUNWAY_NOBIAS=1` (both switches shipped in the PO's 260905 image, so the PO
+can flip them today). Pass = jet visible on the tarmac AND the runway still renders continuously
+into the distance (RWY-2's z-fighting was the bias's original job; a modest bias may still be needed).
+Runner: `scratchpad/run_AB.sh`.
+
