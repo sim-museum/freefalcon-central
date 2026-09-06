@@ -12331,3 +12331,8 @@ client 56 receives. The gate's "client recvs with bytes=0" line reads an older c
 the PASS is on the real receive. Next (S4): whether a SESSION forms above the transport
 (`vusessn.cpp` join handshake) -- grep the logs for session/join events and drive the game-list
 handshake through FF_MP_CONNECT.
+**RWY-3 — A/B on TE-02 (2026-09-06 09:02): ACCEPTED.** Control (`FF_NO_FEATURE_FINEST=1`, the old
+placement): `[RESNAP] moved=529 settled=253 … pending=391` then `dropped=391` -- 529 feature moves after
+placement and 391 that never settled (the retracting airfield, in numbers). Treatment (finest placement,
+no resnap for finest-placed features): 40 `[FINEST]` placements, **zero `[RESNAP]` lines -- no feature
+moved after its first placement.** Acceptance criterion met; the PO's landing is the last confirmation.
