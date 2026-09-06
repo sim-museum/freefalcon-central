@@ -12331,6 +12331,31 @@ client 56 receives. The gate's "client recvs with bytes=0" line reads an older c
 the PASS is on the real receive. Next (S4): whether a SESSION forms above the transport
 (`vusessn.cpp` join handshake) -- grep the logs for session/join events and drive the game-list
 handshake through FF_MP_CONNECT.
+**MPTEST-FF S5 (Fable 5.1, 2026-09-06): THE HOST'S GAME NOW APPEARS IN THE CLIENT'S CAMPAIGN LIST.**
+#83's next step, done: the `[GAMETREE] RebuildGameTree ENTERED` probe got its tree pointers back
+(`DF=%p TAC=%p CAMP=%p online=%d`) plus one line per F4GameType entity the rebuild's VU iterator
+walks. Two-instance run (`scripts/qa/mp-two-instance.sh`, peer B visiting Dogfight then Campaign):
+
+    [MPQUEUE] GroupConnect: ... IsGame=1 -> QUEUED _Q_GAME_ADD_          x2
+    [GAMETREE] RebuildGameTree ENTERED DF=0x... TAC=(nil) CAMP=(nil) online=1
+    [GAMETREE] walk game #1 type=4 name="Viper's Game" id=3790882.28007
+    [GAMETREE] walked 1 F4GameType entity in the VU database
+
+So the host's game (type 4 = game_Campaign, the real remote id form <n>.28007) IS in peer B's
+database and the rebuild DOES walk it -- but the only rebuild ever run is Dogfight's on-entry one,
+when `CampaignGames` is still NULL, so the campaign game had no tree to land in. The sixth
+hypothesis on #83, and the first with the data in front of it.
+**Fix:** `cpselect.cpp` and `te_setup.cpp` call `RebuildGameTree()` once their tree exists, when
+online -- the same thing `dogfight.cpp:2471` always did. Rerun with peer B going to Campaign:
+
+    [GAMETREE] RebuildGameTree ENTERED DF=(nil) TAC=(nil) CAMP=0x5636420030e0 online=1
+    [GAMETREE] add game to tree 0x5636420030e0 (branch 4) -- CAMPAIGN
+    peer B remote games remembered: 1    gameId=3627276/28007
+
+Harness: `mp-two-instance.sh`'s default binary was the long-gone `build-relg/`; it now points at
+`build/` (the first rerun printed `timeout: failed to execute process` -- an empty 75-byte log
+that read as "no game crossed" until opened). **Next (S6):** click the listed game and Join;
+then the two-machine test, which is the PO's.
 **RWY-3 — A/B on TE-02 (2026-09-06 09:02): ACCEPTED.** Control (`FF_NO_FEATURE_FINEST=1`, the old
 placement): `[RESNAP] moved=529 settled=253 … pending=391` then `dropped=391` -- 529 feature moves after
 placement and 391 that never settled (the retracting airfield, in numbers). Treatment (finest placement,

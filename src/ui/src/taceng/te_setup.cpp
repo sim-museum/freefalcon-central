@@ -72,6 +72,7 @@ void UpdateOwners();
 extern long OwnershipChanged;
 int TacLastGroup = 0;
 extern C_TreeList *TacticalGames;
+void RebuildGameTree();   /* ui_comms.cpp (S5) */
 extern uchar gSelectedTeam;
 extern GlobalPositioningSystem *gGps;
 extern C_Map *gMapMgr;
@@ -272,6 +273,15 @@ void hookup_tactical_controls(long ID)
     {
         TacticalGames = tree;
         TacticalGames->SetCallback(TacSelectGameCB);
+#ifdef FF_LINUX
+        /* MPTEST-FF S5 (2026-09-06, #83): a client that connects BEFORE opening this screen has
+           its _Q_GAME_ADD_ dropped (tree pointer still NULL), and only the Dogfight screen ever
+           rebuilt the tree on entry. Measured on peer B: the host's campaign game was IN the VU
+           database ("Viper's Game" id=<n>.28007, type=game_Campaign) and RebuildGameTree walked
+           it -- with CAMP=(nil), so nothing received it. Rebuild here, once this tree exists. */
+        if (gCommsMgr and gCommsMgr->Online())
+            RebuildGameTree();
+#endif
     }
 
     tree = (C_TreeList *)win->FindControl(VC_TREE);

@@ -142,6 +142,7 @@ void DeleteGroupList(long ID);
 VU_ID gPlayerSquadronId;
 
 extern C_TreeList *CampaignGames;
+void RebuildGameTree();   /* ui_comms.cpp (S5) */
 extern int mcnt;
 extern int atocnt;
 extern int uintcnt;
@@ -2009,6 +2010,15 @@ static void HookupCampaignSelectControls(long ID)
     {
         CampaignGames = tree;
         CampaignGames->SetCallback(CampSelectGameCB);
+#ifdef FF_LINUX
+        /* MPTEST-FF S5 (2026-09-06, #83): a client that connects BEFORE opening this screen has
+           its _Q_GAME_ADD_ dropped (tree pointer still NULL), and only the Dogfight screen ever
+           rebuilt the tree on entry. Measured on peer B: the host's campaign game was IN the VU
+           database ("Viper's Game" id=<n>.28007, type=game_Campaign) and RebuildGameTree walked
+           it -- with CAMP=(nil), so nothing received it. Rebuild here, once this tree exists. */
+        if (gCommsMgr and gCommsMgr->Online())
+            RebuildGameTree();
+#endif
     }
 
     // Help GUIDE thing

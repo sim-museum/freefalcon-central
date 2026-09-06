@@ -1920,7 +1920,10 @@ void RebuildGameTree()
 
         if (s_dbgRGT)
         {
-            fprintf(stderr, "[GAMETREE] RebuildGameTree ENTERED\n");
+            /* MPTEST-FF S5 (2026-09-06): #83's next step -- the tree pointers, restored. */
+            fprintf(stderr, "[GAMETREE] RebuildGameTree ENTERED DF=%p TAC=%p CAMP=%p online=%d\n",
+                    (void*)DogfightGames, (void*)TacticalGames, (void*)CampaignGames,
+                    (gCommsMgr && gCommsMgr->Online()) ? 1 : 0);
             fflush(stderr);
         }
     }
@@ -1960,10 +1963,21 @@ void RebuildGameTree()
 
         game = (FalconGameEntity*)dbiter.GetFirst(&filter);
 
+        int s5_walked = 0;
         while (game)
         {
             gametype = game->GetGameType();
             gamename = game->GameName();
+#ifdef FF_LINUX
+            if (getenv("FF_DEBUG_MPCOMMS"))
+            {
+                s5_walked++;
+                fprintf(stderr, "[GAMETREE] walk game #%d type=%d name=\"%s\" id=%lu.%lu\n",
+                        s5_walked, (int)gametype, gamename ? gamename : "(null)",
+                        (unsigned long)game->Id().creator_, (unsigned long)game->Id().num_);
+                fflush(stderr);
+            }
+#endif
 
             switch (gametype)
             {
@@ -1988,6 +2002,14 @@ void RebuildGameTree()
 
             game = (FalconGameEntity*)dbiter.GetNext(&filter);
         }
+#ifdef FF_LINUX
+        if (getenv("FF_DEBUG_MPCOMMS"))
+        {
+            fprintf(stderr, "[GAMETREE] walked %d F4GameType entit%s in the VU database\n",
+                    s5_walked, s5_walked == 1 ? "y" : "ies");
+            fflush(stderr);
+        }
+#endif
     }
     else
     {

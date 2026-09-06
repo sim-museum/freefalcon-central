@@ -23,7 +23,7 @@ set -u
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export DISPLAY=:0
 GD="$HOME/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6"
-BIN=${FF_BIN:-$REPO/build-relg/src/ffviper/FFViper}
+BIN=${FF_BIN:-$REPO/build/src/ffviper/FFViper}   # S5: the binary this tree builds (build-relg is gone)
 
 A_LOG=/tmp/mp-peerA.log
 B_LOG=/tmp/mp-peerB.log
