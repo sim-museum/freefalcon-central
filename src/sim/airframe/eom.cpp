@@ -1626,18 +1626,24 @@ float AirframeClass::CalculateVt(float dt)
         // past 275 kt on a heavy takeoff. So do not trip while OnGround(). The 275 kt value and
         // the airborne behaviour are untouched (PO ruling 2026-08-26). FF_GEAROVR_ONGROUND=1
         // restores the old on-ground trip for A/B.
-        static int ffOvrOnGround = -1;
-        if (ffOvrOnGround < 0) ffOvrOnGround = getenv("FF_GEAROVR_ONGROUND") ? 1 : 0;
+        // ⛔ REVERTED THE SAME DAY, on the PO's ruling: "If you move that fast while still on
+        // the runway, the gear should rip off. Why suppress that effect?" They are right -- the
+        // limit is a gear limit, loaded or not, and a 295 kt ground roll with the gear down is
+        // gear damage. The suppression is kept ONLY as an opt-in diagnostic
+        // (FF_GEAROVR_NOGROUND=1) so the "belly after a hot roll" mechanism can be A/B'd; the
+        // shipped behaviour trips on the ground exactly as before.
+        static int ffOvrNoGround = -1;
+        if (ffOvrNoGround < 0) ffOvrNoGround = getenv("FF_GEAROVR_NOGROUND") ? 1 : 0;
         const bool ffOnGroundNow = platform and platform->OnGround();
         if (gearPos >= 0.9F and vcas * KNOTS_TO_FTPSEC > gearLimitSpeed
-            and ffOnGroundNow and not ffOvrOnGround)
+            and ffOnGroundNow and ffOvrNoGround)
         {
             static bool s_said = false;
             if ( not s_said)
             {
                 s_said = true;
-                fprintf(stderr, "[GEAROVR] suppressed on the ground: vcas=%.1f kt limit=%.1f kt "
-                        "(FF_GEAROVR_ONGROUND=1 restores the old trip)\n",
+                fprintf(stderr, "[GEAROVR] suppressed on the ground (diagnostic FF_GEAROVR_NOGROUND=1): "
+                        "vcas=%.1f kt limit=%.1f kt\n",
                         vcas, gearLimitSpeed * FTPSEC_TO_KNOTS);
                 fflush(stderr);
             }

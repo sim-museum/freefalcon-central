@@ -12131,3 +12131,41 @@ contacts (200/200) and the blip transform are both correct.
 **Run I (ESC→E exit view), in flight:** the exit is a 5-s end-flight fly-by (`menus.cpp:444`), camera
 placed 20 ft above / 10 ft ahead of the jet's PHYSICS position, autopilot forced on, no HUD. Probed with
 `[LIFT]/[LIFT2]/[CAM]` and two screenshots.
+
+### EPIC "3 m" — PO review (2026-09-05, live): three corrections, and the aircraft symptom is REAL and unexplained by the numbers
+
+**PO, verbatim:** *"If you move that fast while still on the runway, the gear should rip off. Why
+suppress that effect? And the aircraft is drawn submerged under the runway, only breaks the surface
+and takes off if I pull back on the stick. On TE 9 the problem I see is GMT mode, which should show
+the tanks that appear on the maverick WPN page, but if GMT shows anything at all it shows targets well
+above the position of the actual tanks, up behind them on the hill. I agree fireballs occur at roughly
+ground level."*
+
+1. **Gear trip: REVERTED.** The on-ground suppression was wrong — the limit is a gear limit whether
+   loaded or not. Restored to trip on the ground exactly as before; the suppression survives only as
+   an opt-in diagnostic `FF_GEAROVR_NOGROUND=1` for A/B of the belly-after-a-hot-roll mechanism.
+2. **"Drawn submerged under the runway, breaks the surface on rotation" — CONFIRMED by two frames,
+   and it contradicts every number this epic trusted.** `[LIFT2]` says the drawn origin sits at
+   physics − 5 ft, i.e. 8 ft above the drawn runway. Yet run I's exit-view screenshot at t+3 s and
+   the PO's own chase-camera frame both show **runway only, no aircraft** — a camera 50 ft up
+   (`[CAM] aboveGround=49.99`) looking at where the jet is, and the jet is hidden **below the tarmac
+   decal**. So the lift computed in `OTWDriverClass::ObjectSetData` is NOT what the chase/exit view
+   draws the player's own airframe with: those views draw it through a path that never receives the
+   offset. The record suspected exactly this ("a property of THAT VIEW"); the frame proves it. The
+   numeric probes measured the right quantity on the wrong path. **Next: find where the chase/orbit
+   views draw the local aircraft and apply (or, better, replace) the offset there — and measure with
+   a screenshot, not a printf.**
+3. **GMT on TE-9: "targets well above the actual tanks, up behind them on the hill".** A precise
+   symptom, and now the leading radar lead. Blips are placed by PLAN offset from the map centre
+   (`gmscope.cpp:2121-2124`, `dx,dy` / `groundMapRange`) — not slant range, so a hill does not push
+   them out. The MAP under them is a look-down projection (`groundLookEl = atan(-dz/horiz)`, `:1386`)
+   of terrain whose height comes from `GetGroundLevel` at the map centre. A hillside seen from the
+   aircraft is foreshortened/displaced on a projected image while the blips are not — so blips on a
+   slope sit **up-screen of the drawn ground they belong to**, "up behind them on the hill". This
+   reconciles GMRADAR-8's null (the blip transform IS correct; it is the map that is not in the same
+   frame). Measurable: project a contact's (x, y, terrain z) through the map's own look-down geometry
+   and compare with its blip `ry` — the difference is the PO's offset. Not yet run.
+4. **Fireballs at ground level — agreed and closed.**
+
+**Harness note:** the measurement runs draw on the PO's display. Stop launching them unasked.
+
