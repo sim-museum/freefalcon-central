@@ -12331,6 +12331,17 @@ client 56 receives. The gate's "client recvs with bytes=0" line reads an older c
 the PASS is on the real receive. Next (S4): whether a SESSION forms above the transport
 (`vusessn.cpp` join handshake) -- grep the logs for session/join events and drive the game-list
 handshake through FF_MP_CONNECT.
+**PO TEST ROUND (2026-09-06 16:10), FF:** (1) *"tried to connect appImage on other PC to appImage on
+this PC, no success. Tried entering URL of other PC, selecting server. This URL does not show up on
+comms display in ff on this PC. Is it a problem that the profiles are identical, both with name
+'viper'?"* -- the in-game phonebook path is MP-1's known text-entry gap (docs/MULTIPLAYER.md); the
+tested route is the env: host `FF_MP_CONNECT="2934"`, joiner `FF_MP_CONNECT="2934:2934:<host LAN
+IP>"` (both instances may use 2934 on separate machines), with UDP 2934-2937 open on the host. The
+code has no duplicate-callsign rejection that a grep finds, but two players named "viper" share a
+display name in the player list; rename one pilot before the next try so names cannot be the
+confound. **MP-2PC-1 opened.** (2) *"Tried TE 9, GMT radar still shows targets above where maverick
+WPN shows the actual targets are"* (`/home/admin/Videos/260906_TE9.mp4`): the point-blip mitigation
+did not resolve it -- **GMRADAR-8 REOPENED**, the video is the evidence to reproduce against.
 **MPTEST-FF S5 (Fable 5.1, 2026-09-06): THE HOST'S GAME NOW APPEARS IN THE CLIENT'S CAMPAIGN LIST.**
 #83's next step, done: the `[GAMETREE] RebuildGameTree ENTERED` probe got its tree pointers back
 (`DF=%p TAC=%p CAMP=%p online=%d`) plus one line per F4GameType entity the rebuild's VU iterator
