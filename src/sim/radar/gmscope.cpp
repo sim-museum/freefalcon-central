@@ -2240,10 +2240,15 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
                             {
                                 FalconEntity *fe = curNode->Object();
                                 const float gx = fe->XPos(), gy = fe->YPos();
-                                fprintf(stderr, "[GMUNIT] id=%u unit=%d sim=%d awake=%d pos=(%.0f,%.0f) z=%.1f gnd=%.1f\n",
+                                // GMRADAR-8: the entity position is what the blip AND the Maverick seeker use; the
+                                // drawable position is what the eye (and the WPN page picture) sees. Print both so a
+                                // sleeping vehicle whose two positions have drifted apart is caught in one line.
+                                DrawableObject *dp = fe->IsSim() ? ((SimBaseClass*)fe)->drawPointer : NULL;
+                                fprintf(stderr, "[GMUNIT] id=%u unit=%d sim=%d awake=%d pos=(%.0f,%.0f) z=%.1f gnd=%.1f drawn=(%.0f,%.0f) dz=%.1f vt=%.1f\n",
                                         (unsigned)fe->Id().num_, fe->IsUnit() ? 1 : 0, fe->IsSim() ? 1 : 0,
                                         (fe->IsSim() and ((SimBaseClass*)fe)->IsAwake()) ? 1 : 0,
-                                        gx, gy, fe->ZPos(), OTWDriver.GetGroundLevel(gx, gy));
+                                        gx, gy, fe->ZPos(), OTWDriver.GetGroundLevel(gx, gy),
+                                        dp ? dp->X() : 0.0f, dp ? dp->Y() : 0.0f, dp ? dp->Z() : 0.0f, fe->GetVt());
                                 fflush(stderr);
                             }
                         }
@@ -2270,10 +2275,15 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
                             {
                                 FalconEntity *fe = curNode->Object();
                                 const float gx = fe->XPos(), gy = fe->YPos();
-                                fprintf(stderr, "[GMUNIT] id=%u unit=%d sim=%d awake=%d pos=(%.0f,%.0f) z=%.1f gnd=%.1f\n",
+                                // GMRADAR-8: the entity position is what the blip AND the Maverick seeker use; the
+                                // drawable position is what the eye (and the WPN page picture) sees. Print both so a
+                                // sleeping vehicle whose two positions have drifted apart is caught in one line.
+                                DrawableObject *dp = fe->IsSim() ? ((SimBaseClass*)fe)->drawPointer : NULL;
+                                fprintf(stderr, "[GMUNIT] id=%u unit=%d sim=%d awake=%d pos=(%.0f,%.0f) z=%.1f gnd=%.1f drawn=(%.0f,%.0f) dz=%.1f vt=%.1f\n",
                                         (unsigned)fe->Id().num_, fe->IsUnit() ? 1 : 0, fe->IsSim() ? 1 : 0,
                                         (fe->IsSim() and ((SimBaseClass*)fe)->IsAwake()) ? 1 : 0,
-                                        gx, gy, fe->ZPos(), OTWDriver.GetGroundLevel(gx, gy));
+                                        gx, gy, fe->ZPos(), OTWDriver.GetGroundLevel(gx, gy),
+                                        dp ? dp->X() : 0.0f, dp ? dp->Y() : 0.0f, dp ? dp->Z() : 0.0f, fe->GetVt());
                                 fflush(stderr);
                             }
                         }
