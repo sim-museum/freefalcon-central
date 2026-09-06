@@ -12225,3 +12225,15 @@ term is left as is for now — it was tuned against the 3 ft decal and may now f
 the orbit frame does not show it, but it is the next thing to look at by eye. Screenshots copied to
 `~/Documents/260905/ff-runway-ab/` for the PO.
 
+**PO acceptance criterion for the GMT item (2026-09-05, verbatim):** *"when, in TE 9, I lock up the
+moving tanks on the GMT radar, I should see the tanks on the maverick WPN screen view."*
+
+That is the test, and it is consistent with the surviving hypothesis: GMT point blips for campaign
+UNITS are drawn at the unit's own position (`gmscope.cpp`, the non-awake branch), i.e. the battalion
+centroid, which on a road up a hill leads the visible vehicles. Locking that blip slews the Maverick
+seeker to the centroid — empty hillside — so the WPN page shows no tank. **Gate to write:** in TE-09,
+enter GMT, lock the moving contact, then log (a) the locked object's class and position, (b) the
+nearest awake sim vehicle of that unit and its distance, (c) the Maverick seeker's aim point vs that
+vehicle. Pass = seeker aim point within one vehicle length of an actual tank. The `[GMUNIT]` trace
+(d8ac557d) gives (a); (b) and (c) are the next instrument. Needs a GMT flight on the display.
+
