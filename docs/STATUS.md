@@ -12237,3 +12237,19 @@ nearest awake sim vehicle of that unit and its distance, (c) the Maverick seeker
 vehicle. Pass = seeker aim point within one vehicle length of an actual tank. The `[GMUNIT]` trace
 (d8ac557d) gives (a); (b) and (c) are the next instrument. Needs a GMT flight on the display.
 
+
+### 2026-09-05 late — GMT (epic "3 m", GMRADAR-8) — PO videos reviewed
+- Both PO videos (`~/Videos/260905_tanks_GMT_below.mp4`, `260905_tanks_cleaner.mp4`) were flown on
+  build **43ecf5e9+** (the 08:27 AppImage): no runway fix, no `[GMUNIT]` instrument. The chase-view
+  runway fix is therefore still unverified by the PO; use `FreeFalcon-x86_64-runwayfix.AppImage`.
+- What the frames show: Maverick WPN page with the tanks drawn up-left of the seeker cross (cross
+  = GMT-designated point, ~1–2° off at several km → a 100–300 m ground offset, NOT a 3 m one).
+  PO: "GMT shows targets above the tanks, then nothing at all", earlier "below".
+- Mechanism (unproven, one instrument away): GMT list = `IsSim` movers (GMTObjectContactTest).
+  Point blips are drawn for `IsSim && !IsAwake` (deaggregated-but-sleeping vehicles whose position
+  is campaign-driven, i.e. stale vs the drawn vehicles); awake vehicles get the SHAPED blip via the
+  drawable, which appears to draw nothing → "then nothing at all". Fix candidates: draw a point
+  blip for awake movers too (env-switchable), and lock/aim at the awake vehicle position.
+- Needed: one TE-9 run with `FF_DEBUG_GMPOS=1` on the runwayfix AppImage (it contains [GMUNIT]):
+  `FF_DEBUG_GMPOS=1 ./FreeFalcon-x86_64-runwayfix.AppImage 2>&1 | tee ~/Documents/260905/te9-gmt.log`
+  — or PO consent for the assistant to fly it on the display.
