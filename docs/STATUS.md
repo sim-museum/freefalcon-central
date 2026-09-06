@@ -12307,3 +12307,15 @@ Restored under FF_LINUX: from-me = same id AND source port == `recAddress.sin_po
 from the same header id (`senderid.creator_ = ComAPIQuery(COMAPI_ID)`), so two same-host sessions
 share a creator id and the host may resolve "sender" to itself. If the gate now shows bytes crossing
 both ways but no session forming, that is where to look, not the transport.
+
+### 2026-09-06 08:55 — PO away, display granted: TE-02 captures (Fable 5.1)
+- **2-view (external) at TE-02, current build**: the jet sits ON the tarmac with its gear down and
+  visible, the runway renders continuously to the horizon, the wingman behind it likewise
+  (`~/Documents/260906/ff_pit/te02_view1_external.png`). The submerged-jet and GEAR-1 symptoms are
+  absent in this capture.
+- **RWY-3 measured with the finest placement**: every one of the 40 features logged `[FINEST]`
+  placed at the finest level (approxZ=0.00 -- the old "ran out of LODs" answer -- vs finestZ −0.6..−9.4
+  ft). BUT the resnap service then reported `moved=520`, `moved=529`: it re-queried the coarse
+  streamed LOD and moved features back to the wrong height until fine terrain arrived, i.e. the
+  service was undoing the fix. Fixed: a feature placed from the finest level is not queued for
+  resnap. Acceptance now = `[RESNAP] moved` totals, treatment vs `FF_NO_FEATURE_FINEST=1` control.

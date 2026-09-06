@@ -280,6 +280,7 @@ int SimFeatureClass::Wake()
     //RViewPoint* viewpoint = OTWDriver.GetViewpoint(); // JB 010616 safer
     //if (viewpoint)
     z = OTWDriver.GetApproxGroundLevel(XPos(), YPos());
+    bool ffPlacedFinest = false;
 #ifdef FF_LINUX
     // RWY-3 (PO: "the runway pulled away from me like a carpet"): a feature that wakes at range
     // is placed on whatever LOD has streamed in and then re-snapped as finer terrain arrives,
@@ -292,6 +293,7 @@ int SimFeatureClass::Wake()
         float zf;
         if (s_fin and OTWDriver.GetFinestGroundLevel(XPos(), YPos(), &zf))
         {
+            ffPlacedFinest = true;
             static int s_fdbg = -1, s_fn = 0;
             if (s_fdbg < 0) s_fdbg = getenv("FF_DEBUG_RESNAP") ? 1 : 0;
             if (s_fdbg and s_fn++ < 40)
@@ -362,7 +364,12 @@ int SimFeatureClass::Wake()
     // first check. FF_NO_FEATURE_RESNAP=1 reverts to the old bake. This also
     // covers the wake-during-streaming case, where the first answer really is
     // the transient ("RAN OUT OF LODs -> elevation=0", seen once per run).
-    FF_QueueFeatureResnap(Id(), z);
+    // RWY-3 (measured TE-02, 2026-09-06): with the finest placement the resnap service still
+    // reported moved=520/529 -- it re-queried the COARSE streamed LOD and moved features back
+    // to the wrong height until fine terrain arrived. A feature placed from the finest level
+    // has nothing to converge to; do not queue it.
+    if (not ffPlacedFinest)
+        FF_QueueFeatureResnap(Id(), z);
 #endif
 
     if (drawPointer)
