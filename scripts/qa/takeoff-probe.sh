@@ -20,7 +20,7 @@ set -u
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export DISPLAY=:0
 GAMEDATA="$HOME/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6"
-BIN=$REPO/build-relg/src/ffviper/FFViper
+BIN=${FF_BIN:-$REPO/build/src/ffviper/FFViper}   # build-relg never existed; honour $FF_BIN
 
 ROW=${1:-2}                       # TE row; 2 is "02 Takeoff"
 LOG=${2:-/tmp/takeoff.log}

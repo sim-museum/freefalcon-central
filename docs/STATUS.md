@@ -12016,3 +12016,70 @@ in one run.
 tree and already enabled in S1's run. S1 reached a confident wrong conclusion by reading only the
 counters it had gone looking for. Grep the log for every tag before theorising, not just the one the
 hypothesis predicts.
+
+## 2026-09-05 — EPIC "3 m" (PO): aircraft 3 m below the runway, bombs 3 m under ground, radar offset vertically — ONE bug?
+
+**PO's framing, verbatim:** *"ff distance bug that put aircraft 3 m below the runway, bombs exploding 3 m
+under ground, radar showing images offset vertially, completely fixed throughout"* — with GMRADAR-8 and
+PIT-1 named as example items. The framing implies a single vertical-datum error shared by all three.
+
+**The unifying hypothesis was stated and then MEASURED, six runs, on the shipped build's code, and it
+is FALSE.** Every physics consumer — aircraft ground contact, bomb detonation (`bombmain.cpp:933`),
+ground vehicles, the GM cursor/ground point (`gmscope.cpp:577/2427`), the camera clamp — reads ONE
+function, `OTWDriver.GetGroundLevel` (planar interpolation of the terrain posts at the finest LOD
+loaded around the viewpoint; no additive constant anywhere in it). The drawn terrain is the same posts
+at the finest loaded LOD. So a shared 3 m error could only be a physics-vs-drawn LOD split. New
+instrument: `[GROUND]` now prints `physLod`, `drawn` (`FF_DrawnGroundLevel`) and `physBelowDrawn` at
+the player — the comparison no earlier `[GROUND]` ever made (they compared three physics-side queries
+with each other).
+
+| run | where | physics vs drawn |
+|---|---|---|
+| B — takeoff TE-02, parked and rolling | runway, lod0 | **0.00 ft** (18 on-ground samples) |
+| D — the PO's own TE-09 approach | player, 22 real-terrain samples, lod0 | **0.00 ft** |
+| D — 28 staged ground bursts 2 500 ft ahead | coast → airfield plateau, z −0.3…−26.0 | **0 raises** (`[DRAWNGND]` never fired) |
+| E — 3 real CCIP bombs, 121 fall samples to ≤12 ft AGL | impact points, lod0 | **≤ 1.90 ft** (typ. 0.1–0.2) |
+| F — 200 GM-radar contacts, `[BURIED] delta(d-p)` | radar ranges | **0.00 ft, all 200** |
+| E — `[GROUNDR]` range probe, 966 samples | 0–12 000 ft lod0; 24k lod1; 48k lod2; 96k lod3 | one lod5 startup transient only |
+
+**There is no 3 m physics/graphics terrain split.** Physics answers at the finest LOD out to 12 000 ft
+(2 nm), which covers a CCIP release and every contact the census sampled. The record's 9.6 ft
+coarse-LOD divergence (TERRAIN-Z) is real but lives beyond that radius, and no bomb or sampled contact
+was there.
+
+**So the three symptoms are three mechanisms, each already diagnosed in this record, none of them
+terrain:**
+
+1. **Aircraft "3 m below the runway".** GEAR-5 (gear overspeed trip ≥275 KIAS → belly contact 2.33 ft
+   instead of 5.99) — closed and PO-confirmed; the PO's later "drops ~3 m as the wheels leave" is the
+   VISUAL lift stack (3 ft decal + 2 ft gear lift) fading by AGL — measured this session at wheels-off:
+   scale **1.000 → 0.739 in one frame**, a 1.31 ft instantaneous drop of the drawn origin, then the
+   remaining 3.7 ft over the climb to 25 ft AGL (run B). The gear-driven alternative
+   (`FF_GEAR_LIFT_BYGEAR=1`) is shipped but OFF; run G measures it. The 275 kt limit and harsher
+   ground-roll breaks are the PO's own rulings (GEAR-5/6) and still put a jet on its belly after a hot
+   or hard landing, by design.
+2. **Bombs "exploding 3 m under ground".** Detonation is at physics ground = drawn ground to ≤1.9 ft
+   (run E); ground-impact particles are clamped to the DRAWN surface (`drawparticlesys.cpp:1636`,
+   BOOM-2/3, shipped). What remains is whether the fireball RENDERS at a normal distance (BOOM-2's open
+   half) — run H probes placement with `FF_DEBUG_PSFIRE`.
+3. **Radar "images offset vertically".** GMRADAR-8's own record: blip transform correct to the log's
+   precision (432 samples), heading lag refuted by injection, and now the ground under the contacts is
+   drawn where physics has it (run F). The vertical symptom is in none of the measured paths; the GM
+   map sweep/rendering is the one candidate not yet instrumented.
+
+**Instrument fix shipped with this:** the `[BURIED]` census capped at 200 samples and every one of the
+200 was a campaign objective (`obj=1`, z=0 by design) — it never reached a vehicle, so it could not
+speak about the tanks the PO sees on GMT. Objectives no longer consume the cap (both sites in
+`gmscope.cpp`).
+
+**Harness facts recorded so nobody re-learns them:** the Maverick TE (row 24) and the first 100 s of
+most TEs are over SEA — `GetGroundLevel=0.0` there is geography, not a bug, and the staged burst
+correctly refuses to fire (`[FF_TEST] SKIP burst`); TE-09 approaches over water and crosses the coast
+~3 000 ft before the field; TE list row N = "NN name" (row 9 = Landing Final Approach, row 20 = Bombs
+with CCIP). The PO's 260905 image contains every fix and instrument named above (whole-string checked).
+
+**Verdict for the PO:** the "completely fixed throughout" ask cannot be met by one fix, because there is
+no one bug. Two of the three are already fixed and PO-confirmed under their own rulings; the visual
+wheels-off drop has a shipped opt-in fix awaiting a default decision (run G); the radar's vertical
+symptom and the fireball's visibility are the two genuinely open questions, and both now have the
+instrument that can answer them.

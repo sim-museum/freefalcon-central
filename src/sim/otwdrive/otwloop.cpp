@@ -574,12 +574,31 @@ void OTWDriverClass::Cycle(void)
                     vpApprox = renderer->viewpoint->GetGroundLevelApproximation(pa->XPos(), pa->YPos());
                 }
 
+                // EPIC "3 m" (PO 2026-09-05: aircraft 3 m below the runway, bombs 3 m under
+                // ground, radar offset vertically). Every prior [GROUND] reading compared three
+                // PHYSICS-side queries with each other and with the aircraft -- never with the
+                // surface the renderer DRAWS. Physics (aircraft contact, bomb detonation, GM map)
+                // all read this one GetGroundLevel; the drawn mesh is the finest loaded LOD
+                // interpolated from the same posts. Print the physics LOD and the DRAWN height at
+                // the player, and their difference: that difference IS the burial depth.
+                int ffPhysLod = -1;
+                float ffDrawn = -99999.0f;
+
+                if (renderer and renderer->viewpoint)
+                {
+                    extern float FF_DrawnGroundLevel(float x, float y);
+                    renderer->viewpoint->GetGroundLevel(pa->XPos(), pa->YPos(), NULL, &ffPhysLod);
+                    ffDrawn = FF_DrawnGroundLevel(pa->XPos(), pa->YPos());
+                }
+
                 fprintf(stderr,
                         "[GROUND] pos=(%.1f, %.1f) acZ=%.2f groundZ=%.2f "
-                        "aboveGround=%.2f vpAccurate=%.2f vpApprox=%.2f onGround=%d dead=%d\n",
+                        "aboveGround=%.2f vpAccurate=%.2f vpApprox=%.2f onGround=%d dead=%d "
+                        "physLod=%d drawn=%.2f physBelowDrawn=%.2f\n",
                         pa->XPos(), pa->YPos(), pa->ZPos(), gz,
                         gz - pa->ZPos(), vpAcc, vpApprox,
-                        pa->OnGround() ? 1 : 0, pa->IsDead() ? 1 : 0);
+                        pa->OnGround() ? 1 : 0, pa->IsDead() ? 1 : 0,
+                        ffPhysLod, ffDrawn, gz - ffDrawn);   // z is DOWN: >0 = physics UNDER the drawn surface
                 fflush(stderr);
             }
         }

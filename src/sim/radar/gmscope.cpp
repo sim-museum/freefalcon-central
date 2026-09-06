@@ -3007,7 +3007,12 @@ void RadarDopplerClass::GMMode(void)
                                 {
                                     static long s_n = 0;
 
-                                    if (s_n++ < 200)
+                                    // EPIC "3 m" (2026-09-05): the 200-sample cap filled ENTIRELY
+                                    // with campaign objectives (obj=1, z=0 by design) and never
+                                    // reached a single vehicle or unit -- so the census could not
+                                    // say anything about the tanks the PO sees on GMT. Objectives
+                                    // no longer consume the cap; vehicles and units do.
+                                    if (testFeature->IsObjective() ? (s_n < 200) : (s_n++ < 200))
                                     {
                                         extern float FF_DrawnGroundLevel(float xx, float yy);
                                         const float fx = testFeature->XPos();
@@ -3402,7 +3407,12 @@ void RadarDopplerClass::GMMode(void)
                                 {
                                     static long s_n = 0;
 
-                                    if (s_n++ < 200)
+                                    // EPIC "3 m" (2026-09-05): the 200-sample cap filled ENTIRELY
+                                    // with campaign objectives (obj=1, z=0 by design) and never
+                                    // reached a single vehicle or unit -- so the census could not
+                                    // say anything about the tanks the PO sees on GMT. Objectives
+                                    // no longer consume the cap; vehicles and units do.
+                                    if (testFeature->IsObjective() ? (s_n < 200) : (s_n++ < 200))
                                     {
                                         extern float FF_DrawnGroundLevel(float xx, float yy);
                                         const float fx = testFeature->XPos();
