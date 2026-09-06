@@ -12253,3 +12253,8 @@ vehicle. Pass = seeker aim point within one vehicle length of an actual tank. Th
 - Needed: one TE-9 run with `FF_DEBUG_GMPOS=1` on the runwayfix AppImage (it contains [GMUNIT]):
   `FF_DEBUG_GMPOS=1 ./FreeFalcon-x86_64-runwayfix.AppImage 2>&1 | tee ~/Documents/260905/te9-gmt.log`
   — or PO consent for the assistant to fly it on the display.
+- 2026-09-06 00:29 PO run on build a3b67e87+ (260906 AppImage): "GMT agrees with maverick WPN view
+  this time" (`~/Videos/260906_GMT_on_target.mp4`). No GMT logic changed between the builds, so
+  GMRADAR-8 stays OPEN as not-reproduced: the sleeping/awake hypothesis predicts exactly this
+  run-to-run variance. Next repro needs `FF_DEBUG_GMPOS=1` (the [GMUNIT] line now also prints
+  the drawable position). The `[GM] quadFlush` terminal flood is gated behind FF_DEBUG_GM (af57352c).
