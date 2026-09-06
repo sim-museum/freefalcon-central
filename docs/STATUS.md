@@ -11922,4 +11922,58 @@ these are analogies rather than transfers): does the comms path ever fill the mi
 clients get added to whatever the host broadcasts to; and does a client that closes its window leave
 a ghost player that stalls the host's next launch for a full timeout.
 
-**MPTEST-FF: filed, not started.**
+**MPTEST-FF — S1 (2026-09-05): TWO FF INSTANCES TALKED TO EACH OTHER ON THIS BOX.** A packet
+crossed loopback and was received. `docs/MULTIPLAYER.md`'s "a real two-machine connection has NEVER
+been tested from this box" and MP-1's "genuinely not answerable on one machine" are both now out of
+date, in the same way BoB's were.
+
+New gate: `scripts/qa/mp-loopback.sh` — two instances, no phonebook dialog, no click recipe at all
+(`FF_MP_CONNECT` drives the connect path directly, which sidesteps MP-1's text-entry defects for
+testing purposes).
+
+**Step 3 of the method does not apply here, and that was CHECKED rather than assumed.**
+`FF_UI_CLICK`'s `@sec` is compared against `SDL_GetTicks()` (`main_linux.cpp:3050`), i.e. real wall
+clock — so FF never had the tick-scheduling trap that cost BoB several sprints and that MA needed a
+new mode for.
+
+**⭐ THE RESULT** (host 2934, client 2944 → 2934):
+
+    host   sends with bytes=1    recvs with bytes=1    EMPTYGROUP refusals=4
+    client sends with bytes=1    recvs with bytes=0    EMPTYGROUP refusals=3
+
+* The transport is **not** inert: real bytes leave both ends, and **the host received a packet from
+  the client**. MP-1 framed the question as "packets never move" vs "packets move and the handshake
+  never happens". **It is the second.**
+* **`ret=-9` is `COMAPI_EMPTYGROUP`** — the send is refused because *the group has no members*.
+  Seven refusals across the two peers. Neither end is ever ADDED to the other's group, so the host
+  has nobody to broadcast to and the client never hears an answer (`recvs with bytes=0`).
+* This is exactly the BoB cross-port analogy this item listed in advance — *"do joining clients get
+  added to whatever the host broadcasts to"*. In BoB they were not; here they are not either.
+
+**⚠️ PORT LAYOUT, corrected twice.** This item proposed the client run `"2934:2934:127.0.0.1"`; on
+one machine that asks it to bind the port the host holds. The second choice (2935) was **also**
+wrong, and the run said so:
+
+    host   localPort=2934 recvPort=2934 reliableRecvPort=2935
+    client localPort=2935 recvPort=2935 reliableRecvPort=2936      <-- 2935 twice
+
+**Each instance binds its local port AND the next one** for reliable traffic (and `vuevent.cpp`
+pokes `recvPort+1..+3`), so single-machine tests need a block per instance, not a port. With clean
+ports the picture changed completely — under the collision every send was EMPTYGROUP and nothing was
+received at all, which would have been read as a much deeper defect than the real one.
+
+**⚠️ AND AN ASSERTION THAT LIED, caught before it was believed.** The first version of the gate
+asserted on the `[MPIO] send n=8200` counter and reported a confident *"PASS packets cross the
+loopback"*. `n` is the CALL NUMBER, and the counter only prints for n<=3 or every 200th call — so a
+large `n` means "called a lot", not "8200 packets crossed". Every logged `recv` was in fact
+returning 0 at the time. The gate now reads RETURN VALUES (a send returns bytes on success), which
+is what turned a false pass into the EMPTYGROUP finding.
+
+**`Online` is reported but not asserted:** it is sampled the instant `StartComms` returns, so a
+listening host can legitimately read 0 there and receive fine afterwards. The packet evidence
+decides.
+
+**Next:** find where a peer is supposed to be added to the UDP/RUDP group after connect
+(`ComAPICreateGroup` in `InitCommsStuff`, and whatever the session/game-list handshake calls), and
+trace both ends of that ONE message. The gate currently FAILS on the EMPTYGROUP check by design —
+it is documenting a live defect, and should go green when the peers join each other's groups.
