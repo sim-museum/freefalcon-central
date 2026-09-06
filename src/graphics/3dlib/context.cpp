@@ -2821,8 +2821,12 @@ void ContextMPR::FlushVB()
         {
             g_FFGMQuadPending--;
             static long s_n = 0;
+            // The PO's terminal was flooded by this line on every GM frame with no env set;
+            // it is a census instrument, so it now needs FF_DEBUG_GM=1 like the others.
+            static int s_gmon = -1;
+            if (s_gmon < 0) s_gmon = getenv("FF_DEBUG_GM") ? 1 : 0;
 
-            if ((s_n++ % 60) == 0)
+            if (s_gmon and (s_n++ % 60) == 0)
             {
                 int blend = 0, atest = 0, ztest = 0, texOn = 0;
                 unsigned env = 0;
