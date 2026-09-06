@@ -1389,7 +1389,23 @@ void SimulationLoopControl::StartLoop(void)
         // SimDriver.Exit();
         // MonoPrint("Notifying it's time to exit\n");
         SimDriver.NotifyExit();
+#ifdef FF_LINUX
+        // CAMP-1: wait_for_sim_cleanup is only ever set from SimulationDriver::Cycle(), which the
+        // Loop thread never reaches when a launch bails before RunningGraphics (campaign entry with
+        // flight->IsDead(): every thread parked at 0 % CPU, last frame stays up forever). Third
+        // instance of the signal-less-INFINITE-wait class. Bound it; on timeout carry on into the
+        // same teardown -- OTWDriver.Exit() below is what returns us to the UI.
+        {
+            DWORD ffw = WaitForSingleObject(wait_for_sim_cleanup, 15000);
+            if (ffw != WAIT_OBJECT_0)
+            {
+                fprintf(stderr, "[CAMP-1] wait_for_sim_cleanup not signalled in 15 s (rc=%lu) -- bailing to the UI instead of hanging\n", (unsigned long)ffw);
+                fflush(stderr);
+            }
+        }
+#else
         WaitForSingleObject(wait_for_sim_cleanup, 0xFFFFFFFF);
+#endif
 #ifdef FF_LINUX
         // FF_LINUX: Do NOT set currentMode = StoppingSim here!
         // That would break the Loop() thread's do-while loop, killing it permanently.

@@ -171,6 +171,7 @@ void CampaignJoinSuccess(void)
     MonoPrint("Got all campaign data Starting it up\n");
 
     if (gMainHandler)
+        if (gMainHandler)   // JOINFAIL-1: see CampaignJoinFail
         gMainHandler->RemoveUserCallback(CampaignConnectionTimer);
 
     campaignStart = true;
@@ -331,7 +332,10 @@ void CampaignJoinFail(void)
     C_Window
     *win;
 
-    win = gMainHandler->FindWindow(COMMLINK_WIN);
+    // JOINFAIL-1 (FF_LINUX): a failed load can arrive with no main UI handler up (the join was
+    // started from the loading screen); every gMainHandler-> call here then segfaults inside
+    // the very path meant to return us to the menu. Guard it, as CampaignJoinSuccess does.
+    win = gMainHandler ? gMainHandler->FindWindow(COMMLINK_WIN) : NULL;
 
     if (win)
     {
@@ -353,7 +357,8 @@ void StopCampaignLoad(void)
 {
     MonoPrint("Stop Campaign Load\n");
 
-    gMainHandler->RemoveUserCallback(CampaignConnectionTimer);
+    if (gMainHandler)   // JOINFAIL-1: see CampaignJoinFail
+        gMainHandler->RemoveUserCallback(CampaignConnectionTimer);
 
     PostMessage(FalconDisplay.appWin, FM_SHUTDOWN_CAMPAIGN, 0, game_Campaign);
 }

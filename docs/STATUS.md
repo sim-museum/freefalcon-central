@@ -12279,3 +12279,18 @@ the PO together with the PIT-1 capture. Built clean; packed as the 260906 FreeFa
   (`FF_GMTPointBlip`, `FF_GMT_POINTBLIP=0` reverts). A vehicle can no longer vanish from the scope
   as it wakes. Verification: the PO's next TE-9 flight (blips persist as the tanks come within the
   awake bubble; the lock point equals the Maverick's).
+
+### 2026-09-06 — three old crash items, display-free fixes (Fable 5.1)
+- **CAMP-1**: `simloop.cpp` failed-launch bail waited INFINITE on `wait_for_sim_cleanup`, which only
+  `SimulationDriver::Cycle()` ever signals -- never reached when the launch bails before
+  RunningGraphics. Now bounded to 15 s under FF_LINUX with a `[CAMP-1]` trace, then the same
+  teardown (`OTWDriver.Exit()`) runs and returns to the UI. Third of the signal-less-INFINITE-wait
+  class. Verification: campaign entry with a dead flight (PO's 08-14 sequence) must return to the
+  menu within ~15 s instead of a permanent white screen.
+- **JOINFAIL-1**: `CampaignJoinFail()`/`StopCampaignLoad()` dereferenced `gMainHandler` without a
+  guard; a load failure raised with no main UI handler up segfaulted inside the recovery path.
+  Both sites now guard it (as `CampaignJoinSuccess` already did). Verification: an incompatible
+  mission must fall back to the menu.
+- **SETUP-1**: the recorded site (`UpdateKeyMapButton`, `KeyDescrips[Map.key2]` strcat) no longer
+  exists anywhere in `src/` -- the key-map code was rewritten since 2026-08-14. Marked not
+  applicable; if Setup still crashes it is a different site and needs a fresh backtrace.
