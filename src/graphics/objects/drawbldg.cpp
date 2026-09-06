@@ -29,8 +29,15 @@ float FF_RunwayDecal(void)
 
     if (decal < -9000.f)
     {
+        // EPIC "3 m" (2026-09-05): DEFAULT 0, on a screenshot A/B the PO approved. With the 3 ft
+        // decal + heavy bias the CHASE view showed runway and no aircraft (the PO's frame); with
+        // both off, the same view shows the jet on the tarmac with its shadow, and the orbit view
+        // shows the runway rendering continuously to the horizon -- the z-fighting the decal was
+        // added for (RWY-2) did not reappear. The decal's original reason (the approximation
+        // returning 0 at airfields) was measured gone (RWY-3: 1958/1958 delta=0.0), and physics
+        // == drawn terrain to 0.00 ft on the runway. FF_RUNWAY_ZLIFT=3 restores the old stack.
         const char* e = getenv("FF_RUNWAY_ZLIFT");
-        decal = e ? (float)atof(e) : 3.0f;
+        decal = e ? (float)atof(e) : 0.0f;
     }
 
     return decal;

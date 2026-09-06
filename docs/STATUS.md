@@ -12188,3 +12188,40 @@ can flip them today). Pass = jet visible on the tarmac AND the runway still rend
 into the distance (RWY-2's z-fighting was the bias's original job; a modest bias may still be needed).
 Runner: `scratchpad/run_AB.sh`.
 
+**A/B arm 1 (default), parked, screenshots (this session, PO-approved display use):**
+* **chase view: runway only, no aircraft** — the PO's frame, reproduced.
+* **orbit view: the jet sits ON the tarmac, gear down, wheels on the surface, wingman behind** — correct.
+
+So the "submerged" aircraft is **view-dependent**: the airframe is drawn where it belongs (orbit proves
+it), and the chase view is the one that loses it. The chase camera is clamped to 5 ft above
+**terrain** (`otwloop.cpp:2586`), and the runway is drawn 3 ft above terrain, so the chase camera
+sits **2 ft above the visible tarmac**, looking forward-down at texture — the jet is behind/above the
+frame, and any surface with a depth bias wins over whatever of it is in frame. Arm 2 (decal + bias
+off) tests whether raising the surface-relative camera height brings the jet back.
+
+**GMT lead — the perspective hypothesis is DEAD by arithmetic, before a run.** The terrain picture IS
+a perspective render (`gmradar.cpp:491`: camera at `H = range / tan(FOV/2)` above the map centre), but
+`FieldOfView = 4°`, so H = 28.6 × range: a 300 ft hill at the scope edge displaces its drawn ground by
+r·h/H ≈ 0.01 % of range — invisible. Blips (`DrawBlip(x,y)`, `:544`) are a pure plan transform. The
+two frames agree to well under a pixel; this cannot be "well above the tanks".
+
+**GMT lead that survives:** the GMT contact list is built from `[GM] movers ... unitMovers=` — campaign
+UNIT entries — while the Maverick WPN page shows individual VEHICLES. If a blip is drawn at the unit's
+(battalion) position rather than each vehicle's, and the unit centroid leads the visible column up the
+road, the blip is "up behind them on the hill". Testable without a display: log, per GMT blip, the
+object's class (unit vs vehicle) and its distance to the nearest sim vehicle of that unit.
+
+**⭐ A/B arm 2 (`FF_RUNWAY_ZLIFT=0 FF_RUNWAY_NOBIAS=1`) — the aircraft is BACK.** Same parked TE, same
+camera script, arms proven distinct (`liftFt 3.00` vs `0.00`):
+
+| view | default (decal 3 ft + bias −32/−8192) | decal 0 + no bias |
+|---|---|---|
+| chase | **runway only, no aircraft** (the PO's frame) | **F-16 on the tarmac, gear down, shadow** |
+| orbit | jet on its wheels, runway fine | jet on its wheels, runway continuous to the horizon |
+
+The decal and the bias hid the jet in the chase view and bought nothing the measurements still need.
+**Both now default OFF** (`FF_RUNWAY_ZLIFT=3` / `FF_RUNWAY_BIAS=f,u` restore). The 2 ft `FF_GEAR_LIFT`
+term is left as is for now — it was tuned against the 3 ft decal and may now float the jet slightly;
+the orbit frame does not show it, but it is the next thing to look at by eye. Screenshots copied to
+`~/Documents/260905/ff-runway-ab/` for the PO.
+

@@ -1168,12 +1168,16 @@ extern "C" void FF_SetRunwayDepthBias(int enable)
     static float s_factor = -32.0f, s_units = -8192.0f;
     static int s_cur = 0;
     if (s_mode < 0) {
-        if (getenv("FF_RUNWAY_NOBIAS")) {
-            s_mode = 0;
-        } else {
+        // EPIC "3 m" (2026-09-05): DEFAULT OFF. The (-32,-8192) offset beat the aircraft as well as
+        // the terrain and hid the jet in the chase view (PO frame + screenshot A/B). With the 3 ft
+        // decal also gone the runway renders continuously without it. FF_RUNWAY_BIAS="f,u"
+        // re-enables with the given strength; FF_RUNWAY_NOBIAS is now the default and inert.
+        const char* e = getenv("FF_RUNWAY_BIAS");
+        if (e and not getenv("FF_RUNWAY_NOBIAS")) {
             s_mode = 1;
-            const char* e = getenv("FF_RUNWAY_BIAS");
-            if (e) sscanf(e, "%f,%f", &s_factor, &s_units);
+            sscanf(e, "%f,%f", &s_factor, &s_units);
+        } else {
+            s_mode = 0;
         }
     }
     if (!s_mode) return;
