@@ -12343,3 +12343,6 @@ framebuffer avgRGB 67,77,82 vs the old grass reading 63,82,50). The 2-view arm s
 tarmac with gear (`te02_view1_external.png`). Every earlier PIT-1 measurement predates the runway
 decal/bias default change (4602b51a); with the decal at 0 and no heavy bias the terrain no longer paints
 over the runway in the pit pass. PIT-1 closes on this evidence; the PO's own eye is the last word.
+- MPTEST-FF S4 first answer (from the S3 gate logs): both instances log `[VuSession::JoinGame] EXIT:
+  retval=1` -- the VU session join succeeds at both ends once the transport delivers. The
+  "sender resolves to itself" concern did not materialise: the two whoami ids differ.
