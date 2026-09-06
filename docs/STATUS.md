@@ -12319,3 +12319,15 @@ both ways but no session forming, that is where to look, not the transport.
   streamed LOD and moved features back to the wrong height until fine terrain arrived, i.e. the
   service was undoing the fix. Fixed: a feature placed from the finest level is not queued for
   resnap. Acceptance now = `[RESNAP] moved` totals, treatment vs `FF_NO_FEATURE_FINEST=1` control.
+
+**MPTEST-FF — S3 VERIFIED on the display (2026-09-06 08:52, PO away):** with the port-qualified self test
+the loopback gate PASSES ("packets cross the loopback"). Packet truth from `FF_STRACE=1` (new gate
+option, strace per instance): host binds 2934/2935 and sends to 127.0.0.1:2944/2945; client binds
+2944/2945 and sends to 2934/2935; recvfrom returns 25/40/42/46/182-byte datagrams at BOTH ends.
+Application truth from the new `[MPRECV]` trace (both UDP receivers, under FF_DEBUG_MPCOMMS):
+host id=189801728 / client id=2583569152 -- the two peers do NOT share an id after all (whoami is
+per-instance), every peer packet arrives with fromMe=0 gamename_ok=1 and is accepted: host 68,
+client 56 receives. The gate's "client recvs with bytes=0" line reads an older counter and is stale;
+the PASS is on the real receive. Next (S4): whether a SESSION forms above the transport
+(`vusessn.cpp` join handshake) -- grep the logs for session/join events and drive the game-list
+handshake through FF_MP_CONNECT.

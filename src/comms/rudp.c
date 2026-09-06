@@ -1434,6 +1434,19 @@ extern "C" {
              ((struct sockaddr_in *)(&in_addr))->sin_port == CAPI_htons(ComAPIGetMySendPort())
             ){*/
             id = ((ComAPIHeader *)cudp->recv_buffer.buf)->id;
+#ifdef FF_LINUX
+            {   /* MPTEST-FF S3: see udp.c */
+                static int s_rt = -1; static long s_rn = 0;
+                if (s_rt < 0) s_rt = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+                if (s_rt and s_rn++ < 80)
+                {
+                    fprintf(stderr, "[MPRECV] rudp bytes=%d from=%s:%u id=%lu whoami=%lu\n", bytesRecvd,
+                            inet_ntoa(((struct sockaddr_in *)(&in_addr))->sin_addr),
+                            (unsigned)ntohs(((struct sockaddr_in *)(&in_addr))->sin_port), (unsigned long)id, (unsigned long)cudp->whoami);
+                    fflush(stderr);
+                }
+            }
+#endif
 
 #ifdef FF_LINUX
             /* MPTEST-FF S3: see udp.c -- same-host peers are not "ourself"; only our own port is. */

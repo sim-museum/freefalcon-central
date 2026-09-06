@@ -29,7 +29,10 @@ mkdir -p "$OUT"
 
 run() {  # $1 = role, $2 = FF_MP_CONNECT spec
   ( export FF_MP_CONNECT="$2" FF_DEBUG_MPCOMMS=1
-    timeout -s INT "$SECS" "$BIN" -d "$GD" -w > "$OUT/$1.log" 2>&1 ) 2>/dev/null
+    # MPTEST-FF S3: FF_STRACE=1 wraps each instance in strace (network syscalls only) so the
+    # gate can show WHAT each end sends (address:port) and what recvfrom returns -- packet truth.
+    W=""; [ -n "${FF_STRACE:-}" ] && W="strace -f -e trace=socket,bind,sendto,recvfrom,connect -o $OUT/$1.strace"
+    timeout -s INT "$SECS" $W "$BIN" -d "$GD" -w > "$OUT/$1.log" 2>&1 ) 2>/dev/null
 }
 
 echo "MPTEST-FF loopback gate (two instances: host 2934, client 2944 -> 2934)"

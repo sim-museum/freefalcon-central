@@ -857,6 +857,21 @@ int ComUDPGet(com_API_handle c)
             if (ffFromMe and not getenv("FF_MP_SELF_BY_IP") and
                 ((struct sockaddr_in *)(&in_addr))->sin_port not_eq cudp->recAddress.sin_port)
                 ffFromMe = 0;
+            {   /* MPTEST-FF S3: strace shows bytes ARRIVE at both ends; say what this layer does with them */
+                static int s_rt = -1; static long s_rn = 0;
+                if (s_rt < 0) s_rt = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+                if (s_rt and s_rn++ < 80)
+                {
+                    const int gn_ok = (strncmp(((ComAPIHeader *)cudp->recv_buffer.buf)->gamename,
+                                               ((ComAPIHeader *)cudp->send_buffer.buf)->gamename, GAME_NAME_LENGTH) == 0);
+                    fprintf(stderr, "[MPRECV] udp bytes=%d from=%s:%u id=%lu whoami=%lu fromMe=%d gamename_ok=%d\n",
+                            bytesRecvd, inet_ntoa(((struct sockaddr_in *)(&in_addr))->sin_addr),
+                            (unsigned)ntohs(((struct sockaddr_in *)(&in_addr))->sin_port),
+                            (unsigned long)((ComAPIHeader *)cudp->recv_buffer.buf)->id, (unsigned long)cudp->whoami,
+                            ffFromMe, gn_ok);
+                    fflush(stderr);
+                }
+            }
             if (not ffFromMe)
 #else
             if (((ComAPIHeader *)cudp->recv_buffer.buf)->id not_eq cudp->whoami)
