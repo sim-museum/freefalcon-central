@@ -11886,3 +11886,40 @@ buffer, no unprojection, no GL matrices.
 **PIT-1 rotates out at 4 of 4 sprints, still unmeasured.** What it gained: four candidate methods
 eliminated with evidence, the wrong ones named so nobody rebuilds them, and the right source
 identified. What it did not gain: a number.
+
+## 🔴 NEW ITEM (PO, 2026-09-05): MPTEST-FF — test FF multiplayer by the method that worked for BoB
+
+**PO, verbatim:** *"follow the same general process used to test bob multiplayer, to test ff multiplayer"*
+
+**Why this is worth doing here specifically.** FF's multiplayer is the least-evidenced of the three
+ports: `docs/MULTIPLAYER.md` states outright that *"the transport path exists and is wired; a real
+two-machine connection has NEVER been tested from this box"*, and MP-1's own entry says what remains
+"is genuinely not answerable on one machine". **BoB proved that last claim wrong** — two instances on
+ONE machine over loopback, each in its own scratch tree, exercised discovery, join, player-slot
+allocation and 3-D entry end to end, with no second PC and no human at the keyboard.
+
+**The method to copy** (full write-up in `~/bob/doc/backlog.md`, MP-5):
+
+1. **Two instances, one machine, separate data trees.** FF's route is env-driven and already suited
+   to it: `FF_MP_CONNECT="localPort[:remotePort[:host]]"`, UDP 2934 — host `"2934"`, client
+   `"2934:2934:127.0.0.1"`. No phonebook dialog needed, which sidesteps MP-1's text-entry defects
+   entirely for the purposes of a test.
+2. **Enumerate before driving.** FF already has `FF_UI_CLICK="x,y@sec"` and
+   `scripts/qa/gmt-movers.sh` proves a scripted click path can reach a live sim here.
+3. ⭐ **Schedule clicks on WALL-CLOCK time, not on a frame/pump counter.** BoB's tick-based driver
+   silently stopped firing whenever the game blocked inside a comms timeout — precisely when the
+   multiplayer screens appear — and that harness limit looked like a game defect for several
+   sprints. FF's `FF_UI_CLICK` is already `@sec`-based, so it should not have this problem; confirm
+   that before trusting it.
+4. **Always run a single-player control** with the same instrument. Three of BoB's wrong conclusions
+   died to that comparison, including one where the probe sat in a source file that is not in the
+   build and reported zeros for both arms.
+5. **Trace both ends of one message**, not the whole protocol.
+
+**BoB findings in shared-engine-shaped code worth checking here** (FF is a different codebase, so
+these are analogies rather than transfers): does the comms path ever fill the mission definition the
+3-D entry reads from; does session enumeration consume game packets off a shared socket; do joining
+clients get added to whatever the host broadcasts to; and does a client that closes its window leave
+a ghost player that stalls the host's next launch for a full timeout.
+
+**MPTEST-FF: filed, not started.**
