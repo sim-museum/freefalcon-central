@@ -12336,3 +12336,10 @@ placement): `[RESNAP] moved=529 settled=253 … pending=391` then `dropped=391` 
 placement and 391 that never settled (the retracting airfield, in numbers). Treatment (finest placement,
 no resnap for finest-placed features): 40 `[FINEST]` placements, **zero `[RESNAP]` lines -- no feature
 moved after its first placement.** Acceptance criterion met; the PO's landing is the last confirmation.
+**PIT-1 — NOT REPRODUCED on the current build (TE-02, 2026-09-06 09:10).** `FF_VIEW_SCRIPT="4@62;s@70"`
+(the 3-view / virtual pit, the arm that used to show GRASS): the capture shows the runway tarmac
+continuously from the nose to the far hangars, HUD and MFDs live (`ff_pit/te02_view4_virtualpit.png`;
+framebuffer avgRGB 67,77,82 vs the old grass reading 63,82,50). The 2-view arm shows the jet on the
+tarmac with gear (`te02_view1_external.png`). Every earlier PIT-1 measurement predates the runway
+decal/bias default change (4602b51a); with the decal at 0 and no heavy bias the terrain no longer paints
+over the runway in the pit pass. PIT-1 closes on this evidence; the PO's own eye is the last word.
