@@ -3072,7 +3072,77 @@ void OTWDriverClass::ObjectSetData(SimBaseClass *obj, Tpoint *simView, Trotation
                     extra = e ? (float)atof(e) : 2.0f;
                 }
 
-                simView->z -= extra * ffLiftScale;
+                // PO 2026-09-04 (TE-02, external view): "the jet still dropped below the tarmac
+                // plane before rising at wheels up". SINK-2 taper this by AGL over 25 ft, but the
+                // mismatch this term corrects -- the DRAWN gear reaching further below the origin
+                // than the 5.99 ft physics standoff -- exists only while the GEAR IS DOWN. Altitude
+                // is the wrong driver: retraction happens well above the 25 ft fade, which is
+                // exactly why the PO sees it come right at WHEELS UP and not at some height.
+                // Drive this term from gearPos (0 = up, 1 = down) instead. The runway-decal term
+                // above keeps the AGL fade, because the decal really is a function of being over
+                // the runway rather than of gear state.
+                // Opt-in until the PO has looked at it: this is a BY-EYE correction (the 2 ft was
+                // itself A/B'd by eye) and I cannot verify a visual standoff from here.
+                // FF_GEAR_LIFT_BYGEAR=1.
+                float gearScale = ffLiftScale;
+                static int byGear = -1;
+
+                // EPIC "3 m" (2026-09-05): DEFAULT ON, measured. With the gear term driven by
+                // altitude the drawn jet dropped 1.31 ft in ONE frame at wheels-off (run B:
+                // totalLift 5.00 -> 3.69); driven by gearPos it drops 0.29 ft (run G':
+                // 5.00 -> 4.71) and the remaining 2 ft leave with the gear, not with height --
+                // which is exactly the PO's "it comes right at wheels up, not at some height".
+                // FF_GEAR_LIFT_BYGEAR=0 restores the altitude-driven term for A/B.
+                if (byGear < 0)
+                {
+                    const char *e = getenv("FF_GEAR_LIFT_BYGEAR");
+                    byGear = (e and *e == '0') ? 0 : 1;
+                }
+
+                if (byGear and obj->IsAirplane())
+                {
+                    AircraftClass *acForGear = static_cast<AircraftClass*>(obj);
+
+                    if (acForGear and acForGear->af)
+                    {
+                        float gp = acForGear->af->gearPos;   // 0 = up, 1 = down
+
+                        if (gp < 0.0f) gp = 0.0f;
+
+                        if (gp > 1.0f) gp = 1.0f;
+
+                        gearScale = gp;
+                    }
+                }
+
+                simView->z -= extra * gearScale;
+                // EPIC "3 m" (2026-09-05): the [LIFT] line above prints only the DECAL term, so a
+                // run with FF_GEAR_LIFT_BYGEAR=1 looked identical to one without it (run G:
+                // liftFt 3.00 -> 2.17 at wheels-off, same as run B) -- the switch's whole effect
+                // is in THIS term, which no probe printed. Print it, 10 Hz while low, plus the
+                // total drawn offset, so the gear-driven lift can be measured instead of eyeballed.
+                {
+                    static int s_dbg2 = -1;
+                    static DWORD s_last2 = 0;
+                    if (s_dbg2 < 0) s_dbg2 = getenv("FF_DEBUG_LIFT") ? 1 : 0;
+                    if (s_dbg2 and obj == (SimBaseClass*)SimDriver.GetPlayerEntity())
+                    {
+                        const DWORD now2 = GetTickCount();
+                        const float agl2 = GetGroundLevel(obj->XPos(), obj->YPos(), NULL) - obj->ZPos();
+                        if (agl2 < 60.0f ? (now2 - s_last2 >= 100) : (now2 - s_last2 >= 1000))
+                        {
+                            s_last2 = now2;
+                            extern float FF_RunwayDecal(void);
+                            fprintf(stderr, "[LIFT2] OnGround=%d agl=%.1f decalScale=%.3f gearScale=%.3f "
+                                    "decalFt=%.2f gearFt=%.2f totalLiftFt=%.2f zPos=%.2f drawnZ=%.2f\n",
+                                    obj->OnGround() ? 1 : 0, agl2, ffLiftScale, gearScale,
+                                    FF_RunwayDecal() * ffLiftScale, extra * gearScale,
+                                    FF_RunwayDecal() * ffLiftScale + extra * gearScale,
+                                    obj->ZPos(), simView->z);
+                            fflush(stderr);
+                        }
+                    }
+                }
             }
 
         }

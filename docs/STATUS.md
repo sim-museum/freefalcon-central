@@ -12083,3 +12083,51 @@ no one bug. Two of the three are already fixed and PO-confirmed under their own 
 wheels-off drop has a shipped opt-in fix awaiting a default decision (run G); the radar's vertical
 symptom and the fireball's visibility are the two genuinely open questions, and both now have the
 instrument that can answer them.
+
+### EPIC "3 m" — sprint 2: the aircraft half has a LIVE mechanism, caught on the takeoff recipe, and it is fixed
+
+**⭐ The gear-overspeed trip fires ON THE RUNWAY.** Run G' (scripted takeoff, TE-02) did not rotate
+early — the intermittent case the recipe warns about — and kept accelerating on the ground:
+
+    [GEAROVR] gear[0] broken: vt=295.7 kt vcas=295.6 kt limit=274.9 kt minVcas=250.0 gearPos=1.00 alt=15 mach=0.44
+    [LIFT] ... clr 5.99 -> 2.39 at gs=431 ft/s            (still OnGround=1)
+
+At 295.6 KIAS, 15 ft altitude, wheels on the runway, the nose gear broke and the physics standoff
+fell from **5.99 to 2.39 ft** — the belly — with the full 5 ft visual lift still painted on top. Run
+B, same recipe, rotated at 188 kt and never tripped (max on-ground gs 313 ft/s, min clr 5.99). GEAR-5
+was diagnosed and closed as a *landing* trip (gear lowered above 275 KIAS); the same test, gated only
+on `gearPos >= 0.9` and speed, fires on any roll that passes 275 KIAS with the wheels down — a heavy
+takeoff, a fast landing rollout. **That is the PO's "aircraft 3 m below the runway" in the
+scenarios they fly**, and it is the one mechanism that puts the jet lower *by physics*, not by paint.
+
+**Fix (`eom.cpp`, opt-out `FF_GEAROVR_ONGROUND=1`):** the gear-extended overspeed limit is an
+airborne structural limit; with the wheels loaded there is no such limit. The trip is suppressed while
+`platform->OnGround()` and logs `[GEAROVR] suppressed on the ground` once. The 275 kt value and the
+airborne behaviour are untouched — the PO's 2026-08-26 ruling stands. **Verification run G'' pending
+(display busy).**
+
+**⭐ `FF_GEAR_LIFT_BYGEAR` is now DEFAULT ON, on measurement.** The earlier probe printed only the
+decal term, so this switch had looked inert (run G was byte-identical to run B at wheels-off). New
+`[LIFT2]` prints the gear term itself:
+
+| at wheels-off | decal | gear term | total drawn lift | instantaneous drop |
+|---|---|---|---|---|
+| altitude-driven (old default, run B) | 3.00 → 2.21 | 2.00 → 1.48 | 5.00 → 3.69 | **1.31 ft** |
+| gear-driven (`BYGEAR=1`, run G') | 3.00 → 2.71 | **2.00 → 2.00** | 5.00 → 4.71 | **0.29 ft** |
+
+The remaining 2 ft now leaves with the gear, not with height — the PO's own description ("comes right
+at wheels up, not at some height"). `FF_GEAR_LIFT_BYGEAR=0` restores the old term.
+
+**Bombs — closed as a placement question (run H).** Two real Mk-81s: physics vs drawn ground
+≤ 1.80 ft along the fall; every ground-burst child (10 of 10) emitted **3.0 ft ABOVE** the drawn
+ground (`[PSFIRE] epos.z` vs `partGround`), polygons drawn (`[PSVIS] polys drawn=1931`,
+`skippedNotVisible=0`). The one `[BOMBFALL]` sample below ground (−21 ft) is the logger's 100 ms
+interval at 800 ft/s — the tick after the surface, not a burial. Whether the fireball is *seen* from
+a normal distance remains BOOM-2's PO-eye question, outside this epic's "no manual testing" scope.
+
+**Radar — still the one unmeasured path** is the GM map sweep/render itself; the ground under the
+contacts (200/200) and the blip transform are both correct.
+
+**Run I (ESC→E exit view), in flight:** the exit is a 5-s end-flight fly-by (`menus.cpp:444`), camera
+placed 20 ft above / 10 ft ahead of the jet's PHYSICS position, autopilot forced on, no HUD. Probed with
+`[LIFT]/[LIFT2]/[CAM]` and two screenshots.

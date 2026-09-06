@@ -1616,7 +1616,33 @@ float AirframeClass::CalculateVt(float dt)
         // effective indicated limit ran tight and got tighter with altitude. Measured at
         // a trip: vt=315.5 kt vs vcas=307.1 kt at 2000 ft, a ratio of 1.027. PO decision
         // 2026-08-26: fix the type mismatch, leave the 275 kt threshold alone.
-        if (gearPos >= 0.9F and vcas * KNOTS_TO_FTPSEC > gearLimitSpeed)
+        // EPIC "3 m" (2026-09-05, measured on the takeoff recipe): this trip also fires ON THE
+        // GROUND. A roll that does not rotate keeps accelerating; at 295.6 KIAS, alt=15 ft, still
+        // on the runway, it broke the nose gear ([GEAROVR] gear[0]) and the standoff fell from
+        // 5.99 to 2.39 ft -- the jet on its belly, 3.6 ft lower, with the 5 ft visual lift still
+        // painted on top. That is the "aircraft below the runway" the PO sees after a hot roll or
+        // a fast landing rollout. The gear-extended overspeed limit is an AIRBORNE structural
+        // limit; with the wheels loaded on the runway there is no such limit, and real jets roll
+        // past 275 kt on a heavy takeoff. So do not trip while OnGround(). The 275 kt value and
+        // the airborne behaviour are untouched (PO ruling 2026-08-26). FF_GEAROVR_ONGROUND=1
+        // restores the old on-ground trip for A/B.
+        static int ffOvrOnGround = -1;
+        if (ffOvrOnGround < 0) ffOvrOnGround = getenv("FF_GEAROVR_ONGROUND") ? 1 : 0;
+        const bool ffOnGroundNow = platform and platform->OnGround();
+        if (gearPos >= 0.9F and vcas * KNOTS_TO_FTPSEC > gearLimitSpeed
+            and ffOnGroundNow and not ffOvrOnGround)
+        {
+            static bool s_said = false;
+            if ( not s_said)
+            {
+                s_said = true;
+                fprintf(stderr, "[GEAROVR] suppressed on the ground: vcas=%.1f kt limit=%.1f kt "
+                        "(FF_GEAROVR_ONGROUND=1 restores the old trip)\n",
+                        vcas, gearLimitSpeed * FTPSEC_TO_KNOTS);
+                fflush(stderr);
+            }
+        }
+        else if (gearPos >= 0.9F and vcas * KNOTS_TO_FTPSEC > gearLimitSpeed)
         {
             int which = rand() % NumGear();
 
