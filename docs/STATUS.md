@@ -12424,8 +12424,12 @@ timer tick's `UI_UpdateVU`+`RebuildGameTree`, and the two missing FM cases (`FM_
 `RecieveScenarioInfo` on `CAMP_NEED_PRELOAD`). The harness gained `PEER_B_JOIN=1` (the whole
 chain) and prints a join summary; `scripts/qa/mp-join.sh` is the gate (asserts
 `FM_JOIN_SUCCEEDED` in peer B's log; ~5 min, needs a display). Ships as
-`FreeFalcon-x86_64-join.AppImage`. Not yet covered: the joiner's flight from the joined campaign
-(next), and the PO's two-PC phonebook route (MP-2PC-1).
+`FreeFalcon-x86_64-join.AppImage` (**packed 20:04, 2.9G, `~/Documents/260906/`; `gamelist` moved to
+260905; FFViper in the AppDir == build**). Not yet covered: the joiner's flight from the joined
+campaign (next), and the PO's two-PC phonebook route (MP-2PC-1). PO test recipe for two PCs with
+this image: host `FF_MP_CONNECT="2934"`, joiner `FF_MP_CONNECT="2934:2934:<host IP>"`, both open
+Campaign, the joiner presses JOIN, the listed "<host>'s Game", the commit, then the info window's
+comply; the joiner should land in the host's campaign screens.
 **PO TEST ROUND (2026-09-06 16:10), FF:** (1) *"tried to connect appImage on other PC to appImage on
 this PC, no success. Tried entering URL of other PC, selecting server. This URL does not show up on
 comms display in ff on this PC. Is it a problem that the profiles are identical, both with name
