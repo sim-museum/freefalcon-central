@@ -54,6 +54,7 @@ echo "=== peer A (server + campaign host) starting ==="
     # reported "campaign files read: 0" for exactly that reason.
     # S7c (2026-09-07): PEER_A_EXTRA appends clicks to the HOST too (e.g. its FLY at 972,748 once the client is in).
     export FF_UI_CLICK="487,748@12;733,476@17;512,748@22;577,468@28;924,745@40;905,758@52;563,751@60;495,390@68;110,135@82${PEER_A_EXTRA:+;$PEER_A_EXTRA}"
+    [ -n "${PEER_A_DUMP:-}" ] && export FF_DUMP_UI="$PEER_A_DUMP"   # S7f: UI dumps on the HOST too
     timeout -s INT "$A_SECS" "$BIN" -d "$GD" -w > "$A_LOG" 2>&1
 ) &
 A_PID=$!

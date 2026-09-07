@@ -12438,7 +12438,21 @@ MUNITIONS (nothing useful); S7b clicked (972,748): `GrabItem found control ID=20
 `Process(ID=2000001)` -> **window 6015 = CP_COUNTDOWN_WIN opens** (the pre-flight countdown/wait
 screen: panels 6016/6019, a clock 6018) and the run ended at 140 s still in it. S7c: both peers
 press FLY (the harness gained `PEER_A_EXTRA`), lifetimes 220/340 s, dumps to 210 s -- does the
-countdown reach the sim, and does the host need to be flying?
+countdown reach the sim, and does the host need to be flying? **S7c/S7d (02:23-02:36):** the client
+sits in CP_COUNTDOWN_WIN for 200+ s with no further message (FF_DEBUG_MONO on: nothing printed in
+that window); the host's (972,748) clicks at 180/200 s land in STRAT_WIN 6321 (its click list ends
+on the strategy tab), no control -- the host never pressed FLY. `campaign.cpp:1836-1868`: the
+countdown opens when the campaign clock is before the player flight's takeoff waypoint time and
+offers WAIT_RAMP 6019 (200,164), WAIT_TAXI 6016 (200,379), WAIT_TAKEOFF 6017 (200,594), WAIT_BACK
+6015 (50,748). **S7e:** WAIT_TAKEOFF (6017) and WAIT_TAXI (6016) take the clicks and run their
+callbacks; nothing follows for 120 s. `UpdateRemoteCompression` (campaign.cpp:3213) says why: in
+multiplayer the campaign clock runs at the LOWEST compression any session requests, and a host
+sitting in its UI requests pause -- the client's countdown cannot reach takeoff until the host
+flies too. **S7f/S7g (host-side dumps, `PEER_A_DUMP`):** the host's FLY pair is at (972,748) in
+window 6013 as on the client, but its click list leaves it on STRAT_WIN 6321 (full-screen, close
+button 80001 at (1005,41)) with a 70205 panel; clicks at (495,390)/(100,16)/(972,748) all find no
+control there. S7h: close STRAT_WIN via (1005,41), then FLY and WAIT_TAKEOFF on the host at
+160/172 s, the client's FLY at 78 s (= host 173 s).
 **PO TEST ROUND (2026-09-06 16:10), FF:** (1) *"tried to connect appImage on other PC to appImage on
 this PC, no success. Tried entering URL of other PC, selecting server. This URL does not show up on
 comms display in ff on this PC. Is it a problem that the profiles are identical, both with name
