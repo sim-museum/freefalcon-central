@@ -12351,10 +12351,13 @@ events never reach the tree control. The bottom-bar clicks (924,745 etc.) work, 
 path itself is fine; what differs is the WINDOW the handler resolves at the tree's position: the
 campaign background art window 40100 (0,0 1024x768) and the select window 40200 (0,0 445x735)
 share an origin, and if 40100 is above 40200 in the handler's z-order the click stops there.
-**PARKED at the six-sprint limit (S1-S6 today).** Next instrument, one line: in the FF_UI_CLICK
-firing code, print which window/control `gMainHandler` resolves for the click point (its
-FindWindow-at-point equivalent) -- that names the interceptor; then either raise 40200 or click
-through the handler's own dispatch instead of the app window.
+The handler's own (unconditional) `[LBUTTONUP]` trace was already in the S6i log and answers the
+routing question: the node clicks reach the SAME window as the JOIN tab (the window that took
+`ID=40205`) but grab no control -- `Grab_.Control_=(nil) ... NO Grab_.Control_ - deactivating` at
+(43,31), (49,54) and (57,51). So the window is right and the tree control does not claim the point;
+`CheckHotSpots` returns before my trace when the control is INVISIBLE or not ENABLED, which is the
+remaining suspect (the tree lives in a cluster the JOIN tab un-hides). S6k: the flags are printed
+before that gate (`[TREEHIT0]`). Parked after that run under the six-sprint rule.
 **PO TEST ROUND (2026-09-06 16:10), FF:** (1) *"tried to connect appImage on other PC to appImage on
 this PC, no success. Tried entering URL of other PC, selecting server. This URL does not show up on
 comms display in ff on this PC. Is it a problem that the profiles are identical, both with name

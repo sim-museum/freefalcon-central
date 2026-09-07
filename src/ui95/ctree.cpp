@@ -933,6 +933,18 @@ void C_TreeList::RecalcSize()
 long C_TreeList::CheckHotSpots(long relX, long relY)
 {
     TREELIST *cur;
+#ifdef FF_LINUX
+    /* MPTEST-FF S6: the handler grabs NO control at the game node point; print the flags BEFORE
+       the visibility/enabled gate below, which returned silently. FF_DEBUG_MPCOMMS=1. */
+    {
+        static int s_dbg0 = -1;
+        if (s_dbg0 < 0) s_dbg0 = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+        if (s_dbg0 && GetID() == 40211)
+            fprintf(stderr, "[TREEHIT0] tree %ld rel=(%ld,%ld) flags=0x%lx invisible=%d enabled=%d rect=%ld,%ld %ldx%ld\n",
+                    GetID(), relX, relY, (long)GetFlags(), (GetFlags() & C_BIT_INVISIBLE) ? 1 : 0,
+                    (GetFlags() & C_BIT_ENABLED) ? 1 : 0, GetX(), GetY(), GetW(), GetH());
+    }
+#endif
 
     if (GetFlags() bitand C_BIT_INVISIBLE or not (GetFlags() bitand C_BIT_ENABLED))
         return(0);
