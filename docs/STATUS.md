@@ -12452,7 +12452,15 @@ flies too. **S7f/S7g (host-side dumps, `PEER_A_DUMP`):** the host's FLY pair is 
 window 6013 as on the client, but its click list leaves it on STRAT_WIN 6321 (full-screen, close
 button 80001 at (1005,41)) with a 70205 panel; clicks at (495,390)/(100,16)/(972,748) all find no
 control there. S7h: close STRAT_WIN via (1005,41), then FLY and WAIT_TAKEOFF on the host at
-160/172 s, the client's FLY at 78 s (= host 173 s).
+160/172 s, the client's FLY at 78 s (= host 173 s). **S7h (03:03):** the host's close click works
+(`Process(ID=80001)`, STRAT_WIN gone), its (972,748) reaches window 6013 but `GrabItem found control
+ID=-2` -- the FLY pair is DISABLED on the host (no flight assigned; the same enabled-bit gate the
+commit had), and (200,594) lands on the campaign map (1600009). The client's FLY was enabled because
+the join gave it a flight. So the host must take a flight from its ATO panel (window 6100 at 0,33
+270x500) before FLY, or run its campaign clock without flying -- the clock widget 6012 (774,32)
+shows no play/compression buttons in the dump (5001/5002 top labels, the 170x170 clock face 6012,
+text 6014/6451). Next: the ATO panel's rows (dump) -> host picks a flight -> FLY -> both countdowns
+-> sim entry; or find the compression request the host's UI makes and why it is "pause".
 **PO TEST ROUND (2026-09-06 16:10), FF:** (1) *"tried to connect appImage on other PC to appImage on
 this PC, no success. Tried entering URL of other PC, selecting server. This URL does not show up on
 comms display in ff on this PC. Is it a problem that the profiles are identical, both with name
