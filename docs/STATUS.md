@@ -12345,7 +12345,16 @@ the node at (49,54) and at (43,31) [= window 0,0 + item 6,23 + half size], then 
 `[MONO] Requesting campaign preload`, the node's state stays 0 -- the tree never registered the
 click. `C_TreeList::CheckHotSpots` now traces rel x/y, its own x/y, the root's x_/y_ and the item
 found (`[TREEHIT]`, FF_DEBUG_MPCOMMS) and `CampSelectGameCB` traces its entry (`[TREECB]`); the
-next run reads whether the click reaches the tree at all and in which frame it tests.
+next run read it (S6i, 18:31): **no `[TREEHIT]` line at all** -- `C_TreeList::CheckHotSpots` for
+CAMPAIGN_TREE is never called by clicks at (43,31), (49,54) or (57,51), so the synthetic mouse
+events never reach the tree control. The bottom-bar clicks (924,745 etc.) work, so the click
+path itself is fine; what differs is the WINDOW the handler resolves at the tree's position: the
+campaign background art window 40100 (0,0 1024x768) and the select window 40200 (0,0 445x735)
+share an origin, and if 40100 is above 40200 in the handler's z-order the click stops there.
+**PARKED at the six-sprint limit (S1-S6 today).** Next instrument, one line: in the FF_UI_CLICK
+firing code, print which window/control `gMainHandler` resolves for the click point (its
+FindWindow-at-point equivalent) -- that names the interceptor; then either raise 40200 or click
+through the handler's own dispatch instead of the app window.
 **PO TEST ROUND (2026-09-06 16:10), FF:** (1) *"tried to connect appImage on other PC to appImage on
 this PC, no success. Tried entering URL of other PC, selecting server. This URL does not show up on
 comms display in ff on this PC. Is it a problem that the profiles are identical, both with name
