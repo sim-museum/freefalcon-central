@@ -939,6 +939,18 @@ long C_TreeList::CheckHotSpots(long relX, long relY)
 
     CheckFlag_ = C_BIT_NOTHING; // (0)
     cur = CheckBranch(Root_, relX, relY);
+#ifdef FF_LINUX
+    /* MPTEST-FF S6: the join script clicks the game node at its dumped point and nothing fires;
+       say what THIS tree saw. FF_DEBUG_MPCOMMS=1. */
+    {
+        static int s_dbg = -1;
+        if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+        if (s_dbg && GetID() == 40211)
+            fprintf(stderr, "[TREEHIT] tree %ld rel=(%ld,%ld) xy=(%ld,%ld) root=%p rootxy=(%ld,%ld) found=%p flag=%d\n",
+                    GetID(), relX, relY, GetX(), GetY(), (void*)Root_, Root_ ? Root_->x_ : -1L, Root_ ? Root_->y_ : -1L,
+                    (void*)cur, (int)CheckFlag_);
+    }
+#endif
 
     if (cur == NULL)
     {

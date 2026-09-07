@@ -1354,6 +1354,15 @@ static void CampSelectGameCB(long, short hittype, C_Base *control)
     VU_ID *tmpID;
     FalconGameEntity *game;
     TREELIST *item;
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_MPCOMMS"))
+    {
+        TREELIST* li = ((C_TreeList *)control)->GetLastItem();
+        fprintf(stderr, "[TREECB] CampSelectGameCB hittype=%d lastitem=%p type=%ld id=%ld state=%ld\n",
+                (int)hittype, (void*)li, li ? li->Type_ : -1L, li ? li->ID_ : -1L, li ? li->state_ : -1L);
+        fflush(stderr);
+    }
+#endif
 
     if (hittype not_eq C_TYPE_LMOUSEUP)
         return;

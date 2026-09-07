@@ -12331,6 +12331,21 @@ client 56 receives. The gate's "client recvs with bytes=0" line reads an older c
 the PASS is on the real receive. Next (S4): whether a SESSION forms above the transport
 (`vusessn.cpp` join handshake) -- grep the logs for session/join events and drive the game-list
 handshake through FF_MP_CONNECT.
+**MPTEST-FF S6 (Fable 5.1, 2026-09-06, in progress): JOIN THE LISTED GAME -- the clicks land on the node's
+rect and the callback still does not fire.** Instruments added: `MonoPrint` -> stderr under
+`FF_DEBUG_MONO=1` (the join path reports only through it: "Requesting campaign preload", "Starting
+remote game", "Failed to join game"); `UIDUMP` walks tree items (`FF_DUMP_TREE_IDS`, default
+CAMPAIGN_TREE 40211): the host's game is the ROOT item (id=1, type C_TYPE_MENU=49, rect 6,23 75x16,
+window-relative) with the player entry as its collapsed child (type ITEM=50, unpositioned); the
+harness gained `PEER_B_EXTRA` (extra clicks) and `PEER_B_DUMP` (dump times). The join chain from the
+code: click the game node (`CampSelectGameCB`, MENU item, state 0->1, `LookAtGame`, FM_JOIN_CAMPAIGN
+preload) -> `SINGLE_COMMIT_CTRL` (2000002 at 892,748) -> `SetupInfoWindow` (INFO_WIN 5004, its
+`INFO_COMPLY` 5006 fires `ReallyJoinCB` -> `StartCampaignGame(FALSE)`). Runs S6f/S6g/S6h clicked
+the node at (49,54) and at (43,31) [= window 0,0 + item 6,23 + half size], then the commit: no
+`[MONO] Requesting campaign preload`, the node's state stays 0 -- the tree never registered the
+click. `C_TreeList::CheckHotSpots` now traces rel x/y, its own x/y, the root's x_/y_ and the item
+found (`[TREEHIT]`, FF_DEBUG_MPCOMMS) and `CampSelectGameCB` traces its entry (`[TREECB]`); the
+next run reads whether the click reaches the tree at all and in which frame it tests.
 **PO TEST ROUND (2026-09-06 16:10), FF:** (1) *"tried to connect appImage on other PC to appImage on
 this PC, no success. Tried entering URL of other PC, selecting server. This URL does not show up on
 comms display in ff on this PC. Is it a problem that the profiles are identical, both with name
