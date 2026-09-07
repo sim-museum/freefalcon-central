@@ -52,7 +52,8 @@ echo "=== peer A (server + campaign host) starting ==="
     # COMMLINK_WIN (357,282 310x203) over the screen, and without dismissing it
     # every campaign click lands on that dialog -- the first run of this script
     # reported "campaign files read: 0" for exactly that reason.
-    export FF_UI_CLICK="487,748@12;733,476@17;512,748@22;577,468@28;924,745@40;905,758@52;563,751@60;495,390@68;110,135@82"
+    # S7c (2026-09-07): PEER_A_EXTRA appends clicks to the HOST too (e.g. its FLY at 972,748 once the client is in).
+    export FF_UI_CLICK="487,748@12;733,476@17;512,748@22;577,468@28;924,745@40;905,758@52;563,751@60;495,390@68;110,135@82${PEER_A_EXTRA:+;$PEER_A_EXTRA}"
     timeout -s INT "$A_SECS" "$BIN" -d "$GD" -w > "$A_LOG" 2>&1
 ) &
 A_PID=$!

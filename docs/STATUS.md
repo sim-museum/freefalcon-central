@@ -12430,6 +12430,15 @@ campaign (next), and the PO's two-PC phonebook route (MP-2PC-1). PO test recipe 
 this image: host `FF_MP_CONNECT="2934"`, joiner `FF_MP_CONNECT="2934:2934:<host IP>"`, both open
 Campaign, the joiner presses JOIN, the listed "<host>'s Game", the commit, then the info window's
 comply; the joiner should land in the host's campaign screens.
+**MPTEST-FF S7 (2026-09-07 02:13-02:22): the joiner's FLY.** With `PEER_B_JOIN=1` the client is in
+the host's campaign by ~68 s; the joined screen's bottom bar (dump): window 6013 at (548,0) carries
+MUNITIONS 6124/86120 at (872,748) and the FLY pair SINGLE_FLY_CTRL 2000000 / COMMS_FLY_CTRL
+2000001 at (972,748); window 6000's bar has CAMP_SAVE 6508 at (500,748). S7 clicked (892,748) =
+MUNITIONS (nothing useful); S7b clicked (972,748): `GrabItem found control ID=2000001` ->
+`Process(ID=2000001)` -> **window 6015 = CP_COUNTDOWN_WIN opens** (the pre-flight countdown/wait
+screen: panels 6016/6019, a clock 6018) and the run ended at 140 s still in it. S7c: both peers
+press FLY (the harness gained `PEER_A_EXTRA`), lifetimes 220/340 s, dumps to 210 s -- does the
+countdown reach the sim, and does the host need to be flying?
 **PO TEST ROUND (2026-09-06 16:10), FF:** (1) *"tried to connect appImage on other PC to appImage on
 this PC, no success. Tried entering URL of other PC, selecting server. This URL does not show up on
 comms display in ff on this PC. Is it a problem that the profiles are identical, both with name
