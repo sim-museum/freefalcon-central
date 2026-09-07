@@ -12476,8 +12476,17 @@ aircraft init path, or the OTW entry racing the UI). Logs `ff_s7i_peerB.log` (cr
 and `ff_s7i_peerA.log`. **Next sprint (S8):** catch the GL call -- run the client under
 `FF_GL_THREADCHECK` (or gdb with a breakpoint on glGetError/the first GL entry from a thread that
 is not the GL owner) during the countdown, then route it through the sim thread's GL acquire as
-the host's entry does. Until then: two PCs can join and the HOST can fly; the joiner must not be
-in the countdown when the host takes off.
+the host's entry does. **S7k (03:29): fixed at the source of the GL call.** `GetGroundLevel` ->
+`InitViewpoint` built the terrain viewpoint lazily from whichever thread asked first; on the joined
+client that was the campaign thread (the host's flights arriving as entities, each `AircraftClass::
+Init` lifting its waypoints with the ground level) while the UI owned GL. `InitViewpoint` now
+returns without building until the sim thread owns the context (`g_simOwnsGLContext`), so those
+callers get ground 0 until `OTWDriver.Enter` -- exactly what the host's own entry order gives.
+S7k: `[OTWDriver.InitViewpoint] deferred ...`, sixteen `AircraftClass::Init` runs complete, no
+crash, the client alive to the end of the run. Still open: the client's own sim entry never fires
+(no `FM_START_CAMPAIGN` on the client -- the takeoff guard in campupd/campaign.cpp:2549 needs
+`gLaunchTime`/`gCompressTillTime` and `Camp_GetCurrentTime() >= vuxGameTime`, to be traced next).
+Ships in `~/Documents/260907/FreeFalcon-x86_64-260907.AppImage`.
 **PO TEST ROUND (2026-09-06 16:10), FF:** (1) *"tried to connect appImage on other PC to appImage on
 this PC, no success. Tried entering URL of other PC, selecting server. This URL does not show up on
 comms display in ff on this PC. Is it a problem that the profiles are identical, both with name

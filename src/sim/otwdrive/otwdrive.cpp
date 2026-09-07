@@ -3191,6 +3191,21 @@ RViewPoint* OTWDriverClass::GetViewpoint()
 
 void OTWDriverClass::InitViewpoint()
 {
+#ifdef FF_LINUX
+    /* MPTEST-FF S8 (2026-09-07): a JOINED client's flight activated while it still sat in the campaign
+       countdown; AircraftClass::Init's waypoint loop asked GetGroundLevel(), which built the terrain
+       viewpoint here -- tile and texture loads, GL calls -- from the campaign thread while the UI
+       owned the context: SIGSEGV in libGL (ff_s7i_peerB.log). Before the sim thread owns GL there is
+       no viewpoint to build; callers get ground 0 until OTWDriver.Enter runs, as on the host. */
+    extern bool g_simOwnsGLContext;
+    if (!viewPoint && !g_simOwnsGLContext)
+    {
+        static int s_said = 0;
+        if (s_said++ < 3)
+            fprintf(stderr, "[OTWDriver.InitViewpoint] deferred: sim thread does not own GL yet (ground level 0)\n");
+        return;
+    }
+#endif
     F4EnterCriticalSection(cs_update);
 
     if ( not viewPoint and not bKeepClean and Texture::IsSetup())
