@@ -81,6 +81,16 @@ echo "=== peer B (client) starting on port 2936 ==="
     esac
     # S6 (2026-09-06): PEER_B_EXTRA appends clicks after the screen nav, e.g. the JOIN tab, the
     # listed game row and the commit -- so the join can be driven without editing this file.
+    # S6y (2026-09-06): PEER_B_JOIN=1 drives the whole join from the campaign screen: JOIN tab
+    # (269,16), the listed game node (121,122 = select window (0,0) + client area (78,91) + the
+    # root item's centre), SINGLE_COMMIT (892,748), then INFO_COMPLY (562,748) on the join info
+    # window. Needs PEER_B_SCREEN=campaign and A_SECS >= B_DELAY + B_SECS (the host must outlive
+    # the client's chain). Proof of the join is "FM_JOIN_SUCCEEDED received" in peer B's log.
+    if [ "${PEER_B_JOIN:-0}" = "1" ]; then
+        join="269,16@44;121,122@48;892,748@56;562,748@62"
+        PEER_B_EXTRA="${PEER_B_EXTRA:+$PEER_B_EXTRA;}$join"
+        PEER_B_DUMP="${PEER_B_DUMP:-60;85;100}"
+    fi
     export FF_UI_CLICK="487,748@12;512,748@18;577,468@26;$nav${PEER_B_EXTRA:+;$PEER_B_EXTRA}"
     export FF_DUMP_UI="${PEER_B_DUMP:-30;45}"   # after connect: find the game-list screen (S6: PEER_B_DUMP overrides)
     timeout -s INT "$B_SECS" "$BIN" -d "$GD" -w -port 2936 > "$B_LOG" 2>&1
@@ -97,6 +107,11 @@ printf "  campaign files read: %s   crash: %s\n" \
     "$(grep -ac StartReadCampFile "$A_LOG")" \
     "$(grep -ac 'Segmentation fault\|Aborted' "$A_LOG")"
 
+echo "=== peer B: join ==="
+printf "  FM_JOIN_SUCCEEDED: %s   campaign preload requested: %s   info window opened: %s\n" \
+    "$(grep -ac 'FM_JOIN_SUCCEEDED received' "$B_LOG")" \
+    "$(grep -ac 'requesting campaign preload' "$B_LOG")" \
+    "$(grep -ac 'window id=5004 ' "$B_LOG")"
 echo "=== peer B: comms + what it saw ==="
 grep -a "\[PBOOK\]\|\[MP\]" "$B_LOG" | head -3
 printf "  crash: %s\n" "$(grep -ac 'Segmentation fault\|Aborted' "$B_LOG")"

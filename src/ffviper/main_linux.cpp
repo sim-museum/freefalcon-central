@@ -66,6 +66,8 @@
 #include "ui95/ctree.h"   /* S6: UIDUMP walks tree items */
 #include "ui/include/falcuser.h"
 #include "ui/include/uicomms.h"  // FF_LINUX: For gCommsMgr
+void UI_UpdateVU();      // ui_main.cpp (S6o)
+void RebuildGameTree();  // ui_comms.cpp (S6o)
 #include "ui/include/logbook.h"  // FF_LINUX: For LogBook / UI_logbk
 
 // Simulation input (for IO structure and joystick data)
@@ -2515,6 +2517,19 @@ bool ProcessGameMessages() {
                 // On Linux, we handle Update/CopyToPrimary directly here instead of
                 // using the background OutputLoop thread (which is disabled on Linux).
                 if (gMainHandler != nullptr) {
+                    /* MPTEST-FF S6o (2026-09-06): winmain.cpp's FM_TIMER_UPDATE also runs
+                       UI_UpdateVU() and RebuildGameTree() every tick (InTimer-guarded); this
+                       loop ran neither, so a game entity that arrives AFTER the screen's entry
+                       rebuild never reaches the campaign/dogfight lists ("walked 0 F4GameType
+                       entities" at entry, an empty tree for the rest of the session). */
+                    static int s_inTimer = 0;
+                    if (!s_inTimer) {
+                        s_inTimer = 1;
+                        UI_UpdateVU();
+                        if (gCommsMgr)
+                            RebuildGameTree();
+                        s_inTimer = 0;
+                    }
                     gMainHandler->ProcessUserCallbacks();
                     // Trigger a full screen refresh
                     UI95_RECT fullRect = { 0, 0, gMainHandler->GetW(), gMainHandler->GetH() };
@@ -2623,12 +2638,60 @@ bool ProcessGameMessages() {
                 }
                 break;
 
+            case FM_JOIN_CAMPAIGN:
+            {
+                /* MPTEST-FF S6w (2026-09-06): the join chain's second link was missing on Linux.
+                   CampSelectGameCB posts FM_JOIN_CAMPAIGN (JOIN_PRELOAD_ONLY) through SendMessageA,
+                   which routes FM_* into this queue -- and this switch had no case for it, so the
+                   preload was never requested, LoadScenarioInfo never ran and SINGLE_COMMIT stayed
+                   disabled (S6v: flags 0x14080400, C_BIT_ENABLED clear). Mirrors winmain.cpp. */
+                int retval = 0;
+                if (gCommsMgr)
+                {
+                    FalconGameEntity *game = (FalconGameEntity*)gCommsMgr->GetTargetGame();
+                    if (!game || (VuGameEntity*)game == vuPlayerPoolGroup)
+                    {
+                        fprintf(stderr, "[FM] FM_JOIN_CAMPAIGN: not a valid game (target=%p)\n", (void*)game);
+                        PostGameMessage(FM_JOIN_FAILED, 0, 0);
+                        break;
+                    }
+                    switch (msg.wParam)
+                    {
+                        case JOIN_PRELOAD_ONLY:
+                            fprintf(stderr, "[FM] FM_JOIN_CAMPAIGN: requesting campaign preload\n");
+                            retval = TheCampaign.RequestScenarioStats(game);
+                            break;
+                        case JOIN_REQUEST_ALL_DATA:
+                            fprintf(stderr, "[FM] FM_JOIN_CAMPAIGN: requesting all campaign data\n");
+                            retval = TheCampaign.RequestScenarioStats(game);
+                            break;
+                        case JOIN_CAMP_DATA_ONLY:
+                            fprintf(stderr, "[FM] FM_JOIN_CAMPAIGN: requesting campaign data\n");
+                            retval = TheCampaign.JoinCampaign((FalconGameType)msg.lParam, game);
+                            break;
+                    }
+                }
+                fprintf(stderr, "[FM] FM_JOIN_CAMPAIGN wParam=%lu -> retval=%d\n", (unsigned long)msg.wParam, retval);
+                if (!retval)
+                    PostGameMessage(FM_JOIN_FAILED, 0, 0);
+                break;
+            }
             case FM_GOT_CAMPAIGN_DATA:
                 fprintf(stderr, "[FM] FM_GOT_CAMPAIGN_DATA received (wParam=%lu)\n",
                         (unsigned long)msg.wParam);
                 // Handle campaign data based on what we received
-                if (msg.wParam == CAMP_NEED_PRELOAD && FalconLocalGame) {
-                    CampaignPreloadSuccess(!FalconLocalGame->IsLocal());
+                if (msg.wParam == CAMP_NEED_PRELOAD) {
+                    /* MPTEST-FF S6x (2026-09-06): winmain.cpp also calls RecieveScenarioInfo() here --
+                       the UI half of the preload (LoadScenarioInfo -> EnableScenarioInfo(4050), which
+                       ENABLES the commit button). Without it SINGLE_COMMIT stayed disabled after the
+                       scenario stats arrived (S6w: preload requested and answered, flags unchanged). */
+                    if (FalconLocalGame)
+                        CampaignPreloadSuccess(!FalconLocalGame->IsLocal());
+                    if (gMainHandler) {
+                        extern void RecieveScenarioInfo();
+                        fprintf(stderr, "[FM] FM_GOT_CAMPAIGN_DATA: RecieveScenarioInfo (S6x)\n");
+                        RecieveScenarioInfo();
+                    }
                 }
                 // FF_LINUX (MP-1): the eight DATA cases were missing entirely.
                 //
@@ -3166,14 +3229,25 @@ static void render_frame(void) {
                             if ( not c)
                                 continue;
 
+                            /* MPTEST-FF S6l (2026-09-06): a non-ABSOLUTE control is placed inside its
+                               window CLIENT AREA; C_Window::GetControl subtracts that area origin before
+                               CheckHotSpots, so the screen point must add it (the campaign tree sits in
+                               client 1 at 78,91 -- the S6 node clicks at 43,31 never reached it). */
+                            long cox = 0, coy = 0;
+                            if ( not (c->GetFlags() bitand C_BIT_ABSOLUTE))
+                            {
+                                UI95_RECT ca = w->GetClientArea(c->GetClient());
+                                cox = ca.left; coy = ca.top;
+                            }
+
                             // Report the CENTRE, which is what a click script wants,
                             // alongside the raw rect. Window coordinates are relative,
                             // so add the window origin.
                             fprintf(stderr,
                                     "[UIDUMP]   ctrl id=%ld rect=%ld,%ld %ldx%ld click=%ld,%ld\n",
                                     c->GetID(), c->GetX(), c->GetY(), c->GetW(), c->GetH(),
-                                    w->GetX() + c->GetX() + c->GetW() / 2,
-                                    w->GetY() + c->GetY() + c->GetH() / 2);
+                                    w->GetX() + cox + c->GetX() + c->GetW() / 2,
+                                    w->GetY() + coy + c->GetY() + c->GetH() / 2);
                             /* MPTEST-FF S6 (2026-09-06): a TREE's rows are what a join script has
                                to click, and a control rect says nothing about them. Walk the items
                                (root -> Child/Next, depth-first) and print each with its own click
@@ -3202,8 +3276,8 @@ static void render_frame(void) {
                                         fprintf(stderr,
                                                 "[UIDUMP]     item id=%ld type=%ld at %ld,%ld %ldx%ld state=%ld click=%ld,%ld\n",
                                                 it->ID_, it->Type_, it->x_, it->y_, iw, ih, it->state_,
-                                                w->GetX() + c->GetX() + it->x_ + (iw > 0 ? iw / 2 : 8),
-                                                w->GetY() + c->GetY() + it->y_ + (ih > 0 ? ih / 2 : 6));
+                                                w->GetX() + cox + c->GetX() + it->x_ + (iw > 0 ? iw / 2 : 8),
+                                                w->GetY() + coy + c->GetY() + it->y_ + (ih > 0 ? ih / 2 : 6));
                                         n++;
                                         if (it->Child && sp < 64) stack[sp++] = it->Child;
                                     }

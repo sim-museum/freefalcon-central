@@ -1921,6 +1921,9 @@ void RebuildGameTree()
         if (s_dbgRGT)
         {
             /* MPTEST-FF S5 (2026-09-06): #83's next step -- the tree pointers, restored. */
+            /* S6o: the Linux timer now calls this every tick; print the first three entries only. */
+            static int s_entered = 0;
+            if (s_entered++ < 3)
             fprintf(stderr, "[GAMETREE] RebuildGameTree ENTERED DF=%p TAC=%p CAMP=%p online=%d\n",
                     (void*)DogfightGames, (void*)TacticalGames, (void*)CampaignGames,
                     (gCommsMgr && gCommsMgr->Online()) ? 1 : 0);
@@ -2005,9 +2008,15 @@ void RebuildGameTree()
 #ifdef FF_LINUX
         if (getenv("FF_DEBUG_MPCOMMS"))
         {
-            fprintf(stderr, "[GAMETREE] walked %d F4GameType entit%s in the VU database\n",
-                    s5_walked, s5_walked == 1 ? "y" : "ies");
-            fflush(stderr);
+            /* S6o: the timer calls this every tick; print only when the count changes. */
+            static int s_lastWalked = -1;
+            if (s5_walked != s_lastWalked)
+            {
+                s_lastWalked = s5_walked;
+                fprintf(stderr, "[GAMETREE] walked %d F4GameType entit%s in the VU database\n",
+                        s5_walked, s5_walked == 1 ? "y" : "ies");
+                fflush(stderr);
+            }
         }
 #endif
     }

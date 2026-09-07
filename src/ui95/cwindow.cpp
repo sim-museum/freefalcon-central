@@ -1423,6 +1423,22 @@ C_Base *C_Window::GetControl(long *ID, long relX, long relY)
     // run all controls in window
     for (CONTROLLIST *cur = Controls_; cur not_eq NULL; cur = cur->Next)
     {
+#ifdef FF_LINUX
+        /* MPTEST-FF S6l: the tree 40211 never sees CheckHotSpots; print each control gate. FF_DEBUG_MPCOMMS=1. */
+        {
+            static int s_dbgw = -1;
+            if (s_dbgw < 0) s_dbgw = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+            if (s_dbgw && (GetID() == 40200 || GetID() == 40500))
+            {
+                long cl = cur->Control_->GetClient();
+                fprintf(stderr, "[GETCTRL] win %ld rel=(%ld,%ld) ctrl %ld isctrl=%d abs=%d client=%ld area=%ld,%ld-%ld,%ld v=(%ld,%ld) flags=0x%lx\n",
+                        GetID(), relX, relY, cur->Control_->GetID(), cur->Control_->IsControl() ? 1 : 0,
+                        (cur->Control_->GetFlags() & C_BIT_ABSOLUTE) ? 1 : 0, cl,
+                        (long)ClientArea_[cl].left, (long)ClientArea_[cl].top, (long)ClientArea_[cl].right, (long)ClientArea_[cl].bottom,
+                        (long)VX_[cl], (long)VY_[cl], (long)cur->Control_->GetFlags());
+            }
+        }
+#endif
         if (cur->Control_->IsControl())
         {
             if (cur->Control_->GetFlags() bitand C_BIT_ABSOLUTE)

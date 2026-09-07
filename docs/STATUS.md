@@ -12358,6 +12358,74 @@ routing question: the node clicks reach the SAME window as the JOIN tab (the win
 `CheckHotSpots` returns before my trace when the control is INVISIBLE or not ENABLED, which is the
 remaining suspect (the tree lives in a cluster the JOIN tab un-hides). S6k: the flags are printed
 before that gate (`[TREEHIT0]`). Parked after that run under the six-sprint rule.
+**MPTEST-FF S6l-S6o (Fable 5.1, 2026-09-06 18:45-19:03): the node click now REACHES the tree; the
+empty list was a dead host.** S6k's `[TREEHIT0]` never printed, so `C_Window::GetControl` got a
+per-control trace (`[GETCTRL]`, FF_DEBUG_MPCOMMS): the campaign tree 40211 is a non-ABSOLUTE
+control in the select window's CLIENT AREA 1, whose origin is (78,91) (`area=78,91-494,681
+v=(78,91)`); `GetControl` rejects any point outside that area before `CheckHotSpots`, and the
+UIDUMP "click" points were window origin + control rect WITHOUT the client offset -- so (43,31)
+and (49,54) could never reach it. Fix: `main_linux.cpp`'s UIDUMP adds the control's client-area
+origin for non-absolute controls (the same class as MA's dialog-parented listboxes). S6m clicked
+the corrected point (135,142): first `[TREEHIT0] tree 40211 rel=(57,51) invisible=0 enabled=1`
+and `[TREEHIT] ... root=(nil)` -- the tree had NO items (`rect=6,23 0x40`, no `item` rows in any
+dump), and its entry rebuild had `walked 0 F4GameType entities`. Two causes, both fixed: (1) the
+Linux `FM_TIMER_UPDATE` handler ran only `ProcessUserCallbacks`, while winmain.cpp's also runs
+`UI_UpdateVU()` and `RebuildGameTree()` every tick (InTimer-guarded) -- so a game entity arriving
+after the screen's entry rebuild never reached the list; the Linux handler now mirrors it (S6o:
+833 rebuilds in 60 s, trace prints throttled to the first three entries and to changes of the
+walked count). (2) The harness: `B_DELAY=95` starts peer B 95 s after peer A, and S6l-S6o set
+`A_SECS=90..115` -- peer A was dead before peer B navigated, so "walked 0" measured no host at
+all (memory `harness-peer-lifetimes`). S6p runs with `A_SECS=200`.
+**MPTEST-FF S6p-S6t (19:03-19:25): the game node takes the click and its callback fires; the
+commit bar does not.** With `A_SECS=200` the host's game is in the client's list within seconds
+(`walk game #1 type=4 name="Viper's Game"` from the timer rebuild) and the campaign tree holds
+it: root-level MENU item id=1 (the game, `AddGameToList` creates games as `C_TYPE_MENU` with the
+VU_ID in `_UI95_VU_ID_SLOT_`) at client-relative (6,23) 75x16, with an ITEM child id=<player>
+laid out only after the node expands. The tree's item positions are CLIENT-relative (the same
+frame as the tree's own x/y, `CalculateTreePositions(Root_, GetX(), GetY())`), so the UIDUMP
+"item click" double-counted the tree origin: the game node's real point is window (0,0) + client
+(78,91) + item centre (43,31) = **(121,122)**. S6q/S6s/S6t clicked it: `[TREEHIT] found=<root>
+flag=50` and `CampSelectGameCB hittype=51` then `52` on `type=49 id=1` -- the C_TYPE_LMOUSEUP
+path that calls `SetState(1)`, `LookAtGame(game)` and posts `FM_JOIN_CAMPAIGN JOIN_PRELOAD_ONLY`
+(S6r's expand-box click at (92,123) toggled the branch instead, `flag=49`, and exposed the player
+child at (27,40)). The next click, `SINGLE_COMMIT_CTRL` 2000002 in window 40500 (692,728) at rect
+(150,0) 100x40 = screen (892,748), reaches window 40500 (`[LBUTTONDOWN] ... ID=40500`) but
+`GrabItem found NO control` three times. Two traces added for S6v: `[TREECB] LookAtGame game=%p`
+(did the callback resolve the entity?) and the `[GETCTRL]` per-control gate on window 40500 (is
+the commit button absolute/enabled/visible?). Bookkeeping: S6s/S6t ran the 18:58 binary because
+the launcher's ninja step failed on a trace edit that DUPLICATED ui_comms.cpp (a missed search
+string appended the whole file after line 2011) -- restored from the intact tail, 2803 lines, diff
+vs HEAD = the two print throttles only.
+**MPTEST-FF S6u-S6x (19:26-19:42): TWO MISSING LINKS IN THE LINUX MESSAGE LOOP -- the commit
+button now enables and opens the join info window.** S6v (fresh binary): `[TREECB] LookAtGame
+game=<live> type=4` -- the callback resolved the entity -- yet `[GETCTRL] win 40500 ... ctrl
+2000002 ... flags=0x14080400`: `C_BIT_ENABLED` (0x800) clear, the commit button DISABLED, which is
+why `CheckHotSpots` refused it (working buttons carry 0x...c00). The enable path in the original:
+`CampSelectGameCB` posts `FM_JOIN_CAMPAIGN JOIN_PRELOAD_ONLY` via `SendMessageA` (on Linux routed
+into the game queue) -> winmain.cpp `case FM_JOIN_CAMPAIGN` -> `TheCampaign.RequestScenarioStats`
+-> `FM_GOT_CAMPAIGN_DATA CAMP_NEED_PRELOAD` -> `CampaignPreloadSuccess` + `RecieveScenarioInfo()`
+-> `LoadScenarioInfo` -> `EnableScenarioInfo(4050)` enables SINGLE_COMMIT. `main_linux.cpp` had (1)
+NO `case FM_JOIN_CAMPAIGN` at all (the preload request was dropped -- 27 FM_ cases of winmain's
+are still absent, listed by `comm` of the two switch bodies) and (2) a `FM_GOT_CAMPAIGN_DATA`
+handler that called `CampaignPreloadSuccess` but not `RecieveScenarioInfo`. Both added (S6w: `[FM]
+FM_JOIN_CAMPAIGN: requesting campaign preload ... retval=1`, data answered, button still 0x...400;
+S6x: `RecieveScenarioInfo (S6x)` runs, flags `0x14080c00`, the (892,748) click is TAKEN and the
+dump shows the join info window 5004 with INFO 5005 at (462,748) and INFO_COMPLY 5006 at
+(562,748)). S6y clicks comply at 62 s and waits for `FM_JOIN_SUCCEEDED`.
+**MPTEST-FF S6y (19:42-19:46): THE CLIENT JOINS THE HOST'S CAMPAIGN -- `FM_JOIN_SUCCEEDED`.**
+Comply at (562,748): `Process(ID=5006)` -> `ReallyJoinCB` -> `FM_JOIN_CAMPAIGN JOIN_REQUEST_ALL_DATA`
+(retval=1) -> `JOIN_CAMP_DATA_ONLY` -> `[MPJOIN] JoinCampaign: ownerId=3673639/3 masterSession=...
+remote master, REAL join` -> `GotJoinData` walks the bits down (PERSIST, OBJ_DELTAS, TEAM_DATA,
+UNIT_DATA, VC, PRIORITIES -> `stillNeeded=0 loaded=1`) -> `[FM] FM_JOIN_SUCCEEDED received` -> the
+dumps at 85/100 s show the campaign UI (windows 6000/6013/6500 + 6012/6100) in place of the
+select screen. Eleven runs (S6l-S6y) from "the click never reaches the tree" to a completed
+remote join; the product fixes are three: the client-area origin in UIDUMP (instrument), the
+timer tick's `UI_UpdateVU`+`RebuildGameTree`, and the two missing FM cases (`FM_JOIN_CAMPAIGN`,
+`RecieveScenarioInfo` on `CAMP_NEED_PRELOAD`). The harness gained `PEER_B_JOIN=1` (the whole
+chain) and prints a join summary; `scripts/qa/mp-join.sh` is the gate (asserts
+`FM_JOIN_SUCCEEDED` in peer B's log; ~5 min, needs a display). Ships as
+`FreeFalcon-x86_64-join.AppImage`. Not yet covered: the joiner's flight from the joined campaign
+(next), and the PO's two-PC phonebook route (MP-2PC-1).
 **PO TEST ROUND (2026-09-06 16:10), FF:** (1) *"tried to connect appImage on other PC to appImage on
 this PC, no success. Tried entering URL of other PC, selecting server. This URL does not show up on
 comms display in ff on this PC. Is it a problem that the profiles are identical, both with name

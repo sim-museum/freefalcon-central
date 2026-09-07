@@ -1386,6 +1386,13 @@ static void CampSelectGameCB(long, short hittype, C_Base *control)
             {
                 game = (FalconGameEntity*) vuDatabase->Find(*tmpID);
                 gCommsMgr->LookAtGame(game);
+#ifdef FF_LINUX
+                if (getenv("FF_DEBUG_MPCOMMS"))
+                {
+                    fprintf(stderr, "[TREECB] LookAtGame game=%p type=%d (S6t)\n", (void*)game, game ? (int)game->GetGameType() : -1);
+                    fflush(stderr);
+                }
+#endif
 
                 if (game)
                 {
