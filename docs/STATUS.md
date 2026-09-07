@@ -12461,6 +12461,23 @@ the join gave it a flight. So the host must take a flight from its ATO panel (wi
 shows no play/compression buttons in the dump (5001/5002 top labels, the 170x170 clock face 6012,
 text 6014/6451). Next: the ATO panel's rows (dump) -> host picks a flight -> FLY -> both countdowns
 -> sim entry; or find the compression request the host's UI makes and why it is "pause".
+**S7i (03:12): THE HOST FLIES; THE CLIENT CRASHES ENTERING ITS AIRCRAFT.** With `FF_DUMP_TREE_IDS=
+40211,6130` the host's mission tree (6130) shows ten flights (items 5579, 5345, ...; rows at
+(128,84+17k)); the blind slot click hit CB_4_1 (6114), after which the host's FLY was ENABLED
+(`Process(ID=2000001)`), WAIT_TAKEOFF ran (`Process(ID=6017)`) and **`[FM] FM_START_CAMPAIGN
+received` -> EndUI -> CampaignClass::Suspend -> sim thread acquires GL -> `OTWDriver.Enter` ->
+`FalconDisplay.EnterMode(Sim)`: the host is in 3D.** The client's clock started advancing
+(`Update vuxTargetGameTime`) and its countdown reached takeoff: `AircraftClass::Init` ran
+(SimVehicleClass::Init, AirframeClass, Fack, initial pos x=1179090 y=1466614, 8 waypoints) --
+**with the UI still up (no `EndUI ENTRY` on the client) -- and then `=== CRASH: SIGSEGV` with the
+frame in libGL.so.1 (+0x4b989)** under the crash handler (main_linux.cpp:1317): a GL call made
+from a non-GL thread while the client's aircraft was being built (a model/texture load in the
+aircraft init path, or the OTW entry racing the UI). Logs `ff_s7i_peerB.log` (crash at line 3054)
+and `ff_s7i_peerA.log`. **Next sprint (S8):** catch the GL call -- run the client under
+`FF_GL_THREADCHECK` (or gdb with a breakpoint on glGetError/the first GL entry from a thread that
+is not the GL owner) during the countdown, then route it through the sim thread's GL acquire as
+the host's entry does. Until then: two PCs can join and the HOST can fly; the joiner must not be
+in the countdown when the host takes off.
 **PO TEST ROUND (2026-09-06 16:10), FF:** (1) *"tried to connect appImage on other PC to appImage on
 this PC, no success. Tried entering URL of other PC, selecting server. This URL does not show up on
 comms display in ff on this PC. Is it a problem that the profiles are identical, both with name
