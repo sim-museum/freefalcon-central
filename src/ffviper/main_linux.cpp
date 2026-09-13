@@ -3354,7 +3354,7 @@ static void render_frame(void) {
             }
         }
 
-        FF_NotePresent("render_frame-fallback");
+        FF_NotePresent("render_frame-main");
         SDL_GL_SwapWindow(g_SDLWindow);
     } else if (g_simOwnsGLContext) {
         // Sim mode: the sim thread owns the GL context and handles rendering.

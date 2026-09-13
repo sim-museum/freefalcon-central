@@ -13111,3 +13111,46 @@ and the suite restarts `bob` between gates, so the wait released in a gap and th
 briefly. The numbers here are call counts and millisecond offsets within one process, which
 contention delays rather than corrupts, so they stand — but the queueing pattern is wrong and the
 next long chain should key on the suite's own PID, not on the child it restarts.
+
+
+### LOAD-1 S2 (2026-09-13) — ⭐ the main loop IS presenting at 60 fps. The screen is white because that is what it draws.
+
+S1 measured `FF_LoadingClear` called 8 times, all inside 6.6 s, never after — and said explicitly
+that this names when nothing repaints black, not what paints white. S2 tags every present site and
+answers it.
+
+**Measured, white window [6.6 s, ~31 s]:**
+
+    [present] #400  at  6651ms from render_frame-main
+    [present] #600  at  9985ms from render_frame-main
+    [present] #800  at 13318ms from render_frame-main
+    [present] #1000 at 16666ms from render_frame-main
+    [present] #1200 at 20003ms from render_frame-main
+    [present] #1400 at 23333ms from render_frame-main
+
+200 presents per 3.33 s is **~60 fps, sustained, from the main render loop**, for the whole period
+the PO sees a white screen. Zero from the fallback menu path (`g_useFallbackMenu = false`, correctly
+never taken) and none from the loading clear after 6.6 s.
+
+⭐ **So the premise the item has carried is wrong.** LOAD-1's note says *"the setup phase simply
+presents nothing"*. The setup phase presents 60 times a second. The screen is white because **that is
+what the main render loop draws during mission load** — not because painting has stopped, and not
+because a clear is missing.
+
+**This retires S1's implied direction.** Adding `FF_LoadingClear` calls at more sites cannot help: a
+clear is overwritten by the very next `render_frame`, 16 ms later. Any fix that "worked" that way
+would be a race, and would have looked like a fix for the wrong reason.
+
+**S3 — find what the main loop draws during load, and why it is blank.** The animated aircraft-icon
+progress bar LOAD-1 says regressed (`cc4e2517`, June) is presumably what *should* be drawn in those
+frames. So the question is whether that screen is (a) not selected during the load, (b) selected but
+drawing nothing, or (c) drawing into a surface that is not the one being presented. The present
+counter is already the oracle: the content changes, the ~60 fps should not.
+
+⚠️ **An instrument fault fixed mid-sprint, and it nearly produced a wrong answer.** The first tagging
+gave sites 3 AND 4 the same label, `render_frame-fallback`, because my naming used
+`seen==1 ? … : seen==2 ? … : "render_frame-fallback"`. The log then attributed 26 presents to a code
+path that `g_useFallbackMenu = false` guarantees never executes — and had I not checked that flag,
+"the fallback menu is painting the white screen" was a tidy, completely wrong conclusion sitting
+right there. Sites now carry distinct names (`render_frame-fallback` vs `render_frame-main`) and the
+re-run attributes cleanly.
