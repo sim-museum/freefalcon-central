@@ -12804,3 +12804,42 @@ sample of a time-varying quantity is not a measurement" and then made the same m
 opposite direction within the same sprint, by reading the head instead of the tail. The only honest
 form for a traced quantity is the **distribution** — min/p25/median/p75/max and the fraction beyond
 whatever threshold matters. Neither end of a log is a summary of it.
+
+
+### MPTEST-FF S1 (2026-09-13) — discovery and game-listing proven on ONE box; I ran the wrong arm for the join
+
+FF's rank-3 items are both at the PO's four-sprint cap (GMRADAR-8 S1-S4, PIT-1 rotated out at 4/4),
+so this picks up MPTEST-FF. `scripts/qa/mp-two-instance.sh`, two peers on this machine, peer B on
+port 2936 against peer A's 2934:
+
+    [PBOOK] connect as SERVER: ip=0x00000000 localPort=2934 remotePort=0 desc='127.0.0.1'
+      campaign files read: 10   crash: 0
+    [MP] local port forced to 2936
+    [PBOOK] connect as CLIENT: ip=0x7f000001 localPort=2936 remotePort=2934
+      crash: 0
+    peer B session decodes: 6
+    peer B remote games remembered: 1
+        gameId=6068821/28007
+    [VuSession::JoinGame] EXIT: retval=1 Game()=0x647cce244640
+    [MPQUEUE] GroupConnect: gUICommsQ=... IsGame=1 -> QUEUED _Q_GAME_ADD_
+
+⭐ **`gameId=6068821/28007` is a REAL remote game**, not the `0/2` local placeholder the harness
+warns about — so the host's `FalconGameEntity` crossed the loopback wire and peer B decoded and
+remembered it. Six session decodes, no crash on either side. That is the claim
+`docs/MULTIPLAYER.md` has carried unproven ("a real two-machine connection has NEVER been tested
+from this box"), now answered for the discovery half without a second PC.
+
+⚠️ **What this run does NOT show, and I nearly wrote it up as a defect.** The report line
+`FM_JOIN_SUCCEEDED: 0   campaign preload requested: 0   info window opened: 0` looks like the join
+failing. It is not: `mp-two-instance.sh` drives peer B only as far as `COMMS -> PB_CONNECT`, with no
+JOIN-tab clicks at all, so nothing ever asked to join. The gate that does is
+`scripts/qa/mp-join.sh`, which runs this same script with `PEER_B_SCREEN=campaign PEER_B_JOIN=1`
+and asserts `FM_JOIN_SUCCEEDED received`. **A zero from an arm that never exercised the path is not
+evidence** — the same rule that caught the MA `despos` zero and BoB's silent DirectPlay logs earlier
+today, and I walked up to it again here.
+
+**S2 (next FF rotation):** run `scripts/qa/mp-join.sh` (the `PEER_B_JOIN=1` arm) and read
+`FM_JOIN_SUCCEEDED`, `campaign preload requested` and `info window opened` from *that*. Only then is
+there a statement to make about the join. After that, the open question from the overnight work
+stands: the joiner's own sim entry never fires (no `FM_START_CAMPAIGN` on the client), with the
+takeoff guard in `campupd/campaign.cpp` as the next thing to trace.
