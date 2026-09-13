@@ -225,6 +225,25 @@ void FF_SimThreadReleaseGL() {
 // shows as a white screen during the (several-second) device/terrain setup at
 // the start of OTWDriver::Enter(). Called on the sim thread, which owns the GL
 // context at that point.
+/* LOAD-1 S2 (2026-09-13): S1 measured FF_LoadingClear called 8 times, all inside the first 6.6 s,
+   never after -- while the white screen lasts ~31 s. That narrows the window but does not name what
+   PAINTS it: on Wayland a surface that stops updating keeps its last content, and the last content
+   was a black clear, so either something presents after 6.6 s or the surface is being recreated.
+   Tag every present site so the next run distinguishes "presents without a preceding clear" (fix:
+   clear at those sites) from "no presents at all" (the white is not ours). FF_DEBUG_LOADCLEAR=1. */
+void FF_NotePresent(const char* who) {
+    static int dbg = -1;
+    if (dbg < 0) dbg = getenv("FF_DEBUG_LOADCLEAR") ? 1 : 0;
+    if (!dbg) return;
+    static struct timespec t0; static int haveT0 = 0; static long n = 0;
+    struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
+    if (!haveT0) { t0 = now; haveT0 = 1; }
+    long ms = (now.tv_sec - t0.tv_sec) * 1000L + (now.tv_nsec - t0.tv_nsec) / 1000000L;
+    ++n;
+    if (n <= 12 || (n % 200) == 0)
+        fprintf(stderr, "[present] #%ld at %ldms from %s\n", n, ms, who), fflush(stderr);
+}
+
 void FF_LoadingClear() {
     /* LOAD-1 (2026-09-13): the load shows WHITE for ~31 s on TE 09 before the cockpit appears, and
        the recorded reading is that "the presents must come from OTWDriver::Enter itself". This
@@ -268,6 +287,7 @@ void FF_LoadingClear() {
     // heavy setup checkpoint so black persists through the blocking steps.
     for (int i = 0; i < 4; i++) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        FF_NotePresent("loadclear-burst");
         SDL_GL_SwapWindow(g_SDLWindow);
     }
     if (savedScissor) glEnable(GL_SCISSOR_TEST);
@@ -429,6 +449,7 @@ void FF_SwapBuffers() {
         }
 
         // Present the frame
+        FF_NotePresent("present-fn");
         SDL_GL_SwapWindow(g_SDLWindow);
     }
 }
@@ -2937,6 +2958,7 @@ static void render_frame(void) {
     if (g_useFallbackMenu && doUI) {
         glClear(GL_COLOR_BUFFER_BIT);
         DrawFallbackMenu();
+        FF_NotePresent("render_frame-fallback");
         SDL_GL_SwapWindow(g_SDLWindow);
         return;
     }
@@ -3332,6 +3354,7 @@ static void render_frame(void) {
             }
         }
 
+        FF_NotePresent("render_frame-fallback");
         SDL_GL_SwapWindow(g_SDLWindow);
     } else if (g_simOwnsGLContext) {
         // Sim mode: the sim thread owns the GL context and handles rendering.
