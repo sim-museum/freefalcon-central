@@ -12911,3 +12911,45 @@ cause" from an empty trace.
 **S4 (next FF rotation):** dump the joiner's UI at ~140 s (`PEER_B_DUMP`) to find its actual flight
 list and FLY control, select a flight slot first, then press FLY — and only then read
 `[STARTCAMP]`. The trace is already in the binary, so that run costs one pass.
+
+
+### TERRAIN-1 S1 (2026-09-13) — the recorded root cause is STALE, and the path I instrumented is not the one
+
+FF's three named items (GMRADAR-8, PIT-1, MPTEST-FF) are all at the four-sprint cap this pass, so
+this picks up TERRAIN-1: *"dogfight arena shows a uniformly grey surface below the aircraft"*.
+
+**The 2026-08-14 root cause no longer holds.** That note says the medium/low LOD terrain art is
+absent — *"the DDS set is `H*`-only, the PCX set is still inside an unextracted 178 MB
+`texture.zip`"* — and parked the item as a data fix awaiting the PO. Counting the install today:
+
+    terrdata/korea/texture/ :  4,592 .pcx  --  H* 1148,  M* 1148,  L* 1148
+                               1 .dds (fartiles), and texture.zip still present but ALREADY EXTRACTED
+
+**All three LOD sets are on disk.** So "missing art" cannot be the explanation, and a data fix should
+not be proposed on that basis. (`terrtex.cpp` also already carries an `FF_LINUX` palette fallback for
+exactly this case: DDS absent, load the tile from PCX.)
+
+**What I then measured, and the negative result.** The grey case is the branch where a tile has
+neither DDS data nor palette bits and is skipped. Instrumented both outcomes — successful palette
+activations as the denominator, skips broken down per resolution — and ran the Maverick TE for
+200 s:
+
+    [terrtex] palette tile ACTIVATED (res=0) total=1
+    totals: activated=1 skipped=1        (print cadence: first, then every 250)
+
+⚠️ **First run used a cadence of 2000 and told me nothing** — one line cannot distinguish 1 event
+from 1999. Recadenced to 250 and rerun; still one line each. So **both branches fire fewer than 250
+times** in a run whose log carries 34 sim-entry markers and a fully initialised `FarTexDB`
+(`texCount=96664`). A terrain renderer drawing a visible landscape does not texture it in under 250
+tile activations.
+
+⭐ **Conclusion: this is not the terrain texture path.** The skip branch cannot account for a grey
+landscape because it barely executes, and the palette branch is not carrying the terrain either. The
+item is no better understood than before, but two candidate explanations are now eliminated with
+evidence rather than carried forward on a stale note.
+
+**S2 (next FF rotation):** find the path that actually textures terrain tiles in the sim. `Activate()`
+takes the DDS branch because `m_texMode == TEX_MODE_DDS`, so start by counting which branch of
+`Activate` real in-sim tiles take, and confirm against `FarTexDB` (which reports 96,664 textures
+ready) whether the far-terrain and near-terrain paths are separate. Instrument before theorising:
+both prior theories here died on measurement.

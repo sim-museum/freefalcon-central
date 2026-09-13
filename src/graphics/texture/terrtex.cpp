@@ -1092,9 +1092,36 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
 
             glReleaseMemory((char*)pTile->bits[res]);
             pTile->bits[res] = NULL;
+            /* TERRAIN-1 (2026-09-13): count the palette activations that SUCCEED, so the skip count
+               below has a denominator. A skip count alone cannot distinguish "terrain is untextured"
+               from "this path barely runs". FF_DEBUG_TERRTEX=1. */
+            if (getenv("FF_DEBUG_TERRTEX")) {
+                static long ok = 0;
+                ++ok;
+                if (ok == 1 || (ok % 250) == 0)
+                    fprintf(stderr, "[terrtex] palette tile ACTIVATED (res=%d) total=%ld\n", res, ok), fflush(stderr);
+            }
             return;
         }
         if (!isDDSTile) {
+            /* TERRAIN-1: this is the grey-terrain path -- no DDS data and no palette bits, so the
+               tile is skipped and the surface renders untextured. The 2026-08-14 note blamed missing
+               M/L LOD art ("the PCX set is still inside an unextracted texture.zip"), but that is now
+               STALE: the install carries 4,592 .pcx across the H, M and L sets, 1,148 each. So the premise
+               needs re-measuring before any data fix is proposed, and a bare count is not enough --
+               it is reported per RESOLUTION, because the complaint is specifically about the
+               medium/low LODs. FF_DEBUG_TERRTEX=1. */
+            if (getenv("FF_DEBUG_TERRTEX")) {
+                static long skips[8] = {0,0,0,0,0,0,0,0};
+                static long total = 0;
+                int r = (res >= 0 && res < 8) ? res : 7;
+                skips[r]++; total++;
+                if (total == 1 || (total % 250) == 0)
+                    fprintf(stderr, "[terrtex] SKIPPED (no DDS, no palette) total=%ld  by res: "
+                            "0=%ld 1=%ld 2=%ld 3=%ld 4=%ld 5=%ld 6=%ld other=%ld\n", total,
+                            skips[0],skips[1],skips[2],skips[3],skips[4],skips[5],skips[6],skips[7]),
+                        fflush(stderr);
+            }
             // No DDS data and no palette data - skip
             return;
         }
