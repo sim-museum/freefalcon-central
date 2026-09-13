@@ -2953,6 +2953,43 @@ bool ProcessGameMessages() {
     return true;
 }
 
+/* LOAD-1 S4: what is actually on the screen, as a time series. One glReadPixels of a small
+   centre block every FF_LOAD_LUMA ms; prints mean/min/max luma and whether the UI draw flag is
+   off. A single BMP cannot characterise a 31 s window and FF_UI_SCREENSHOT overwrites one file,
+   so this reports the distribution instead. Off unless FF_LOAD_LUMA is set. */
+static void FF_LoadLumaSample(int inLoadWindow)
+{
+    static int periodMs = -2;
+    if (periodMs == -2) {
+        const char *e = getenv("FF_LOAD_LUMA");
+        periodMs = e ? atoi(e) : -1;
+    }
+    if (periodMs <= 0) return;
+
+    static Uint32 last = 0;
+    Uint32 now = SDL_GetTicks();
+    if (now - last < (Uint32)periodMs) return;
+    last = now;
+
+    int w = 0, h = 0;
+    SDL_GetWindowSize(g_SDLWindow, &w, &h);
+    if (w <= 0 || h <= 0) return;
+    const int bw = 64, bh = 64;
+    static unsigned char px[64 * 64 * 4];
+    glReadPixels(w / 2 - bw / 2, h / 2 - bh / 2, bw, bh, GL_RGBA, GL_UNSIGNED_BYTE, px);
+
+    double sum = 0.0; int mn = 255, mx = 0;
+    for (int i = 0; i < bw * bh; i++) {
+        int l = (int)(0.299 * px[4 * i] + 0.587 * px[4 * i + 1] + 0.114 * px[4 * i + 2]);
+        sum += l; if (l < mn) mn = l; if (l > mx) mx = l;
+    }
+    extern int doUI;
+    fprintf(stderr, "[loadluma] t=%ums doUI=%d drawflag=%ld drawflagoff=%d mean=%.1f min=%d max=%d\n",
+            (unsigned)now, doUI, gMainHandler ? gMainHandler->GetDrawFlag() : -1L,
+            inLoadWindow, sum / (bw * bh), mn, mx);
+    fflush(stderr);
+}
+
 static void render_frame(void) {
     // Use fallback menu if enabled (temporary workaround for UI95 issues)
     if (g_useFallbackMenu && doUI) {
@@ -2966,6 +3003,58 @@ static void render_frame(void) {
     // When in UI mode (doUI=1), the UI has been drawn to the primary DirectDraw surface
     // We need to present that surface via OpenGL
     if (doUI) {
+        /* LOAD-1 S4 (2026-09-13). S3 located the white screen: campaign.cpp calls
+         *   gMainHandler->SetDrawFlag(0);  CleanupCampaignUI();  PostMessage(FM_START_CAMPAIGN)
+         * at :2571, :2586 and :2629 (all three game modes), and SetDrawFlag(1) is restored in
+         * exactly one place, ui_main.cpp:1795, after the load. Between them the UI is flagged off
+         * AND torn down while the sim is not yet up, so this branch keeps presenting the primary
+         * surface -- which nothing is drawing into any more -- at 60 fps for ~31 s.
+         *
+         * GetDrawFlag() makes that window directly testable, so handle it here rather than
+         * racing to add clears at setup checkpoints (S1's implied direction, retired in S3).
+         *   FF_LOAD_PAINT=hold   do not swap at all: the front buffer keeps the last complete UI
+         *                        frame, so the last screen stays up through the load.
+         *   FF_LOAD_PAINT=black  clear to black each frame.
+         *   FF_LOAD_PAINT=off    (DEFAULT) the existing behaviour.
+         * FF_LOAD_LUMA=<ms> samples what is actually ON SCREEN every <ms>, so "white" is a
+         * measured distribution rather than a description.
+         *
+         * DEFAULT OFF, deliberately: this fix is UNVERIFIED. Measured on the TE recipe with
+         * FF_DEBUG_DRAWFLAG=1, SetDrawFlag is called exactly TWICE in a 95 s run -- (1) at
+         * startup with the previous value 0, then (0) once at the very end -- and all 41
+         * [loadluma] samples read drawflag=1. This branch's trigger therefore never fires on that
+         * recipe, and the single SetDrawFlag(0) that does occur lands at the end, where a default
+         * of `hold` would stop swapping at sim handover. Enabling this before S5 confirms the
+         * window on the campaign path would ship an untested display freeze. */
+        static int loadPaint = -1;   /* 0=off 1=hold 2=black */
+        if (loadPaint < 0) {
+            const char *e = getenv("FF_LOAD_PAINT");
+            loadPaint = (e && !strcmp(e, "hold")) ? 1 : ((e && !strcmp(e, "black")) ? 2 : 0);
+        }
+        const int loadWindow = (gMainHandler && !gMainHandler->GetDrawFlag());
+        static long loadFrames = 0, loadReported = 0;
+        if (loadWindow) loadFrames++;
+
+        FF_LoadLumaSample(loadWindow);
+
+        if (loadWindow && loadPaint) {
+            if (loadFrames - loadReported >= 300) {   /* ~5 s of held frames */
+                loadReported = loadFrames;
+                fprintf(stderr, "[loadpaint] %s: %ld frames with the UI draw flag off\n",
+                        loadPaint == 1 ? "holding the last frame" : "clearing to black",
+                        loadFrames);
+                fflush(stderr);
+            }
+            if (loadPaint == 2) {
+                glClearColor(0.f, 0.f, 0.f, 1.f);
+                glClear(GL_COLOR_BUFFER_BIT);
+                FF_NotePresent("loadpaint-black");
+                SDL_GL_SwapWindow(g_SDLWindow);
+            }
+            /* loadPaint == 1: deliberately no swap -- the front buffer keeps the last good frame */
+            return;
+        }
+
         FF_PresentPrimarySurface();
 
         // FF_LINUX (MP-1): can peer B RESOLVE the remote game it was told about?

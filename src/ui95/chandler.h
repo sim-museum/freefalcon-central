@@ -274,6 +274,19 @@ public:
 
     void SetDrawFlag(long val)
     {
+        /* LOAD-1 S4 (2026-09-13): S4's paint fix keys on GetDrawFlag()==0 and its trigger never
+           fired on the TE recipe -- every [loadluma] sample reported drawflagoff=0. That is a
+           claim about the instrument until the instrument is shown to speak, and there are two
+           very different explanations: the recipe never reaches campaign.cpp's SetDrawFlag(0)
+           sites, or it does and render_frame never observes the flag down. Counting the calls
+           here separates them in one run. FF_DEBUG_DRAWFLAG=1. */
+        if (getenv("FF_DEBUG_DRAWFLAG"))
+        {
+            static long nset = 0;
+            fprintf(stderr, "[drawflag] SetDrawFlag(%ld) call #%ld (was %ld)\n",
+                    val, ++nset, DrawFlags);
+            fflush(stderr);
+        }
         DrawFlags = val;
     }
     long GetDrawFlag()
