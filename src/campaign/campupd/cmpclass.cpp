@@ -2378,7 +2378,15 @@ void CampaignClass::Suspend(void)
     ThreadManager::fast_campaign();
     Flags or_eq CAMP_SUSPEND_REQUEST;
 
-    FF_CAMPLOG("[FF_LINUX] CampaignClass::Suspend - entering wait loop\n");
+    /* UIHITCH-1 S3 (2026-09-13): S2 measured this wait TIMING OUT 3 times in 5, a full second of
+       frozen UI each, and that is the whole of both stalls. The loop waits for the campaign thread
+       to set CAMP_SUSPENDED, and that thread only does so inside `while
+       (ThreadManager::campaign_active())` -- so if the thread is not active the reply is not merely
+       late, it is IMPOSSIBLE, and the second is spent waiting for something that can never come.
+       Report the thread's state at the moment we start waiting, so "slow" and "impossible" stop
+       being indistinguishable from outside. */
+    FF_CAMPLOG("[FF_LINUX] CampaignClass::Suspend - entering wait loop (campaign_active=%d Flags=0x%x)\n",
+               (int)ThreadManager::campaign_active(), (unsigned)Flags);
     fflush(stderr);
     int waitCount = 0;
     while ( not IsSuspended() and (Flags bitand CAMP_SUSPEND_REQUEST))
