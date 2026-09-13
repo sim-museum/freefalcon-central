@@ -12702,3 +12702,58 @@ alongside the eye, in the same trace, and compute `at - from` there. If `|at - f
 nm the hunt moves entirely upstream to whoever sets the composite's aim point; if `|at - from|` is
 small, then the 4.08x is manufactured between that line and `StartScene` and the rotation sign is
 the suspect. One run answers it, and it is the same TE drive already scripted.
+
+
+### GMRADAR-8 S3 (2026-09-12) — S1's numbers were the transient, not the steady state. Correcting them.
+
+The `[GMCOA-src]` trace at the call site that *builds* the COA (`gmcomposit.cpp`) ran alongside the
+offset trace. It changes the picture, and it vindicates the caveat S1 was recorded with ("this is a
+scripted TE drive... a COA 98 nm abeam may be an artefact of the canned key sequence; that must be
+settled before anything is built on these numbers").
+
+**Steady state (most of the run, 138 sampled seconds):**
+
+    [GMCOA-src] at=(1874508,1769549) from=(1965746,1879440) |at-from|=142830 ft = 1.17 x range  platformHdg=-129.6 deg
+    [GMCOA]     vOffset=0.2922  hOffset=-0.0004  ->  -0.0 x 18.6 px   applied=0
+
+| quantity | S1 reported | S3 steady state |
+|---|---|---|
+| `|at - from|` | 4.08 x range | **1.12 – 1.17 x range** |
+| `hOffset` | −7.9646 (**−509 px**) | **−0.0004 … −0.0018 (−0.0 px)** |
+| `vOffset` | −0.179 … −0.351 | **+0.21 … +0.29 (+13 … +19 px)** |
+
+⭐ **So S1's headline was measured in an outlier state and I drew the wrong conclusion from it.**
+Specifically:
+
+- **S1 declared prediction 3 ("`hOffset` near zero") FALSIFIED. It was not** — `hOffset` is ~0.0005,
+  four orders of magnitude smaller than S1's −7.96. The original reasoning (the COA is placed along
+  the boresight, so a large lateral term would have meant an off-axis slew the PO never reported)
+  was sound.
+- **Prediction 1 ("`vOffset` negative") IS falsified** — it is positive. The sign reasoning in the
+  original prediction was wrong, though the magnitude ("in the tenths") held.
+- The steady-state geometry is not anomalous at all: `|at-from| = 1.16 x range` against an overscan
+  of 0.2 gives `vOffset = 2 x (1.16 − 1) = 0.32`, and 0.29 was measured. **The arithmetic is
+  self-consistent and the 78-degree axis discrepancy S2 puzzled over does not exist in this state**
+  — it, too, belonged to the outlier.
+
+**What is actually wrong, then.** `dCtrY` is hard-zero while `vOffset` is a steady **+0.25, which is
+15 % of the 127 px MFD height** (the trace's own pixel figure: 18.6 px). The radar image is drawn
+centred when it should be pushed by that much, and the MFD's symbology is drawn ownship-relative —
+a constant ~16 px vertical disagreement between image and symbology. That is the right *scale* for
+"GMT radar shows targets above where the Maverick says they are", where S1's 509 px was not.
+
+⚠️ **But `FF_GM_COA_OFFSET=1` still must not ship as-is, for a NEW reason.** The same run caught the
+aim point jumping:
+
+    [GMCOA-src] at=(1628509,2025387) ... |at-from|=365368 ft = 3.00 x range
+
+At 3.00 x range, `vOffset` becomes 2 x (3.00 − 1) = **4.0, i.e. 256 px** — twice the display height.
+Applying the offset raw would hold the image steady in the cruise and then hurl it off the MFD every
+time the aim point moves. So the transient is real, it is just not the steady state, and any fix has
+to survive it.
+
+**S4 (next FF rotation):** run the A/B properly — `FF_GM_COA_OFFSET=1` against the control, same TE
+drive, and look at whether the steady-state image lines up with the symbology. Then decide how to
+handle the jump: clamp `vOffset`/`hOffset` to the display half-height, or find out why `at` leaps to
+3 x range (a steerpoint change mid-run is the obvious candidate) and whether the radar is supposed
+to re-centre rather than pan.

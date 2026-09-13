@@ -8,6 +8,9 @@
  beam sweep.
 \***************************************************************************/
 #include <math.h>
+#include <time.h>    /* GMRADAR-8 S3: the once-a-second [GMCOA-src] trace */
+#include <stdio.h>
+#include <stdlib.h>
 #include "Edge.h"
 #include "gmradar.h"
 #include "gmcomposit.h"
@@ -743,6 +746,35 @@ bool RenderGMComposite::BackgroundGeneration(Tpoint *from, Tpoint *at, float pla
                 center.x = at->x + dx * GM_OVERSCAN * range;
                 center.y = at->y + dy * GM_OVERSCAN * range;
                 center.z = at->z;
+#ifdef FF_LINUX
+                /* GMRADAR-8 S3: S1 measured the COA sitting 4.08 x range from the eye, and S2 showed
+                   GM_OVERSCAN (0.2) can only account for 5 % of that -- the other 95 % is in `at`,
+                   which arrives here from the caller. Print BOTH sides of the line above, once a
+                   second, so the next run separates the two live readings without another guess:
+                     |at - from| already ~4 x range  -> the aim point is wrong, hunt upstream;
+                     |at - from| small               -> the 4x is manufactured between here and
+                                                        StartScene, and the rotation sign is suspect
+                                                        (a vector built along platformHdg and rotated
+                                                        by -platformHdg must land on the x axis).
+                   FF_DEBUG_GMCOA=1, the same switch S1 used. */
+                if (getenv("FF_DEBUG_GMCOA"))
+                {
+                    static time_t lastc = 0; time_t nowc = time(0);
+                    if (nowc != lastc)
+                    {
+                        lastc = nowc;
+                        const float adx = at->x - from->x, ady = at->y - from->y;
+                        const float adist = (float)sqrt(adx * adx + ady * ady);
+                        fprintf(stderr, "[GMCOA-src] at=(%.0f,%.0f) from=(%.0f,%.0f) |at-from|=%.0f ft"
+                                        " = %.2f x range(%.0f)  platformHdg=%.1f deg"
+                                        "  overscan_term=%.0f ft\n",
+                                at->x, at->y, from->x, from->y, adist,
+                                (range > 0.0f) ? adist / range : 0.0f, range,
+                                platformHdg * 57.29578f, GM_OVERSCAN * range);
+                        fflush(stderr);
+                    }
+                }
+#endif
                 radar.StartScene(from, &center, platformHdg);
                 radar.EndDraw();
                 break;
