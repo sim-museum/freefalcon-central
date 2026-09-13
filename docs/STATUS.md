@@ -13154,3 +13154,45 @@ path that `g_useFallbackMenu = false` guarantees never executes — and had I no
 "the fallback menu is painting the white screen" was a tidy, completely wrong conclusion sitting
 right there. Sites now carry distinct names (`render_frame-fallback` vs `render_frame-main`) and the
 re-run attributes cleanly.
+
+
+### LOAD-1 S3 (2026-09-13) — the white screen is the UI being told not to draw, while the loop keeps presenting
+
+S2 established the main render loop presents at ~60 fps throughout the white window, so the screen is
+white because of what is *drawn*, not because painting stopped. S3 names it, and it is three lines of
+existing code.
+
+**The mechanism.** `render_frame` has three branches: the fallback menu (`g_useFallbackMenu = false`,
+never taken), `if (doUI)` — the branch S2's presents came from — and the sim branch. During mission
+load `doUI` is still true, so the UI branch runs and presents every frame. But the takeoff path has
+already switched the UI off (`campupd/campaign.cpp:2571`, `:2586`, `:2629` — all three game modes):
+
+```c
+gMainHandler->SetDrawFlag(0);   // Hack to keep the UI from drawing
+CleanupCampaignUI();
+PostMessage(gMainHandler->GetAppWnd(), FM_START_CAMPAIGN, 0, 0);
+```
+
+⭐ **So for the whole load the app clears and presents an empty frame, 60 times a second:** the UI is
+flagged off and its screen torn down, the sim is not up yet, and `render_frame` faithfully shows the
+result. `SetDrawFlag(1)` is restored in exactly one place (`ui/src/ui_main.cpp:1795`), after the
+load. The window between those two calls IS the white screen, and the ~31 s the PO sees is simply
+how long the mission takes to load.
+
+**Every earlier framing of this item can now be retired:**
+
+| framing | status |
+|---|---|
+| *"`FF_LoadingClear` is supposed to paint black — never white"* | true but irrelevant: any clear it does is overwritten by the next `render_frame` 16 ms later (S2) |
+| *"the setup phase simply presents nothing"* | wrong — it presents ~60 fps (S2) |
+| *"the presents must come from `OTWDriver::Enter`"* | wrong — they come from `render_frame`'s `doUI` branch |
+| *"add clears at more setup checkpoints"* (S1's implied direction) | would be a race, and could only ever appear to work |
+
+**S4 — draw something in that window.** The animated aircraft-icon progress bar LOAD-1 says regressed
+(`cc4e2517`, June) is exactly what belongs in those frames. The options, cheapest first:
+1. have `render_frame`'s `doUI` branch draw the loading screen while the draw flag is off, rather
+   than an empty frame — the loop is already running at 60 fps, so there is a frame budget waiting;
+2. failing that, clear to black each frame in that window, which at least replaces white with the
+   "black during load" the item says was the intended behaviour.
+**Verify with `FF_UI_SCREENSHOT=<seconds>`**, which already dumps the framebuffer periodically — the
+right oracle here is a picture, since the complaint is about what is on screen.
