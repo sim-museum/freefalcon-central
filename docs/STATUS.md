@@ -12577,3 +12577,33 @@ must be measured at the size the complaint implies before it becomes the shipped
 **Next:** one TE-9 pass with `FF_DEBUG_GMCOA=1` — if the printed pixel offset is a few tens of
 pixels vertically, that is the defect at the size the PO sees; then the same flight with
 `FF_GM_COA_OFFSET=1` and the Maverick comparison the PO used. Built clean (21:39).
+
+### GMRADAR-8 — prediction stated BEFORE the measuring run (2026-09-12)
+
+The A/B is built and in the binary (`build/src/ffviper/FFViper`, 21:39, carries both env strings).
+Before flying TE 9 with `FF_DEBUG_GMCOA=1`, the numbers this port *should* print if the dropped-offset
+reading is right, so the run can contradict them:
+
+`SetupView` computes, with `worldToUnitScale == 1/range` (the trace recovers `range` by inverting it):
+
+    vOffset = 2 * worldToUnitScale * (x - range)   ->  2 * (x/range - 1)
+    hOffset = 2 * worldToUnitScale * y             ->  2 * (y/range)
+
+where `x`,`y` are the COA's position relative to the eye, rotated into heading-up space.
+
+1. **`vOffset` is negative, not zero.** The COA sits nearer than the nominal range on a GM page
+   (`x < range`), so `x/range < 1`. Magnitude in the tenths: a COA at 0.8–0.9 of range gives
+   `vOffset` −0.2 to −0.4, i.e. **−13 to −26 px** on a 128 px-tall MFD (the trace prints the pixel
+   figure directly, so no arithmetic is needed at reading time).
+2. **The sign matches the complaint.** `dCtrY` is currently hard-zero, so the image is drawn centred
+   when it should be pushed DOWN by `vOffset`. Drawing it un-pushed puts it too HIGH — which is
+   exactly the PO's "GMT radar shows targets ABOVE where the Maverick says they are". If the measured
+   `vOffset` comes out **positive**, this whole reading is wrong and the displacement is elsewhere.
+3. **`hOffset` is near zero and much smaller than `vOffset`,** because the COA is placed along the
+   boresight; a large horizontal term would mean the COA is being slewed off-axis and the complaint
+   would have had a left/right component, which it did not.
+4. **`applied=0`** on the measuring pass (no `FF_GM_COA_OFFSET`), confirming the control arm.
+
+Falsifiers, in order of how much they would cost: `vOffset == 0.0000` exactly (then the offset is not
+dropped, it is genuinely nil and the bug is in `DrawBlip`); `vOffset` positive (sign reading wrong);
+`|hOffset| >= |vOffset|` (the COA is not on boresight and the model above is wrong).
