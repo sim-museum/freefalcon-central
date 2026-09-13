@@ -54,6 +54,7 @@
 
 // Begin - Uplink stuff
 #include "include/comsup.h"
+#include <time.h>
 
 #ifdef FF_LINUX
 // FF_LINUX (DEBUGSPAM-1): these traces were unconditional. CampaignClass::Encode
@@ -72,7 +73,28 @@ static int ffCampCodecDbg(void)
     return v;
 }
 
-#define FF_CAMPLOG(...) do { if (ffCampCodecDbg()) { fprintf(stderr, __VA_ARGS__); } } while (0)
+/* UIHITCH-1 S2 (2026-09-13): S1 measured a 2020 ms UI stall spanning the campaign-file read, with
+   decompression timed at 0.0 ms and the port's own tracing ruled out -- so it is a WAIT or an
+   untimed step inside LoadScenarioStats, which posts FM_GOT_CAMPAIGN_DATA(CAMP_NEED_PRELOAD) at
+   its end. That function is already littered with FF_CAMPLOG checkpoints; making the macro print
+   the ELAPSED TIME SINCE THE PREVIOUS ONE turns every existing checkpoint into a timing probe
+   without adding a single new call site, and points at the slow step directly.
+   FF_DEBUG_CAMPCODEC=1 enables it, exactly as before; unset changes nothing. */
+static double ffCampElapsedMs(void)
+{
+    static struct timespec prev = {0, 0};
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    double ms = (prev.tv_sec == 0 && prev.tv_nsec == 0) ? 0.0
+              : (now.tv_sec - prev.tv_sec) * 1e3 + (now.tv_nsec - prev.tv_nsec) / 1e6;
+    prev = now;
+    return ms;
+}
+
+#define FF_CAMPLOG(...) do { if (ffCampCodecDbg()) { \
+        double _dt = ffCampElapsedMs(); \
+        if (_dt >= 50.0) fprintf(stderr, "[campslow] +%.0f ms before the next line\n", _dt); \
+        fprintf(stderr, __VA_ARGS__); fflush(stderr); } } while (0)
 #endif
 
 
