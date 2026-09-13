@@ -2116,7 +2116,16 @@ FILE* OpenCampFile(char *filename, char *ext, char *mode)
     // if ( not ResExistFile(filename))
     // ResAddPath(path, FALSE);
 
-    sprintf(fullname, "%s/%s.%s", path, filename, ext);
+    /* PO 2026-09-04: "fix ff debrief screen after 3D exit in campaign - currently always blank".
+       ReadScriptedBriefFile() calls OpenCampFile(name, "", "r") -- the extension is already part of
+       the NAME ("header.db", "flight.db", ...) and `ext` is EMPTY. This join appended it anyway, so
+       it looked for "<path>/header.db." WITH A TRAILING DOT, which cannot exist. fopen failed,
+       ReadScriptedBriefFile returned 0 with no error, and the debrief came up empty -- in every
+       theater, which is exactly the "always blank" the PO reports. Every case-variant retry below
+       used the same format, so none of them could ever succeed either.
+       Only insert the dot when there is something to separate. */
+    const char *extSep = (ext and ext[0]) ? "." : "";
+    sprintf(fullname, "%s/%s%s%s", path, filename, extSep, ext);
     fp = fopen(fullname, mode);
 
 #ifdef FF_LINUX
@@ -2136,7 +2145,7 @@ FILE* OpenCampFile(char *filename, char *ext, char *mode)
             altExt[i] = toupper((unsigned char)ext[i]);
         altExt[i] = '\0';
 
-        sprintf(fullname, "%s/%s.%s", path, altFilename, altExt);
+        sprintf(fullname, "%s/%s%s%s", path, altFilename, extSep, altExt);
         fp = fopen(fullname, mode);
 
         // Try lowercase filename and extension
@@ -2150,7 +2159,7 @@ FILE* OpenCampFile(char *filename, char *ext, char *mode)
                 altExt[i] = tolower((unsigned char)ext[i]);
             altExt[i] = '\0';
 
-            sprintf(fullname, "%s/%s.%s", path, altFilename, altExt);
+            sprintf(fullname, "%s/%s%s%s", path, altFilename, extSep, altExt);
             fp = fopen(fullname, mode);
         }
 
@@ -2165,7 +2174,7 @@ FILE* OpenCampFile(char *filename, char *ext, char *mode)
                 altExt[i] = tolower((unsigned char)ext[i]);
             altExt[i] = '\0';
 
-            sprintf(fullname, "%s/%s.%s", path, altFilename, altExt);
+            sprintf(fullname, "%s/%s%s%s", path, altFilename, extSep, altExt);
             fp = fopen(fullname, mode);
         }
 
@@ -2180,7 +2189,7 @@ FILE* OpenCampFile(char *filename, char *ext, char *mode)
                 altExt[i] = toupper((unsigned char)ext[i]);
             altExt[i] = '\0';
 
-            sprintf(fullname, "%s/%s.%s", path, altFilename, altExt);
+            sprintf(fullname, "%s/%s%s%s", path, altFilename, extSep, altExt);
             fp = fopen(fullname, mode);
         }
     }
@@ -2584,6 +2593,29 @@ void DoCompressionLoop(void)
 
                             // Check if player is only one in the flight... if so... abort (assuming there is supposed to be
                             // more than 1 pilot... also only do this check if flight is taking off
+#ifdef FF_LINUX
+                            /* MPTEST-FF S3 (2026-09-13): this is the only `return` between a joined
+                               campaign and FM_START_CAMPAIGN, and the joiner never receives that
+                               message -- the host can fly from the joined campaign, the joiner
+                               cannot. Three values decide it and all three are silent, which is the
+                               same shape as BoB's MP-5 gate (Implemented/Joining/Host), where naming
+                               them found the cause in one run. Print them once per call.
+                               FF_DEBUG_STARTCAMP=1. */
+                            if (getenv("FF_DEBUG_STARTCAMP"))
+                            {
+                                static int n = 0;
+                                if (n++ < 8)
+                                {
+                                    const int takingOff = (pf->GetFirstUnitWP() == pf->GetCurrentUnitWP()) ? 1 : 0;
+                                    fprintf(stderr,
+                                        "[STARTCAMP] takingOff=%d pilots=%d aircraft=%d -> %s\n",
+                                        takingOff, (int)pf->GetPilotCount(), (int)pf->GetACCount(),
+                                        (takingOff && ((pf->GetPilotCount() < pf->GetACCount()) || !pf->GetACCount()))
+                                            ? "SCRUBBED (no FM_START_CAMPAIGN)" : "posting FM_START_CAMPAIGN");
+                                    fflush(stderr);
+                                }
+                            }
+#endif
                             if (pf->GetFirstUnitWP() == pf->GetCurrentUnitWP())
                             {
                                 if ((pf->GetPilotCount() < pf->GetACCount()) or not pf->GetACCount())

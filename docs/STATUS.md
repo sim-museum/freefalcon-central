@@ -12872,3 +12872,42 @@ MPTEST-FF S3.
 
 **Both FF rank-3 items remain at their caps** (GMRADAR-8 4/4, PIT-1 4/4 rotated out), so MPTEST-FF is
 FF's live thread.
+
+
+### MPTEST-FF S3 (2026-09-13) — the guard is instrumented; the joiner never reaches it, and not for the reason I expected
+
+**The instrument.** The joiner never receives `FM_START_CAMPAIGN`, and there is exactly one `return`
+between a joined campaign and that message (`campupd/campaign.cpp`, `case game_Campaign`):
+
+```c
+if (pf->GetFirstUnitWP() == pf->GetCurrentUnitWP())          // flight is taking off
+    if ((pf->GetPilotCount() < pf->GetACCount()) or not pf->GetACCount())
+    { UI_HandleFlightScrub(); return; }                      // no FM_START_CAMPAIGN
+```
+
+Three silent values decide it — the same shape as BoB's MP-5 gate, where naming
+`Implemented/Joining/Host` found the cause in one run. `FF_DEBUG_STARTCAMP=1` now prints
+`takingOff`, `pilots`, `aircraft` and which way the branch went. Built and in the binary.
+
+**The run.** `mp-join` plus `PEER_B_EXTRA="972,748@150"` to press FLY on the joiner. The join
+succeeded again — `[MPJOIN] GotJoinData: stillNeeded=0x00000000 [none] loaded=1`, a real remote
+`gameId=6044916/28007`, 10 session decodes — and then:
+
+    === STARTCAMP trace ===
+    (empty)
+
+⚠️ **And that empty trace says nothing about the guard.** The click fired
+(`[FF_UI_CLICK] firing (972,748) at 150005ms`) but the joiner shows **zero** `FM_START_CAMPAIGN`,
+`TakeOff` or `Commit` activity, so the takeoff decision was never reached at all. `972,748` is the
+HOST's FLY coordinate, taken from `PEER_A_EXTRA`'s own comment ("its FLY at 972,748 once the client
+is in"); on the joiner it lands on nothing, and in any case the host's recipe **selects a flight
+from the mission list before pressing FLY** — the joiner's did not.
+
+So this sprint delivers an armed instrument and a negative that is honestly labelled: the guard is
+not exonerated and not implicated, because nothing drove the path. Same trap as S1's
+`FM_JOIN_SUCCEEDED: 0`, and it would have been very easy to write "the takeoff guard is not the
+cause" from an empty trace.
+
+**S4 (next FF rotation):** dump the joiner's UI at ~140 s (`PEER_B_DUMP`) to find its actual flight
+list and FLY control, select a flight slot first, then press FLY — and only then read
+`[STARTCAMP]`. The trace is already in the binary, so that run costs one pass.
