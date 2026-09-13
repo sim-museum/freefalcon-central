@@ -12983,3 +12983,45 @@ log while `TextureDB::Activate` barely runs. Establish whether near-terrain and 
 separate texture paths, and which one the dogfight arena's grey surface belongs to, BEFORE proposing
 a cause. Three candidate explanations have now died on measurement in this item; the pattern says
 instrument first.
+
+
+### TERRAIN-1 S3 (2026-09-13) — ⭐ ROOT CAUSE CANDIDATE: 91 % of terrain binds are the SAME TILE
+
+⚠️ **First, S2 was wrong and this corrects it.** S2 concluded *"TextureDB is not the terrain texture
+path"* from `Activate` being called under 250 times. `Activate` is the **upload**, and it is cached —
+of course it is rare. The **bind** is `TextureDB::Select`, which `otwdraw.cpp` calls per terrain post
+per frame (lines 88, 193, 348, `TheTerrTextures.Select(&context, post->texID)`). Measured:
+
+    Select calls: 2,679,500          Activate calls: < 250
+
+So `TextureDB` **is** the terrain path; S2 measured the wrong function and drew a confident wrong
+conclusion from it. (S1 did the same thing one level down. Two sprints of this item spent
+eliminating a file that turned out to be the right file.)
+
+**The measurement, from a diagnostic that was already in the tree.** `Select` writes
+`TERRAIN_TEX #n texID=... set=... tile=... res=... handle=... hasBits=...` to `/tmp/ff_draw.log`
+for its first 10 calls and every 500th after — a uniform 1-in-500 sample, 28,515 rows out of
+2.68 M calls:
+
+| | value → count |
+|---|---|
+| `set` | **0 → 26,054**, 73 → 2,132, 110 → 189, 35 → 48, 10 → 24, 11 → 22 |
+| `tile` | **0 → 26,084**, 3 → 2,144, 2 → 120, 10 → 64, 1 → 40 |
+| `texID` | **0x0 → 16,457**, **0x1000 → 9,597** (the same tile at res 1), 0x1493 → 1,128, 0x493 → 1,004 |
+| handle | non-zero on 28,503 of 28,515 — the binds SUCCEED |
+
+⭐ **91 % of every terrain bind in the run is `set=0 tile=0`.** The handles are valid and the texture
+system is working; it is being ASKED for the same tile almost everywhere. A landscape painted with
+one repeated tile is exactly the PO's *"uniformly grey surface below the aircraft, with airfields
+sitting on flat grey polygons"*.
+
+So the fault is upstream of the texture system, in whatever fills `post->texID`: nearly every terrain
+post carries texID 0 instead of its own tile. That also explains why the art-availability theory
+(S1) and the upload-path theories (S1, S2) all died — the art loads fine and the uploads succeed;
+nothing ever asks for the other 1,147 tiles.
+
+**S4 (next FF rotation):** find where `post->texID` is set. The posts come from the level/block
+loader (`tlevel.cpp`, `tdskpost.cpp` both Request against `TheTerrTextures`), so read how a
+`memPost`'s `texID` is populated from the theater data and whether the Linux port's struct layout or
+a byte-order/packing assumption is zeroing it. **Predict before measuring:** if the loader is at
+fault, the 9 % that DO vary (sets 73/110/35) should share a provenance the others lack.
