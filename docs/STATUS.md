@@ -12757,3 +12757,50 @@ drive, and look at whether the steady-state image lines up with the symbology. T
 handle the jump: clamp `vOffset`/`hOffset` to the display half-height, or find out why `at` leaps to
 3 x range (a steerpoint change mid-run is the obvious candidate) and whether the radar is supposed
 to re-centre rather than pan.
+
+
+### GMRADAR-8 S4 (2026-09-13) — ⚠️ S3 WAS WRONG. S1's numbers were right, and here is the distribution
+
+S3 "corrected" S1 by reporting a steady state of `hOffset ~ -0.0005`. **That correction was itself an
+artefact, and of a trap already written down in my own notes: I read `head -6`/`head -8` of the
+trace.** The head of the run is the atypical part. The whole-run distribution, over the same 69
+samples S3 drew its six lines from:
+
+| quantity | min | p25 | **median** | p75 | max | \|x\| > 1 |
+|---|---|---|---|---|---|---|
+| `vOffset` | −1.210 | −0.921 | **−0.622** | −0.367 | +0.292 | 19 % |
+| `hOffset` | −7.976 | −7.975 | **−7.970** | −7.964 | −0.000 | **91 %** |
+
+Identical in the control (`s3.log`) and treatment (`treat.log`) arms, as it must be — the offsets are
+computed before the apply.
+
+**So the record, finally straight:**
+
+- **S1's prediction 1 (`vOffset` negative) was CORRECT** — median −0.62. S3 declared it falsified on
+  six positive samples from the opening seconds.
+- **S1's prediction 3 (`hOffset` near zero) was correctly FALSIFIED** — median −7.97, i.e. **−509 px**,
+  in 91 % of frames. S3 "restored" this prediction and was wrong to.
+- **S2's 78-degree axis discrepancy is real after all**, and S3 was wrong to dismiss it.
+- S1's `|at - from| = 4.08 x range` is the normal condition here, not a transient; the 1.16 x range
+  figure S3 built on belongs to the first few seconds only.
+
+**The A/B ran and behaved exactly as the numbers predict.** `FF_GM_COA_OFFSET=1`: `applied=1` on all
+69 samples, no crash, and the new clamp fired on **63 of 69 (91 %)** — my stated prediction was that
+it would bite "only around the aim-point jump", which is falsified by the same distribution.
+Clamping does not rescue the fix: at the clamp limit of 1.0 the image is still shoved a full
+half-display, every frame. It bounds the damage; it does not make the offset right.
+
+**Where this leaves GMRADAR-8.** `FF_GM_COA_OFFSET` stays **default-off**, now for the original
+reason rather than S3's: the offsets are genuinely large for almost the whole flight, so restoring
+them as-is would displace the radar picture by roughly half a display horizontally. The open
+question is the one S2 identified and S3 wrongly closed: **why is the COA ~4 x range off the
+boresight for 91 % of a TE?** Either that is correct for a designated distant aim point — in which
+case the image is *supposed* to be drawn COA-relative and the MFD symbology is what disagrees — or
+the aim point handed to `RenderGMComposite` is wrong. S2's step 2 stands unchanged: trace who sets
+that aim point, upstream of both files.
+
+**Process note, because this is the third revision of these numbers.** S3 banked the lesson "a
+sample of a time-varying quantity is not a measurement" and then made the same mistake in the
+opposite direction within the same sprint, by reading the head instead of the tail. The only honest
+form for a traced quantity is the **distribution** — min/p25/median/p75/max and the fraction beyond
+whatever threshold matters. Neither end of a log is a summary of it.

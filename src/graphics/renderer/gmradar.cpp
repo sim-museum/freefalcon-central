@@ -184,7 +184,34 @@ void RenderGMRadar::TransformScene(void)
         static int apply = -1, trace = -1;
         if (apply < 0) apply = getenv("FF_GM_COA_OFFSET") ? 1 : 0;
         if (trace < 0) trace = getenv("FF_DEBUG_GMCOA") ? 1 : 0;
-        if (apply) { dCtrX = hOffset; dCtrY = vOffset; }
+        /* S4 (2026-09-13): CLAMP. S3 measured the steady state at vOffset ~ +0.25 (about 16 px on a
+           127 px MFD, the right scale for the PO's complaint) but also caught the aim point jumping
+           to 3.0 x range, where vOffset becomes 4.0 -- 256 px, twice the display height. Applying
+           the raw value would sit correctly in the cruise and then hurl the image off the MFD on
+           every aim change, which is a worse defect than the one being fixed.
+           The viewport spans [-1,+1] in both axes (SetSubViewport(-1,1,1,-1) immediately below), so
+           a centre offset beyond +-1 puts the COA outside the drawn area entirely and there is
+           nothing meaningful to show; clamp there. FF_GM_COA_CLAMP=<f> overrides the limit, and
+           FF_GM_COA_CLAMP=0 disables clamping so the raw behaviour can still be measured. */
+        if (apply)
+        {
+            static float lim = -1.0f;
+            if (lim < 0.0f)
+            {
+                const char* c = getenv("FF_GM_COA_CLAMP");
+                lim = c ? (float)atof(c) : 1.0f;
+                if (lim < 0.0f) lim = 0.0f;
+            }
+            float hx = hOffset, vy = vOffset;
+            if (lim > 0.0f)
+            {
+                if (hx >  lim) hx =  lim;
+                if (hx < -lim) hx = -lim;
+                if (vy >  lim) vy =  lim;
+                if (vy < -lim) vy = -lim;
+            }
+            dCtrX = hx; dCtrY = vy;
+        }
         if (trace)
         {
             static time_t last = 0; time_t now = time(0);
@@ -198,6 +225,9 @@ void RenderGMRadar::TransformScene(void)
                         vOffset * 0.5f * (bottomPixel - topPixel),
                         (worldToUnitScale > 0.0f) ? 1.0f / worldToUnitScale : 0.0f,
                         centerPos.x, centerPos.y, cameraPos.x, cameraPos.y, apply);
+                if (apply)
+                    fprintf(stderr, "[GMCOA]   applied dCtrX=%.4f dCtrY=%.4f%s\n", dCtrX, dCtrY,
+                            (dCtrX != hOffset || dCtrY != vOffset) ? "  <-- CLAMPED" : "");
                 fflush(stderr);
             }
         }
