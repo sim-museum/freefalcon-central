@@ -1022,6 +1022,24 @@ void TextureDB::Activate(SetEntry* pSet, TileEntry* pTile, int res)
     ShiAssert( not pTile->handle[res]);
     ShiAssert(pTile->bits[res]);
 
+#ifdef FF_LINUX
+    /* TERRAIN-1 S2 (2026-09-13): S1 instrumented two branches INSIDE the DDS path and measured under
+       250 events each, concluding "this is not the terrain texture path". That was right but
+       incomplete: Activate's OUTER branch runs whenever m_texMode is not TEX_MODE_DDS, and every
+       tile then takes a palette route that S1 never counted. Count the entry and the branch taken,
+       so the denominator is the real one. FF_DEBUG_TERRTEX=1. */
+    if (getenv("FF_DEBUG_TERRTEX"))
+    {
+        static long calls = 0, nonDDS = 0;
+        ++calls;
+        const bool isNonDDS = (DisplayOptions.m_texMode != DisplayOptionsClass::TEX_MODE_DDS);
+        if (isNonDDS) ++nonDDS;
+        if (calls == 1 || (calls % 250) == 0)
+            fprintf(stderr, "[terrtex] Activate calls=%ld  nonDDS-branch=%ld  DDS-branch=%ld  texMode=%d\n",
+                    calls, nonDDS, calls - nonDDS, (int)DisplayOptions.m_texMode), fflush(stderr);
+    }
+#endif
+
     if (DisplayOptions.m_texMode not_eq DisplayOptionsClass::TEX_MODE_DDS)
     {
         // Pass the palette to MPR if it isn't already there

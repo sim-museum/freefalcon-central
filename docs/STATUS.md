@@ -12953,3 +12953,33 @@ takes the DDS branch because `m_texMode == TEX_MODE_DDS`, so start by counting w
 `Activate` real in-sim tiles take, and confirm against `FarTexDB` (which reports 96,664 textures
 ready) whether the far-terrain and near-terrain paths are separate. Instrument before theorising:
 both prior theories here died on measurement.
+
+
+### TERRAIN-1 S2 (2026-09-13) — `TextureDB::Activate` is not the terrain path either, measured properly this time
+
+S1 instrumented two branches *inside* `Activate`'s DDS path and found under 250 events each. That
+conclusion was right but incomplete: `Activate` has an OUTER branch taken whenever
+`m_texMode != TEX_MODE_DDS`, and S1 never counted it, so "under 250" could have meant "everything
+goes the other way". Counted the entry itself and the branch split:
+
+    [terrtex] Activate calls=1  nonDDS-branch=0  DDS-branch=1  texMode=70161
+
+**Fewer than 250 `Activate` calls in a 200 s run** (the line prints at call 1 and every 250th, and
+only the first appeared) — in a run whose log carries 34 sim-entry markers and a `FarTexDB` reporting
+`texCount=96664` ready. A renderer painting a visible landscape does not upload its terrain through a
+function called a handful of times. **`TextureDB` is not where terrain gets its texture**, so neither
+the skip branch nor the palette fallback can explain a grey surface, and S1's two eliminated
+candidates are joined by the whole file.
+
+⚠️ **A wrong finding caught before it was written.** `texMode=70161` looked like uninitialised
+garbage — an enum with a five-digit value is exactly the shape of the Rowan-port uninit reads I keep
+finding. It is not: `dispopts.h:32` defines `TEX_MODE_16 = 70159`, so `TEX_MODE_32` is 70160 and
+`TEX_MODE_DDS` is **70161**. The value is correct and the DDS branch is the right one. Checking the
+enum cost one grep; reporting "the texture mode is uninitialised" would have cost a sprint.
+
+**S3 (next FF rotation):** follow `FarTexDB`, which is the component that actually reports thousands
+of terrain textures ready (`texCount=96664`, `fartexDDSFile.IsReady=1`) and appears repeatedly in the
+log while `TextureDB::Activate` barely runs. Establish whether near-terrain and far-terrain use
+separate texture paths, and which one the dogfight arena's grey surface belongs to, BEFORE proposing
+a cause. Three candidate explanations have now died on measurement in this item; the pattern says
+instrument first.
