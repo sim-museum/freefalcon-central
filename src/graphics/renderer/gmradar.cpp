@@ -1,4 +1,5 @@
 #include <string.h>
+#include <time.h>   /* GMRADAR-8: the FF_DEBUG_GMCOA once-a-second trace */
 /***************************************************************************\
     GMRadar.cpp
     Scott Randolph
@@ -164,6 +165,44 @@ void RenderGMRadar::TransformScene(void)
     dCtrY = 0.0f;
     dScaleX = 1.0f;
     dScaleY = 1.0f;
+#ifdef FF_LINUX
+    /* GMRADAR-8 (PO 2026-09-06, TE 9: "GMT radar still shows targets above where maverick WPN shows
+       the actual targets are"). SetupView computes where the CENTRE OF ATTENTION should be drawn
+       relative to display centre --
+           vOffset = 2 * worldToUnitScale * (x - range);   hOffset = 2 * worldToUnitScale * y;
+       -- and NOTHING IN THIS PORT EVER READS EITHER (grep: two writes, no reads). Every drawn thing
+       (terrain in TransformScene, shaped blips and point blips in DrawBlip) is therefore placed
+       relative to the COA with no COA-vs-ownship term, while the MFD's own symbology -- cursor,
+       range rings, the aircraft at the bottom -- is drawn by the avionics from the OWNSHIP. A
+       dropped offset between image and symbology displaces the whole picture along the display's
+       vertical, which is exactly "the targets are above where they really are".
+       Default OFF: this changes what every GM page looks like, and the offset must be MEASURED to be
+       the size the complaint implies before it becomes the shipped geometry.
+         FF_DEBUG_GMCOA=1   print the offsets (normalised and in pixels) once a second
+         FF_GM_COA_OFFSET=1 apply them (the A/B the PO's next TE-9 flight decides) */
+    {
+        static int apply = -1, trace = -1;
+        if (apply < 0) apply = getenv("FF_GM_COA_OFFSET") ? 1 : 0;
+        if (trace < 0) trace = getenv("FF_DEBUG_GMCOA") ? 1 : 0;
+        if (apply) { dCtrX = hOffset; dCtrY = vOffset; }
+        if (trace)
+        {
+            static time_t last = 0; time_t now = time(0);
+            if (now != last)
+            {
+                last = now;
+                fprintf(stderr, "[GMCOA] vOffset=%.4f hOffset=%.4f (norm) -> %.1f x %.1f px  "
+                                "range=%.0f ft  COA=(%.0f,%.0f) eye=(%.0f,%.0f)  applied=%d\n",
+                        vOffset, hOffset,
+                        hOffset * 0.5f * (rightPixel - leftPixel),
+                        vOffset * 0.5f * (bottomPixel - topPixel),
+                        (worldToUnitScale > 0.0f) ? 1.0f / worldToUnitScale : 0.0f,
+                        centerPos.x, centerPos.y, cameraPos.x, cameraPos.y, apply);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
     SetSubViewport(-1.0f, 1.0f, 1.0f, -1.0f);
 
     // Decide how big a patch about the COA we can draw right now

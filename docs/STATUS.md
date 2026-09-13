@@ -12538,3 +12538,42 @@ over the runway in the pit pass. PIT-1 closes on this evidence; the PO's own eye
 - MPTEST-FF S4 first answer (from the S3 gate logs): both instances log `[VuSession::JoinGame] EXIT:
   retval=1` -- the VU session join succeeds at both ends once the transport delivers. The
   "sender resolves to itself" concern did not materialise: the two whoami ids differ.
+
+
+### GMRADAR-8 (Opus 5, 2026-09-12) — ⭐ the scope's COA-vs-ownship offset is computed and NEVER READ
+
+Read from the code rather than from another failed repro. `RenderGMRadar::SetupView`
+(`src/graphics/renderer/gmradar.cpp:141`) ends with
+
+    vOffset = 2.0f * worldToUnitScale * (x - range);   // where the CENTRE OF ATTENTION should be
+    hOffset = 2.0f * worldToUnitScale * y;             // drawn relative to display centre
+
+and **grep over the whole tree finds exactly two occurrences of each: these two writes, and no
+read.** Everything the renderer draws is placed by the same COA-relative transform with the offset
+terms hard-zeroed —
+
+    TransformScene:  dCtrX = 0.0f; dCtrY = 0.0f;  dScaleX = dScaleY = 1.0f;
+    DrawBlip(worldX, worldY)      y = -(dx*ScaledCOS - dy*ScaledSIN + dCtrY) * dScaleY;   (dCtrY = 0)
+    DrawBlip(drawable, ...)       the same expression
+
+— terrain, shaped blips and point blips alike. They therefore stay consistent **with each other**
+and inconsistent with the MFD's own symbology, which the avionics draws from the OWNSHIP (cursor,
+range rings, the aircraft at the bottom of the B-scope). A dropped COA-vs-ownship term displaces the
+whole radar picture along the display's vertical axis against that symbology — which is the PO's
+sentence: *"GMT radar still shows targets above where maverick WPN shows the actual targets are"*
+(`~/Videos/old/260906_TE9.mp4`). It also explains why GMRADAR-8 never reproduced from the blip
+transform: **the blip transform is correct**, as S-earlier measured; it is correct in the wrong
+frame, and the Maverick page (slaved to the designated point, not to the scope image) is the
+witness that shows it.
+
+**Shipped as an A/B, default OFF, because this changes the geometry of every GM page and the offset
+must be measured at the size the complaint implies before it becomes the shipped picture:**
+
+* `FF_DEBUG_GMCOA=1` — once a second: `vOffset`/`hOffset` normalised AND in pixels, the scope range
+  in feet, the COA and the eye position, and whether the offset is applied.
+* `FF_GM_COA_OFFSET=1` — applies them (`dCtrX = hOffset; dCtrY = vOffset`), so image and symbology
+  share one frame.
+
+**Next:** one TE-9 pass with `FF_DEBUG_GMCOA=1` — if the printed pixel offset is a few tens of
+pixels vertically, that is the defect at the size the PO sees; then the same flight with
+`FF_GM_COA_OFFSET=1` and the Maverick comparison the PO used. Built clean (21:39).
