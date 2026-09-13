@@ -12607,3 +12607,52 @@ where `x`,`y` are the COA's position relative to the eye, rotated into heading-u
 Falsifiers, in order of how much they would cost: `vOffset == 0.0000` exactly (then the offset is not
 dropped, it is genuinely nil and the bug is in `DrawBlip`); `vOffset` positive (sign reading wrong);
 `|hOffset| >= |vOffset|` (the COA is not on boresight and the model above is wrong).
+
+### GMRADAR-8 — the measuring pass ran, and it FALSIFIES the fix I was about to make (2026-09-12)
+
+TE driven by `scripts/qa/gm-radar-repro.sh`'s click/key sequence with `FF_DEBUG_GMCOA=1` and the
+offset NOT applied (log: `~/Documents/260912/logs/ff_gmcoa/control.log`, `crash=0 gmSetup=1`).
+Against the four predictions committed in `20c8d3e1`:
+
+| prediction | result |
+|---|---|
+| 1. `vOffset` negative, magnitude in the tenths | **confirmed** — −0.179 … −0.351 |
+| 2. that is −13…−26 px vertically | **confirmed** — −11 … −22 px |
+| 3. `hOffset` near zero and much smaller than `vOffset` | ⭐ **FALSIFIED** — −7.9614 … −7.9646, **25–45× larger**, i.e. **−509 px** |
+| 4. `applied=0` on the control arm | confirmed |
+
+    [GMCOA] vOffset=-0.3508 hOffset=-7.9646 (norm) -> -509.6 x -22.4 px  range=145829 ft
+            COA=(1426202,2137740) eye=(1952435,1864252) applied=0
+
+**So `FF_GM_COA_OFFSET=1` must not ship.** `dCtrX = hOffset` would displace the entire radar image
+**509 px sideways** — the picture would leave the MFD altogether. The dropped-offset reading was
+right that the two values are dead stores and wrong that restoring them is the fix.
+
+**What the numbers actually expose.** `worldToUnitScale = 1/range` (line 130), so the trace's figures
+invert directly:
+
+    COA - eye  = 595,497 ft = 98.0 nm
+    range      = 145,829 ft = 24.0 nm      -> the COA is 4.08x the display range away
+    decomposed : x (along heading) = 120,251 ft ;  y (lateral) = -580,735 ft
+
+The centre of attention is **98 nm from the aircraft and almost entirely abeam**, while the GM page
+is scanning 24 nm. `vOffset` came out small only by coincidence — `x` happens to land near `range`;
+the real anomaly is the lateral term, and it is the one the complaint could never have shown, because
+a COA that far off-axis is not a "the image sits a bit high" error.
+
+**Caveat, stated plainly:** this is a *scripted* TE drive, not the PO's TE 9 flight. A COA 98 nm
+abeam may be an artefact of the radar never receiving a proper aim point under the canned key
+sequence, in which case these numbers describe my harness and not the PO's picture. That must be
+settled before anything is built on them — the check is cheap and comes first.
+
+**S2 (next FF rotation), in order:**
+
+1. Decide whether the COA is representative: print the same line during a *designated* GM aim (slew
+   the cursor onto a target, or read the steerpoint the TE supplies) and see whether COA−eye falls
+   inside `range`. If it does, the harness was the problem and the real `hOffset` is small.
+2. Only if it stays at ~4× range: trace who supplies `at` to `RenderGMRadar::SetupView` — the COA
+   comes in as a parameter, so the defect is upstream of this file entirely, in whatever the GM
+   scope hands it (`src/sim/radar/gmscope.cpp` is where `FF_GMTPointBlip` lives and is the first
+   place to look).
+3. Leave `FF_GM_COA_OFFSET` in as a diagnostic, default OFF, with the −509 px figure recorded next
+   to it so nobody (me included) turns it on as "the obvious fix".
