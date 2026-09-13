@@ -2388,20 +2388,44 @@ void CampaignClass::Suspend(void)
     FF_CAMPLOG("[FF_LINUX] CampaignClass::Suspend - entering wait loop (campaign_active=%d Flags=0x%x)\n",
                (int)ThreadManager::campaign_active(), (unsigned)Flags);
     fflush(stderr);
+    /* UIHITCH-1 S4 (2026-09-13): this loop polled Sleep(100) ten times before giving up, and S2
+       measured it REACHING that limit 3 times in 5 -- three full seconds of frozen UI per load,
+       which is the whole of both stalls the PO sees as the game hanging after a click.
+       S3 showed the thread is alive every time (campaign_active=1 in all five waits), and that the
+       timeout is a port-added workaround whose known trigger is a busy thread (see the THEATER-1
+       note in Resume below).
+       The distribution is what makes the fix safe rather than a gamble: in the S3 log the two waits
+       that WERE acknowledged show no [campslow] +>=50 ms gap before the thread's reply, i.e. they
+       answered in well under 50 ms, while the three failures did not answer within 1000 ms at all.
+       Nothing acknowledged in between. So a 100 ms budget keeps every acknowledgement that ever
+       happened and cuts the cost of the ones that never do by 10x.
+       Deliberately NOT removed altogether: in the two successful cases the caller really does get a
+       suspended campaign, and dropping the wait would quietly take that away. FF_SUSPEND_MS=<ms>
+       overrides (1000 restores the old behaviour exactly). */
+    static int budgetMs = -1;
+    if (budgetMs < 0) {
+        const char *e = getenv("FF_SUSPEND_MS");
+        budgetMs = e ? atoi(e) : 100;
+        if (budgetMs < 10) budgetMs = 10;
+    }
+    const int stepMs = 10;
+    const int maxSteps = budgetMs / stepMs;
     int waitCount = 0;
     while ( not IsSuspended() and (Flags bitand CAMP_SUSPEND_REQUEST))
     {
         waitCount++;
-        if (waitCount % 10 == 0) {
-            FF_CAMPLOG("[FF_LINUX] CampaignClass::Suspend - waiting %d00ms...\n", waitCount);
-            fflush(stderr);
-        }
-        if (waitCount > 10) {  // 1 second timeout
-            FF_CAMPLOG("[FF_LINUX] CampaignClass::Suspend - TIMEOUT after 1 second, breaking loop\n");
+        if (waitCount > maxSteps) {
+            FF_CAMPLOG("[FF_LINUX] CampaignClass::Suspend - TIMEOUT after %d ms, breaking loop\n",
+                       budgetMs);
             fflush(stderr);
             break;
         }
-        Sleep(100); // Wait until the campaign is actually suspended
+        Sleep(stepMs); // Wait until the campaign is actually suspended
+    }
+    if (waitCount <= maxSteps) {
+        FF_CAMPLOG("[FF_LINUX] CampaignClass::Suspend - acknowledged after %d ms\n",
+                   waitCount * stepMs);
+        fflush(stderr);
     }
 
     FF_CAMPLOG("[FF_LINUX] CampaignClass::Suspend - wait loop done, calling ThreadManager::slow_campaign()\n");
