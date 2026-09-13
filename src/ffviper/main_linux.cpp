@@ -2957,6 +2957,62 @@ bool ProcessGameMessages() {
    centre block every FF_LOAD_LUMA ms; prints mean/min/max luma and whether the UI draw flag is
    off. A single BMP cannot characterise a 31 s window and FF_UI_SCREENSHOT overwrites one file,
    so this reports the distribution instead. Off unless FF_LOAD_LUMA is set. */
+/* UIHITCH-1 S1 (2026-09-13). LOAD-1 S4's once-a-second luma sampler skipped 19 s and 20 s
+   entirely (18356ms -> 21241ms), which means the UI render branch did not run for ~3 s. A
+   once-a-second sampler cannot tell a real stall from its own scheduling, so measure the frame
+   interval directly, every frame, at the top of the UI branch.
+     FF_UI_HITCH=<ms>   report every interval longer than <ms> as it happens, and print a full
+                        distribution at exit. A stutter the PO can see is >~100 ms; the default
+                        threshold is 100.
+   Reporting the DISTRIBUTION rather than a worst case is deliberate: one long frame during a
+   level load is expected, while a fat tail is the thing that reads as stutter. */
+static void FF_UiHitchTick(void)
+{
+    static int thresh = -2;
+    if (thresh == -2) {
+        const char *e = getenv("FF_UI_HITCH");
+        thresh = e ? (atoi(e) > 0 ? atoi(e) : 100) : -1;
+        if (thresh > 0) atexit([](void) {
+            extern void FF_UiHitchReport(void);
+            FF_UiHitchReport();
+        });
+    }
+    if (thresh <= 0) return;
+
+    extern unsigned g_uiFrames, g_uiHitchBuckets[8], g_uiWorstMs, g_uiWorstAt;
+    static Uint32 prev = 0;
+    Uint32 now = SDL_GetTicks();
+    if (prev != 0) {
+        unsigned dt = (unsigned)(now - prev);
+        g_uiFrames++;
+        /* buckets: <8, <16, <33, <50, <100, <250, <1000, >=1000 ms */
+        static const unsigned edge[7] = {8, 16, 33, 50, 100, 250, 1000};
+        int b = 7;
+        for (int i = 0; i < 7; i++) if (dt < edge[i]) { b = i; break; }
+        g_uiHitchBuckets[b]++;
+        if (dt > g_uiWorstMs) { g_uiWorstMs = dt; g_uiWorstAt = (unsigned)now; }
+        if (dt >= (unsigned)thresh) {
+            fprintf(stderr, "[uihitch] %u ms gap ending at t=%ums\n", dt, (unsigned)now);
+            fflush(stderr);
+        }
+    }
+    prev = now;
+}
+
+unsigned g_uiFrames = 0, g_uiHitchBuckets[8] = {0}, g_uiWorstMs = 0, g_uiWorstAt = 0;
+
+void FF_UiHitchReport(void)
+{
+    if (!g_uiFrames) { fprintf(stderr, "[uihitch] no UI frames measured\n"); fflush(stderr); return; }
+    static const char *name[8] = {"<8", "<16", "<33", "<50", "<100", "<250", "<1000", ">=1000"};
+    fprintf(stderr, "[uihitch] %u UI frames; interval distribution (ms):\n", g_uiFrames);
+    for (int i = 0; i < 8; i++)
+        fprintf(stderr, "[uihitch]   %-7s %6u  %5.2f%%\n",
+                name[i], g_uiHitchBuckets[i], 100.0 * g_uiHitchBuckets[i] / g_uiFrames);
+    fprintf(stderr, "[uihitch] worst %u ms, ending at t=%ums\n", g_uiWorstMs, g_uiWorstAt);
+    fflush(stderr);
+}
+
 static void FF_LoadLumaSample(int inLoadWindow)
 {
     static int periodMs = -2;
@@ -3035,6 +3091,7 @@ static void render_frame(void) {
         static long loadFrames = 0, loadReported = 0;
         if (loadWindow) loadFrames++;
 
+        FF_UiHitchTick();
         FF_LoadLumaSample(loadWindow);
 
         if (loadWindow && loadPaint) {

@@ -29,6 +29,7 @@
 #include "bitio.cpp"
 #endif
 #include "lzss.h"
+#include <time.h>
 
 //sfr: added for buffer checking: checks and change size
 #define CHSZ(x, sz) ;
@@ -607,6 +608,22 @@ extern "C"
         unsigned long input_count;
         uchar *inputHead;
         LZSS_COMP_CTXT ctxt;
+
+        /* UIHITCH-1 S1 (2026-09-13): a UI stall of 2020 ms spans this call with srcSize=2559,
+           size=16855 -- 16 KB of output. Either the expand itself is pathologically slow or the
+           stall is elsewhere in the same frame (the wait for FM_GOT_CAMPAIGN_DATA is the other
+           candidate). Time the call so the two cannot be confused. Unconditional like the print
+           it sits next to; it is one clock read per call, not per byte. */
+        struct LzssTimer {
+            const char *tag; int sz; struct timespec t0;
+            LzssTimer(int n) : tag("LZSS_Expand"), sz(n) { clock_gettime(CLOCK_MONOTONIC, &t0); }
+            ~LzssTimer() {
+                struct timespec t1; clock_gettime(CLOCK_MONOTONIC, &t1);
+                double ms = (t1.tv_sec - t0.tv_sec) * 1e3 + (t1.tv_nsec - t0.tv_nsec) / 1e6;
+                fprintf(stderr, "[LZSS_Expand] %s: %d bytes out in %.1f ms\n", tag, sz, ms);
+                fflush(stderr);
+            }
+        } lzssTimer(size);
 
         fprintf(stderr, "[LZSS_Expand] Called: srcSize=%d, size=%d\n", srcSize, size);
 
