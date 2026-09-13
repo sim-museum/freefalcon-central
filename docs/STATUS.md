@@ -12656,3 +12656,49 @@ settled before anything is built on them — the check is cheap and comes first.
    place to look).
 3. Leave `FF_GM_COA_OFFSET` in as a diagnostic, default OFF, with the −509 px figure recorded next
    to it so nobody (me included) turns it on as "the obvious fix".
+
+
+### GMRADAR-8 S2 (2026-09-12) — the COA is built upstream, and overscan accounts for 5 % of it
+
+Two corrections and one new measurement, all from the code that produces the numbers S1 measured.
+
+**Correction 1 — the function is `RenderGMRadar::StartScene`, not `SetupView`.** S1's note (and the
+in-source comment at `gmradar.cpp:170`) name a `SetupView` that does not exist in this file; the
+offsets are computed in `RenderGMRadar::StartScene(Tpoint *from, Tpoint *at, float upHdg)` at
+`gmradar.cpp:99`. Recorded because the wrong name would send the next reader looking in `ui_setup`,
+which is an unrelated `SetupViewer`.
+
+**Correction 2 — a large COA offset is partly BY DESIGN.** `gmcomposit.cpp:741-746` does not pass
+the aim point through; it builds one:
+
+    center.x = at->x + dx * GM_OVERSCAN * range;      // dx,dy = cos,sin(platformHdg)
+    center.y = at->y + dy * GM_OVERSCAN * range;
+    radar.StartScene(from, &center, platformHdg);
+
+so the COA is deliberately pushed ahead of the aim point along the platform heading. That is
+overscan — the radar maps a patch bigger than the display so the image does not tear at the edges.
+`vOffset`/`hOffset` being non-zero is therefore **expected**, which is one more reason the S1 "these
+are dropped, restore them" reading was wrong.
+
+**But overscan is 0.2, and the measured displacement is 4.08.** `gmcomposit.h:18` gives
+`GM_OVERSCAN = 0.2f`, so the term above contributes **0.2 x range = 29,166 ft**. S1 measured the
+COA sitting **595,497 ft = 4.08 x range** from the eye. Overscan accounts for **5 %** of that. The
+remaining 95 % is in `at` itself — the aim point the composite is handed — so the anomaly is
+upstream of both files and neither `gmradar.cpp` nor the offset arithmetic is where it lives.
+
+⭐ **And the direction does not fit either.** The overscan term is constructed along
+`platformHdg`, and `StartScene` rotates by `-upHdg` with `upHdg == platformHdg` (same call). A
+vector built along the heading and rotated by minus that heading must land on the x axis, i.e.
+`hOffset ~ 0`. Measured: x = 120,251 ft (0.82 range), y = -580,735 ft (-3.98 range) — **78 degrees
+off the axis**. Two candidates, and they are separable:
+
+- `at` is far away and off-axis, and simply dominates the 0.2-range overscan term (most likely);
+- or the rotation convention in `StartScene` is wrong — FF world axes are x=north, y=east with
+  headings clockwise from north, and `x = c*dx - s*dy; y = s*dx + c*dy` is a counter-clockwise
+  rotation, which would be a sign error that no amount of tracing `at` will reveal.
+
+**S3 (next FF rotation):** print `at` and `platformHdg` at the `gmcomposit.cpp:746` call site
+alongside the eye, in the same trace, and compute `at - from` there. If `|at - from|` is already ~98
+nm the hunt moves entirely upstream to whoever sets the composite's aim point; if `|at - from|` is
+small, then the 4.08x is manufactured between that line and `StartScene` and the rotation sign is
+the suspect. One run answers it, and it is the same TE drive already scripted.
