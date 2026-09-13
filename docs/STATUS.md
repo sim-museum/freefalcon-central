@@ -13069,3 +13069,45 @@ one run decides which, and **do not change the loader before knowing**.
 
 **TERRAIN-1 rotates off at 4 of 4 sprints** with a root cause evidenced from the data file rather
 than from reading code, after three candidate explanations died on measurement.
+
+
+### LOAD-1 S1 (2026-09-13) — the clears stop at 6.6 s; the load runs to ~31 s
+
+FF's four named items are all at their four-sprint cap this pass, and the two obvious fallbacks are
+blocked on the PO rather than on me (**GEAR-1** and **TE2-7** have had every mechanism checkable from
+this side eliminated and are waiting on a Wine side-by-side). So: LOAD-1, *"clicking Fly shows a
+white screen instead of the animated progress bar"*, quantified in August as white to ~31 s with the
+cockpit up by 50 s.
+
+`FF_LoadingClear` is the function that paints black, and it has two early returns. **A clear that is
+never called and a clear that returns early look identical from outside — a white screen — and they
+need different fixes**, so the instrument counts both:
+
+    [loadclear] call #1 at    0ms  bailed: noWindow=0 wrongCtx=0
+    [loadclear] call #2 at 6191ms  bailed: noWindow=0 wrongCtx=0
+    ...
+    [loadclear] call #8 at 6593ms  bailed: noWindow=0 wrongCtx=0
+    (total lines in the whole run: 8)
+
+⭐ **Eight calls, all inside the first 6.6 seconds, and then never again** — in a 150 s run that
+loads and flies. And `bailed: noWindow=0 wrongCtx=0` throughout: **the guards never fire**, so this
+is not a context or window-readiness problem. It is missing call sites across the long part of the
+load, which is exactly where the item's own note pointed (*"the presents must come from
+`OTWDriver::Enter` itself"*).
+
+⚠️ **Stated precisely, because two things are being conflated.** What is measured is that *nothing
+repaints black* after 6.6 s. What produces *white* specifically is a separate question: on Wayland a
+surface that stops updating keeps its last content, and the last content here was a black clear — so
+something else must present after 6.6 s, or the surface is being recreated. The measurement narrows
+the window to `[6.6 s, ~31 s]`; it does not yet name the painter.
+
+**S2 (next FF rotation):** instrument `SDL_GL_SwapWindow` (or the present path) the same way — count
+presents and their timestamps across that window. If presents happen without a preceding clear, the
+fix is a clear at those sites; if there are no presents at all, the fix is elsewhere and the white is
+the compositor's, not ours. **One run distinguishes them, and no code should change before it does.**
+
+⚠️ Note on this run's hygiene: it was queued behind the BoB gate suite on `until pgrep -x bob == 0`,
+and the suite restarts `bob` between gates, so the wait released in a gap and the two overlapped
+briefly. The numbers here are call counts and millisecond offsets within one process, which
+contention delays rather than corrupts, so they stand — but the queueing pattern is wrong and the
+next long chain should key on the suite's own PID, not on the child it restarts.

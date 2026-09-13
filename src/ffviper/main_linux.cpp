@@ -226,6 +226,28 @@ void FF_SimThreadReleaseGL() {
 // the start of OTWDriver::Enter(). Called on the sim thread, which owns the GL
 // context at that point.
 void FF_LoadingClear() {
+    /* LOAD-1 (2026-09-13): the load shows WHITE for ~31 s on TE 09 before the cockpit appears, and
+       the recorded reading is that "the presents must come from OTWDriver::Enter itself". This
+       function is the thing that paints black, and it has two early returns -- so before theorising
+       about where to add more calls, count what actually happens: how often it is CALLED, and how
+       often it bails on each guard. A clear that is never called and a clear that returns early look
+       identical from the outside (a white screen), and they need different fixes.
+       FF_DEBUG_LOADCLEAR=1 prints wall-clock ms since the first call. */
+    static int dbg = -1;
+    if (dbg < 0) dbg = getenv("FF_DEBUG_LOADCLEAR") ? 1 : 0;
+    static long nCall = 0, nNoWin = 0, nNoCtx = 0;
+    static struct timespec t0; static int haveT0 = 0;
+    if (dbg) {
+        struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
+        if (!haveT0) { t0 = now; haveT0 = 1; }
+        long ms = (now.tv_sec - t0.tv_sec) * 1000L + (now.tv_nsec - t0.tv_nsec) / 1000000L;
+        ++nCall;
+        if (!g_SDLWindow || !g_GLContext) ++nNoWin;
+        else if (SDL_GL_GetCurrentContext() != g_GLContext) ++nNoCtx;
+        if (nCall <= 12 || (nCall % 25) == 0)
+            fprintf(stderr, "[loadclear] call #%ld at %ldms  bailed: noWindow=%ld wrongCtx=%ld\n",
+                    nCall, ms, nNoWin, nNoCtx), fflush(stderr);
+    }
     if (!g_SDLWindow || !g_GLContext) return;
     if (SDL_GL_GetCurrentContext() != g_GLContext) return;  // only if we own it
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
