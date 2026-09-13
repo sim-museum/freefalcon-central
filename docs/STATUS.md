@@ -13025,3 +13025,47 @@ loader (`tlevel.cpp`, `tdskpost.cpp` both Request against `TheTerrTextures`), so
 `memPost`'s `texID` is populated from the theater data and whether the Linux port's struct layout or
 a byte-order/packing assumption is zeroing it. **Predict before measuring:** if the loader is at
 fault, the 9 % that DO vary (sets 73/110/35) should share a provenance the others lack.
+
+
+### TERRAIN-1 S4 (2026-09-13) — ⭐⭐ the theater is in the LARGE post format; the code reads it as SMALL
+
+S3 showed 91 % of terrain binds resolve to `set=0 tile=0` and put the fault upstream, in whatever
+fills `post->texID`. It is upstream, and it is the on-disk record layout.
+
+`tdskpost.h` declares two `#pragma pack(1)` post formats, and `tdskpost.cpp` has one loader for each:
+
+    TdiskPost     UInt16 texID + Int16 z + 3x UInt8   -> sizeof 7   (line 28: ShiAssert(g_LargeTerrainFormat == false))
+    TNewdiskPost  UInt32 texID + Int16 z + 3x UInt8   -> sizeof 9   (line 95: ShiAssert(g_LargeTerrainFormat == true))
+
+**Read Korea's `THEATER.L0` (108,582,912 bytes) both ways and histogram the texID column:**
+
+| layout | distinct texIDs | texID == 0 | max texID | top values |
+|---|---|---|---|---|
+| **stride 9, offset 0 (LARGE)** | **144** | **0.0 %** | **9,986** | 8192, 9363, 8912 |
+| stride 7, offsets 0/2/4/8 (SMALL) | ~1,900 | **40.2 %** | 65,280 | 0, **63**, **65024**, **65280** |
+
+⭐ **Only the 9-byte large layout yields sane texture ids** — 144 distinct, none zero, all under
+10,000. The 7-byte reads produce 40 % zeros and values like `0xFE00` / `0xFF00`, which is what
+reading a `UInt32` field at the wrong stride looks like: real ids are all below 10,000, so a
+misaligned read lands on the always-zero high bytes, and **that is exactly the 91 % texID 0 the
+runtime bind census measured in S3.**
+
+Every symptom now has one cause: the art loads (S1), the uploads succeed (S2), the binds succeed
+(S3) — and nothing ever asks for the other 1,147 tiles because almost every post decodes to texID 0.
+A landscape painted with one tile is the PO's *"uniformly grey surface"*.
+
+⚠️ **A divisibility argument I had to take back mid-sprint.** I first argued the file "cannot" be
+7-byte records because 108,582,912 is not divisible by 7. That is not decisive:
+`108,582,912 − 4 = 108,582,908` **is** divisible by 7, so a 4-byte header plus 7-byte records fits
+perfectly. The histogram across offsets 0/2/4/8 is what settles it, not the arithmetic. I nearly
+published the weaker argument as the finding.
+
+**S5 (next FF rotation) — the flag, not the loader.** `g_LargeTerrainFormat` is set in `tmap.cpp:216`
+from a `flags` word read out of `THEATER.MAP`, and the loader then picks the matching struct. So the
+bug is either (a) the flag is genuinely clear in this theater's header while the data is large
+format, or (b) our header parse is misaligned and reads the wrong word as `flags`. Print `flags`,
+`g_LargeTerrainFormat` and the header fields at load and compare against `THEATER.MAP`'s bytes —
+one run decides which, and **do not change the loader before knowing**.
+
+**TERRAIN-1 rotates off at 4 of 4 sprints** with a root cause evidenced from the data file rather
+than from reading code, after three candidate explanations died on measurement.
