@@ -12843,3 +12843,32 @@ today, and I walked up to it again here.
 there a statement to make about the join. After that, the open question from the overnight work
 stands: the joiner's own sim entry never fires (no `FM_START_CAMPAIGN` on the client), with the
 takeoff guard in `campupd/campaign.cpp` as the next thing to trace.
+
+
+### MPTEST-FF S2 (2026-09-13) — ✅ the join is GREEN on one machine
+
+S1 established discovery and then said, against itself, that its `FM_JOIN_SUCCEEDED: 0` meant nothing
+because that arm never clicks the JOIN tab. Ran the arm that does — `scripts/qa/mp-join.sh`, which
+drives `mp-two-instance.sh` with `PEER_B_SCREEN=campaign PEER_B_JOIN=1`:
+
+    mp-join: preload=1 info_window=1 FM_JOIN_SUCCEEDED=1
+    mp-join                PASS
+
+**Peer B joins peer A's campaign end to end on this one box**: the campaign preload is requested, the
+info window opens, and `FM_JOIN_SUCCEEDED` is received — meaning all `CAMP_NEED_*` data arrived and
+the joiner's campaign UI came up. Combined with S1's `gameId=6068821/28007` crossing the wire, the
+claim in `docs/MULTIPLAYER.md` that *"a real two-machine connection has NEVER been tested from this
+box"* is now answered for discovery AND join, without a second PC — the same result BoB's loopback
+harness produced for its own transport.
+
+**The S1 zero was the arm, exactly as suspected.** Worth keeping next to the green: the identical
+number (`FM_JOIN_SUCCEEDED: 0`) was a correct report of a path nobody had asked to run, and reading
+it as a defect would have sent a sprint after a working feature.
+
+**What is still open, unchanged from the overnight work:** the joiner's own SIM entry never fires —
+no `FM_START_CAMPAIGN` on the client — so the host can fly from the joined campaign but the joiner
+cannot. The takeoff guard in `campupd/campaign.cpp` is the next thing to trace, and that is
+MPTEST-FF S3.
+
+**Both FF rank-3 items remain at their caps** (GMRADAR-8 4/4, PIT-1 4/4 rotated out), so MPTEST-FF is
+FF's live thread.
