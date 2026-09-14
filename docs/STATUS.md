@@ -14111,3 +14111,35 @@ navigation in it will make it one.
 
 **RECON-3: regression-checked. CCRP-5: the next sprint should find the PO's mission by name before
 flying anything.**
+
+### CCRP-5 S6 (Opus 5, 2026-09-14) — ⭐ the PO's mission is FOUND, and its target IS the bridge
+
+S5 said the harness's problem was navigation. S4/S5 also concluded this TE's target was not the
+bridge. Both were symptoms of flying the **wrong mission**, and the mission list settles it without
+a single run:
+
+    campaign/SAVE/19 Bombs with CCRP.trn      <-- the PO's
+    campaign/SAVE/20 Bombs with CCIP.trn      <-- what every sprint has been flying
+
+**TE 19 is "Bombs with CCRP"; I have been flying TE 20, "Bombs with CCIP".** The TE list row is
+`111 + 17(n-1)`, so the click was 17 px too low — one row — for five sprints. *(The name was in the
+port's own load line all along: `StartReadCampFile: … filename='20 Bombs with CCIP'`.)*
+
+**Flown TE 19 (row y=417), and its designate settles the target question:**
+
+    [ccrp] … designate=(1671149,1238192)
+
+**RECON-3 S4 recorded T'osan Bridge at (1671214.6, 1238670.2)** — the same point to within **478 ft**.
+⭐ **So the CCRP mission's aim point IS the bridge, and the PO's complaint is about this mission.**
+
+⚠️ **No bombs fell, and the reason is new.** The computed impact never came closer than **105,630 ft**
+to the designate, and `impactTime` collapses from 18.73 s at the start to **0.09 s** — the solution is
+landing directly under the aircraft, which is what it does at ground level. **TE 19 does not begin
+airborne on a route the way TE 20 does**, and the recipe that has been used all along (autopilot at
+t=6 s, hold the pickle from t=60 s) assumes it does.
+
+**S7:** get TE 19 airborne — a takeoff roll, or the TE's own start state read before flying. Then the
+measurement CCRP-5 has needed since the PO first reported it is one drop away, against a designate
+already confirmed to be the bridge.
+
+**CCRP-5: the item now has the right mission, the right target, and one harness gap left.**
