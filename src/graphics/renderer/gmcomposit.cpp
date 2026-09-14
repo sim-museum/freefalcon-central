@@ -545,6 +545,31 @@ void RenderGMComposite::DrawComposite(Tpoint *center, float platformHdg)
             SetClipFlags(vertArray[i]);
         }
 
+#ifdef FF_LINUX
+        /* GMRADAR-8 S5: the COMPOSITE hop -- where the sweep texture's corners land on the MFD,
+           with their u,v, so a texel's screen position can be computed by hand and compared with
+           the cursor's ([GMXF-cur]). FF_DEBUG_GMXFORM=1, once a second. */
+        {
+            static int s_on = -1;
+            if (s_on < 0) s_on = getenv("FF_DEBUG_GMXFORM") ? 1 : 0;
+            if (s_on)
+            {
+                static time_t last = 0; time_t now = time(0);
+                if (now != last)
+                {
+                    last = now;
+                    fprintf(stderr, "[GMXF-quad] R P=(%.4f,%.4f) org=(%.4f,%.4f) rAng=%.4f hdg=%.4f w2u=%.3e "
+                                    "vp=[%.0f..%.0f]x[%.0f..%.0f] num=%d", Px, Py, rOriginX, rOriginY, rAngle,
+                            platformHdg, worldToUnitScale, leftPixel, rightPixel, topPixel, bottomPixel, num);
+                    for (int k = 0; k < num; k++)
+                        fprintf(stderr, " [%.0f,%.0f uv=%.2f,%.2f]", vertArray[k]->x, vertArray[k]->y,
+                                vertArray[k]->u, vertArray[k]->v);
+                    fprintf(stderr, "\n");
+                    fflush(stderr);
+                }
+            }
+        }
+#endif
         context.RestoreState(STATE_TEXTURE);
         context.SelectTexture1((intptr_t) rTexHandle);
         ClipAndDraw2DFan(vertArray, num);

@@ -5394,7 +5394,20 @@ static void FF_ReadbackFBOSurface(D3D7Surface *surf)
     glBindFramebuffer(GL_FRAMEBUFFER, surf->fboId);
 
     const int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
-    // GL rows are bottom-up; the DD surface is top-down. Read into a temp then flip.
+    /* GMRADAR-8 S5 (PO 2026-09-13, items 2/3/4 of the radar report): this readback FLIPPED rows,
+       on the assumption that an FBO is bottom-up like the window. It is not. This shim's own
+       XYZRHW rule draws D3D y=0 at GL y=0 inside an FBO ("FBO rendering: DON'T flip Y so texture
+       v=0 reads what was drawn at D3D y=0"), so an FBO's GL row 0 IS the D3D top row, and the
+       RECON-1 readback already reads FBOs unflipped for that reason. The GM sweep image is drawn
+       into its FBO, Lock/Blt'd through here into the sweep texture, and the flip mirrored the
+       whole map about the texture centre -- which sits 0.2 x range AHEAD of the cursor point --
+       so every return landed at (0.4 x range - its true offset) up-screen: a tank under the cursor
+       drew 2 nm beyond it at the 10 nm scale, and the features around a GM target drew nowhere
+       near it. Measured in the Maverick TE: [GMXF-tex] wrote the blip at texture row 75, the FBO
+       dump held it at row 52 (= 128 - 75), the MFD showed it 0.47 display units above the cursor.
+       Rows now copy straight. FF_FBO_READBACK_FLIP=1 restores the old (mirroring) behaviour. */
+    static int s_flip = -1;
+    if (s_flip < 0) s_flip = getenv("FF_FBO_READBACK_FLIP") ? 1 : 0;
     const int w = surf->width, h = surf->height;
     static std::vector<unsigned char> tmp;
 
@@ -5404,7 +5417,7 @@ static void FF_ReadbackFBOSurface(D3D7Surface *surf)
 
     for (int y = 0; y < h; y++)
     {
-        const unsigned char *srcRow = tmp.data() + (size_t)(h - 1 - y) * w * 4;
+        const unsigned char *srcRow = tmp.data() + (size_t)(s_flip ? (h - 1 - y) : y) * w * 4;
         unsigned char *dstRow = surf->pixelData + (size_t)y * surf->pitch;
 
         if (bpp == 4)

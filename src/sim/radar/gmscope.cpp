@@ -1,4 +1,5 @@
 #include "stdhdr.h"
+#include <time.h>   /* GMRADAR-8 S5: FF_DEBUG_GMXFORM once-a-second trace */
 #include "graphics/include/gmcomposit.h"
 #include "graphics/include/drawbsp.h"
 #include "geometry.h"
@@ -1688,6 +1689,29 @@ void RadarDopplerClass::GMDisplay(void)
             // Add Cursor
             display->Line(-1.0F, cursorY, 1.0F, cursorY);
             display->Line(cursorX, -1.0F, cursorX, 1.0F);
+#ifdef FF_LINUX
+            /* GMRADAR-8 S5: the SYMBOLOGY hop -- the cursor in display units and pixels, with
+               the world point it stands for (GMat) and the scope centre, once a second. */
+            {
+                static int s_on = -1;
+                if (s_on < 0) s_on = getenv("FF_DEBUG_GMXFORM") ? 1 : 0;
+                if (s_on)
+                {
+                    static time_t last = 0; time_t now = time(0);
+                    if (now != last)
+                    {
+                        last = now;
+                        fprintf(stderr, "[GMXF-cur] cursor=(%.4f,%.4f) px=(%.1f,%.1f) vp=[%.0f..%.0f]x[%.0f..%.0f] "
+                                        "GMat=(%.0f,%.0f) ctr=(%.0f,%.0f) plat=(%.0f,%.0f) hfd=%.4f gmr=%.0f tdr=%.0f\n",
+                                cursorX, cursorY, display->viewportXtoPixel(cursorX), display->viewportYtoPixel(cursorY),
+                                display->GetLeftPixel(), display->GetRightPixel(), display->GetTopPixel(), display->GetBottomPixel(),
+                                GMat.x, GMat.y, GMXCenter, GMYCenter, platform->XPos(), platform->YPos(),
+                                headingForDisplay, groundMapRange, tdisplayRange);
+                        fflush(stderr);
+                    }
+                }
+            }
+#endif
 
 
             // Expansion Cues

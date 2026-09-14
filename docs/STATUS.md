@@ -13196,3 +13196,41 @@ how long the mission takes to load.
    "black during load" the item says was the intended behaviour.
 **Verify with `FF_UI_SCREENSHOT=<seconds>`**, which already dumps the framebuffer periodically — the
 right oracle here is a picture, since the complaint is about what is on screen.
+
+### GMRADAR-8 S5 (Fable 5.1, 2026-09-13) — ⭐⭐ FOUND AND FIXED: the sweep image was mirrored by the FBO readback
+
+PO report of 2026-09-13 (items 2/3/4: "GMT shows tanks above where they are", "GM does not show
+objects in the target area", videos `260913_maverick_linux_radar_above_maverick_view.mp4`,
+`260913_harm_hit.mp4`, `260913_lgb.mp4`). Four earlier sprints proved the blip transform correct
+on the CPU and never moved the picture. This sprint traced the PIXEL through the GPU hops instead.
+
+**Reproduced first.** Maverick TE, GMT at 10 nm, `FF_VIEW_SCRIPT` screenshot at 160 s: cursor on
+the tanks at the scope centre, blips drawn 0.47 display units up-screen and slightly left, while
+`[GMPOS]` put them 0.036 units below and 0.055 right of the centre. Same as the PO's frame.
+
+**Three-hop instrument (`FF_DEBUG_GMXFORM=1`).** `[GMXF-tex]` prints the texture pixel the point
+blip is written to, `[GMXF-quad]` the sweep quad's MFD pixels with u,v, `[GMXF-cur]` the cursor.
+The arithmetic of all three hops is consistent with upstream (quad v=1 ↔ 1×range behind the
+cursor point, v=0 ↔ 1.4×range ahead; blip at texture row 75 ↔ v=0.588 ↔ 0.011×range behind the
+cursor: correct). But the FBO dump (`FF_GM_DUMP`) held the blip at **row 52 = 128 − 75**.
+
+**Root cause: `FF_ReadbackFBOSurface` (GMRADAR-2, 09-01) flips rows** on the assumption that an FBO
+is bottom-up like the window. The shim's own XYZRHW rule draws D3D y=0 at GL y=0 inside an FBO, so
+FBO content is top-down (RECON-1 S5 already reads FBOs unflipped for that reason). The GM sweep is
+drawn into its FBO, then `Blt` (→ CopySurfacePixels → this readback) into the sweep texture — so
+the whole map was mirrored about the texture centre, which sits 0.2×range AHEAD of the cursor
+point. Every return therefore landed at (0.4×range − its true offset) up-screen: 2 nm beyond a
+tank under the cursor at the 10 nm scale, and in GM the features round a target drew a third of
+the scope away from it. That is items 2, 3 and 4's radar symptom in one line.
+
+**Fix:** rows copy straight; `FF_FBO_READBACK_FLIP=1` restores the old behaviour for A/B.
+**Verified:** same recipe, dump rows 72–79 where `[GMXF-tex]` wrote 74–78; screenshots at 150 s and
+160 s show the mover blips ON the cursor cross (`mav3_shot_{1,2}_lmfd.png`).
+
+Closed as wrong on the way: GMRADAR-8's "COA offset never read" (`FF_GM_COA_OFFSET`, stays off — the
+offset is not applied upstream either), the heading-lag and look-down-projection hypotheses.
+
+**Also learned from the LGB/Maverick videos:** the GM/GMT image vanishing mid-attack (LGB 3:31,
+Maverick 1:40) is TMS-up: `gmscope.cpp:1600` skips `DrawComposite` while a target is locked
+(realistic-avionics FTT, upstream code, same on Wine) — only the FTT diamond, cursor and expansion
+cues remain. Not a defect. Shaped returns (`Shaped`) exist only in DBS1/DBS2; NORM draws points.

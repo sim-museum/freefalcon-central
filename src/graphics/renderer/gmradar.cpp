@@ -629,6 +629,30 @@ void RenderGMRadar::DrawBlip(float worldX, float worldY)
 
     x = viewportXtoPixel(x);
     y = viewportYtoPixel(y);
+#ifdef FF_LINUX
+    /* GMRADAR-8 S5 (2026-09-13): the first numeric trace of the TEXTURE hop. The point blip's
+       pixel inside the 128x128 sweep texture, next to the inputs that produced it, so the FBO
+       dump (FF_GM_DUMP) and the on-MFD position can each be checked against what this code
+       actually wrote. FF_DEBUG_GMXFORM=1, first two blips of every 60th pass. */
+    {
+        static int s_on = -1;
+        if (s_on < 0) s_on = getenv("FF_DEBUG_GMXFORM") ? 1 : 0;
+        if (s_on)
+        {
+            static long s_n = 0;
+            if ((s_n++ % 120) < 2)
+            {
+                fprintf(stderr, "[GMXF-tex] world=(%.0f,%.0f) coa=(%.0f,%.0f) d=(%.0f,%.0f) rot=%.4f w2u=%.3e "
+                                "norm=(%.4f,%.4f) px=(%.1f,%.1f) vp=[%.0f..%.0f]x[%.0f..%.0f] scale=(%.1f,%.1f) shift=(%.1f,%.1f)\n",
+                        worldX, worldY, centerPos.x, centerPos.y, dx, dy, rotationAngle, worldToUnitScale,
+                        (dx * ScaledSIN + dy * ScaledCOS + dCtrX) * dScaleX,
+                        -(dx * ScaledCOS - dy * ScaledSIN + dCtrY) * dScaleY,
+                        x, y, leftPixel, rightPixel, topPixel, bottomPixel, scaleX, scaleY, shiftX, shiftY);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
 
     //Clip test
     if ((x + 1.0f <= rightPixel)  and 
