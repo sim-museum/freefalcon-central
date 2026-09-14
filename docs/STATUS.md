@@ -14197,3 +14197,51 @@ number.
 
 **CCRP-5: 3 sprints this pass (S5–S7). First run in the item's history in which the aircraft reached
 its target.**
+
+### CCRP-5 S8 (Opus 5, 2026-09-14) — ⭐⭐ A BOMB FELL. First CCRP release in the item's history, and the miss is measured: **112 ft left, 273 ft short**
+
+S7 showed the release never comes because the autopilot flies the route while the CCRP aims at the
+target, ~2,850 ft to the side, and named the way round it: the designate is a harness input, so put it
+on the jet's own ground track. S8 did exactly that — `FF_SET_DESIGNATE="1667686,1197899"`, a point
+lifted from S7's own `[ccrp]` impact track about 40,000 ft beyond the bridge — and flew the same
+recipe.
+
+    [bombpos] EXPLODE sim=(1667577,1198174,-1594.9) gnd=-1595.0 drawable=(1667577,1198174,-1594.9)
+              d(sim-draw)=(0,0,0.0) designate=(1667686,1197899,-1571.6) d(sim-tgt)=(-108,275)
+
+⭐ **The release condition was satisfiable and the FCC took the shot.** Eight sprints in, this is the
+first CCRP bomb this item has ever put on the ground.
+
+**The miss, resolved along the jet's own velocity** (from the three `[ccrp]` samples around release,
+track direction (−16, −1030) ft/s):
+
+| component | value |
+|---|---|
+| cross-track | **112 ft LEFT** |
+| along-track | **273 ft SHORT** |
+| total | 295 ft |
+
+⭐ **The lateral sign matches the PO's report** — "the bomb still falls to the LEFT" — and this is the
+first number attached to it in the item's life. ⚠️ **One drop is not a bias.** S3 measured per-bomb
+scatter of +185/−246 ft in a six-bomb stick, so 112 ft is inside that envelope; and part of it is the
+harness's own: at the last trace sample before release the FCC's predicted impact was already **71 ft
+left** of the designate, because my designate came from a *previous run's* track and this run's is not
+identical. The honest split is ~71 ft of aim-point placement and ~40 ft of solution.
+
+⭐ **The along-track number is the one that cannot be explained away.** The FCC's own release test is
+`airGroundRange / Vt < 0.1 s` — at 1,024 ft/s that is **under ~102 ft** — so at the moment it pickled,
+the computer believed the bomb would land within 102 ft of the designate. **It landed 273 ft short.**
+The last sample before release makes the same point locally: predicted impact (1667614,1198094),
+actual (1667577,1198174) — **88 ft apart, 80 ft of it short.** The prediction and the trajectory do not
+agree, and that is a port-side ballistics question, not a piloting one.
+
+*(Also visible in the same line: `d(sim-draw)=(0,0,0.0)`. RECON-3/S1's drawable snap is doing its job
+— the burst is now exactly where the bomb is, against 20.4 ft before it.)*
+
+**S9:** print the predicted impact AT the release frame (in `CheckForBombRelease`, where `bombPickle`
+is set) next to the designate, and compare it with the `[bombpos]` EXPLODE of the same bomb. That
+turns "88–270 ft, mostly short" into one exact per-drop number, and repeating it three times
+separates bias from dispersion.
+
+**CCRP-5: 4 sprints this pass (S5–S8) — AT THE CAP, and it ends with the measurement the item was
+opened for.**
