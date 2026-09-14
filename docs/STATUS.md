@@ -13950,3 +13950,40 @@ And explain the moving designate first, since a bias measurement taken across an
 measures the change.
 
 **CCRP-5: 3 sprints.**
+
+### CCRP-5 S4 (Opus 5, 2026-09-14) — ⛔ every CCRP measurement so far was taken against the WRONG AIM POINT, 27 nm from the PO's bridge
+
+S3 recorded, as an aside, that the designate moved mid-run and said it should be explained before any
+bias measurement was trusted. It should have been explained first, because it invalidates the frame
+those measurements were taken in.
+
+**MEASURED, the designates in S3's own trace:**
+
+| designate | samples |
+|---|---|
+| (1808908, 1290672) | 205 |
+| ≈(1811530, 1297887), drifting a few feet per sample | 25 |
+
+The second is where the bombs landed — the stick straddled it, which is why S3 found the aim
+converging. **But neither is the PO's target.** The TE's recon window names one target, *T'osan
+Bridge*, and RECON-3 measured it at **(1648254, 1320669)** — **164,860 ft, 27 nm, from where these
+bombs fell.**
+
+⛔ **So the harness has been bombing a steerpoint, not the bridge.** The pickle is held from t=60 s
+and the FCC releases when its solution reaches whatever is designated at the time, which here is a
+route point. Every "miss" number in CCRP-5 S3 — the 99 ft stick offset, the ±250 ft scatter — is a
+measurement against a point the PO never aimed at, and says nothing about *"the bomb falls to the
+LEFT of the bridge"*.
+
+⚠️ **BOOM-4's results are NOT affected and I checked before saying so.** Its findings (the drawable
+frozen at the last airborne point; the flat-container branch leaving the burst below ground) are
+relationships between a bomb and the surface it hits, measured at the impact itself. They hold
+wherever the bomb lands.
+
+**S5 — aim at the bridge, the way the PO did.** Their video is named
+`260913_ccrp_entered_exact_coords_bombs_after_explosion.mp4`: they typed the target's coordinates in.
+The harness must do the same (ICP entry, or designating the recon target) so the drop is against
+(1648254, 1320669). Until then this item has no measurement at all, and the earlier ones should not
+be cited.
+
+**CCRP-5: 4 sprints — AT THE CAP, and rotating off with its own evidence withdrawn.**
