@@ -13987,3 +13987,42 @@ The harness must do the same (ICP entry, or designating the recon target) so the
 be cited.
 
 **CCRP-5: 4 sprints — AT THE CAP, and rotating off with its own evidence withdrawn.**
+
+### RECON-3 S9 (Opus 5, 2026-09-14) — ✅ SHIPPED: the pane's edge was never a magic number; the enumeration already reports it
+
+S8 demonstrated the fix and refused to ship it because the pane's left edge was a hardcoded 500, and
+recorded two measurements that seemed to block deriving it: the window's eight client areas are all
+full-window, and `FF_ReconSetExclusions`' enumeration reported **0 windows above the view**.
+
+**The 0 was a snapshot of the wrong moment.** Printing the whole window stack shows the enumeration
+working exactly as intended:
+
+    win id=30800 (0,32)-(1024,728)  CONTAINS the viewport (becomes owner, resets the list)
+    win id=30305 (0,32)-(270,532)
+    win id=40024 (774,32)-(1024,342)
+    win id=18000 (0,0)-(1024,768)   CONTAINS the viewport (becomes owner, resets the list)
+    win id=18351 (0,0)-(500,728)
+    [recon] 1 window(s) above the view [0,0-500,728]
+
+⭐ **Window 18351 is the target-list panel, and its rectangle IS the pane boundary — 500 px, the
+number S8 had to guess.** S8's run caught the list before it opened; the trace prints on change, so
+"0" was true then and stopped being true a moment later. ⚠️ A dedup'd trace read once is a snapshot,
+not a census — that is the third time this session an instrument's *timing* rather than its content
+misled a conclusion.
+
+**FIX, on by default** (`FF_NO_RECON_PANE=1` reverts): when an excluded window starts at or left of
+the viewport and spans its full height, the visible image pane begins at that window's right edge, so
+`C_3dViewer::SetViewportLeft` re-applies the projection there. No constant, and correct at any
+resolution or layout.
+
+**VERIFIED** (`docs/recon_s9_shipped.png`):
+
+    [recon] viewport narrowed to (500,32)-(1024,728) by the covering window
+
+and the recon pane now shows **a river with the bridge across it, centred**, the LAT/LONG line
+legible at the top, and the target list intact beside it — the picture the PO's gold shows and the
+answer to *"the location is wrong … wine ff shows a river and a bridge, native linux ff shows a
+cityscape with a building."*
+
+**RECON-3: the defect the PO reported three times is fixed in the tree. It reaches them with the next
+AppImage.**

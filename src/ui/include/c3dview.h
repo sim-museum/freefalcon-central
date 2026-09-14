@@ -95,6 +95,9 @@ public:
         MaxTexture_ = max;
     }
     void Viewport(C_Window *win, long client); // Calulates the left,top,right,bottom offsets for viewport
+#ifdef FF_LINUX
+    void SetViewportLeft(long newLeft);   // RECON-3 S9: narrow to the visible image pane
+#endif
     void SetPosition(float x, float y, float z);
     // VERY IMPORTANT: Camera Position is RELATIVE to Position
     // for Object Viewing: 0,0,0 is the assumed object position... camera is relative to that

@@ -211,6 +211,34 @@ BOOL C_3dViewer::Cleanup()
     return(TRUE);
 }
 
+#ifdef FF_LINUX
+/* RECON-3 S9 (2026-09-14): re-apply the viewport with a narrower LEFT edge.
+   S7 measured the recon aerial rendered across the whole window while the user sees only the
+   right-hand pane, so the aimed camera's subject lands on the pane's left edge; S8's A/B
+   (FF_RECON_VP_LEFT=500) moved it to the centre and the picture became "a river and a bridge",
+   matching the gold. S8 could not ship because 500 was a magic number -- and it is not: the
+   exclusion pass below enumerates the covering window and reports it as [0,0-500,728], the target
+   list. This applies that edge, using the same projection arithmetic as Viewport(). */
+void C_3dViewer::SetViewportLeft(long newLeft)
+{
+    if (newLeft <= viewport.left or newLeft >= viewport.right) return;
+
+    viewport.left = newLeft;
+    l = static_cast<float>(-1.0f + ((float)(viewport.left) / (sw * .5)));
+    t = static_cast<float>(1.0f - ((float)(viewport.top) / (sh * .5)));
+    r = static_cast<float>(1.0f - ((float)(sw - viewport.right) / (sw * .5)));
+    b = static_cast<float>(-1.0f + ((float)(sh - viewport.bottom) / (sh * .5)));
+
+    if (rend3d_) rend3d_->SetViewport(l, t, r, b);
+
+    if (rendOTW_) rendOTW_->SetViewport(l, t, r, b);
+
+    if (getenv("FF_DEBUG_RECON"))
+        fprintf(stderr, "[recon] viewport narrowed to (%ld,%ld)-(%ld,%ld) by the covering window\n",
+                (long)viewport.left, (long)viewport.top, (long)viewport.right, (long)viewport.bottom), fflush(stderr);
+}
+#endif
+
 void C_3dViewer::Viewport(C_Window *win, long client)
 {
     viewport.left = win->GetX() + win->ClientArea_[client].left;
@@ -647,7 +675,57 @@ BOOL C_3dViewer::ViewGreyOTW()
                         if (wr <= vl or wl >= vr or wb <= vt or wt >= vb) continue;
                         if (n < 8) { rects[n * 4] = wl; rects[n * 4 + 1] = wt; rects[n * 4 + 2] = wr; rects[n * 4 + 3] = wb; n++; }
                     }
+#ifdef FF_LINUX
+                    /* RECON-3 S9 (2026-09-14): this enumeration reported ZERO windows above the
+                       view in a run where the target-list panel plainly covers the left half, and
+                       S8 could not use it to derive the image pane's edge because of that. The
+                       loop resets `n` every time it meets a window that CONTAINS the viewport, so
+                       a second full-screen window makes itself the owner and discards what came
+                       before. Print every visible window with its rect and whether it qualifies as
+                       a container, once, so the 0 can be explained rather than worked around. */
+                    if (getenv("FF_DEBUG_RECON"))
+                    {
+                        static int shown = 0;
+
+                        if (shown < 2)
+                        {
+                            shown++;
+                            fprintf(stderr, "[recon] window list for viewport (%d,%d)-(%d,%d):\n", vl, vt, vr, vb);
+
+                            for (C_Window *w = gMainHandler->_GetFirstWindow(); w; w = gMainHandler->_GetNextWindow(w))
+                            {
+                                if ( not gMainHandler->FFIsWindowVisible(w)) continue;
+
+                                const int al = w->GetX(), at = w->GetY(), ar = al + w->GetW(), ab = at + w->GetH();
+                                fprintf(stderr, "    win id=%ld (%d,%d)-(%d,%d)%s\n", (long)w->GetID(), al, at, ar, ab,
+                                        (al <= vl and at <= vt and ar >= vr and ab >= vb) ? "  CONTAINS the viewport (becomes owner, resets the list)" : "");
+                            }
+
+                            fflush(stderr);
+                        }
+                    }
+#endif
                     FF_ReconSetExclusions(n, rects);
+#ifdef FF_LINUX
+                    /* RECON-3 S9: the covering window IS the pane boundary. If an excluded window
+                       starts at or left of the viewport and covers its full height, the visible
+                       image pane begins at that window's right edge -- so render there, or the
+                       aimed camera puts its subject under the panel. FF_NO_RECON_PANE=1 reverts. */
+                    if ( not getenv("FF_NO_RECON_PANE"))
+                    {
+                        for (int i = 0; i < n; i++)
+                        {
+                            const int xl = rects[i * 4], yt = rects[i * 4 + 1];
+                            const int xr = rects[i * 4 + 2], yb = rects[i * 4 + 3];
+
+                            if (xl <= vl and yt <= vt and yb >= vb and xr > vl and xr < vr)
+                            {
+                                SetViewportLeft(xr);
+                                break;
+                            }
+                        }
+                    }
+#endif
                     if (getenv("FF_DEBUG_RECON"))
                     {
                         static int last = -1;
