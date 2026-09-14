@@ -13576,3 +13576,45 @@ colour detection and no FOV assumption in it.
 
 **RECON-3: 4 sprints — at cap, rotating off with the defect located (terrain-vs-world, S3) and
 deliberately unquantified.**
+
+### BOOM-4 S1 (Opus 5, 2026-09-14) — ⛔ the physics-vs-drawn ground hypothesis is REFUTED; the bomb's DRAWABLE is 20 ft from its sim position at the burst
+
+POLISH-1 item 4, PO: *"still shows explosion one bridge-length before bombs disappear into terrain -
+bombs on shallow downward trajectory show explosions a little above terrain"*. POLISH-1 recorded the
+mechanism to test: the detonation test uses the PHYSICS ground (`bombmain.cpp:933`) while the effect
+is clamped to the DRAWN one (`FF_ImpactEffectPos` → `FF_DrawnGroundLevel`), so a gap between the two
+surfaces would fire the burst while the bomb is still visibly airborne.
+
+**Measured at the instant the explosion is raised** (`[boom4]`, in `DoExplosion` itself):
+
+    physGnd=-682.00  drawnGnd=-682.00  drawn-phys=0.00  bombZ=-682.00  z-physGnd=0.00  z-drawnGnd=0.00
+
+⛔ **The two surfaces agree exactly, and the bomb is exactly on them.** The hypothesis is dead — there
+is no ground gap at the impact point to fire anything early. (Consistent with the EPIC "3 m" work,
+which measured physics = drawn to 0.00 ft on the runway.)
+
+⭐ **But the same run shows where it does come from.** The `[bombpos]` line, which CCRP-5 S2 read as
+confirming agreement, reads very differently on a fast drop:
+
+    CCRP-5 S2 (earlier, slower drop):  d(sim-draw) = (1, 1, 2.1) ft
+    this drop:                         d(sim-draw) = (11, 11, 20.4) ft
+
+**At the moment of the burst the bomb is DRAWN 20.4 ft above and short of where the sim says it is**
+(z is positive-down; drawable z −702.4 against sim −682.0). The effect is placed from the SIM
+position — so the player sees the burst on the ground while the visible bomb is still 20 ft up and
+short. That is *"the explosion occurs before the bomb hits"*, in one number.
+
+**Why it scales, and why S2 missed it.** `UpdateVehicleDrawables` (`drawobjs.cpp:112`) refreshes a
+drawable from its sim object once per frame, so the drawable trails the sim by one frame of travel.
+20.4 ft at a bomb's ~700 ft/s is ~29 ms — about one frame. S2's 2.1 ft came from a slower, shallower
+drop and was read as "sim and drawable agree", which was true of that drop and not of this one. **A
+single measurement of a speed-dependent quantity looked like a null result.**
+
+**S2 — make the "one frame" claim measurable rather than arithmetic.** Log the bomb's speed and the
+frame time beside the gap at the burst: the prediction is `|d(sim-draw)| ≈ speed × frametime`, and it
+should hold across a steep drop and a shallow one. If it does, the fix is to draw the impact effect
+from the DRAWABLE's position (or advance the drawable before the burst), not from the sim's — and
+that also predicts the PO's "a little above terrain" on shallow trajectories, where the same lag is
+mostly horizontal and the burst sits slightly off the visible bomb rather than below it.
+
+**BOOM-4: 1 sprint.**

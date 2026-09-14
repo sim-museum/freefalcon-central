@@ -1411,6 +1411,17 @@ void BombClass::DoExplosion(void)
         const float dy = drawPointer ? drawPointer->Y() : 0.0f;
         const float dz = drawPointer ? drawPointer->Z() : 0.0f;
         const float gnd = OTWDriver.GetGroundLevel(XPos(), YPos());
+        /* BOOM-4 S1 (PO 2026-09-13, POLISH-1 item 4): "explosion one bridge-length before the bombs
+           disappear into terrain; bombs on a shallow downward trajectory show explosions a little
+           above terrain". The named mechanism is that the DETONATION test uses the PHYSICS ground
+           (bombmain.cpp:933, OTWDriver.GetGroundLevel) while the EFFECT is clamped to the DRAWN one
+           (FF_ImpactEffectPos -> FF_DrawnGroundLevel). If the drawn surface sits ABOVE the physics
+           surface, the bomb satisfies "z >= terrainHeight" while still visibly in the air, and the
+           burst appears early and high -- which is the report. Print both grounds and their
+           difference here, where the explosion is actually raised, so the gap is measured at the
+           moment that matters rather than inferred. */
+        extern float FF_DrawnGroundLevel(float x, float y);
+        const float dgnd = FF_DrawnGroundLevel(XPos(), YPos());
         float tx = 0.0f, ty = 0.0f, tz = 0.0f;
         if (parent and ((AircraftClass *)parent.get())->FCC)
         {
@@ -1418,6 +1429,11 @@ void BombClass::DoExplosion(void)
             ty = ((AircraftClass *)parent.get())->FCC->groundDesignateY;
             tz = ((AircraftClass *)parent.get())->FCC->groundDesignateZ;
         }
+        fprintf(stderr, "[boom4] physGnd=%.2f drawnGnd=%.2f  drawn-phys=%.2f  bombZ=%.2f  "
+                        "z-physGnd=%.2f  z-drawnGnd=%.2f%s\n",
+                gnd, dgnd, (dgnd < -99000.0f ? 0.0f : dgnd - gnd), ZPos(),
+                ZPos() - gnd, (dgnd < -99000.0f ? 0.0f : ZPos() - dgnd),
+                (dgnd < -99000.0f) ? "  (no drawn sample)" : "");
         fprintf(stderr, "[bombpos] EXPLODE sim=(%.0f,%.0f,%.1f) gnd=%.1f drawable=(%.0f,%.0f,%.1f) "
                         "d(sim-draw)=(%.0f,%.0f,%.1f) designate=(%.0f,%.0f,%.1f) d(sim-tgt)=(%.0f,%.0f) hitObj=%p\n",
                 XPos(), YPos(), ZPos(), gnd, dx, dy, dz,
