@@ -13909,3 +13909,44 @@ fixes the same defect at any resolution.
 
 **RECON-3: 4 sprints this pass (S5–S8) — AT THE CAP, rotating off with the defect demonstrated
 fixable and the fix one measurement from being principled.**
+
+### CCRP-5 S3 (Opus 5, 2026-09-14) — the aim converges and the wind is calm; the six-bomb stick cannot separate a bias from dispersion
+
+PO item: *"the bomb still falls to the LEFT of the bridge."* S3 asks whether that is an AIMING error
+or ordinary stick dispersion, because those want opposite fixes.
+
+**1. The stick, measured from BOOM-4 S4's own drop (six bombs, no new run needed).** Fitting the
+ground track through the six impacts and taking the designate's perpendicular distance from it:
+
+| | ft |
+|---|---|
+| target's offset from the stick's line | **+99** |
+| per-bomb scatter across that line | **−246 … +185** |
+| stick length along track | 1256 |
+
+⚠️ **So the cross-track offset is SMALLER than the scatter, and one ripple cannot tell them apart.**
+A "falls to the left" claim needs either several drops averaged or a measurement of the aim itself.
+
+**2. The aim itself** (`FF_DEBUG_CCRP=1`, new, in `FindTargetError`). The FCC's computed impact point
+walks toward the designate and the closest sample is **187 ft**, with ~800 ft of travel between
+once-a-second samples — i.e. consistent with passing through the designate. **The aiming solution
+converges.**
+
+**3. A port-specific hypothesis, tested and dead.** `FindTargetError` computes its steering error
+from the designate minus the aircraft position **advected by WIND**, not from the computed impact
+point — the alternative is in the file, commented out, with a previous author's *"What do these lines
+do here?????????"* beside it. If the port's weather model differed from Wine's, that term would
+inject a bias here only. Measured: **windVel = 0.0–0.2 ft/s**. The wind is calm, so it contributes
+nothing to this drop and the hypothesis cannot explain the PO's complaint.
+
+⭐ **One thing worth recording that I did not go looking for:** the designate MOVED during the run,
+from (1808908,1290672) to (1811527,1297890) — **8,800 ft**. For a CCRP attack the aim point changing
+mid-run is worth understanding before any bias measurement is trusted; it may be the steerpoint
+advancing, and it may be why successive drops in a mission do not land where the first one did.
+
+**S4:** either drop three or four separate sticks and average the cross-track offset (dispersion
+averages down, a bias does not), or measure the PO's own video frame by frame against the bridge.
+And explain the moving designate first, since a bias measurement taken across an aim-point change
+measures the change.
+
+**CCRP-5: 3 sprints.**

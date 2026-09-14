@@ -818,6 +818,37 @@ void FireControlComputer::FindTargetError(void)
     dx = groundDesignateX - groundImpactX;
     dy = groundDesignateY - groundImpactY;
     airGroundRange = (float)sqrt(dx * dx + dy * dy);
+
+#ifdef FF_LINUX
+    /* CCRP-5 (PO: "the bomb still falls to the LEFT of the bridge"). A six-bomb ripple cannot
+       separate an aiming bias from dispersion -- measured this sprint: the stick's line passes
+       99 ft from the designate while the per-bomb scatter is +185..-246 ft -- so measure the
+       AIMING instead, which is one number per drop.
+       Two terms are worth watching here. The steering error above is computed from the DESIGNATE
+       minus the aircraft position advected by WIND, not from the computed impact point; the
+       alternative is sitting right there, commented out, with a previous author's "What do these
+       lines do here?????????" next to it. And the wind terms are the port's own weather model, so
+       if they differ from Wine's this becomes a port defect rather than an upstream quirk.
+       FF_DEBUG_CCRP=1, once a second. */
+    if (getenv("FF_DEBUG_CCRP"))
+    {
+        static time_t last = 0;
+        time_t now = 0;
+        ::time(&now);   /* a `time` member/param shadows the function in this TU */
+
+        if (now != last)
+        {
+            last = now;
+            fprintf(stderr, "[ccrp] windHdg=%.1f deg windVel=%.1f ft/s impactTime=%.2f s  "
+                            "impact=(%.0f,%.0f) designate=(%.0f,%.0f)  d(des-impact)=(%.0f,%.0f) |%.0f| ft  "
+                            "steerBearing=%.2f deg\n",
+                    hdg * 57.2957795f, vel, groundImpactTime,
+                    groundImpactX, groundImpactY, groundDesignateX, groundDesignateY,
+                    dx, dy, airGroundRange, airGroundBearing * 57.2957795f);
+            fflush(stderr);
+        }
+    }
+#endif
 }
 
 void FireControlComputer::CheckForBombRelease(void)
