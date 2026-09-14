@@ -17,6 +17,7 @@
 #include "classtbl.h" //Wombat778 3-12-04
 
 /* 2001-04-12 S.G. BOMBING INACURACY */#include "aircrft.h"
+#include "airframe.h"   /* CCRP-5 S7: af->mach in the [ccrp] trace (the AP quits above 0.95) */
 /* 2001-04-12 S.G. BOMBING INACURACY */#include "simbrain.h"
 
 #include "simio.h"  // MD -- 20040111: added for analog cursor support
@@ -870,12 +871,25 @@ void FireControlComputer::FindTargetError(void)
         if (now != last)
         {
             last = now;
+            /* CCRP-5 S7: the S6 run flew TE 19 toward the bridge and impactTime fell
+               monotonically 18.73 -> 0.09 s without a drop.  That is either the jet
+               descending or the terrain rising under the impact point, and the trace
+               could not tell them apart.  Print BOTH heights (aircraft and the ground
+               at the impact point, both as positive altitudes), the climb rate, the
+               speed, and the autopilot state, so the next run says which. */
+            const float acAlt  = -platform->ZPos();
+            const float impAlt = -groundImpactZ;
+            const float acVs   = -platform->ZDelta();
+            const AircraftClass *ac = (AircraftClass *)platform;
+            const int apType = (int)ac->AutopilotType();  /* 0=3axis 1=wpt 2=combat 3=lantirn 4=off */
+
             fprintf(stderr, "[ccrp] windHdg=%.1f deg windVel=%.1f ft/s impactTime=%.2f s  "
                             "impact=(%.0f,%.0f) designate=(%.0f,%.0f)  d(des-impact)=(%.0f,%.0f) |%.0f| ft  "
-                            "steerBearing=%.2f deg\n",
+                            "steerBearing=%.2f deg  acAlt=%.0f ft impactGndAlt=%.0f ft vs=%+.0f ft/s vt=%.0f ft/s mach=%.2f ap=%d\n",
                     hdg * 57.2957795f, vel, groundImpactTime,
                     groundImpactX, groundImpactY, groundDesignateX, groundDesignateY,
-                    dx, dy, airGroundRange, airGroundBearing * 57.2957795f);
+                    dx, dy, airGroundRange, airGroundBearing * 57.2957795f,
+                    acAlt, impAlt, acVs, platform->GetVt(), ac->af ? ac->af->mach : -1.0f, apType);
             fflush(stderr);
         }
     }

@@ -723,6 +723,28 @@ bool DigitalBrain::APAutoDisconnect(void)
 
 int DigitalBrain::CheckAPParameters(void)
 {
+#ifdef FF_LINUX
+    /* CCRP-5 S7: the autopilot drops out mid-sortie in both harness runs of TE 19 and the jet then
+       flies unattended past the target.  Every caller reacts to this function by switching the AP
+       OFF without saying why, so print the term that tripped -- once, the first time. */
+    if (getenv("FF_DEBUG_CCRP"))
+    {
+        static int said = 0;
+        const float pitchDeg = self->Pitch() * RTD, rollDeg = self->Roll() * RTD;
+        const float mach = self->af ? self->af->mach : -1.0f, alt = -self->ZPos();
+
+        if ( not said and (pitchDeg > 60.2F or pitchDeg < -60.2F or rollDeg > 60.2F or
+                           rollDeg < -60.2F or mach > 0.95 or alt > 40000))
+        {
+            said = 1;
+            fprintf(stderr, "[ap-off] CheckAPParameters tripped: pitch=%.1f deg roll=%.1f deg "
+                            "mach=%.3f alt=%.0f ft  (limits +-60.2 deg, mach 0.95, 40000 ft)\n",
+                    pitchDeg, rollDeg, mach, alt);
+            fflush(stderr);
+        }
+    }
+#endif
+
     //dont do anything if not within parameters
     if ((self->Pitch() * RTD > 60.2F) or (self->Pitch() * RTD < -60.2F))
         return TRUE;

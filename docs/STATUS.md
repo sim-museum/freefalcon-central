@@ -14143,3 +14143,57 @@ measurement CCRP-5 has needed since the PO first reported it is one drop away, a
 already confirmed to be the bridge.
 
 **CCRP-5: the item now has the right mission, the right target, and one harness gap left.**
+
+### CCRP-5 S7 (Opus 5, 2026-09-14) — ⭐ the jet DOES reach the bridge; the release never comes because the autopilot flies the ROUTE and the CCRP aims at the TARGET, 2,850 ft apart
+
+S6 flew the PO's mission at last and read `impactTime` collapsing 18.73 → 0.09 s with no drop, and
+called TE 19 "not airborne". **Both halves of that were wrong, and one enriched trace says so.** The
+`[ccrp]` line now carries the aircraft's own state — altitude, the ground height under the computed
+impact point, climb rate, speed, Mach and autopilot mode — instead of only the bomb solution:
+
+    [ccrp] ... impactTime=18.72 s  ...  acAlt=7304 ft impactGndAlt=1613 ft vs=-3 ft/s vt=671 ft/s ap=0
+
+**TE 19 starts airborne at 7,300 ft, level, at 400 kt, with the autopilot engaged.** The collapse S6
+saw was neither terrain nor a ground start:
+
+| sample | acAlt | vt | ap |
+|---|---|---|---|
+| 1 | 7304 ft | 671 ft/s | 0 (3-axis) |
+| 60 | 7301 ft | 387 ft/s | 0 |
+| 68 | 7253 ft | 349 ft/s | **4 (OFF)** |
+| 150 | 1369 ft | 446 ft/s | 4 |
+
+⚠️ **The harness never touched the throttle.** The jet decelerated 671 → 349 ft/s over a minute, the
+autopilot dropped out, and the unattended aircraft glided into the terrain 17 nm short. Five
+sprints of "navigation is the problem" were a jet running out of speed.
+
+**Fixing that found the autopilot's own limit, and the new probe names it.** Full afterburner
+(`Ctrl+0x0D`) took it to Mach 0.976 and the AP quit again — `DigitalBrain::CheckAPParameters()`
+switches the AP off above **Mach 0.95** (also ±60.2° pitch/roll, 40,000 ft), and every caller acts on
+that without saying why, so `[ap-off]` now prints the term that tripped.
+
+⭐ **At military power (three coarse steps, Mach 0.93) the autopilot flew the whole route to the
+target — and the bomb still did not release.** 433 samples, `ap=0` throughout, the jet passing the
+designate at 7,338 ft and 600 kt. The release test is `airGroundRange / Vt < 0.1 s`, i.e. **under
+~100 ft**, and the closest the computed impact point ever came was **2,862 ft**:
+
+    d(des-impact)=(2688,-10875) |11203| ft  steerBearing=5.06 deg
+    d(des-impact)=(2838, -779)  | 2943| ft  steerBearing=8.01 deg
+    d(des-impact)=(2853, +228)  | 2862| ft  steerBearing=8.48 deg   <-- along-track error crosses zero
+
+⭐ **Read the two columns separately and the whole item changes shape.** The ALONG-track error sweeps
+cleanly through zero — the ballistics are timing the drop correctly. The CROSS-track error is
+**+2,850 ft and growing**, and the steering cue the FCC is publishing climbs 5° → 8.5° asking for a
+right turn that nobody flies. **The autopilot steers to the ROUTE STEERPOINT; the CCRP aims at the
+DESIGNATED TARGET; on this mission they are ~2,850 ft apart.** A human pilot closes that with the
+steering cue, which is exactly what the PO was doing when they typed the coordinates in by hand.
+
+**So the measurement is not blocked by navigation or by the autopilot; it is blocked by the last 8°.**
+**S8 takes the cheap way round it:** the miss we owe the PO is |actual impact − designate|, and the
+designate is a harness input (`FF_SET_DESIGNATE`). Put it on the jet's own ground track — read from
+this run — and the release condition is satisfiable without steering, giving a real bomb impact
+against a known aim point. The bridge stays the reference for the *scenario*; the *bias* is the
+number.
+
+**CCRP-5: 3 sprints this pass (S5–S7). First run in the item's history in which the aircraft reached
+its target.**
