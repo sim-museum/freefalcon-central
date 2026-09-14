@@ -129,6 +129,37 @@ void FireControlComputer::AirGroundMode(void)
 
         case CCRP:
             SetDesignatedTarget();
+#ifdef FF_LINUX
+            /* CCRP-5 S5 (2026-09-14): A HARNESS HOOK, not a game change. S4 found every CCRP
+               measurement so far was against a steerpoint 27 nm from the PO's bridge, and S5
+               measured why: stepping this TE's six steerpoints designates
+               (1366111,1362831) (1415311,1316911) (1431711,1362831) (1543230,1425151)
+               (1808908,1290672) (1808908,1359551) -- and NONE of them is T'osan Bridge at
+               (1648254,1320669), the target its own recon window names. The PO reached it by
+               typing the coordinates in (their video is named
+               260913_ccrp_entered_exact_coords_...), which the harness cannot do.
+               FF_SET_DESIGNATE="x,y" puts the aim point where the PO put it, so the miss can be
+               measured against the thing they were actually bombing. Never set in a real game. */
+            {
+                static int s_init = 0;
+                static float s_dx = 0.0f, s_dy = 0.0f;
+
+                if ( not s_init)
+                {
+                    s_init = 1;
+                    const char *e = getenv("FF_SET_DESIGNATE");
+
+                    if (e) sscanf(e, "%f,%f", &s_dx, &s_dy);
+                }
+
+                if (s_dx not_eq 0.0f)
+                {
+                    groundDesignateX = s_dx;
+                    groundDesignateY = s_dy;
+                    groundDesignateZ = OTWDriver.GetGroundLevel(s_dx, s_dy);
+                }
+            }
+#endif
 
             // Where will it hit?
             if (masterMode == AirGroundRocket)

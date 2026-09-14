@@ -14051,3 +14051,35 @@ window** with the river and the bridge **centred**, the LAT/LONG line legible, a
 property the PO's complaint was really about, and it now holds without a constant anywhere in it.
 
 **RECON-3: 2 sprints this pass (S9 fix, S10 hardening).**
+
+### CCRP-5 S5 (Opus 5, 2026-09-14) — the aim point can now be put where the PO put it; the jet still never flies there
+
+S4 established that every CCRP measurement had been taken against a steerpoint 27 nm from the PO's
+bridge. S5 went to fix that.
+
+**First, why the harness could not simply pick the right steerpoint.** Stepping this TE's route
+(`0x1F` × 6, logging each designate) gives:
+
+    (1366111,1362831) (1415311,1316911) (1431711,1362831) (1543230,1425151) (1808908,1290672) (1808908,1359551)
+
+⭐ **None of them is T'osan Bridge at (1648254,1320669) — the target this TE's own recon window
+names.** The route and the recon target list do not agree, which is why the PO typed coordinates in
+(their video: `260913_ccrp_entered_exact_coords_…`).
+
+**So the harness got the same ability:** `FF_SET_DESIGNATE="x,y"` overrides the ground designate in
+the CCRP branch — a diagnostic hook, never set in a real game. It works:
+
+    [ccrp] ... designate=(1648254,1320669)   -- the bridge, as the PO aimed
+
+⚠️ **And no bombs fell.** The FCC releases when its computed impact point reaches the designate, and
+the closest this drop got was **136,262 ft — 22 nm**, because the aircraft flies its own route away
+from the bridge for the whole sortie. Aiming is solved; **navigation is not.**
+
+**S6 has two ways and should take the cheaper one first.** Either find the TE whose ROUTE ends at the
+bridge (the PO flew one — the recon window's target list is not proof that this TE's route does), or
+fly to the designate: `0x1E` engages the autopilot on the route, so a steerpoint override would have
+to come with it. **Until a drop lands near the bridge there is still no measurement of "the bomb
+falls to the left of it"** — and S4's withdrawal of the earlier numbers stands.
+
+**CCRP-5: 5 sprints, and the item is still without its central measurement. The instrument gap is
+navigation, not aiming.**
