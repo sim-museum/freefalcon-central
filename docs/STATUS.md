@@ -13653,3 +13653,56 @@ impact. The right change is the opposite: snap the DRAWABLE to the sim position 
 with it. Env-gate it, drop with a weapon-view capture, and compare against the PO's video.
 
 **BOOM-4: 2 sprints.**
+
+### BOOM-4 S3 (Opus 5, 2026-09-14) — ⭐ FIXED: the visible bomb now arrives where the burst is drawn
+
+S1 and S2 both read the sim-vs-drawable gap at the burst as a per-frame LAG, and S2's ratios
+(0.60, 0.66) refused to be one frame. S3 stopped arguing about the constant and followed a single
+bomb frame by frame through its whole last second (`FF_DEBUG_BOMBTRACK=1`).
+
+⚠️ **The first run of that probe printed nonsense** — `sim=(1296588,-1664,1810385.7)`, an x that was
+really y and a z that was really the clock. `SimLibElapsedTime` is integral and I passed it to `%f`,
+which shifts every argument after it. Caught by the absurdity of the numbers, not by the code.
+(Third time this session an instrument has had to be fixed before it could be believed.)
+
+**MEASURED with the probe corrected — the lag reading was wrong:**
+
+    t=32705773  sim=(1812533,1297511,-742.1) draw=(1812533,1297511,-742.1) d=0.0   agl=9.0
+    t=32705794  sim=(1812541,1297518,-733.3) draw=(1812533,1297511,-742.1) d=14.1  agl=0.0  delta=(0,0,0)
+    t=32705814  ...                                                        d=14.1  boom=1
+
+⭐ **The drawable does not lag at all.** `d=0.0 ft` on EVERY airborne frame, for the whole fall. The
+gap opens in exactly one frame — the impact frame — because two things happen in the same step:
+the sim jumps the bomb from its last airborne point to the ground (`z = terrainHeight`, delta
+zeroed) and `SetExploding(TRUE)` closes the gate at `drawobjs.cpp:109` that copies position to the
+drawable. The visible bomb is abandoned at the last airborne point, 9 ft up and short.
+
+⭐ **That explains every number that did not fit.** The gap is the UNSPENT REMAINDER of the last
+frame, so it is a different fraction of a frame's travel on every drop — S1's 20.4 ft, CCRP-5 S2's
+2.1 ft, S2's 0.60/0.66, this run's 14.1 ft of an 18 ft frame (0.78). Never a constant, never a whole
+frame. S1's and S2's mechanism was wrong; only the size was right.
+
+**FIX** (`src/sim/bomb/bombmain.cpp`, after the final `SetPosition`, `FF_NO_BOMB_IMPACT_SNAP=1`
+reverts): push the impact position through to the drawable once, via the renderer's own
+`OTWDriver.ObjectSetData` + `DrawableBSP::Update`. The sim position is untouched, so the crater,
+the damage and the end message are exactly as before.
+
+**VERIFIED on a fresh drop, all SIX bombs of the ripple:**
+
+    [bombtrack] ... d=0.0  boom=1          (every bomb, at the burst frame)
+    [bombpos] EXPLODE ... d(sim-draw)=(0,0,0.0)
+    [boom4] LAG gap=0.00 ft  speed=920.0 ft/s
+
+⚠️ **What this does NOT claim.** 14–22 ft is not a bridge length. This removes a real, measured
+mismatch between where the bomb is seen and where the burst is drawn, and it should help the PO's
+"explosion before the bomb lands" directly, but I have not shown it accounts for the whole
+impression. Two things in the same data are still unexplained and belong to S4:
+
+* the bomb model stays drawn for a second after the burst (`SpecialGraphics` switches it at
+  `timeOfDeath + 1 s`), sitting on the crater;
+* the final z is taken from a `terrainHeight` sampled before the last step, so on sloping ground the
+  bomb settles up to **10.7 ft BELOW** the surface under its final x,y (measured here: agl −2.6,
+  −5.6, −10.7 on three of six bombs). The PO's "shallow trajectories burst a little above terrain"
+  is the same sampling error with the sign the other way.
+
+**BOOM-4: 3 sprints. Needs a PO look at the next AppImage.**

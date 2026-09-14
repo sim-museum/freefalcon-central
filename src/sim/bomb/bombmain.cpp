@@ -357,6 +357,39 @@ int BombClass::Exec(void)
 
     SoundPos.UpdatePos(this);
 
+#ifdef FF_LINUX
+    /* BOOM-4 S3 (2026-09-14): S2 measured a 22 ft gap between the sim bomb and its drawable at the
+       burst -- real, but 22 ft is NOT a bridge length, so the one-off lag cannot by itself be the
+       PO's "explosion one bridge-length before the bombs disappear into terrain". Two other
+       candidates live in this file and neither has been measured: the bomb model is still drawn
+       after the burst (SpecialGraphics only switches it at timeOfDeath + 1 s), and nothing says the
+       drawable stops MOVING when the sim position is frozen (SetDelta(0,0,0) at impact). Follow one
+       bomb frame by frame through its last second: sim position, drawable position, ground, and the
+       flags. FF_DEBUG_BOMBTRACK=1. */
+    if (getenv("FF_DEBUG_BOMBTRACK"))
+    {
+        const float gnd = OTWDriver.GetGroundLevel(XPos(), YPos());
+        if (ZPos() > gnd - 1000.0f)
+        {
+            const float dx = drawPointer ? drawPointer->X() : 0.0f;
+            const float dy = drawPointer ? drawPointer->Y() : 0.0f;
+            const float dz = drawPointer ? drawPointer->Z() : 0.0f;
+            fprintf(stderr, "[bombtrack] id=%d t=%.0f sim=(%.0f,%.0f,%.1f) draw=(%.0f,%.0f,%.1f) "
+                            "d=%.1f gnd=%.1f agl=%.1f delta=(%.0f,%.0f,%.0f) boom=%d dead=%d tod=%.0f\n",
+                    /* SimLibElapsedTime is INTEGRAL: passing it to %f shifts every argument
+                       after it. The first run of this probe printed sim=(1296588,-1664,1810385.7)
+                       -- an x that was really y and a z that was really the clock -- and only the
+                       absurdity of the numbers gave it away. Cast it. */
+                    (int)Id().num_, (double)SimLibElapsedTime, XPos(), YPos(), ZPos(), dx, dy, dz,
+                    (float)sqrt((double)(XPos()-dx)*(XPos()-dx) + (double)(YPos()-dy)*(YPos()-dy)
+                                + (double)(ZPos()-dz)*(ZPos()-dz)),
+                    gnd, gnd - ZPos(), XDelta(), YDelta(), ZDelta(),
+                    IsSetFlag(SHOW_EXPLOSION) ? 1 : 0, IsDead() ? 1 : 0, (float)timeOfDeath);
+            fflush(stderr);
+        }
+    }
+#endif
+
     AircraftClass *playerAC = SimDriver.GetPlayerAircraft();
 
     if (playerAC and playerAC->IsSetFlag(MOTION_OWNSHIP))
@@ -1120,6 +1153,39 @@ int BombClass::Exec(void)
         }
 
         SetPosition(x, y, z);
+
+#ifdef FF_LINUX
+        /* BOOM-4 S3 (2026-09-14): snap the DRAWABLE to the impact point.
+           Measured frame by frame through a whole CCRP fall (FF_DEBUG_BOMBTRACK=1): the drawable
+           tracks the sim position EXACTLY, d=0.0 ft, for every airborne frame -- so the "the
+           drawable lags a frame" reading of S1/S2 was wrong. The gap appears in ONE frame, the
+           impact frame, and it appears because two things happen in the same step: the sim jumps
+           the bomb from its last airborne point to the ground (z = terrainHeight, delta zeroed),
+           and SetExploding(TRUE) closes the gate in drawobjs.cpp:109 that copies position to the
+           drawable. The visible bomb is left at the last airborne point:
+
+               t=32705773  sim=(...,-742.1) draw=(...,-742.1) d=0.0  agl=9.0
+               t=32705794  sim=(...,-733.3) draw=(...,-742.1) d=14.1 agl=0.0  delta=(0,0,0)
+               t=32705814  ... boom=1, drawable still 14.1 ft away
+
+           That also explains the numbers that did not fit: the gap is the UNSPENT REMAINDER of the
+           last frame, so it is a different fraction every drop (S1: 20.4 ft, CCRP-5 S2: 2.1 ft,
+           S2's ratios 0.60/0.66, here 14.1 ft of an 18 ft frame = 0.78) -- not a constant, and not
+           a whole frame. Push the final position through once so the visible bomb arrives where it
+           actually hit and the burst appears with it. The sim position is untouched, so the crater
+           and the damage report are unaffected. FF_NO_BOMB_IMPACT_SNAP=1 reverts. */
+        if (IsExploding() and drawPointer and not getenv("FF_NO_BOMB_IMPACT_SNAP"))
+        {
+            Tpoint loc;
+            Trotation rot;
+            OTWDriver.ObjectSetData(this, &loc, &rot);
+
+            if (drawPointer->GetClass() == DrawableObject::BSP)
+            {
+                ((DrawableBSP *)drawPointer)->Update(&loc, &rot);
+            }
+        }
+#endif
     }
 
     return TRUE;
