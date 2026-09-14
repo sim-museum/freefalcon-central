@@ -86,6 +86,19 @@ void RadarDopplerClass::ExecModes(int newDesignate, int newDrop)
             GMMode();
             break;
     }
+#ifdef FF_LINUX
+    /* GMOBJ-1: GMMode() has no early return before its rebuild gate, yet the gate print never
+       fired in 52 s of the MFD showing "GM". So either this dispatch is not running, or `mode`
+       here is not GM/GMT/SEA while the page says it is. Print what this switch actually saw. */
+    if (getenv("FF_DEBUG_GMFEAT"))
+    {
+        static long n = 0; static int lastMode = -1;
+        if (mode != lastMode or (n % 300) == 0)
+            fprintf(stderr, "[gmdisp] call %ld: mode=%d (GM=%d GMT=%d SEA=%d) emitting=%d\n",
+                    n, (int)mode, (int)GM, (int)GMT, (int)SEA, (int)isEmitting), fflush(stderr);
+        lastMode = mode; n++;
+    }
+#endif
 
     didDesignate = designateCmd;
 

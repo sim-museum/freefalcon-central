@@ -1397,6 +1397,36 @@ void BombClass::DoExplosion(void)
     FalconMissileEndMessage* endMessage;
     float groundZ;
 
+#ifdef FF_LINUX
+    /* CCRP-5 (PO 2026-09-13, 260913_ccrp_entered_exact_coords_bombs_after_explosion.mp4): in the
+       weapon view the bombs are seen falling over the fields LEFT of the road while the explosion
+       ring is drawn ON the bridge, and the explosion appears before the bomb is seen to land. The
+       impact effect is placed from THIS object's sim position (FalconMissileEndMessage, minus
+       0.12 s of travel), so an effect at the target with a bomb drawn elsewhere means the
+       DRAWABLE is not where the sim bomb is. Print both, plus the FCC designate point, at the
+       moment of the explosion. FF_DEBUG_BOMBPOS=1. */
+    if (getenv("FF_DEBUG_BOMBPOS"))
+    {
+        const float dx = drawPointer ? drawPointer->X() : 0.0f;
+        const float dy = drawPointer ? drawPointer->Y() : 0.0f;
+        const float dz = drawPointer ? drawPointer->Z() : 0.0f;
+        const float gnd = OTWDriver.GetGroundLevel(XPos(), YPos());
+        float tx = 0.0f, ty = 0.0f, tz = 0.0f;
+        if (parent and ((AircraftClass *)parent.get())->FCC)
+        {
+            tx = ((AircraftClass *)parent.get())->FCC->groundDesignateX;
+            ty = ((AircraftClass *)parent.get())->FCC->groundDesignateY;
+            tz = ((AircraftClass *)parent.get())->FCC->groundDesignateZ;
+        }
+        fprintf(stderr, "[bombpos] EXPLODE sim=(%.0f,%.0f,%.1f) gnd=%.1f drawable=(%.0f,%.0f,%.1f) "
+                        "d(sim-draw)=(%.0f,%.0f,%.1f) designate=(%.0f,%.0f,%.1f) d(sim-tgt)=(%.0f,%.0f) hitObj=%p\n",
+                XPos(), YPos(), ZPos(), gnd, dx, dy, dz,
+                XPos() - dx, YPos() - dy, ZPos() - dz, tx, ty, tz, XPos() - tx, YPos() - ty,
+                (void *)hitObj);
+        fflush(stderr);
+    }
+#endif
+
     if ( not IsSetFlag(SHOW_EXPLOSION))
     {
         // edg note: all special effects are now handled in the
