@@ -5418,6 +5418,169 @@ static void FF_ReadbackFBOSurface(D3D7Surface *surf)
     surf->fboDirty = false;
 }
 
+// FF_LINUX (RECON-1, PO 2026-09-13): the campaign RECON window renders its aerial view with
+// RenderOTW targeting the UI's PRIMARY surface. On Windows that surface IS the screen, so the
+// terrain simply appears. Here SetRenderTarget gives every OFF-SCREEN surface an FBO with a
+// readback into pixelData, but the primary surface takes the default-framebuffer branch: the OTW
+// pass draws terrain (and the LAT/LNG line) into the GL back buffer, and FF_PresentPrimarySurface
+// then uploads the software pixelData over the whole window every frame. Measured: ViewGreyOTW
+// runs to completion with a valid renderer six times per recon, and the UI surface still holds
+// only the map afterwards -- the render lands where the present path cannot see it.
+// Read the recon viewport back from the default framebuffer into pixelData, so the UI's own
+// present carries it. Rect is in top-down UI pixels; GL rows are bottom-up.
+static int g_ffReconRect[4] = {0,0,0,0};
+static unsigned long g_ffReconRectHash = 0;
+/* RECON-1 S4: the readback is CACHED here at render time and APPLIED at present time. S3 proved
+   the FBO holds the correct aerial and the copy lands, and that the UI's draw pass then repaints
+   the map over the rect before present ("REPAINTED before present" on every frame but the first).
+   The recon renderer refreshes at ~13 Hz on its own timer while the present runs at 60 Hz, so a
+   one-shot copy would show the map on four frames in five; keep it armed while the viewer exists
+   and let C_3dViewer::Cleanup disarm it. */
+static std::vector<unsigned char> g_ffReconCache;
+static int g_ffReconCacheW = 0, g_ffReconCacheH = 0, g_ffReconCacheBpp = 4;
+static int g_ffReconArmed = 0;
+
+extern "C" void FF_ReconReadbackDisarm(void)
+{
+    g_ffReconArmed = 0;
+    if (getenv("FF_DEBUG_RECON")) { fprintf(stderr, "[recon]   readback disarmed\n"); fflush(stderr); }
+}
+extern "C" int FF_ReadbackPrimaryRect(IDirectDrawSurface7 *srcDDS, int l, int t, int r, int b)
+{
+    D3D7Surface *surf = g_pPrimarySurface;
+    D3D7Surface *src  = (D3D7Surface *)srcDDS;
+
+    if ( not surf or not surf->pixelData) return 0;
+
+    extern SDL_GLContext g_GLContext;
+
+    if ( not g_GLContext or not SDL_GL_GetCurrentContext()) return 0;
+
+    /* RECON-1 S2: the first version read framebuffer 0 and captured the MAP -- the UI's own last
+       present -- because the recon context does not target the primary at all. FF_DEBUG_RT showed
+       exactly ONE off-screen SetRenderTarget in a run with 134 recon frames: the UI ImageBuffer's
+       BACK surface (1024x768, primary=0), bound once at ContextMPR::Setup and never rebound, so
+       every recon frame renders into that surface's FBO and nothing presents it. Source the
+       readback from the context's real target. Say which surface that is, once. */
+    {
+        static int said = 0;
+        if ( not said and getenv("FF_DEBUG_RECON"))
+        {
+            said = 1;
+            fprintf(stderr, "[recon]   readback source surf=%p primary=%d fbo=%u glTex=%u %dx%d  (primary surf=%p)\n",
+                    (void *)src, src ? (int)src->isPrimary : -1, src ? src->fboId : 0u,
+                    src ? src->glTexture : 0u, src ? src->width : 0, src ? src->height : 0,
+                    (void *)surf);
+            fflush(stderr);
+        }
+    }
+
+    if (l < 0) l = 0;
+    if (t < 0) t = 0;
+    if (r > surf->width)  r = surf->width;
+    if (b > surf->height) b = surf->height;
+
+    const int w = r - l, h = b - t;
+
+    if (w <= 0 or h <= 0) return 0;
+
+    GLint prevFBO = 0;
+
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFBO);
+    // read from the context's real target: its FBO if it has one, else the default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, (src and src->fboId) ? src->fboId : 0);
+    const int srcH = (src and src->fboId) ? src->height : surf->height;
+
+    const int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
+    static std::vector<unsigned char> tmp;
+
+    tmp.resize((size_t)w * h * 4);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    // GL y of the rect's bottom row = source height - b
+    glReadPixels(l, srcH - b, w, h, GL_BGRA, GL_UNSIGNED_BYTE, tmp.data());
+
+    /* RECON-1 S3: three hypotheses, one instrument each, all under FF_DEBUG_RECON:
+         (A) the FBO does not hold terrain   -> dump the first readback to /tmp/ff_recon_fbo.ppm
+         (B) the copy never lands            -> hash the primary rect before and after the copy
+         (C) it lands and is repainted over  -> g_ffReconRectHash is re-checked at present time */
+    const int dbg = getenv("FF_DEBUG_RECON") ? 1 : 0;
+    unsigned long hBefore = 0;
+    if (dbg)
+    {
+        static int dumped = 0;
+        if ( not dumped)
+        {
+            dumped = 1;
+            FILE *f = fopen("/tmp/ff_recon_fbo.ppm", "wb");
+            if (f)
+            {
+                fprintf(f, "P6\n%d %d\n255\n", w, h);
+                const int fl = (src and src->fboId) ? 0 : 1;
+                for (int y = 0; y < h; y++)
+                {
+                    const unsigned char *row = tmp.data() + (size_t)(fl ? (h - 1 - y) : y) * w * 4;
+                    for (int x = 0; x < w; x++) { unsigned char rgb[3] = { row[x*4+2], row[x*4+1], row[x*4+0] }; fwrite(rgb, 1, 3, f); }
+                }
+                fclose(f);
+                fprintf(stderr, "[recon]   FBO contents dumped to /tmp/ff_recon_fbo.ppm (%dx%d)\n", w, h);
+            }
+        }
+        for (int y = 0; y < h; y += 4)
+            for (int x = 0; x < w; x += 4)
+                hBefore = hBefore * 31u + surf->pixelData[(size_t)(t + y) * surf->pitch + (size_t)(l + x) * bpp];
+    }
+
+    /* RECON-1 S5: ORIENTATION. The first working image had the LAT/LNG line at the BOTTOM and
+       the terrain inverted. The shim's own rule (the XYZRHW ortho setup): "FBO rendering: DON'T
+       flip Y so texture v=0 reads what was drawn at D3D y=0" -- an FBO target is TOP-DOWN, only
+       the default framebuffer is bottom-up. So flip rows only when reading framebuffer 0. */
+    const int flipRows = (src and src->fboId) ? 0 : 1;
+
+    for (int y = 0; y < h; y++)
+    {
+        const unsigned char *srcRow = tmp.data() + (size_t)(flipRows ? (h - 1 - y) : y) * w * 4;
+        unsigned char *dstRow = surf->pixelData + (size_t)(t + y) * surf->pitch + (size_t)l * bpp;
+
+        if (bpp == 4)
+            memcpy(dstRow, srcRow, (size_t)w * 4);
+        else
+            for (int x = 0; x < w; x++)
+                memcpy(dstRow + (size_t)x * bpp, srcRow + (size_t)x * 4, bpp);
+    }
+
+    if (dbg)
+    {
+        unsigned long hAfter = 0;
+        for (int y = 0; y < h; y += 4)
+            for (int x = 0; x < w; x += 4)
+                hAfter = hAfter * 31u + surf->pixelData[(size_t)(t + y) * surf->pitch + (size_t)(l + x) * bpp];
+        g_ffReconRect[0] = l; g_ffReconRect[1] = t; g_ffReconRect[2] = r; g_ffReconRect[3] = b;
+        g_ffReconRectHash = hAfter;
+        static long n = 0;
+        if (n++ < 6)
+            fprintf(stderr, "[recon]   primary rect hash before copy=%08lx after=%08lx (%s) bpp=%d pitch=%d\n",
+                    hBefore, hAfter, hBefore == hAfter ? "UNCHANGED" : "changed", bpp, surf->pitch), fflush(stderr);
+    }
+
+    /* RECON-1 S4: keep a copy for the present-time apply (rows already top-down in tmp order
+       reversed below), so every present carries the latest recon frame. */
+    g_ffReconCacheW = w; g_ffReconCacheH = h; g_ffReconCacheBpp = bpp;
+    g_ffReconCache.resize((size_t)w * h * bpp);
+    for (int y = 0; y < h; y++)
+    {
+        const unsigned char *srcRow = tmp.data() + (size_t)(flipRows ? (h - 1 - y) : y) * w * 4;
+        unsigned char *dstRow = g_ffReconCache.data() + (size_t)y * w * bpp;
+        if (bpp == 4) memcpy(dstRow, srcRow, (size_t)w * 4);
+        else for (int x = 0; x < w; x++) memcpy(dstRow + (size_t)x * bpp, srcRow + (size_t)x * 4, bpp);
+    }
+    g_ffReconRect[0] = l; g_ffReconRect[1] = t; g_ffReconRect[2] = r; g_ffReconRect[3] = b;
+    g_ffReconArmed = 1;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, prevFBO);
+    surf->isDirty = true;
+    return 1;
+}
+
 // FF_LINUX (GMRADAR-3): let render-side diagnostics name a surface's GL texture
 // object and dirty state without knowing D3D7Surface's layout.
 extern "C" void FF_SurfaceGLInfo(IDirectDrawSurface7 *s, unsigned *glTex, int *dirty)
@@ -5955,6 +6118,35 @@ void FF_PresentPrimarySurface() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    /* RECON-1 S4: apply the cached recon frame as the LAST write before the upload, so the UI's
+       repaint of the map underneath cannot win. */
+    if (g_ffReconArmed and g_ffReconCacheW > 0 and surf->pixelData)
+    {
+        const int l = g_ffReconRect[0], t = g_ffReconRect[1];
+        const int w = g_ffReconCacheW, h = g_ffReconCacheH, bpp = g_ffReconCacheBpp;
+        if (l >= 0 and t >= 0 and l + w <= surf->width and t + h <= surf->height)
+            for (int y = 0; y < h; y++)
+                memcpy(surf->pixelData + (size_t)(t + y) * surf->pitch + (size_t)l * bpp,
+                       g_ffReconCache.data() + (size_t)y * w * bpp, (size_t)w * bpp);
+    }
+
+    /* RECON-1 S3 (C): does the recon rect written by FF_ReadbackPrimaryRect survive to the
+       present, or does the UI repaint the map over it in between? */
+    if (g_ffReconRectHash and getenv("FF_DEBUG_RECON"))
+    {
+        const int l = g_ffReconRect[0], t = g_ffReconRect[1], r = g_ffReconRect[2], b = g_ffReconRect[3];
+        const int bpp = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
+        unsigned long h = 0;
+        for (int y = 0; y < b - t; y += 4)
+            for (int x = 0; x < r - l; x += 4)
+                h = h * 31u + surf->pixelData[(size_t)(t + y) * surf->pitch + (size_t)(l + x) * bpp];
+        static long n = 0;
+        if (n++ < 6)
+            fprintf(stderr, "[recon]   at PRESENT the rect hash is %08lx vs %08lx written by the readback: %s\n",
+                    h, g_ffReconRectHash, h == g_ffReconRectHash ? "SURVIVED" : "REPAINTED before present"), fflush(stderr);
+        g_ffReconRectHash = 0;
+    }
 
     // Upload surface data to texture (BGRA format, 32-bit)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surf->width, surf->height, 0,

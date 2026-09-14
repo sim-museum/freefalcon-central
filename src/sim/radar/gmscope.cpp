@@ -363,10 +363,25 @@ void RadarDopplerClass::GMMode(void)
             VuListIterator featureWalker(SimDriver.combinedFeatureList);
             walker = &featureWalker;
             testFeature = (FalconEntity*)walker->GetFirst();
+#ifdef FF_LINUX
+            /* GMOBJ-1 (PO 2026-09-13, videos 260913_harm_hit.mp4 / 260913_lgb.mp4): the GM
+               scope shows no object where the TGP plainly sees the bridge and the HAD lists the
+               SAM. GM mode draws GMFeatureListRoot, and this is the only place that list is fed:
+               a feature enters only if InitialGroundContactTest returns canSee > 1.0 while the
+               radar is emitting. Count the walk so an empty scope can be attributed -- no
+               features in combinedFeatureList, none passing the contact test, or none emitting.
+               FF_DEBUG_GMFEAT=1, once per rebuild (every 500 ms). */
+            static int ffFeatDbg = -1; long ffWalked = 0, ffEmit = 0, ffSeen = 0, ffAdded = 0, ffDropped = 0;
+            if (ffFeatDbg < 0) ffFeatDbg = getenv("FF_DEBUG_GMFEAT") ? 1 : 0;
+#endif
 
             while (testFeature)
             {
                 canSee = 0;
+#ifdef FF_LINUX
+                ffWalked++;
+                if (isEmitting) ffEmit++;
+#endif
 
                 if (isEmitting)
                 {
@@ -382,15 +397,24 @@ void RadarDopplerClass::GMMode(void)
                 // update entity flags
                 if (canSee < .8f)
                 {
+#ifdef FF_LINUX
+                    ffDropped++;
+#endif
                     // clear the flags
                     testFeature->UnSetFELocalFlag(FELF_ON_PLAYERS_GM_CONTACT_LIST);
                 }
                 else
                 {
+#ifdef FF_LINUX
+                    ffSeen++;
+#endif
                     if (canSee > 1.0f)
                     {
                         if ( not testFeature->IsSetFELocalFlag(FELF_ON_PLAYERS_GM_CONTACT_LIST))
                         {
+#ifdef FF_LINUX
+                            ffAdded++;
+#endif
                             // only add new nodes if we're not in the list already
                             GMList *newNode = new GMList(testFeature);
                             newNode->next = GMFeatureListRoot;
@@ -408,6 +432,16 @@ void RadarDopplerClass::GMMode(void)
         {
             VuListIterator objectWalker(SimDriver.combinedList);
             walker = &objectWalker;
+#ifdef FF_LINUX
+            if (ffFeatDbg)
+            {
+                static long ffRep = 0; long listLen = 0;
+                for (GMList* q = GMFeatureListRoot; q; q = q->next) listLen++;
+                if ((ffRep++ % 4) == 0)
+                    fprintf(stderr, "[gmfeat] walked=%ld emitting=%ld seen(>=0.8)=%ld added=%ld dropped=%ld  list=%ld  mode=%d\n",
+                            ffWalked, ffEmit, ffSeen, ffAdded, ffDropped, listLen, (int)mode), fflush(stderr);
+            }
+#endif
             testFeature = (FalconEntity*)walker->GetFirst();
 
             // add features to target list that aren't already in the target list

@@ -25,6 +25,10 @@ extern C_Handler *gMainHandler;
 extern bool g_bUse_DX_Engine;
 
 extern bool g_bReconLatLong; //Wombat778 11-3-2003
+#ifdef FF_LINUX
+extern "C" int FF_ReadbackPrimaryRect(IDirectDrawSurface7 *, int, int, int, int);   // RECON-1, d3d_gl.cpp
+extern "C" void FF_ReconReadbackDisarm(void);
+#endif
 extern OBJECTINFO Recon; //Wombat778 11-3-2003
 
 //JAM 21Nov03
@@ -140,6 +144,9 @@ BOOL C_3dViewer::InitOTW(float, BOOL Preload)
 
 BOOL C_3dViewer::Cleanup()
 {
+#ifdef FF_LINUX
+    FF_ReconReadbackDisarm();   /* RECON-1 S4: stop applying the cached recon frame once the viewer is gone */
+#endif
     BSPLIST *cur;
 
     if (objects_)
@@ -486,6 +493,26 @@ BOOL C_3dViewer::ViewGreyOTW()
     WORD *mem;
 
     //long i,j,x; // JB 010118 unreferenced variable
+#ifdef FF_LINUX
+    /* RECON-1 (PO 2026-09-13, videos 260913_ccrp_recon_{gold,linux}.mp4): under Wine the RECON
+       window shows a rendered aerial of the target plus a LAT/LNG line; on Linux the window's
+       chrome and buttons draw but the image pane is empty and the coordinates never appear. Both
+       come from THIS function -- the terrain via rendOTW_ into the UI front buffer, the text via
+       rendOTW_->ScreenText afterwards -- so one missing render loses both. First question is
+       whether this runs at all, and with what. FF_DEBUG_RECON=1. */
+    static int ffReconDbg = -1;
+    if (ffReconDbg < 0) ffReconDbg = getenv("FF_DEBUG_RECON") ? 1 : 0;
+    if (ffReconDbg)
+    {
+        static long n = 0;
+        fprintf(stderr, "[recon] ViewGreyOTW call #%ld rendOTW=%p viewPoint=%p pos=(%.0f,%.0f,%.0f) "
+                        "viewport=(%ld,%ld)-(%ld,%ld) latlong=%d\n",
+                ++n, (void*)rendOTW_, (void*)viewPoint_, currentPos_.x, currentPos_.y, currentPos_.z,
+                (long)viewport.left, (long)viewport.top, (long)viewport.right, (long)viewport.bottom,
+                g_bReconLatLong ? 1 : 0);
+        fflush(stderr);
+    }
+#endif
     if (rendOTW_ and viewPoint_)
     {
         viewPoint_->Update(&currentPos_);
@@ -541,6 +568,30 @@ BOOL C_3dViewer::ViewGreyOTW()
 
         //Wombat778 11-3-2003 End of Added Lat/Long code
 
+#ifdef FF_LINUX
+        /* RECON-1: the OTW frame above (terrain, then the LAT/LNG text) went to the GL back
+           buffer, which the UI's present overwrites with the software surface every frame. Pull
+           the viewport back into that surface now, after BOTH the terrain and the text, so the
+           present shows what was rendered. FF_RECON_READBACK=0 reverts to the blank pane. */
+        {
+            static int ffRb = -1;
+            if (ffRb < 0) { const char *e = getenv("FF_RECON_READBACK"); ffRb = (e and e[0] == '0') ? 0 : 1; }
+            if (ffRb)
+            {
+                const int ok = FF_ReadbackPrimaryRect(gMainHandler->GetFront()->targetSurface(),
+                                                      (int)viewport.left, (int)viewport.top,
+                                                      (int)viewport.right, (int)viewport.bottom);
+                if (ffReconDbg)
+                {
+                    fprintf(stderr, "[recon]   readback of (%ld,%ld)-(%ld,%ld) into the UI surface: %s\n",
+                            (long)viewport.left, (long)viewport.top, (long)viewport.right, (long)viewport.bottom,
+                            ok ? "done" : "SKIPPED (no primary/pixelData/GL context)");
+                    fflush(stderr);
+                }
+            }
+        }
+#endif
+
 
 #if 0
         int nWidth = viewport.right - viewport.left;
@@ -587,6 +638,29 @@ BOOL C_3dViewer::ViewGreyOTW()
         mem = (WORD*)gMainHandler->Lock();
 #else
         mem = (WORD*)gMainHandler->Lock();
+#ifdef FF_LINUX
+        /* RECON-1: sample the viewport region THROUGH THE LOCK THE CODE ALREADY HOLDS. A first
+           version locked the ImageBuffer itself inside the handler's lock and corrupted the lock
+           state (later Lock() returned NULL, then a segfault). Distinct-value count and range of
+           the region after the OTW frame; the map alone already has many colours, so this is a
+           sanity check that the region is readable and populated, not proof the terrain landed. */
+        if (ffReconDbg and mem)
+        {
+            const long W = (long)sw;
+            unsigned mn = 0xFFFF, mx = 0; long cnt = 0; unsigned seen[64]; int nseen = 0;
+            for (long y = viewport.top; y < viewport.bottom; y += 8)
+                for (long x = viewport.left; x < viewport.right; x += 8)
+                {
+                    unsigned v = mem[y * W + x]; cnt++;
+                    if (v < mn) mn = v; if (v > mx) mx = v;
+                    int k; for (k = 0; k < nseen; k++) if (seen[k] == v) break;
+                    if (k == nseen && nseen < 64) seen[nseen++] = v;
+                }
+            fprintf(stderr, "[recon]   UI surface after OTW frame: %ld samples, %d distinct (cap 64), min=0x%04x max=0x%04x (sw=%.0f sh=%.0f)\n",
+                    cnt, nseen, mn, mx, sw, sh);
+            fflush(stderr);
+        }
+#endif
 
         // OW FIXME: implement this by blitting to a temp sysmem surface, convert and blitting back
 #if 0
