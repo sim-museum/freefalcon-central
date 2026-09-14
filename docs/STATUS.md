@@ -13348,3 +13348,51 @@ updated CCRP, Maverick, LGB and HARM TEs. Video: `/home/admin/Videos/260913_ff_t
 **Oracles:** every sub-item above has a gold-standard comparison available (the Wine build for
 recon, the PO's own video for the drops), so each sprint must state its predicted numbers before
 the run — see the RECON-2 and GMRADAR-8 S5 entries for the shape that worked.
+
+### GMOBJ-1 S2 (Opus 5, 2026-09-13) — ⭐ the target area goes DIMMER as you close: deaggregation swaps a bright 2x2 blip for one 22/255 pixel
+
+POLISH-1 sub-item 2, PO's third report of it (*"LGB: GM radar doesn't show the group of buildings
+around the target. HARM: again, GM radar does not show group of buildings near target"*).
+
+**Predictions were stated before the run** (from the TE-18 numbers earlier today) and all three hold.
+HARM TE, FCR stepped to GM and the mode VERIFIED in the trace (`mode=14`):
+
+    [GM] targets mode=14 walked=138 outOfRange=3 scanRejected=0 drawn=135 (simAwake=87) gain=1.00
+    [GM] blips   n=87 clipped=0 drawn=87 black=0 rMean=0.075 rMax=0.181 colorMean=22.4
+                 first: radius=204.2 w2u=6.857e-06 scaleX=63.9 rgain=9.31
+
+1. The features **are** in the list and **are** drawn — 135 of 138 walked, nothing clipped. Not a
+   list-build failure. ✓
+2. Every footprint is **sub-pixel**: at this range (1/w2u = 145,830 ft = 24 nm) one texture pixel is
+   **2,279 ft**, so a 204 ft building computes to **0.09 px**. ✓
+3. Intensity `r * 32 * gain * GainScale` = **22/255**, against a noise overlay drawn at alpha 0.3. ✓
+
+⭐ **The unpredicted half, and it is the PO's symptom exactly.** The two draw paths are not
+comparable:
+
+| population | path | what is drawn |
+|---|---|---|
+| 48 campaign features | `DrawBlip(x, y)` | **2x2 block at full `0xFF00FF00`** |
+| 87 sim-awake features | `DrawBlip(drawable, GainScale, Shaped)` | **ONE pixel at 22/255** (the 3 extra points need `r > 1.0`) |
+
+An objective deaggregates into individual sim buildings **as you close on it** — so each building in
+the target group switches from a bright 2x2 blip to a single near-black dot at the moment the
+target area starts to matter. Everywhere else on the scope the aggregated objectives stay bright.
+"The group of buildings around the target is missing" is that inversion, in code.
+
+⚠️ **What this does NOT yet establish.** The arithmetic above is upstream and identical on Windows,
+so a fix cannot be calibrated until Wine is seen doing something different. **I checked the gold
+library rather than assuming:** `/home/admin/gold standard/free falcon/` holds 5 screenshots and 5
+videos, and **not one frame shows the A-G/GM ground map** — all air-to-air, over sea, instant
+action. `260913_ccrp_recon_gold.mp4` is the recon window, not the FCR. So this item needs exactly
+one artefact: **a Wine capture of the GM scope with the HARM or LGB target group under the cursor.**
+With it, S3 either calibrates a GM footprint/intensity floor (the shape GMRADAR-6 used for movers,
+which deliberately exempted GM) or records that Linux already matches and the complaint is an
+upstream limitation.
+
+**Process note.** The first run of this sprint measured `mode=16` — GMT, 6 movers — and would have
+answered the GM question from the wrong population. It was caught only because the instrument
+prints the mode it is in. That is the banked "a switch needs its own printed term" rule earning its
+keep for the second time in this file.
+
+**GMOBJ-1: 2 sprints.**
