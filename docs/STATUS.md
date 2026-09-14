@@ -13706,3 +13706,52 @@ impression. Two things in the same data are still unexplained and belong to S4:
   is the same sampling error with the sign the other way.
 
 **BOOM-4: 3 sprints. Needs a PO look at the next AppImage.**
+
+### BOOM-4 S4 (Opus 5, 2026-09-14) — the bombs that burst off the surface take a DIFFERENT branch, and one of them is now fixed
+
+S3 left two bombs of six settling up to 10.7 ft below the drawn surface and guessed the cause: the
+terrain branch samples the ground at the step's END point and then interpolates the crossing back
+along the trajectory, so the surface under the final x,y is not the one it snapped to. S4 implemented
+that re-sample and it **changed nothing** — three bombs still ended 3.2, 8.5 and 9.7 ft off.
+
+So instead of patching again, S4 tagged the branches (`FF_DEBUG_BOMBTRACK=1`).
+
+**MEASURED, one CCRP drop:**
+
+    branch=INTERP  id=28044  z -684.4 -> -684.3 (sampled -684.4)     <- the re-sample is worth 0.1 ft
+    branch=INTERP  id=28043, 28042, 28048 ... all agl 0.0
+    branch=FEATURE id=28050  z=-692.0 gnd=-688.2 flat=1              <- 3.8 ft BELOW the terrain
+    branch=FEATURE id=28049  z=-768.8 gnd=-691.5 flat=0              <- 77 ft ABOVE it
+
+⭐ **Every bomb that ends off the surface detonated on a FEATURE collision, not on terrain.** That
+branch neither interpolates the crossing nor snaps z; it leaves the bomb where the step put it. And
+`hitObj=(nil)` in the explosion trace is no evidence for the other branch — this branch NULLs hitObj
+itself when the feature is a flat container.
+
+**The re-sample was REMOVED.** It is arithmetically better and it is worth 0.1 ft; every INTERP bomb
+was already on the surface. A change that fixes nothing is not worth carrying, and keeping it would
+have let it take credit later for the fix below.
+
+**FIX** (`FF_NO_BOMB_FLAT_SNAP=1` reverts): when the hit feature is a `FEAT_FLAT_CONTAINER` — a road
+or a bridge deck, the case the game's own comment calls "treated as a ground hit later on" — put the
+bomb ON the ground and set `ON_GROUND`. A hit on a TALL structure is deliberately left alone: a burst
+77 ft up is a building, not a defect.
+
+**VERIFIED, fresh drop:**
+
+| bomb | before | after |
+|---|---|---|
+| flat-container hit (28050) | 6.4 ft under the surface | **0.0** |
+| terrain hits (four) | 0.0 | 0.0 |
+| tall-structure hit (flat=0) | 78.6 ft up | 78.6 ft up, unchanged by design |
+
+S3's drawable snap still holds in the same run (`LAG gap=0.00 ft`).
+
+⚠️ **The PO's "shallow trajectories burst a little above terrain" is NOT claimed as fixed.** This
+fixes bursts BELOW the surface on flat containers. Bursts above it come from the same branch hitting
+a structure, and whether the height is right depends on the feature's own geometry, which is not
+measured yet. The remaining S3 leftover — the bomb model staying drawn for a second after the burst —
+is upstream code with no Linux gate, so Wine does the same; it is out of scope unless the PO reports
+it against Wine.
+
+**BOOM-4: 4 sprints. At the cap, rotating off.**

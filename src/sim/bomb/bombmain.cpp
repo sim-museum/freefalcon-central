@@ -1033,12 +1033,41 @@ int BombClass::Exec(void)
                     edeltaZ = ZDelta();
                     SetDelta(0.0f, 0.0f, 0.0f);
                     SetExploding(TRUE);
+#ifdef FF_LINUX
+                    /* BOOM-4 S4: name the branch. The ground re-sample added this sprint changed
+                       nothing, so the bombs that settle BELOW the drawn surface are not taking the
+                       branch it patched. This one neither interpolates the crossing nor snaps z,
+                       and it NULLs hitObj for a flat container -- so hitObj=(nil) in the explosion
+                       trace does not prove the other branch was taken. FF_DEBUG_BOMBTRACK=1. */
+                    if (getenv("FF_DEBUG_BOMBTRACK"))
+                        fprintf(stderr, "[boom4] branch=FEATURE id=%d z=%.1f gnd=%.1f flat=%d\n",
+                                (int)Id().num_, ZPos(), terrainHeight,
+                                hitObj->IsSetCampaignFlag(FEAT_FLAT_CONTAINER) ? 1 : 0), fflush(stderr);
+#endif
 
                     // if we've hit a flat container, NULL it out now so that this is
                     // treated as a ground hit later on
                     if (hitObj->IsSetCampaignFlag(FEAT_FLAT_CONTAINER))
                     {
                         hitObj = NULL;
+#ifdef FF_LINUX
+                        /* BOOM-4 S4: ...and then PUT IT ON THE GROUND, which the code above says
+                           in words but never does. This branch detonates on a feature collision and
+                           leaves z wherever the step left it -- unlike the terrain branch, it
+                           neither interpolates the crossing nor snaps z. Measured on a live CCRP
+                           drop: the one bomb that hit a flat container burst 3.8 ft BELOW the
+                           terrain (branch=FEATURE id=28050 z=-692.0 gnd=-688.2 flat=1) and its
+                           model settled 6.4 ft under the surface. A flat container is a road or a
+                           bridge deck -- the game's own comment calls this a ground hit -- so the
+                           burst belongs on the surface. A hit on a TALL structure is left alone:
+                           id=28049 (flat=0) burst 77 ft up, which is a building, not a defect.
+                           FF_NO_BOMB_FLAT_SNAP=1 reverts. */
+                        if ( not getenv("FF_NO_BOMB_FLAT_SNAP"))
+                        {
+                            z = OTWDriver.GetGroundLevel(x, y);
+                            SetFlag(ON_GROUND);
+                        }
+#endif
                     }
                 }
                 //else if ( not g_bArmingDelay) MI
@@ -1052,12 +1081,41 @@ int BombClass::Exec(void)
                     edeltaZ = ZDelta();
                     SetDelta(0.0f, 0.0f, 0.0f);
                     SetExploding(TRUE);
+#ifdef FF_LINUX
+                    /* BOOM-4 S4: name the branch. The ground re-sample added this sprint changed
+                       nothing, so the bombs that settle BELOW the drawn surface are not taking the
+                       branch it patched. This one neither interpolates the crossing nor snaps z,
+                       and it NULLs hitObj for a flat container -- so hitObj=(nil) in the explosion
+                       trace does not prove the other branch was taken. FF_DEBUG_BOMBTRACK=1. */
+                    if (getenv("FF_DEBUG_BOMBTRACK"))
+                        fprintf(stderr, "[boom4] branch=FEATURE id=%d z=%.1f gnd=%.1f flat=%d\n",
+                                (int)Id().num_, ZPos(), terrainHeight,
+                                hitObj->IsSetCampaignFlag(FEAT_FLAT_CONTAINER) ? 1 : 0), fflush(stderr);
+#endif
 
                     // if we've hit a flat container, NULL it out now so that this is
                     // treated as a ground hit later on
                     if (hitObj->IsSetCampaignFlag(FEAT_FLAT_CONTAINER))
                     {
                         hitObj = NULL;
+#ifdef FF_LINUX
+                        /* BOOM-4 S4: ...and then PUT IT ON THE GROUND, which the code above says
+                           in words but never does. This branch detonates on a feature collision and
+                           leaves z wherever the step left it -- unlike the terrain branch, it
+                           neither interpolates the crossing nor snaps z. Measured on a live CCRP
+                           drop: the one bomb that hit a flat container burst 3.8 ft BELOW the
+                           terrain (branch=FEATURE id=28050 z=-692.0 gnd=-688.2 flat=1) and its
+                           model settled 6.4 ft under the surface. A flat container is a road or a
+                           bridge deck -- the game's own comment calls this a ground hit -- so the
+                           burst belongs on the surface. A hit on a TALL structure is left alone:
+                           id=28049 (flat=0) burst 77 ft up, which is a building, not a defect.
+                           FF_NO_BOMB_FLAT_SNAP=1 reverts. */
+                        if ( not getenv("FF_NO_BOMB_FLAT_SNAP"))
+                        {
+                            z = OTWDriver.GetGroundLevel(x, y);
+                            SetFlag(ON_GROUND);
+                        }
+#endif
                     }
                 }
             }
@@ -1080,6 +1138,18 @@ int BombClass::Exec(void)
 
                     SetFlag(ON_GROUND);
                     z = terrainHeight;
+
+#ifdef FF_LINUX
+                    /* BOOM-4 S4 (2026-09-14): a ground RE-SAMPLE at the interpolated crossing was
+                       tried here and REMOVED. It is arithmetically better -- terrainHeight is
+                       sampled at the step's end point and the crossing is interpolated back from
+                       it -- but measured over four bombs it moved z by 0.1 ft:
+                           branch=INTERP id=28044 z -684.4 -> -684.3 (sampled -684.4)
+                       and every INTERP bomb was already sitting on the surface (agl 0.0). The
+                       bombs that end OFF the surface do not come through here at all; see the
+                       FEATURE branch above. A 0.1 ft change that fixes nothing is not worth
+                       carrying. */
+#endif
 
                     SetExploding(TRUE);
 
