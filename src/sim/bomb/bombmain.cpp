@@ -1429,6 +1429,22 @@ void BombClass::DoExplosion(void)
             ty = ((AircraftClass *)parent.get())->FCC->groundDesignateY;
             tz = ((AircraftClass *)parent.get())->FCC->groundDesignateZ;
         }
+        /* BOOM-4 S2 (2026-09-14): S1 measured the drawable 20.4 ft from the sim position at the
+           burst on a fast drop and 2.1 ft on a slow one, and attributed it to UpdateVehicleDrawables
+           refreshing once per frame -- i.e. the drawable trails the sim by one frame of TRAVEL. That
+           was arithmetic, not a measurement. Test it: edeltaX/Y/Z hold the impact velocity (saved
+           just before SetDelta(0,0,0)), so the prediction is |d(sim-draw)| ~ speed * frametime, and
+           it must hold across drops of different speed rather than at one point. */
+        {
+            const float spd = (float)sqrt((double)edeltaX*edeltaX + (double)edeltaY*edeltaY + (double)edeltaZ*edeltaZ);
+            const float dgx = XPos() - dx, dgy = YPos() - dy, dgz = ZPos() - dz;
+            const float gap = (float)sqrt((double)dgx*dgx + (double)dgy*dgy + (double)dgz*dgz);
+            const float pred = spd * SimLibMajorFrameTime;
+            fprintf(stderr, "[boom4] LAG gap=%.2f ft  speed=%.1f ft/s  frametime=%.4f s  "
+                            "predicted=speed*frametime=%.2f ft  ratio=%.2f\n",
+                    gap, spd, SimLibMajorFrameTime, pred, pred > 0.01f ? gap / pred : -1.0f);
+            fflush(stderr);
+        }
         fprintf(stderr, "[boom4] physGnd=%.2f drawnGnd=%.2f  drawn-phys=%.2f  bombZ=%.2f  "
                         "z-physGnd=%.2f  z-drawnGnd=%.2f%s\n",
                 gnd, dgnd, (dgnd < -99000.0f ? 0.0f : dgnd - gnd), ZPos(),

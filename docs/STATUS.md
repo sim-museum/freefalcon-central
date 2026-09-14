@@ -13618,3 +13618,38 @@ that also predicts the PO's "a little above terrain" on shallow trajectories, wh
 mostly horizontal and the burst sits slightly off the visible bomb rather than below it.
 
 **BOOM-4: 1 sprint.**
+
+### BOOM-4 S2 (Opus 5, 2026-09-14) — the lag is real and speed-scaled, but "one frame" over-predicts it by 1.6x
+
+S1 measured the bomb's drawable 20.4 ft from its sim position at the burst and attributed it to
+`UpdateVehicleDrawables` refreshing once per frame — i.e. one frame of TRAVEL. That was arithmetic,
+so S2 tests it. `edeltaX/Y/Z` hold the impact velocity (saved just before `SetDelta(0,0,0)`), giving
+the prediction `|d(sim-draw)| ≈ speed × frametime`.
+
+**MEASURED, two bombs of the same CCRP drop:**
+
+    gap=22.27 ft  speed=1083.3 ft/s  frametime=0.0339 s  predicted=36.83 ft  ratio=0.60
+    gap=22.27 ft  speed=1083.3 ft/s  frametime=0.0309 s  predicted=33.58 ft  ratio=0.66
+
+**Right order, wrong constant.** The gap is 0.60–0.66 of one frame's travel, not 1.0. So the
+mechanism is the render-vs-sim lag as S1 said — the magnitude tracks speed and frame time — but the
+drawable is not a clean whole frame behind; it trails by roughly two-thirds of one, which is what a
+sub-frame phase offset between the drawable refresh and the physics step looks like.
+
+⚠️ **The speed-scaling claim is NOT yet properly tested, and I am not going to pretend otherwise.**
+Both lines above are the same drop at the same speed. S1's 2.1 ft came from a slower drop whose speed
+was never logged, so the two-point comparison that would establish scaling does not exist yet. What
+IS established: at 1083 ft/s the visible bomb is 22 ft from where the burst is drawn.
+
+**What this means for the PO's report.** *"The explosion occurs one bridge-length before the bombs
+disappear into terrain"* — 22 ft at the weapon-view camera distance is exactly that impression, and
+it grows with release speed. The shallow-trajectory half (*"explosions a little above terrain"*)
+follows from the same lag with the velocity mostly horizontal.
+
+**S3 — the fix, and it should NOT be "place the effect at the drawable".** The end message's position
+also places the CRATER and the damage report, so moving it would put the crater 22 ft off the true
+impact. The right change is the opposite: snap the DRAWABLE to the sim position at the moment
+`SHOW_EXPLOSION` is raised, so the visible bomb arrives where it actually hit and the burst appears
+with it. Env-gate it, drop with a weapon-view capture, and compare against the PO's video.
+
+**BOOM-4: 2 sprints.**
