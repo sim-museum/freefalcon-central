@@ -454,6 +454,31 @@ BSPLIST *C_BSPList::LoadDrawableFeature(long ID, Objective obj, short f, short f
 
             if (bspobj->object)
             {
+#ifdef FF_LINUX
+                /* RECON-3 S3 (PO 2026-09-13, "bridge upsideown in recon view"). S2 measured, in the
+                   OVERHEAD plan view where perspective cannot displace anything, that our bridge
+                   deck sits BESIDE the road by about one deck width while the gold's lies on it.
+                   Two candidates remain and one line separates them: the drawable is placed away
+                   from the position it is given (placement), or the position it is given is already
+                   off the road (feature data). Print the position handed in, the position the
+                   drawable reports back, and the yaw -- so a discrepancy is visible without another
+                   capture. FF_DEBUG_BRIDGEPOS=1. */
+                if (getenv("FF_DEBUG_BRIDGEPOS"))
+                {
+                    Tpoint got; got.x = got.y = got.z = 0.0f;
+                    bspobj->object->GetPosition(&got);
+                    fprintf(stderr, "[bridgepos] feature %d/%d visType=%d  objPos=(%.1f,%.1f,%.1f)  "
+                                    "drawable=(%.1f,%.1f,%.1f)  d=(%.1f,%.1f,%.1f)  yaw=%.2f deg\n",
+                            (int)f, (int)fid, (int)visType,
+                            objPos ? objPos->x : 0.0f, objPos ? objPos->y : 0.0f, objPos ? objPos->z : 0.0f,
+                            got.x, got.y, got.z,
+                            got.x - (objPos ? objPos->x : 0.0f),
+                            got.y - (objPos ? objPos->y : 0.0f),
+                            got.z - (objPos ? objPos->z : 0.0f),
+                            Yaw * 57.29578f);
+                    fflush(stderr);
+                }
+#endif
                 ShiAssert(bspobj->object->GetClass() == DrawableObject::Roadbed);
                 ((DrawableBridge*)Parent->object)->AddSegment((DrawableRoadbed*)bspobj->object);
             }

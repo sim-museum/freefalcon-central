@@ -13489,3 +13489,49 @@ crossing. If the DRAWABLE is offset from the FEATURE, the fault is in placement
 (`DrawableRoadbed`/`AddSegment`); if they agree, the feature data itself puts the bridge off the road.
 
 **RECON-3: 2 sprints.**
+
+### RECON-3 S3 (Opus 5, 2026-09-14) — the drawable is EXACTLY where its data says; so the displacement is terrain-vs-world, not placement
+
+S2 measured the bridge deck sitting beside the road in the OVERHEAD plan view while the gold's lies
+on it, and named the two candidates: the drawable is placed away from the position it is given, or
+the position it is given is already off the road. One trace separates them (`FF_DEBUG_BRIDGEPOS=1`,
+printing the position handed in, the position the drawable reports back, and the yaw):
+
+    [bridgepos] feature 0/9942 visType=19  objPos=(1671214.6,1238670.2,0.0)
+                drawable=(1671214.6,1238670.2,0.0)  d=(0.0,0.0,0.0)  yaw=89.99 deg
+
+⭐ **d = (0,0,0).** Placement is faithful to the last digit — `DrawableRoadbed`/`AddSegment` put the
+bridge exactly where the feature data says. So the first candidate is dead, and with it S1's
+mirror-in-the-placement idea.
+
+**Which leaves an inference worth stating carefully, because it is bigger than this item.**
+
+1. The drawable sits at the feature's world position. *(measured, above)*
+2. The Wine gold and this build read **the same game directory** — my runs use
+   `-d ~/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6`, which IS the Wine prefix's install — so the
+   feature data, and therefore that world position, is **identical in both**.
+3. Both agree on it independently: the recon LAT/LNG is computed from that same position and reads
+   N 38°25.17' E 127°19.72' against the gold's 25.17'/19.73'.
+4. Yet the gold draws the bridge ON the road and we draw it beside the road, over terrain that
+   otherwise matches the gold.
+
+⇒ **If the model is at the right world position and the road is not under it, then the terrain
+imagery is offset relative to world coordinates in this port.** The LAT/LNG could not have caught
+this: it is computed from the feature position, not from the terrain, so it reads correct either way.
+
+⚠️ **Stated as inference, not measurement.** Step 4 compares our render with the PO's; I cannot
+instrument the Wine build to confirm ITS bridge sits at its objPos. The chain is strong but the
+conclusion has one unmeasured link, and it should not be promoted to a root cause without closing it.
+
+**This is very likely TERRAIN-1's family.** That item's S4 found the theater post format misread and
+S5 (this session) showed the format flag is actually correct and the right tiles bind per site — but
+a tile-registration offset would displace the drawn ground relative to world coordinates exactly like
+this, while leaving every tile individually correct.
+
+**S4 — measure the offset in feet rather than eyeballing it.** The recon view has a known scale
+(`Recon.Distance` is the slant range and the viewport is known), so the pixel gap between the bridge
+and the road centre converts directly. Then compare that figure with CCRP-5's 138 ft bomb miss: if
+they agree in size and direction, the PO's *"bombs land left of the bridge"* and this are one defect,
+and the priority changes accordingly.
+
+**RECON-3: 3 sprints.**
