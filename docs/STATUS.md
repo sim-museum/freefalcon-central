@@ -13444,3 +13444,48 @@ near-overhead angle.
 Do not guess between those: one capture decides it.
 
 **RECON-3: 1 sprint.**
+
+### RECON-3 S2 (Opus 5, 2026-09-14) — ⭐ the bridge is DISPLACED off the road, measured in plan view; and S1's "mirror" reading is downgraded
+
+S1 reproduced the PO's "upside down" bridge against the gold at an oblique angle and proposed a
+Z-mirror. S2 set out to split "shared model path" from "recon-only" with a sim capture, and found a
+better measurement on the way.
+
+**The sim capture did not happen, and the two attempts are worth recording so they are not repeated.**
+`OTWSelectGroundEnemyMode` (ALT+0x09) frames an enemy ground UNIT — it picked tanks, twice, because
+a bridge is an objective FEATURE and not a unit. The PO's CCRP video does show the sim's bridge, but
+from a weapon view so oblique that the arch direction is illegible, and it is a DIFFERENT bridge
+(that TE's target is at 1808814,1290571; the recon bridge is at 1671214,1238670), so it cannot be
+cross-compared for position either.
+
+⭐ **What settled it instead: OVERHEAD.** The recon window's OVERHEAD button sets pitch to 90, giving
+a PLAN view in which perspective cannot displace anything — and the gold library already contains the
+matching frame (`gold_bridge_overhead.png`, slant 1490 ft). Ours, driven to slant 1730 ft:
+
+| | the bridge deck |
+|---|---|
+| **gold** | lies ON the road, same width as it, aligned with it, spanning the river at the crossing |
+| **ours** | sits entirely BESIDE the road, offset perpendicular by about one deck width, and wider than the road |
+
+`bridge_overhead_ab.png` is the pair. The terrain underneath matches the gold in both (river, road,
+buildings), so this is the model's placement, not the map's.
+
+⚠️ **S1's mirror hypothesis is DOWNGRADED, not confirmed.** In plan view both renders show a flat
+deck and neither shows an arch above or below, so this view does not support "inverted". An elevated
+deck offset from the road and seen obliquely would ALSO show its underside and read as "upside down",
+which is what S1 photographed. The displacement is the measured fact; the inversion may be a
+consequence of it or a separate defect, and S1's wording should not be built on further.
+
+**And it may not be cosmetic.** The PO's CCRP-5 complaint is *"bombs hit just to the left of the
+bridge"*. If the bridge is DRAWN displaced from the position it actually occupies, bombs arriving
+correctly at that position would appear to land beside it. Stated as a connection to test, not a
+conclusion: CCRP-5's own measurement (S2) put the bomb 138 ft from the designate, and the offset here
+is of the order of a deck width — the two numbers have not yet been compared in the same units.
+
+**S3:** measure the offset rather than eyeball it. The recon viewer knows the feature's world position
+(`CenterOnFeatureCB` reads `bsp->object->GetPosition`), and `FF_RECON_HDG` already pins the view, so
+print the drawable's position alongside the objective's own campaign position and the road/river
+crossing. If the DRAWABLE is offset from the FEATURE, the fault is in placement
+(`DrawableRoadbed`/`AddSegment`); if they agree, the feature data itself puts the bridge off the road.
+
+**RECON-3: 2 sprints.**
