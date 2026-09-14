@@ -13834,3 +13834,40 @@ and heading the recon window sets, and test the prediction directly: aiming the 
 should move the bridge from the edge to the centre. That is a one-run A/B with a stated prediction.
 
 **RECON-3: sprint 2 of its new pass.**
+
+### RECON-3 S7 (Opus 5, 2026-09-14) — ⭐ the camera is right, the target is right, and the picture is centred on the WRONG RECTANGLE
+
+S6 suspected the recon camera was offset from its subject without aiming at it. S7 printed the terms
+where the aim is actually set (`PositionCamera`, `FF_DEBUG_RECON=1`) instead of deriving them:
+
+    [recon] PositionCamera dist=4000 hdg=0.0 pitch=70.0 -> delta=(-1368,-0,-3758)  (SetCamera gets hdg=0.0 pitch=-70.0)
+
+⛔ **So S6's suspicion is refuted.** The camera stands 4000 ft from the feature on a 70° elevation
+line and looks back down that line — it is aimed at its subject, and the 1368/3758 offset S6 measured
+is just that line's components. The same run also settles S5's other loose end: the renderer and
+viewpoint pointers in `CenterOnFeature` and in `ViewGreyOTW` are **the same objects**
+(`rendOTW=0x63390ce91720 viewPoint=0x63390ce91560` in both).
+
+⭐ **What is left is the viewport, and it is in the trace that has been printing all along:**
+
+    [recon] ViewGreyOTW ... viewport=(0,32)-(1024,728)
+
+**The aerial is rendered across the FULL WINDOW WIDTH**, so its centre — where the aimed camera puts
+the target — is at **x ≈ 512**. But the recon window's visible image pane is the RIGHT-HAND side,
+x 500…1024, whose centre is x ≈ 762; the left half is covered by the target-list panel (which
+RECON-2 taught the present path to skip over). **512 is the pane's left EDGE.** And that is exactly
+where the bridge is: the capture puts it at x ≈ 500–620, half of it cut off by the pane boundary.
+
+⭐ **So "the location is wrong" is not a placement, registration or camera defect at all.** The right
+subject is rendered at the right place in the wrong rectangle: the picture is centred on the window
+while the user sees only its right half. Everything four sprints measured — the bridge exactly at its
+data position, the terrain-vs-world offset, the 20° figure — is consistent with this and none of it
+required a second defect.
+
+**S8, and it should be A/B'd not assumed:** render the OTW into the image pane's rectangle rather
+than the whole client area (or shift the camera's centre of attention by half the covered width).
+Prediction to state first: with the viewport set to x 500…1024, the bridge moves from x≈560 to
+x≈762 and the cityscape that now fills the pane moves off to the left. One capture decides it, and
+the gold frame (a river and a bridge, centred) is the check.
+
+**RECON-3: sprint 3 of its new pass.**

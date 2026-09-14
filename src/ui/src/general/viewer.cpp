@@ -197,6 +197,23 @@ void PositionCamera(OBJECTINFO *Info, C_Window *win, long client)
 
     FindCameraDeltas(Info);
     SetHeading(win);
+#ifdef FF_LINUX
+    /* RECON-3 S7 (2026-09-14): S6 inferred the camera terms from the one position pair the recon
+       trace prints (camera = feature + (-1368, 0, -3758)) and concluded the camera might not be
+       AIMED at its subject. This is where the aim is actually set, so print the terms instead of
+       deriving them: distance, heading and pitch, and the deltas they produce. FF_DEBUG_RECON=1. */
+    if (getenv("FF_DEBUG_RECON"))
+    {
+        static int n = 0;
+
+        if (n++ < 6)
+            fprintf(stderr, "[recon] PositionCamera dist=%.0f hdg=%.1f pitch=%.1f -> delta=(%.0f,%.0f,%.0f)"
+                            "  (SetCamera gets hdg=%.1f pitch=%.1f)\n",
+                    (double)Info->Distance, (double)Info->Heading, (double)Info->Pitch,
+                    (double)Info->DeltaX, (double)Info->DeltaY, (double)Info->DeltaZ,
+                    (double)Info->Heading, (double) - Info->Pitch), fflush(stderr);
+    }
+#endif
     gUIViewer->SetCamera(Info->DeltaX, Info->DeltaY, Info->DeltaZ, Info->Heading, -Info->Pitch, 0.0f);
     win->RefreshClient(client);
 }
