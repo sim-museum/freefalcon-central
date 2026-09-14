@@ -125,7 +125,29 @@ void CenterOnFeatureCB(long, short hittype, C_Base *control)
                     gUIViewer->GetRendOTW()->viewpoint->Update(&pos);
                 TheLoader.WaitLoader();
                 if (getenv("FF_DEBUG_RECON"))
-                    fprintf(stderr, "[recon] CenterOnFeature -> (%.0f,%.0f,%.0f), loader waited\n", pos.x, pos.y, pos.z), fflush(stderr);
+                {
+                    /* RECON-3 S5 (2026-09-14): measured on the current build -- clicking the target
+                       row logs CenterOnFeature -> (1648254,1320669,0) and ViewGreyOTW keeps
+                       reporting pos=(1646886,1320669,-3758) for hundreds of frames afterwards. So
+                       the centring is not reaching the viewpoint the recon renderer uses. Print
+                       WHICH renderer and WHICH viewpoint this path touches, and what the viewpoint
+                       holds immediately after the update, so it can be compared with the pointers
+                       ViewGreyOTW prints. */
+                    RenderOTW *r = gUIViewer->GetRendOTW();
+                    fprintf(stderr, "[recon] CenterOnFeature -> (%.0f,%.0f,%.0f), loader waited"
+                                    "  rendOTW=%p viewPoint=%p",
+                            pos.x, pos.y, pos.z, (void *)r, (void *)(r ? r->viewpoint : NULL));
+
+                    if (r and r->viewpoint)
+                    {
+                        Tpoint *cam = r->viewpoint->GetFrom();
+                        Tpoint *coa = r->viewpoint->GetAt();
+                        fprintf(stderr, "  camera=(%.0f,%.0f,%.0f) coa=(%.0f,%.0f,%.0f)",
+                                cam->x, cam->y, cam->z, coa->x, coa->y, coa->z);
+                    }
+
+                    fprintf(stderr, "\n"), fflush(stderr);
+                }
             }
 #endif
             win = gMainHandler->FindWindow(RECON_WIN);

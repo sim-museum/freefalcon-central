@@ -13755,3 +13755,44 @@ is upstream code with no Linux gate, so Wine does the same; it is out of scope u
 it against Wine.
 
 **BOOM-4: 4 sprints. At the cap, rotating off.**
+
+### RECON-3 S5 (Opus 5, 2026-09-14) — the camera IS on the target; the bridge is drawn at the pane's left edge, and it is drawn TWICE with one copy mirrored
+
+RECON-3 rotated off at 4 sprints with the fault located as terrain-vs-world and deliberately
+unquantified. The PO's 260913 test adds two sharper symptoms — *"bridge upside down in recon view,
+rotates in the opposite direction from the rest of the terrain"* — so S5 starts from a picture of the
+current build rather than from the old measurements. TE "20 Bombs with CCIP", recon on its only
+target ("T'osan Bridge", 100% Operational), `FF_DEBUG_RECON=1 FF_UI_SCREENSHOT=2`.
+
+**1. The camera is on the target.** Clicking the target row logs
+
+    [recon] CenterOnFeature -> (1648254,1320669,0)
+    [recon] ViewGreyOTW ... pos=(1646886,1320669,-3758)
+
+and `SetPosition` defines `currentPos_ = viewPos_ + CameraPos_`, so those two lines agree exactly:
+the recon camera stands 1368 ft back in x and 3758 ft up from the feature. ⚠️ **My first reading of
+this pair was that the centring "never reaches the renderer" — that is WRONG and withdrawn.** The
+numbers differ by the standoff, which is what a standing-back aerial camera is.
+
+**2. The bridge is drawn at the LEFT EDGE of the pane.** It is in the frame (a truss bridge over
+water, `docs/recon_s5_bridge.png`), but at x≈500–620 of a pane spanning 500–1024, i.e. roughly 200 px
+left of the pane's centre, half of it cut off by the pane edge. What fills the centre instead is the
+industrial block the PO described as "a cityscape with a building". So the PO's "the location is
+wrong" is not the camera and not the feature's stored position; it is that the terrain art under that
+world point is not the art the gold shows there — S3's terrain-vs-world conclusion, now visible
+rather than inferred.
+
+⭐ **3. And the bridge is drawn TWICE, as two parallel rows of spans, with the DECK ON OPPOSITE
+SIDES.** In the upper row the deck sits at the bottom of each truss box; in the lower row it sits at
+the top. One copy is mirrored about the horizontal. That is a concrete, located form of the PO's
+"upside down", and it is not a camera or a placement question at all.
+
+**S6:** find out whether the two rows are two authored carriageways (in which case one is drawn with
+a flipped transform) or one carriageway drawn twice (in which case the second draw is the bug).
+`DrawableBridge` composes `DrawableRoadbed` segments plus a `superStructure` `DrawableBSP`; count the
+roadbed segments for this bridge and print each segment's position and orientation. If the two rows
+are the base and the superstructure, the superstructure's transform is the suspect — it is built from
+the same `position`/`orientation` as the base (`drawrdbd.cpp:38`), so a mirrored copy points at how
+that orientation is applied, not at the data.
+
+**RECON-3: sprint 1 of its new pass.**
