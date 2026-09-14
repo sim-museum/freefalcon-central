@@ -221,7 +221,16 @@ BOOL C_3dViewer::Cleanup()
    list. This applies that edge, using the same projection arithmetic as Viewport(). */
 void C_3dViewer::SetViewportLeft(long newLeft)
 {
-    if (newLeft <= viewport.left or newLeft >= viewport.right) return;
+    /* S10: remember the full pane the window gave us, and drive from THAT every time. The first
+       version only ever narrowed (`newLeft <= viewport.left` returned early), so once the target
+       list had covered the left half the viewport stayed narrow even after the list closed --
+       the aerial would keep rendering in the right-hand pane while the left showed a stale
+       cached image. Viewport() sets ffFullLeft; this restores to it when nothing covers us. */
+    if (ffFullLeft < 0) ffFullLeft = viewport.left;
+
+    if (newLeft < ffFullLeft) newLeft = ffFullLeft;
+
+    if (newLeft == viewport.left or newLeft >= viewport.right) return;
 
     viewport.left = newLeft;
     l = static_cast<float>(-1.0f + ((float)(viewport.left) / (sw * .5)));
@@ -234,14 +243,19 @@ void C_3dViewer::SetViewportLeft(long newLeft)
     if (rendOTW_) rendOTW_->SetViewport(l, t, r, b);
 
     if (getenv("FF_DEBUG_RECON"))
-        fprintf(stderr, "[recon] viewport narrowed to (%ld,%ld)-(%ld,%ld) by the covering window\n",
-                (long)viewport.left, (long)viewport.top, (long)viewport.right, (long)viewport.bottom), fflush(stderr);
+        fprintf(stderr, "[recon] viewport set to (%ld,%ld)-(%ld,%ld) -- %s\n",
+                (long)viewport.left, (long)viewport.top, (long)viewport.right, (long)viewport.bottom,
+                viewport.left > ffFullLeft ? "narrowed to the visible pane" : "restored to the full pane"),
+        fflush(stderr);
 }
 #endif
 
 void C_3dViewer::Viewport(C_Window *win, long client)
 {
     viewport.left = win->GetX() + win->ClientArea_[client].left;
+#ifdef FF_LINUX
+    ffFullLeft = viewport.left;   /* S10: the un-narrowed pane, for SetViewportLeft to restore to */
+#endif
     viewport.top = win->GetY() + win->ClientArea_[client].top;
     viewport.right = win->GetX() + win->ClientArea_[client].right;
     viewport.bottom = win->GetY() + win->ClientArea_[client].bottom;
@@ -713,6 +727,8 @@ BOOL C_3dViewer::ViewGreyOTW()
                        aimed camera puts its subject under the panel. FF_NO_RECON_PANE=1 reverts. */
                     if ( not getenv("FF_NO_RECON_PANE"))
                     {
+                        long paneLeft = -1;
+
                         for (int i = 0; i < n; i++)
                         {
                             const int xl = rects[i * 4], yt = rects[i * 4 + 1];
@@ -720,10 +736,13 @@ BOOL C_3dViewer::ViewGreyOTW()
 
                             if (xl <= vl and yt <= vt and yb >= vb and xr > vl and xr < vr)
                             {
-                                SetViewportLeft(xr);
+                                paneLeft = xr;
                                 break;
                             }
                         }
+
+                        /* S10: restore when nothing covers us, narrow when something does. */
+                        SetViewportLeft(paneLeft >= 0 ? paneLeft : -1);
                     }
 #endif
                     if (getenv("FF_DEBUG_RECON"))

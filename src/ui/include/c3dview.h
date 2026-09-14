@@ -97,6 +97,7 @@ public:
     void Viewport(C_Window *win, long client); // Calulates the left,top,right,bottom offsets for viewport
 #ifdef FF_LINUX
     void SetViewportLeft(long newLeft);   // RECON-3 S9: narrow to the visible image pane
+    long ffFullLeft = -1;                 // S10: the un-narrowed pane edge, to restore to
 #endif
     void SetPosition(float x, float y, float z);
     // VERY IMPORTANT: Camera Position is RELATIVE to Position

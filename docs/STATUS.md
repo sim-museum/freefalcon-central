@@ -14026,3 +14026,28 @@ cityscape with a building."*
 
 **RECON-3: the defect the PO reported three times is fixed in the tree. It reaches them with the next
 AppImage.**
+
+### RECON-3 S10 (Opus 5, 2026-09-14) — the pane fix now RESTORES as well as narrows, and the closed-list case is verified
+
+S9 shipped the derived pane edge, and it only ever narrowed: `SetViewportLeft` returned early unless
+the new edge was further right. **That is a latent defect of my own making.** If the target list
+closes, the pane becomes full width, nothing covers the view — and the aerial would have gone on
+rendering into the right-hand half while the left showed a stale cached image.
+
+**FIX:** `Viewport()` records the un-narrowed edge (`ffFullLeft`), and the per-frame pass now drives
+*to* an edge rather than *down* to one: narrow when a window covers the left of the view, restore to
+the full pane when none does.
+
+**VERIFIED, both transitions in one run** (`FF_DEBUG_RECON=1`, clicking the list closed at t=58 s):
+
+    [recon] viewport set to (500,32)-(1024,728) -- narrowed to the visible pane
+    [recon] viewport set to (0,32)-(1024,728)   -- restored to the full pane
+
+and the closed-list capture (`docs/recon_s10_full_pane.png`) shows the aerial filling the **whole
+window** with the river and the bridge **centred**, the LAT/LONG line legible, and the header reading
+`Slant Range: 4000 ft  Bullseye: 013 22 nm`.
+
+⭐ **So the subject is centred in whatever the user can actually see, in both layouts.** That is the
+property the PO's complaint was really about, and it now holds without a constant anywhere in it.
+
+**RECON-3: 2 sprints this pass (S9 fix, S10 hardening).**
