@@ -14083,3 +14083,31 @@ falls to the left of it"** — and S4's withdrawal of the earlier numbers stands
 
 **CCRP-5: 5 sprints, and the item is still without its central measurement. The instrument gap is
 navigation, not aiming.**
+
+### RECON-3 S11 / CCRP-5 note (Opus 5, 2026-09-14) — the shipped viewport change is regression-checked, and the TE's real target names itself
+
+The recon pane fix (S9/S10) changes `C_3dViewer`, which the campaign planner and the tactical
+reference also use, so it was checked on the screens that share it rather than only on the one it
+was written for.
+
+**Driven through the TE flow to the planning screen** (`FF_UI_SCREENSHOT=3`, the same click path as
+the recon runs): the screen renders complete — route legs with distances, the flight and pilot list,
+the theatre inset at the top right, the full toolbar. **No crash, no blank pane, no narrowed
+viewport anywhere but the recon window.** The narrowing is applied only where a window covers the
+view, and `Viewport()` re-establishes the full pane for every other opener.
+
+⭐ **And the screen answers a question CCRP-5 has been circling.** Its header reads
+
+    20 BOMBS WITH CCIP … TASK: Koksan Airbase   TGT: Koksan Airbase
+
+**This TE's target is an AIRBASE, not T'osan Bridge.** S4 inferred that from the designates being
+27 nm from the bridge and S5 from the route's six steerpoints; the mission's own briefing line says
+it outright. The bridge appears in the recon window because that window lists targets in the area,
+not because it is this mission's objective.
+
+**So CCRP-5's missing piece is narrower than S5 said:** not "fly to the designate" but **"run the
+PO's TE"**. Their video shows a CCRP attack on a bridge; this is not that mission, and no amount of
+navigation in it will make it one.
+
+**RECON-3: regression-checked. CCRP-5: the next sprint should find the PO's mission by name before
+flying anything.**
