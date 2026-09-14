@@ -13234,3 +13234,27 @@ offset is not applied upstream either), the heading-lag and look-down-projection
 Maverick 1:40) is TMS-up: `gmscope.cpp:1600` skips `DrawComposite` while a target is locked
 (realistic-avionics FTT, upstream code, same on Wine) — only the FTT diamond, cursor and expansion
 cues remain. Not a defect. Shaped returns (`Shaped`) exist only in DBS1/DBS2; NORM draws points.
+
+### CCRP-5 S2 (Fable 5.1, 2026-09-13) — measured: the impact effect is placed where the bomb is drawn
+
+PO item 5 (`260913_ccrp_entered_exact_coords_bombs_after_explosion.mp4`): "explosions occur before
+bombs hit; bombs hit just left of the bridge while explosions were behind and to the left".
+
+**Measured** (TE-20, CCRP, level release on the route, `FF_DEBUG_BOMBPOS=1`): at the explosion the sim
+bomb and its drawable agree to (1, 1, 2.1) ft, z is ON the ground (-682.0 = ground -682.0), the
+`FalconMissileEndMessage` places the effect at exactly that point, and the bomb landed 138 ft from
+the designate (a normal level CCRP miss). No drawable/effect displacement and no early trigger in
+the mechanism; a drawable is only ever one frame stale (`drawobjs.cpp:109` stops updating it once
+`IsExploding()`), which is upstream behaviour.
+
+**What the PO's frames show** (1 s steps, 296–307 s of the video, `cc_seq.png`): TWO bombs fall
+side by side; at 300 s the burst is drawn centred on the LEFT bomb while the right one is still
+in the air; at 302–303 s the view (SH-7 follows the surviving bomb) reaches the bridge, the crater
+of bomb 1 lies short-left of it and bomb 2 hits the bridge, which darkens. So "the explosion before
+the bomb hit" is bomb 1 of a ripple bursting while bomb 2 is still falling, and "behind and left
+of the bridge" is bomb 1's crater. Not a port defect on the evidence available; if the PO can
+reproduce it with a single bomb (1 SGL) the [bombpos] line will say so directly.
+
+Harness notes: TE list rows are 17 px apart from y=111 (TE n at 111+17(n-1)); ICP A-G is
+`S0x53` (shift + DIK 0x53), not bare 0x4A; TE-20 starts in CCRP — `0x28` steps to CCIP; a CCIP tap
+in level flight at 12 kft does not release (pipper off the HUD), hold the pickle in CCRP instead.
