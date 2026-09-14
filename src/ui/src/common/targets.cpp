@@ -605,6 +605,26 @@ void ReconArea(float x, float y, float range)
         gUIViewer->Setup();
         gUIViewer->Viewport(win, 0); // use client 0 for this window
 
+#ifdef FF_LINUX
+        /* RECON-3 S8 (2026-09-14): report every client area this window defines. S7 measured the
+           aerial rendered across the WHOLE window (viewport 0..1024) while the user sees only the
+           right-hand pane, which puts the aimed camera's subject on the pane's left edge; S8's A/B
+           (FF_RECON_VP_LEFT=500) moved the bridge to the pane centre and the picture became "a
+           river and a bridge", which is what the gold shows. The remaining question is whether the
+           window already knows the pane's rectangle -- if it does, the fix is to use that client
+           index rather than a hardcoded edge. FF_DEBUG_RECON=1. */
+        if (getenv("FF_DEBUG_RECON"))
+        {
+            for (int ci = 0; ci < WIN_MAX_CLIENTS; ci++)
+                if (win->ClientArea_[ci].right > win->ClientArea_[ci].left)
+                    fprintf(stderr, "[recon] client %d = (%ld,%ld)-(%ld,%ld)\n", ci,
+                            (long)win->ClientArea_[ci].left, (long)win->ClientArea_[ci].top,
+                            (long)win->ClientArea_[ci].right, (long)win->ClientArea_[ci].bottom);
+
+            fflush(stderr);
+        }
+#endif
+
         Recon.Heading = 0.0f;
 #ifdef FF_LINUX
         /* RECON-3 S1 (PO 2026-09-13: "bridge upsideown in recon view, rotates in the opposite

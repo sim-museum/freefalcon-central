@@ -13871,3 +13871,41 @@ x≈762 and the cityscape that now fills the pane moves off to the left. One cap
 the gold frame (a river and a bridge, centred) is the check.
 
 **RECON-3: sprint 3 of its new pass.**
+
+### RECON-3 S8 (Opus 5, 2026-09-14) — ⭐⭐ the prediction holds: with the viewport set to the pane, the recon shows A RIVER AND A BRIDGE
+
+S7 predicted, in writing and before the run: *"with the viewport set to x 500…1024, the bridge moves
+from x≈560 to x≈762 and the cityscape that now fills the pane moves off to the left."* S8 added the
+one-line test hook (`FF_RECON_VP_LEFT=<x>`, default off) and ran it.
+
+**RESULT — `docs/recon_s8_viewport_fixed.png`:**
+
+    [recon] ViewGreyOTW ... viewport=(500,32)-(1024,728)
+
+* the aerial now shows **a river running down the pane with the bridge across it, at x≈762** — the
+  predicted position, and **the same subject the PO's gold frame shows** (*"wine ff shows a river and
+  a bridge"*);
+* the industrial block that used to fill the pane is gone off to the left;
+* the **LAT/LONG line is now inside the pane and legible** at the top of the image.
+
+⭐ **So the PO's "recon is still not right — the location is wrong" is a VIEWPORT defect, and it is
+now reproduced, explained and demonstrated fixed.** Four earlier sprints measured the bridge's
+position, the terrain registration and the camera, and all of them were measuring things that were
+already correct.
+
+⚠️ **Not shipped on by default, because the right-hand edge has no principled source yet.** Two
+measurements this sprint say why:
+
+* the RECON window defines **eight client areas and every one of them is (0,0)-(1024,768)** — the
+  whole window. There is no "image pane" rectangle to ask for.
+* `FF_ReconSetExclusions`'s probe reported **0 windows above the view** in the same run, even though
+  the target-list panel is plainly drawn over the left half and the present path's own comment calls
+  it "the TARGET LIST window, a popup". So the one piece of code that already enumerates the covering
+  rectangle did not see it here, and that needs explaining before its answer is trusted.
+
+**S9:** find why the exclusion enumeration returns 0 for the target list, then take the viewport's
+left edge from that rectangle. That makes the fix layout-driven instead of a hardcoded 500, and it
+fixes the same defect at any resolution.
+
+**RECON-3: 4 sprints this pass (S5–S8) — AT THE CAP, rotating off with the defect demonstrated
+fixable and the fix one measurement from being principled.**

@@ -218,6 +218,29 @@ void C_3dViewer::Viewport(C_Window *win, long client)
     viewport.right = win->GetX() + win->ClientArea_[client].right;
     viewport.bottom = win->GetY() + win->ClientArea_[client].bottom;
 
+#ifdef FF_LINUX
+    /* RECON-3 S8 (2026-09-14): a TEST HOOK for S7's finding, not a fix. S7 measured the recon
+       aerial rendered across the whole window, viewport=(0,32)-(1024,728), while the visible image
+       pane is the right-hand side from x~500 -- so the aimed camera puts its subject at x~512,
+       which is the pane's left EDGE, and that is exactly where the bridge is drawn. Prediction to
+       test: pushing the viewport's left edge to the pane boundary moves the subject from x~560 to
+       the pane centre, x~762. FF_RECON_VP_LEFT=<x> pushes it; unset, nothing changes. */
+    if (getenv("FF_RECON_VP_LEFT"))
+    {
+        const long vl = atol(getenv("FF_RECON_VP_LEFT"));
+
+        if (vl > viewport.left and vl < viewport.right)
+        {
+            viewport.left = vl;
+
+            if (getenv("FF_DEBUG_RECON"))
+                fprintf(stderr, "[recon] FF_RECON_VP_LEFT -> viewport=(%ld,%ld)-(%ld,%ld)\n",
+                        (long)viewport.left, (long)viewport.top,
+                        (long)viewport.right, (long)viewport.bottom), fflush(stderr);
+        }
+    }
+#endif
+
     l = static_cast<float>(-1.0f + ((float)(viewport.left) / (sw * .5)));
     t = static_cast<float>(1.0f - ((float)(viewport.top) / (sh * .5)));
     r = static_cast<float>(1.0f - ((float)(sw - viewport.right) / (sw * .5)));
