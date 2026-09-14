@@ -13396,3 +13396,51 @@ prints the mode it is in. That is the banked "a switch needs its own printed ter
 keep for the second time in this file.
 
 **GMOBJ-1: 2 sprints.**
+
+### RECON-3 S1 (Opus 5, 2026-09-13) — reproduced against gold; the camera is exonerated and the Z-mirror hypothesis SURVIVES its first test
+
+POLISH-1 sub-item 1, PO: *"CCRP - bridge upsideown in recon view, rotates in the opposite direction
+from the rest of the terrain when rotate side-caret is clicked. Right side up it would probably
+rotate correctly."*
+
+**Reproduced, and compared with the gold at matched scale** (`bridge_ab2.png`; ours at slant
+2470 ft after the now-working ZOOM, the Wine gold at 3890 ft, both cropped to the same width):
+
+* **Gold:** a flat white deck with the dark truss arcing **UP** across the top of it.
+* **Ours:** the dark truss arcs **DOWN** below the deck, while the deck still shows its yellow
+  centre line.
+
+Both renders carry two trusses (near and far), so the discriminating feature is the CURVATURE of the
+outer edge, not the presence of structure. The PO's word for it is right.
+
+**Why one sign could explain both symptoms.** A Z-mirror has determinant −1: it turns the model over
+AND reverses its apparent sense of rotation, which is exactly the pair reported.
+
+**The camera is NOT the cause — checked two ways, not one.**
+1. Arithmetic: `FindCameraDeltas` sets `DeltaZ = -Distance * sin(Pitch)`; at the recon defaults
+   (Pitch 70, Distance 4000) that is −3758, and Falcon Z is positive-down, so the eye is 3758 ft
+   ABOVE the target. The live trace agrees: `pos=(1656579,1226873,-3758)`. `SetCamera` then receives
+   `-Info->Pitch`, nose-down. All correct.
+2. Experiment, because arithmetic alone would not settle it: **does the arch follow the eye?** If
+   this were a viewing-angle artefact the arch would move to the other side when seen from the
+   opposite quarter; if the model is genuinely mirrored it stays down at every heading. The spin
+   caret integrates 2°/tick and is not repeatable, so `FF_RECON_HDG=<degrees>` sets the view heading
+   directly (measurement switch; unset, nothing changes). Two arms, 0° and 180°:
+   the terrain **did** rotate — fields-and-factory north of the road at 0°, the town at 180°, mean
+   abs pixel difference 36.5 — and **the arch still bowed DOWN in both** (`bridge_hdg_ab.png`).
+
+So the inversion is in the model or its placement, not in the view. **The hypothesis survives the
+test designed to kill it.**
+
+**S2 — the one question that splits the remaining search, and it is cheap.** All three
+`DrawableRoadbed` construction sites (`addobj.cpp:391/393` for the sim, `acmitape.cpp:4336/4338` for
+ACMI, `cbsplist.cpp:450` for the recon UI) pass **identical** arguments, so the model is not built
+differently for recon. Therefore: capture the bridge in the SIM's 3-D world at a comparable
+near-overhead angle.
+  * sim arch also DOWN  → the mirror is in the shared model/feature path and every bridge in the
+    game is inverted — much bigger than a recon cosmetic, and it would also bear on CCRP-5, since
+    the PO's bombs land "left of the bridge".
+  * sim arch UP         → recon-only, and the search narrows to the UI viewer's object transform.
+Do not guess between those: one capture decides it.
+
+**RECON-3: 1 sprint.**

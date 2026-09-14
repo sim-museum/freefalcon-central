@@ -606,6 +606,19 @@ void ReconArea(float x, float y, float range)
         gUIViewer->Viewport(win, 0); // use client 0 for this window
 
         Recon.Heading = 0.0f;
+#ifdef FF_LINUX
+        /* RECON-3 S1 (PO 2026-09-13: "bridge upsideown in recon view, rotates in the opposite
+           direction from the rest of the terrain"). Confirmed against the Wine gold at matched
+           scale: the gold's truss arch bows UP above the white deck; ours bows DOWN below it while
+           the deck still shows its centre line. A Z-mirror would explain the inversion AND the
+           reversed rotation with one sign (det = -1).
+           The discriminating experiment is whether the arch FOLLOWS the eye: if the model is truly
+           mirrored the arch stays below at every heading, whereas a viewing-angle artefact moves to
+           the other side when seen from the opposite quarter. Driving that with the spin caret is
+           not repeatable (it integrates 2 deg per timer tick), so set the heading directly.
+           FF_RECON_HDG=<degrees>; unset, nothing changes. */
+        { const char* e = getenv("FF_RECON_HDG"); if (e) Recon.Heading = (float)atof(e); }
+#endif
         Recon.Pitch = 70.0f;
         Recon.Distance = 4000.0f;
         Recon.Direction = 0.0f;
