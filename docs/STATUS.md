@@ -13535,3 +13535,44 @@ they agree in size and direction, the PO's *"bombs land left of the bridge"* and
 and the priority changes accordingly.
 
 **RECON-3: 3 sprints.**
+
+### RECON-3 S4 (Opus 5, 2026-09-14) — the offset is real but the conversion does NOT cross-check; and it is the wrong ORDER for CCRP-5
+
+S3 asked for the bridge-vs-road offset in feet, to compare with CCRP-5's 138 ft bomb miss. S4
+measured it at TWO slant ranges deliberately, because a single measurement converts to feet through
+an assumed field of view and would have produced a confident number with nothing checking it.
+
+**Measured** (OVERHEAD plan view, road band and deck band located by colour, centres compared):
+
+| slant range | road centre | deck centre | offset |
+|---|---|---|---|
+| 1730 ft | y 413.5 | y 388.0 | **25.5 px** |
+| 3510 ft | y 396.0 | y 388.0 | **8.0 px** |
+
+The deck centre is y 388.0 in both, as it must be — the recon view centres on the selected feature.
+
+⚠️ **The cross-check FAILS, and that is the finding.** A fixed world offset must project as
+`px ∝ 1/slant`, so the pixel ratio should equal the slant ratio: 3510/1730 = **2.03**. Measured ratio
+is 25.5/8.0 = **3.19**. Converting each through the FOV model (30°, 696 px of viewport) gives **34 ft**
+at the near range and **22 ft** at the far one — a factor of 1.6 apart.
+
+**So I decline to quote a figure.** The offset is real (both frames show the deck off the road, and
+S2's gold comparison shows the gold's is on it), and it is of order 20–35 ft, but the two ranges do
+not agree and the most likely reason is my own band detection: the deck's apparent THICKNESS changes
+with zoom because its side becomes visible, which moves the "centre" I am measuring. A single
+measurement would have handed over "34 ft" with no way to know.
+
+⭐ **What this does settle: the magnitudes do not match.** Even taking the largest figure, ~34 ft is a
+quarter of CCRP-5's 138 ft. S3 floated the two as possibly one defect; **on magnitude they are not**,
+and the comparison was not apples-to-apples anyway — 138 ft is the bomb's distance from the DESIGNATE
+and includes ordinary CCRP delivery error, not a drawn-position offset. That hypothesis should be
+dropped unless something else revives it.
+
+**S5, if this item is picked up again** — stop measuring the deck against a painted road, which has
+no queryable position. Measure the terrain instead: pick a feature whose world position is known
+(the bridge's is `1671214.6,1238670.2`), and compare it against the world position the terrain
+renderer places under the cursor at that screen point. That is a number-to-number comparison with no
+colour detection and no FOV assumption in it.
+
+**RECON-3: 4 sprints — at cap, rotating off with the defect located (terrain-vs-world, S3) and
+deliberately unquantified.**
