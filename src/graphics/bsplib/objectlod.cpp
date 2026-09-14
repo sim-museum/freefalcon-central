@@ -31,6 +31,38 @@ int TheObjectLODsCount = 0;
 int     ObjectLOD::lodsLoaded = 0;
 #endif
 FileMemMap  ObjectLOD::ObjectLodMap;
+#ifdef FF_LINUX
+/* PO 2026-09-04 (TE-2, entering 3D after a campaign flight): the window vanished with
+       [RenderFirstFrame] ... calling PreLoadScene...
+       double free or corruption (out)
+       === CRASH: SIGABRT (signal 6) ===
+   and a backtrace through ObjectLOD::Load -> UpdateLods -> WaitUpdates -> PreLoadScene.
+
+   LodBuffer/LodBufferSize below are STATIC -- one scratch buffer shared by every LOD load -- and
+   Load() resizes it unguarded:
+       if (filesize > LodBufferSize) free(LodBuffer), LodBufferSize = filesize, LodBuffer = malloc(...)
+   Two threads that both see filesize > LodBufferSize both free the same pointer. That is the
+   double free, and even when it does not abort, both threads then READ AND WRITE the same buffer.
+
+   WaitUpdates() looks like it prevents this -- it parks the loader with SetPause(true) and spins
+   on Paused() -- but that only excludes the LOADER thread. Any other thread calling WaitUpdates
+   (or TextureBank's equivalent) finds Paused() already true and runs UpdateLods -> Load itself, so
+   two NON-loader threads can be inside Load() together. The pause is a loader interlock, not
+   mutual exclusion over the buffer.
+
+   Serialise Load() the same way texbank.cpp already serialises its bank state (FF_TEXBANK_LOCK).
+   Recursive, because Load() can re-enter through the LOD chain. FF_NO_LODLOCK=1 reverts for A/B. */
+#include <mutex>
+static std::recursive_mutex s_lodLoadLock;
+#define FF_LODLOAD_LOCK()                                                        \
+    static int s_ffNoLodLock = -1;                                               \
+    if (s_ffNoLodLock < 0) s_ffNoLodLock = getenv("FF_NO_LODLOCK") ? 1 : 0;      \
+    std::unique_lock<std::recursive_mutex> ff_lod_guard(s_lodLoadLock, std::defer_lock); \
+    if (not s_ffNoLodLock) ff_lod_guard.lock()
+#else
+#define FF_LODLOAD_LOCK() ((void)0)
+#endif
+
 BYTE *ObjectLOD::LodBuffer;
 DWORD ObjectLOD::LodBufferSize;
 bool ObjectLOD::RatedLoad;
@@ -184,11 +216,54 @@ void ObjectLOD::SetupTable(int file, char *basename)
     // Init our critical section
     InitializeCriticalSection(&cs_ObjectLOD);
     RatedLoad = true;
+
+    /* LOD-1 (FF_LINUX): PARK THE LOADER WHILE THE RING IS BUILT.
+       ThreadSanitizer (2026-09-05) reports a real data race here:
+
+           Write, main thread : ObjectLOD::SetupTable  objectlod.cpp:222   (the reset below)
+           Read,  loader T9   : ObjectLOD::UpdateLods  objectlod.cpp:468   (LoadIn != LoadOut ...)
+           Location is global 'ObjectLOD::ReleaseOut'
+
+       The loader thread is created in Loader::Setup (loader.cpp:80) from
+       DeviceIndependentGraphicsSetup BEFORE ObjectParent::SetupTable runs, so it is already
+       spinning on these ring indices while this function zeroes them AND mallocs the two arrays it
+       indexes. UpdateLods only dereferences CacheRelease when ReleaseIn != ReleaseOut, which is why
+       this has not been seen to crash -- but the indices are read while being written, and the
+       arrays are published without any ordering.
+
+       Uses the loader's OWN pause protocol, the same one WaitUpdates uses below, so no new
+       synchronisation primitive is introduced.
+
+       ⚠ The wait is BOUNDED. An unbounded spin on Paused() here would hang startup outright if the
+       loader is not running (tools link this file too), which is a worse fault than the race it
+       fixes. On timeout it warns and proceeds -- the pre-existing behaviour.
+       FF_NO_LODINIT_PAUSE=1 reverts. */
+    const bool lodInitPause = (getenv("FF_NO_LODINIT_PAUSE") == NULL);
+    bool lodParked = false;
+
+    if (lodInitPause)
+    {
+        TheLoader.SetPause(true);
+
+        for (int spin = 0; spin < 2000 and not TheLoader.Paused(); ++spin)
+            Sleep(1);
+
+        lodParked = TheLoader.Paused() ? true : false;
+
+        if (not lodParked)
+            fprintf(stderr, "[LODINIT] loader did not park within 2s -- initialising the ring anyway\n");
+        else if (getenv("FF_DEBUG_LODINIT"))
+            fprintf(stderr, "[LODINIT] loader parked; building the LOD ring\n");
+    }
+
     // Allocte acche with a little safety margin
     CacheLoad = (short*) malloc(sizeof(short) * (TheObjectLODsCount + CACHE_MARGIN));
     CacheRelease = (short*) malloc(sizeof(short) * (TheObjectLODsCount + CACHE_MARGIN));
     LoadIn = LoadOut = ReleaseIn = ReleaseOut = 0;
     LODsLoaded = 0;
+
+    if (lodInitPause)
+        TheLoader.SetPause(false);
 }
 
 
@@ -361,6 +436,7 @@ void ObjectLOD::ReleaseLodList(void)
 
 DWORD ObjectLOD::Load(void)
 {
+    FF_LODLOAD_LOCK();          /* covers the shared LodBuffer resize AND its use below */
     DxDbHeader *Header;
     DWORD DxID;
 

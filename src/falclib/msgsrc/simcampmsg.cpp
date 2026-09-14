@@ -13,6 +13,18 @@
 
 //sfr: added here for checks
 #include "InvalidBufferException.h"
+
+/* 2026-09-04: campaign-side investigation tracing, gated -- same class as the [Deaggregate] and
+   [AddVehicleToSim] sets in unit.cpp / simobj.cpp: fires per message, so it scales with campaign
+   size rather than being bounded. FF_TRACE_CAMP=1 restores it. Placed at FILE SCOPE: a first
+   attempt inserted it mid-function (searching backwards for a blank line lands inside a body),
+   which does not compile. */
+static int ff_trace_camp(void)
+{
+    static int v = -1;
+    if (v < 0) v = getenv("FF_TRACE_CAMP") ? 1 : 0;
+    return v;
+}
 using namespace std;
 
 
@@ -102,7 +114,7 @@ int FalconSimCampMessage::Process(uchar autodisp)
 #ifdef FF_LINUX
     if (dataBlock.message == simcampDeaggregate)
     {
-        fprintf(stderr, "[SimCampMsg] Process simcampDeaggregate: autodisp=%d ent=%p session=%p FalconLocalGame=%p\n",
+        if (ff_trace_camp()) fprintf(stderr, "[SimCampMsg] Process simcampDeaggregate: autodisp=%d ent=%p session=%p FalconLocalGame=%p\n",
                 autodisp, (void*)ent, (void*)session, (void*)FalconLocalGame);
         fflush(stderr);
     }
@@ -113,7 +125,7 @@ int FalconSimCampMessage::Process(uchar autodisp)
 #ifdef FF_LINUX
         if (dataBlock.message == simcampDeaggregate)
         {
-            fprintf(stderr, "[SimCampMsg] EARLY RETURN from simcampDeaggregate\n");
+            if (ff_trace_camp()) fprintf(stderr, "[SimCampMsg] EARLY RETURN from simcampDeaggregate\n");
             fflush(stderr);
         }
 #endif
@@ -130,12 +142,12 @@ int FalconSimCampMessage::Process(uchar autodisp)
 
         case simcampDeaggregate:
 #ifdef FF_LINUX
-            fprintf(stderr, "[SimCampMsg] Calling ent->Deaggregate(session) for ent=%p\n", (void*)ent);
+            if (ff_trace_camp()) fprintf(stderr, "[SimCampMsg] Calling ent->Deaggregate(session) for ent=%p\n", (void*)ent);
             fflush(stderr);
 #endif
             ent->Deaggregate(session);
 #ifdef FF_LINUX
-            fprintf(stderr, "[SimCampMsg] Deaggregate returned, IsAggregate=%d\n", ent->IsAggregate());
+            if (ff_trace_camp()) fprintf(stderr, "[SimCampMsg] Deaggregate returned, IsAggregate=%d\n", ent->IsAggregate());
             fflush(stderr);
 #endif
             break;

@@ -683,7 +683,19 @@ static inline BOOL GetCursorPos(LPPOINT lpPoint) { if (lpPoint) { lpPoint->x = 0
 
 /* Keyboard */
 static inline SHORT GetAsyncKeyState(int vKey) { (void)vKey; return 0; }
-static inline SHORT GetKeyState(int nVirtKey) { (void)nVirtKey; return 0; }
+/* MP-1: this returned 0 for every key, so ui95's ShiftStates (built from five GetKeyState calls:
+   SHIFT, MENU, CONTROL, CAPITAL, NUMLOCK) was always 0. Even with the scancode reaching the handler
+   that leaves no capitals, no symbols and no Ctrl/Alt hotkeys anywhere in the UI. Route it to the
+   live SDL modifier state instead; FF_GetKeyState is implemented in main_linux.cpp, which is the
+   only place that may touch SDL. Returns the Win32 shape: 0x8000 = down, 0x0001 = toggled. */
+/* this header is included from C translation units too (reslib, codelib), where `extern "C"` is a
+   syntax error -- guard it. */
+#ifdef __cplusplus
+extern "C" SHORT FF_GetKeyState(int nVirtKey);
+#else
+extern SHORT FF_GetKeyState(int nVirtKey);
+#endif
+static inline SHORT GetKeyState(int nVirtKey) { return FF_GetKeyState(nVirtKey); }
 static inline BOOL GetKeyboardState(PBYTE lpKeyState) { (void)lpKeyState; return TRUE; }
 
 /* Timer */

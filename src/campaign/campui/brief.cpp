@@ -1854,7 +1854,28 @@ int ReadScriptedBriefFile(char* filename, _TCHAR *current_line, C_Window *win, _
         return 0;
 
     if ((fp = OpenCampFile(filename, "", "r")) == NULL)
+    {
+#ifdef FF_LINUX
+        /* Both early-returns in this function are silent, which is why an empty debrief looked
+           like a UI fault for so long. Say which file could not be opened. FF_DEBUG_BRIEF=1. */
+        if (getenv("FF_DEBUG_BRIEF"))
+        {
+            fprintf(stderr, "[BRIEF] MISSING script '%s' -- this section will be blank\n", filename);
+            fflush(stderr);
+        }
+
+#endif
         return 0;
+    }
+
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_BRIEF"))
+    {
+        fprintf(stderr, "[BRIEF] opened '%s'\n", filename);
+        fflush(stderr);
+    }
+
+#endif
 
     if (F4IsBadReadPtr(flight_data, sizeof(FlightDataClass))) // JB 010305 CTD
         return 0;

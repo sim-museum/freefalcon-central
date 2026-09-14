@@ -1226,6 +1226,23 @@ void CampaignSetup() // Everything that needs to be done to start the campaign (
 
         // KCK: Added the check for a pilot list so that we don't debrief after a
         // discarded mission
+#ifdef FF_LINUX
+        /* PO 2026-09-04 (Balkans): "debrief screen after flight has no mission information".
+           The debrief below is populated only when ALL THREE of these are non-null, and when any
+           one is missing the screen simply comes up empty -- no error, nothing in the log, and no
+           way to tell which of the three failed. That is the same shape as THEATER-1, where the
+           Balkans campaign ran but its mission data never arrived. Say which one is missing.
+           FF_DEBUG_DEBRIEF=1. */
+        if (getenv("FF_DEBUG_DEBRIEF"))
+        {
+            fprintf(stderr, "[DEBRIEF] win=%p MissionEvaluator=%p flight_data=%p%s\n",
+                    (void*)win, (void*)TheCampaign.MissionEvaluator,
+                    (void*)(TheCampaign.MissionEvaluator ? TheCampaign.MissionEvaluator->flight_data : NULL),
+                    (win and TheCampaign.MissionEvaluator and TheCampaign.MissionEvaluator->flight_data)
+                        ? "  -> populating" : "  -> EMPTY DEBRIEF (this is the PO's symptom)");
+            fflush(stderr);
+        }
+#endif
         if (win and TheCampaign.MissionEvaluator and TheCampaign.MissionEvaluator->flight_data)
         {
             BuildCampDebrief(win);

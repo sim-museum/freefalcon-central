@@ -1663,6 +1663,31 @@ void SimToggleMissileCage(unsigned long, int state, void*)
 {
     AircraftClass *pac = SimDriver.GetPlayerAircraft();
 
+    /* PO 2026-09-03: "maverick TE, 'u' to turn on the maverick view on the right MFD had no
+       effect". `u` (DIK 0x16, no modifier) IS bound to this function in keystrokes.key, and the
+       AGM-65 branch below is implemented -- so the question is whether the key ARRIVES and which
+       of the three preconditions fails. Those need opposite fixes, and guessing between them is
+       what cost several sprints on bob's numpad. Print the answer instead.
+       FF_TRACE_CAGE=1 enables; default-off. */
+    if (getenv("FF_TRACE_CAGE"))
+    {
+        static int n = 0;
+        if (n++ < 12)
+        {
+            fprintf(stderr, "[cage] SimToggleMissileCage state=0x%x keydown=%d pac=%p ownship=%d",
+                    state, (state bitand KEY_DOWN) ? 1 : 0, (void*)pac,
+                    (pac and pac->IsSetFlag(MOTION_OWNSHIP)) ? 1 : 0);
+            if (pac and pac->Sms)
+                fprintf(stderr, " curWeaponType=%d (wtAgm65=%d) curWeapon=%p powered=%d",
+                        (int)pac->Sms->curWeaponType, (int)wtAgm65,
+                        (void*)pac->Sms->curWeapon.get(), (int)pac->Sms->Powered);
+            else
+                fprintf(stderr, " Sms=NULL");
+            fprintf(stderr, "\n");
+            fflush(stderr);
+        }
+    }
+
     if (pac and pac->IsSetFlag(MOTION_OWNSHIP) and (state bitand KEY_DOWN))
     {
         //MI check for MAV Displays

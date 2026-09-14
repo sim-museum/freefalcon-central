@@ -99,8 +99,30 @@ void TextureBankClass::Setup(int nEntries)
         CacheRelease = NULL;
     }
 
-    RatedLoad = true;
-    LoadIn = LoadOut = ReleaseIn = ReleaseOut = 0;
+    /* TEXBANK-1 (FF_LINUX): TAKE THE LOCK THAT ALREADY EXISTS.
+       ThreadSanitizer (2026-09-05) reports a data race on `TextureBankClass::ReleaseOut` between
+       this reset and `UpdateBank` on the loader thread. `UpdateBank` DOES hold FF_TEXBANK_LOCK
+       (:1216) -- but this producer side never took it, and a lock held by only one participant is
+       not a lock. That is the whole reason the existing FF_TEXBANK_LOCK did not cover this site.
+       The mutex is recursive, so taking it here is safe even if a caller already holds it.
+       FF_NO_TEXBANK_INITLOCK=1 reverts. */
+    {
+        static int s_noInitLock = -1;
+
+        if (s_noInitLock < 0) s_noInitLock = getenv("FF_NO_TEXBANK_INITLOCK") ? 1 : 0;
+
+        if (s_noInitLock)
+        {
+            RatedLoad = true;
+            LoadIn = LoadOut = ReleaseIn = ReleaseOut = 0;
+        }
+        else
+        {
+            FF_TEXBANK_LOCK();
+            RatedLoad = true;
+            LoadIn = LoadOut = ReleaseIn = ReleaseOut = 0;
+        }
+    }
 }
 
 void TextureBankClass::Cleanup(void)
@@ -133,9 +155,29 @@ void TextureBankClass::Cleanup(void)
 
     if (CacheLoad)  free(CacheLoad), CacheLoad = NULL;
 
-    if (CacheRelease)  free(CacheRelease), CacheRelease = NULL;
+    /* TEXBANK-1: the teardown side frees the very arrays UpdateBank indexes, so it needs the
+       same lock as the init side -- more so, since here the pointers go away rather than just the
+       indices being rewritten. */
+    {
+        static int s_noInitLock2 = -1;
 
-    LoadIn = LoadOut = ReleaseIn = ReleaseOut = 0;
+        if (s_noInitLock2 < 0) s_noInitLock2 = getenv("FF_NO_TEXBANK_INITLOCK") ? 1 : 0;
+
+        if (s_noInitLock2)
+        {
+            if (CacheRelease)  free(CacheRelease), CacheRelease = NULL;
+
+            LoadIn = LoadOut = ReleaseIn = ReleaseOut = 0;
+        }
+        else
+        {
+            FF_TEXBANK_LOCK();
+
+            if (CacheRelease)  free(CacheRelease), CacheRelease = NULL;
+
+            LoadIn = LoadOut = ReleaseIn = ReleaseOut = 0;
+        }
+    }
 
     // Close our texture resource file
     if (TexFileMap.IsReady())
@@ -320,6 +362,12 @@ void TextureBankClass::Reference(int id)
     {
         // TEXBANK-1: is this the -1 sentinel the guard assumes, or a genuine
         // out-of-range index computed wrong? FF_DEBUG_TEXBANK=1 says which.
+        // ANSWERED 2026-09-04, Balkans campaign -> 3D: every one of the 16 invalid ids in that
+        // run was exactly -1. So this IS the sentinel, the guard's assumption holds, and the
+        // ShiAssert above is benign noise rather than a symptom. Recorded so the next reader does
+        // not re-run the experiment: if a value OTHER than -1 ever appears here it is a different
+        // bug and should be treated as one (compare BALKANS-CRASH in docs/STATUS.md, where an
+        // out-of-range index into a name table really was reading past the end of the heap).
         if (getenv("FF_DEBUG_TEXBANK"))
         {
             fprintf(stderr, "[TEXBANK] %s invalid id=%d\n", "REF", id);

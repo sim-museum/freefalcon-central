@@ -1161,7 +1161,54 @@ void C_Handler::Update()
     Lock();
 
     if ( not surface_.mem)
+    {
+        /* UILOCK-1 (FF_LINUX): this early return used to leave WITHOUT unlocking, so if the surface
+           lock had actually been taken it stayed held for the rest of the process -- a frozen front
+           end rather than a crash, which is a symptom this port has chased before.
+           Two distinct cases reach here and only one of them leaks:
+             * Front_ == NULL      -> Lock() took nothing; returning is harmless.
+             * Front_->Lock() NULL -> the lock WAS taken and would have been abandoned.
+           Unlock() checks Front_ itself, so calling it is correct in both cases.
+           The counter distinguishes them, because "how often is this branch live" was unknown when
+           the bug was filed and a latent bug and a live one deserve different attention.
+           FF_DEBUG_UILOCK=1 reports. */
+        static long s_nullSurface = 0, s_withFront = 0;
+        s_nullSurface++;
+
+        if (Front_) s_withFront++;
+
+        if (getenv("FF_DEBUG_UILOCK") and (s_nullSurface % 100) == 1)
+            fprintf(stderr, "[uilock] Update(): surface_.mem NULL x%ld (Front_ non-NULL on %ld of them)\n",
+                    s_nullSurface, s_withFront), fflush(stderr);
+
+        Unlock();
         return;
+    }
+
+    /* UIRACE-1 (FF_LINUX): take the UI critical section around the window traversal below.
+       ThreadSanitizer: the control-loop thread writes this same per-window rect state
+       (DoControlLoop -> UpdateTimerControls -> DrawTimerControls -> C_TimerHook::Refresh ->
+       C_Window::SetUpdateRect, cwindow.cpp:721) while HOLDING this critical section, and this
+       reader never took it. rectcount_/update_ and the rect list decide which screen regions are
+       blitted, so reading them mid-rewrite gives stale or torn rects -- regions painted that should
+       not be and regions skipped that should be.
+
+       LOCK ORDER CHECKED BEFORE APPLYING, because Lock() (the SURFACE lock) is already held here:
+         * the control thread's path (DrawTimerControls / Refresh / SetUpdateRect) takes NO surface
+           lock at all -- only this critical section;
+         * no site in chandler.cpp takes EnterCritical() and then Lock().
+       So the order is surface -> UI_Critical in one direction only, and cannot invert. A deadlock
+       in the front end would be worse than the corruption this fixes, which is why it was verified
+       rather than assumed.
+
+       Scoped to the traversal deliberately: the only `return` after Lock() is at :1164, ABOVE this
+       point, so no exit path can escape while holding the critical section.
+       (Note that :1164 early-return leaks the surface Lock() itself -- pre-existing, filed
+       separately as UILOCK-1; not touched here.)
+       FF_NO_UIRECT_LOCK=1 reverts. */
+    const bool uiRectLock = (getenv("FF_NO_UIRECT_LOCK") == NULL);
+
+    if (uiRectLock) EnterCritical();
 
     // CheckDrawThrough();
     CheckTranslucentWindows();
@@ -1218,6 +1265,8 @@ void C_Handler::Update()
 
         cur = cur->Next;
     }
+
+    if (uiRectLock) LeaveCritical();
 
     if (OverLast_.Time_)
         CheckHelpText(&surface_);
@@ -2903,6 +2952,31 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
                     ShiftStates or_eq _SHIFT_DOWN_;
 
             Ascii = AsciiChar(Key, ShiftStates);
+
+            /* MP-1: what the UI actually receives for a keystroke. The PO cannot type into ANY
+               field; this line says whether that is because no key arrives, because the scancode
+               decodes to zero, or because the ASCII translation fails. Expected BEFORE the fix:
+               Key=0 Ascii=0 for every key, because main_linux posts the scancode in wParam while
+               this decoder reads lParam. FF_DEBUG_KEYS=1. */
+            {
+                static int s_kdbg = -1;
+
+                if (s_kdbg < 0) s_kdbg = getenv("FF_DEBUG_KEYS") ? 1 : 0;
+
+                if (s_kdbg)
+                {
+                    static long kn = 0;
+
+                    if (kn++ < 40)
+                    {
+                        fprintf(stderr, "[keys] wParam=%ld lParam=0x%lx -> Key=%d Ascii=%d('%c') Shift=%d win=%p\n",
+                                (long)wParam, (unsigned long)lParam, (int)Key, (int)Ascii,
+                                (Ascii >= 32 and Ascii < 127) ? Ascii : '.', (int)ShiftStates,
+                                (void*)CurWindow_);
+                        fflush(stderr);
+                    }
+                }
+            }
 
             // Handle Hot Keys bitand Keyboard input
             if (CurWindow_)

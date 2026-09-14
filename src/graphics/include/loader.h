@@ -10,6 +10,7 @@
 #define _LOADER_H_
 
 #include "grtypes.h"
+#include <atomic>
 
 
 
@@ -98,7 +99,14 @@ private:
 
     volatile BOOL shutDown;
     volatile BOOL stopped;
-    volatile LoaderPauseMode paused;
+    /* UIRACE/LOD-1 (FF_LINUX): `volatile` is NOT atomicity. This word is written by the main
+       thread (SetPause) and by the loader thread (MainLoop, when it parks itself), and
+       ThreadSanitizer reports it as a data race -- correctly. The pause protocol has always been
+       racy; it only became visible when a startup caller (ObjectLOD::SetupTable) started using it,
+       and WaitUpdates has been using the same protocol all along.
+       std::atomic keeps every existing use compiling unchanged (load on read, store on write) and
+       makes the handshake actually defined. */
+    std::atomic<LoaderPauseMode> paused;
     volatile BOOL queueIsEmpty;
     volatile QueueMode      queueStatus;
     volatile DWORD TickDelay;

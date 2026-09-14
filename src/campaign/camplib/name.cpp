@@ -189,6 +189,41 @@ _TCHAR* ReadNameString(int sid, _TCHAR *wstr, unsigned int len)
         return wstr;
 
     ShiAssert(FALSE == F4IsBadReadPtr(NameIndex, sizeof * NameIndex * NameEntries)); // JPO CTD
+
+#ifdef FF_LINUX
+    /* PO 2026-09-04 (Balkans): the campaign map crashed on entry. AddressSanitizer caught the
+       cause here -- a heap-buffer-overflow READ of 2 bytes exactly 0 bytes past the name table:
+           ReadNameString  name.cpp:192
+           ObjectiveClass::GetName  objectiv.cpp:2291
+           C_Map::AddObjective -> UI_Refresher::AddMapItem -> CampaignSetup
+       NameIndex is `new short[NameEntries]`, and the line below indexes `sid + 1` because the
+       table holds OFFSETS: entry i+1 marks the end of string i. That makes the last entry a
+       sentinel and the highest legal sid NameEntries-2. A Balkans objective asks for a name id
+       beyond its own theater's table, so `sid + 1` walks off the end.
+       Without a sanitizer this reads whatever adjacent heap happens to be there: it returns a
+       garbage length and may or may not kill the process depending on allocation layout, which is
+       why it is fatal on the PO's machine and survivable on mine.
+       Refuse the out-of-range id instead. This is the same shape as the null-table guard above
+       (JB 010731 CTD): a missing name is a far better outcome than a corrupted heap.
+       FF_DEBUG_NAMES=1 reports each rejection, so how much Balkans data is out of range becomes a
+       number rather than a guess. */
+    if (sid < 0 or sid + 1 >= (int)NameEntries)
+    {
+        if (getenv("FF_DEBUG_NAMES"))
+        {
+            fprintf(stderr, "[NAMES] REJECTED out-of-range sid=%d (table holds %d entries, "
+                            "max legal sid=%d) -- would have read past the end\n",
+                    sid, (int)NameEntries, (int)NameEntries - 2);
+            fflush(stderr);
+        }
+
+        if (wstr and len > 0)
+            wstr[0] = 0;
+
+        return wstr;
+    }
+
+#endif
     size = NameIndex[sid + 1] - NameIndex[sid];
     rlen = size / sizeof(_TCHAR);
 

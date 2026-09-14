@@ -1578,16 +1578,29 @@ int UnitClass::RecordCurrentState(FalconSessionEntity *session, int byReag)
 }
 
 
+/* 2026-09-04: the [Deaggregate] tracing below was investigation scaffolding and CLAUDE.md's
+   "Known Issues" already flags it: "Several debug fprintf statements were added during
+   investigation. These should be removed or wrapped." Measured in a shipped-build session log:
+   ~470 of 2761 lines, and it scales with how many units deaggregate -- so it grows with campaign
+   size, unbounded. A log flood is not cosmetic here: the PO reported exactly that in the BoB port
+   as a HANG. Gated default-off rather than deleted, because it earned its keep once.
+   FF_TRACE_DEAG=1 restores it. */
+static int ff_trace_deag(void)
+{
+    static int v = -1;
+    if (v < 0) v = getenv("FF_TRACE_DEAG") ? 1 : 0;
+    return v;
+}
 int UnitClass::Deaggregate(FalconSessionEntity* session)
 {
 #ifdef FF_LINUX
-    fprintf(stderr, "[Deaggregate] ENTER unit=%p session=%p\n", (void*)this, (void*)session);
+    if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] ENTER unit=%p session=%p\n", (void*)this, (void*)session);
     fflush(stderr);
 #endif
     if ( not IsLocal() or not IsAggregate() or IsDead())
     {
 #ifdef FF_LINUX
-        fprintf(stderr, "[Deaggregate] Early return: IsLocal=%d IsAggregate=%d IsDead=%d\n",
+        if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] Early return: IsLocal=%d IsAggregate=%d IsDead=%d\n",
                 IsLocal(), IsAggregate(), IsDead());
         fflush(stderr);
 #endif
@@ -1607,7 +1620,7 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
 
     CampBaseClass *base = GetUnitAirbase();
 #ifdef FF_LINUX
-    fprintf(stderr, "[Deaggregate] GetUnitAirbase returned %p\n", (void*)base);
+    if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] GetUnitAirbase returned %p\n", (void*)base);
     fflush(stderr);
 #endif
 
@@ -1639,14 +1652,14 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
 
     // Check for possible problems
 #ifdef FF_LINUX
-    fprintf(stderr, "[Deaggregate] Before IsFlight check, IsFlight=%d\n", IsFlight());
+    if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] Before IsFlight check, IsFlight=%d\n", IsFlight());
     fflush(stderr);
 #endif
     if (IsFlight())
     {
         CampEntity ent = NULL;
 #ifdef FF_LINUX
-        fprintf(stderr, "[Deaggregate] Calling GetDeaggregationPoint...\n");
+        if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] Calling GetDeaggregationPoint...\n");
         fflush(stderr);
 #endif
         simdata.ptIndex = GetDeaggregationPoint(0, &ent);
@@ -1677,33 +1690,33 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
     if ( not session)
     {
 #ifdef FF_LINUX
-        fprintf(stderr, "[Deaggregate] session was NULL, using FalconLocalSession=%p\n", (void*)FalconLocalSession);
+        if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] session was NULL, using FalconLocalSession=%p\n", (void*)FalconLocalSession);
         fflush(stderr);
 #endif
         session = FalconLocalSession;
     }
 
 #ifdef FF_LINUX
-    fprintf(stderr, "[Deaggregate] About to SetDeagOwner, session=%p\n", (void*)session);
+    if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] About to SetDeagOwner, session=%p\n", (void*)session);
     fflush(stderr);
 #endif
     // Set the owner of the newly created deaggregated entities
     SetDeagOwner(session->Id());
 #ifdef FF_LINUX
-    fprintf(stderr, "[Deaggregate] SetDeagOwner done, calling GetRealPosition...\n");
+    if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] SetDeagOwner done, calling GetRealPosition...\n");
     fflush(stderr);
 #endif
     GetRealPosition(&x, &y, &z);
 #ifdef FF_LINUX
-    fprintf(stderr, "[Deaggregate] Position: x=%.1f y=%.1f z=%.1f\n", x, y, z);
+    if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] Position: x=%.1f y=%.1f z=%.1f\n", x, y, z);
     fflush(stderr);
-    fprintf(stderr, "[Deaggregate] Creating TailInsertList...\n");
+    if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] Creating TailInsertList...\n");
     fflush(stderr);
 #endif
 
     SetComponents(new TailInsertList());
 #ifdef FF_LINUX
-    fprintf(stderr, "[Deaggregate] Calling GetComponents()->Register()...\n");
+    if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] Calling GetComponents()->Register()...\n");
     fflush(stderr);
 #endif
     GetComponents()->Register();
@@ -1755,7 +1768,7 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
      fclose(deb);
      */
 #ifdef FF_LINUX
-    fprintf(stderr, "[Deaggregate] Entering vehicle loop, VEHICLE_GROUPS_PER_UNIT=%d\n", VEHICLE_GROUPS_PER_UNIT);
+    if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] Entering vehicle loop, VEHICLE_GROUPS_PER_UNIT=%d\n", VEHICLE_GROUPS_PER_UNIT);
     fflush(stderr);
 #endif
     // Now add all the vehicles
@@ -1765,19 +1778,19 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
         classID = GetVehicleID(v);
         inslot = 0;
 #ifdef FF_LINUX
-        fprintf(stderr, "[Deaggregate] v=%d vehs=%d classID=%d\n", v, vehs, classID);
+        if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] v=%d vehs=%d classID=%d\n", v, vehs, classID);
         fflush(stderr);
 #endif
 
         while (vehs and classID)
         {
 #ifdef FF_LINUX
-            fprintf(stderr, "[Deaggregate] While loop: vehs=%d classID=%d, calling GetVehicleClassData...\n", vehs, classID);
+            if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] While loop: vehs=%d classID=%d, calling GetVehicleClassData...\n", vehs, classID);
             fflush(stderr);
 #endif
             vc = GetVehicleClassData(classID);
 #ifdef FF_LINUX
-            fprintf(stderr, "[Deaggregate] GetVehicleClassData returned %p\n", (void*)vc);
+            if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] GetVehicleClassData returned %p\n", (void*)vc);
             fflush(stderr);
 #endif
 
@@ -1807,12 +1820,12 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
 
             // Now query for any offsets
 #ifdef FF_LINUX
-            fprintf(stderr, "[Deaggregate] Calling GetVehicleDeagData...\n");
+            if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] Calling GetVehicleDeagData...\n");
             fflush(stderr);
 #endif
             motiontype = GetVehicleDeagData(&simdata, FALSE);
 #ifdef FF_LINUX
-            fprintf(stderr, "[Deaggregate] GetVehicleDeagData returned motiontype=%d\n", motiontype);
+            if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] GetVehicleDeagData returned motiontype=%d\n", motiontype);
             fflush(stderr);
 #endif
 
@@ -1825,12 +1838,12 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
 
             // This actually adds the bugger
 #ifdef FF_LINUX
-            fprintf(stderr, "[Deaggregate] Calling AddObjectToSim...\n");
+            if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] Calling AddObjectToSim...\n");
             fflush(stderr);
 #endif
             newObject = AddObjectToSim(&simdata, motiontype);
 #ifdef FF_LINUX
-            fprintf(stderr, "[Deaggregate] AddObjectToSim returned %p\n", (void*)newObject);
+            if (ff_trace_deag()) fprintf(stderr, "[Deaggregate] AddObjectToSim returned %p\n", (void*)newObject);
             fflush(stderr);
 #endif
 
