@@ -110,6 +110,24 @@ void CenterOnFeatureCB(long, short hittype, C_Base *control)
             Recon.PosY = pos.y;
             Recon.PosZ = pos.z;
             gUIViewer->SetPosition(Recon.PosX, Recon.PosY, Recon.PosZ);
+#ifdef FF_LINUX
+            /* RECON-2 (PO 2026-09-13, 260913_recon_wrong.mp4 vs the gold: picking "P'yongsan
+               Bridge" in the target list must move the aerial to the bridge). Measured: the
+               viewer position moves 3.5 km, ViewGreyOTW renders 124 frames there, and the
+               aerial stays PIXEL-IDENTICAL -- the terrain blocks round the new position are
+               queued to TheLoader and never arrive before the frame, so DrawScene draws nothing
+               and the FBO keeps the old picture. The window-open path already waits for the
+               loader (OpenReconWinCB, InitOTW); do the same after a move. FF_NO_RECON_WAITLOADER=1
+               reverts. */
+            if ( not getenv("FF_NO_RECON_WAITLOADER"))
+            {
+                if (gUIViewer->GetRendOTW() and gUIViewer->GetRendOTW()->viewpoint)
+                    gUIViewer->GetRendOTW()->viewpoint->Update(&pos);
+                TheLoader.WaitLoader();
+                if (getenv("FF_DEBUG_RECON"))
+                    fprintf(stderr, "[recon] CenterOnFeature -> (%.0f,%.0f,%.0f), loader waited\n", pos.x, pos.y, pos.z), fflush(stderr);
+            }
+#endif
             win = gMainHandler->FindWindow(RECON_WIN);
 
             if (win)

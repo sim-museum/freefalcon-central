@@ -2863,6 +2863,17 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
             break;
 
         case C_WM_TIMER:
+#ifdef FF_LINUX
+                /* RECON-2: the auto-repeat gate, visible. */
+                {
+                    static int s_dbg = -1;
+                    if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_RECON") ? 1 : 0;
+                    if (s_dbg and MouseDown_)
+                        fprintf(stderr, "[uirepeat] C_WM_TIMER mouseDown=%d held=%ldms grab=%p inTimer=%d async=%d\n",
+                                (int)MouseDown_, (long)(GetCurrentTime() - MouseDownTime_), (void*)Grab_.Control_,
+                                InTimer, (int)GetAsyncKeyState(VK_LBUTTON)), fflush(stderr);
+                }
+#endif
                 if (MouseDown_ and (GetCurrentTime() - MouseDownTime_) > 250)
                 {
 

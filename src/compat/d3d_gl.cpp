@@ -5452,6 +5452,19 @@ static unsigned long g_ffReconRectHash = 0;
 static std::vector<unsigned char> g_ffReconCache;
 static int g_ffReconCacheW = 0, g_ffReconCacheH = 0, g_ffReconCacheBpp = 4;
 static int g_ffReconArmed = 0;
+/* RECON-2: windows the UI draws ON TOP of the recon view (the TARGET LIST window, a popup) must
+   not be painted over by the cached aerial. The viewer reports their rects, in surface pixels,
+   each time it renders; the present-time apply skips them. */
+static int g_ffReconExcl[8][4];
+static int g_ffReconNExcl = 0;
+extern "C" void FF_ReconSetExclusions(int n, const int *rects)
+{
+    if (n < 0) n = 0;
+    if (n > 8) n = 8;
+    g_ffReconNExcl = n;
+    for (int i = 0; i < n; i++)
+        for (int k = 0; k < 4; k++) g_ffReconExcl[i][k] = rects[i * 4 + k];
+}
 
 extern "C" void FF_ReconReadbackDisarm(void)
 {
@@ -5509,8 +5522,13 @@ extern "C" int FF_ReadbackPrimaryRect(IDirectDrawSurface7 *srcDDS, int l, int t,
 
     tmp.resize((size_t)w * h * 4);
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
-    // GL y of the rect's bottom row = source height - b
-    glReadPixels(l, srcH - b, w, h, GL_BGRA, GL_UNSIGNED_BYTE, tmp.data());
+    // GL y of the rect's bottom row = source height - b on the (bottom-up) default framebuffer.
+    /* RECON-2 (PO 2026-09-13, 260913_recon_wrong.mp4: "the LAT LONG are too small to read"): they
+       were not small, they were CUT IN HALF. An FBO is top-down (the shim's own XYZRHW rule, and
+       the row order this very function already honours below), so its rect rows t..b are GL rows
+       t..b -- reading from srcH - b instead started 8 rows low for the recon viewport (32..728 in
+       768) and the top 8 rows of the aerial, the LAT/LNG line among them, never reached the UI. */
+    glReadPixels(l, (src and src->fboId) ? t : (srcH - b), w, h, GL_BGRA, GL_UNSIGNED_BYTE, tmp.data());
 
     /* RECON-1 S3: three hypotheses, one instrument each, all under FF_DEBUG_RECON:
          (A) the FBO does not hold terrain   -> dump the first readback to /tmp/ff_recon_fbo.ppm
@@ -5521,10 +5539,15 @@ extern "C" int FF_ReadbackPrimaryRect(IDirectDrawSurface7 *srcDDS, int l, int t,
     if (dbg)
     {
         static int dumped = 0;
-        if ( not dumped)
+        static long nread = 0;
+        nread++;
+        /* RECON-2: a second dump late in the session, so 'the FBO never changes after the first
+           frame' can be told from 'it changes and the copy does not carry it'. */
+        if ( not dumped or nread == 400 or nread == 800)
         {
             dumped = 1;
-            FILE *f = fopen("/tmp/ff_recon_fbo.ppm", "wb");
+            char dpath[64]; snprintf(dpath, sizeof(dpath), "/tmp/ff_recon_fbo_%ld.ppm", nread);
+            FILE *f = fopen(dpath, "wb");
             if (f)
             {
                 fprintf(f, "P6\n%d %d\n255\n", w, h);
@@ -6140,8 +6163,29 @@ void FF_PresentPrimarySurface() {
         const int w = g_ffReconCacheW, h = g_ffReconCacheH, bpp = g_ffReconCacheBpp;
         if (l >= 0 and t >= 0 and l + w <= surf->width and t + h <= surf->height)
             for (int y = 0; y < h; y++)
-                memcpy(surf->pixelData + (size_t)(t + y) * surf->pitch + (size_t)l * bpp,
-                       g_ffReconCache.data() + (size_t)y * w * bpp, (size_t)w * bpp);
+            {
+                /* RECON-2: copy the row in spans that avoid the windows stacked above the view. */
+                const int sy = t + y;
+                int x0 = 0;
+                while (x0 < w)
+                {
+                    int x1 = w;               // end of the span we may write
+                    int skipTo = -1;          // where the next allowed span starts, if we hit a rect
+                    for (int i = 0; i < g_ffReconNExcl; i++)
+                    {
+                        const int *e = g_ffReconExcl[i];
+                        if (sy < e[1] or sy >= e[3]) continue;
+                        const int el = e[0] - l, er = e[2] - l;
+                        if (er <= x0 or el >= x1) continue;
+                        if (el <= x0) { if (er > x0) { x1 = x0; skipTo = (skipTo < 0 or er > skipTo) ? er : skipTo; } }
+                        else if (el < x1) x1 = el;
+                    }
+                    if (x1 > x0)
+                        memcpy(surf->pixelData + (size_t)sy * surf->pitch + (size_t)(l + x0) * bpp,
+                               g_ffReconCache.data() + ((size_t)y * w + x0) * bpp, (size_t)(x1 - x0) * bpp);
+                    x0 = (skipTo > x1) ? skipTo : (x1 > x0 ? x1 : x0 + 1);
+                }
+            }
     }
 
     /* RECON-1 S3 (C): does the recon rect written by FF_ReadbackPrimaryRect survive to the

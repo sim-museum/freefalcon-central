@@ -1408,6 +1408,7 @@ extern "C" unsigned short force_port;
 // FF_LINUX (TESWEEP-RACE): SDL ticks at FM_JOIN_SUCCEEDED, 0 until then.
 // Backs the "x,y@J<sec>" form of FF_UI_CLICK.
 static Uint32 g_ffJoinAtMs = 0;
+int g_ffUiClickHeld = 0;   // RECON-2: a scripted left button is currently held (see FF_GetAsyncKeyState)
 
 static void print_usage(const char* progname);
 static bool init_data_directory(const char* dataDir);
@@ -2124,6 +2125,25 @@ extern "C" SHORT FF_GetKeyState(int nVirtKey)
     return r;
 }
 
+/* RECON-2 (PO 2026-09-13, "the rotate/zoom commands don't work"): ui95 drives every press-and-hold
+   control (the recon ZOOM panner, the map panners, spinners) from C_WM_TIMER: after 250 ms with the
+   button down it sends C_TYPE_REPEAT to the grabbed control -- but only while
+   GetAsyncKeyState(VK_LBUTTON) says the button is still down, and the compat stub said 0 for every
+   key. So on Linux a held ZOOM IN moved the camera once (the LMOUSEUP step: 20 ft of a 4000 ft
+   slant range) and the timer path took the release branch instead. Report the live SDL button
+   state; keys defer to FF_GetKeyState. A scripted FF_UI_CLICK hold counts as down. */
+extern int g_ffUiClickHeld;
+extern "C" SHORT FF_GetAsyncKeyState(int vKey)
+{
+    if (vKey == VK_LBUTTON or vKey == VK_RBUTTON or vKey == 0x04 /* VK_MBUTTON */)
+    {
+        const Uint32 b = SDL_GetMouseState(NULL, NULL);
+        const Uint32 mask = (vKey == VK_LBUTTON) ? SDL_BUTTON_LMASK : (vKey == VK_RBUTTON) ? SDL_BUTTON_RMASK : SDL_BUTTON_MMASK;
+        if ((b & mask) or (vKey == VK_LBUTTON and g_ffUiClickHeld)) return (SHORT)0x8000;
+        return 0;
+    }
+    return FF_GetKeyState(vKey);
+}
 /* MP-1: build the Win32 lParam a WM_KEYDOWN/WM_KEYUP carries, in the layout ui95's handler
    decodes: bits 0-15 repeat count, bits 16-23 scancode, bit 24 extended. Written once here so the
    down and up paths cannot drift apart. */
@@ -2945,6 +2965,22 @@ bool ProcessGameMessages() {
                 }
                 break;
 
+            /* RECON-2 (PO 2026-09-13, "the rotate/zoom commands don't work"): ui95's control-loop
+               thread posts C_WM_TIMER (WM_USER+5003) to the app window four times a second, and
+               C_Handler::EventHandler's C_WM_TIMER branch is the ONLY source of C_TYPE_REPEAT --
+               the event every press-and-hold control (the recon ZOOM panner, map panners, list
+               scrollers) acts on -- and of the drag-and-drop drop timing. PostMessageA routes it
+               into this queue, and this switch had no case for it, so on Linux a held ZOOM IN
+               was a single 10 ft step. Forward the handler's own C_WM_* messages
+               (C_WM_DRAWWINDOW .. C_WM_TIMER, WM_USER+5000..+5003) to it. */
+            case WM_USER + 5000:
+            case WM_USER + 5001:
+            case WM_USER + 5002:
+            case WM_USER + 5003:
+                if (gMainHandler != nullptr) {
+                    gMainHandler->EventHandler(NULL, msg.message, msg.wParam, msg.lParam);
+                }
+                break;
             default:
                 // Message not handled - that's okay for many messages
                 break;
@@ -3264,7 +3300,7 @@ static void render_frame(void) {
         // messages a real mouse click produces - for automated UI testing.
         {
             static int s_clickInit = 0;
-            static struct { int x, y; Uint32 atMs; int fired; int dbl; int afterJoin; } s_clicks[16];
+            static struct { int x, y; Uint32 atMs; int fired; int dbl; int afterJoin; Uint32 holdMs; int downAt; } s_clicks[16];
             static int s_nClicks = 0;
             static Uint32 s_uiStart = 0;
             if (!s_clickInit) {
@@ -3277,6 +3313,11 @@ static void render_frame(void) {
                         int cx, cy; float at;
                         char dbl = 0;  // 'd' = double-click, 'r' = right-click
                         int afterJoin = 0;
+                        // RECON-2: "x,y@sec+<holdms>" presses and HOLDS the left button for holdms,
+                        // so controls that act on the UI's auto-repeat (the recon zoom panner) can
+                        // be driven the way a person drives them.
+                        unsigned holdMs = 0;
+                        { const char* plus = strchr(tok, '+'); if (plus) { holdMs = (unsigned)atoi(plus + 1); } }
                         // "x,y@J<sec>" fires <sec> after FM_JOIN_SUCCEEDED rather
                         // than after process start -- the load time varies per
                         // mission and with machine speed, so an absolute schedule
@@ -3295,6 +3336,8 @@ static void render_frame(void) {
                             s_clicks[s_nClicks].fired = 0;
                             s_clicks[s_nClicks].dbl = (dbl == 'd') ? 1 : (dbl == 'r') ? 2 : 0;
                             s_clicks[s_nClicks].afterJoin = afterJoin;
+                            s_clicks[s_nClicks].holdMs = holdMs;
+                            s_clicks[s_nClicks].downAt = 0;
                             s_nClicks++;
                         }
                     }
@@ -3314,11 +3357,30 @@ static void render_frame(void) {
                         ffDue = el >= s_clicks[ci].atMs;
                     }
 
+                    if (s_clicks[ci].fired == 2) {
+                        // RECON-2: held button -- release when the hold has elapsed
+                        if ((int)el - s_clicks[ci].downAt >= (int)s_clicks[ci].holdMs) {
+                            s_clicks[ci].fired = 1;
+                            LPARAM lp = MAKELPARAM(s_clicks[ci].x, s_clicks[ci].y);
+                            fprintf(stderr, "[FF_UI_CLICK] releasing (%d,%d) at %ums\n", s_clicks[ci].x, s_clicks[ci].y, el);
+                            PostGameMessage(WM_LBUTTONUP, 0, lp);
+                            g_ffUiClickHeld = 0;
+                        }
+                        continue;
+                    }
                     if (!s_clicks[ci].fired && ffDue) {
                         s_clicks[ci].fired = 1;
                         LPARAM lp = MAKELPARAM(s_clicks[ci].x, s_clicks[ci].y);
-                        fprintf(stderr, "[FF_UI_CLICK] firing (%d,%d) at %ums\n", s_clicks[ci].x, s_clicks[ci].y, el);
+                        fprintf(stderr, "[FF_UI_CLICK] firing (%d,%d) at %ums%s\n", s_clicks[ci].x, s_clicks[ci].y, el,
+                                s_clicks[ci].holdMs ? " (hold)" : "");
                         PostGameMessage(WM_MOUSEMOVE, 0, lp);
+                        if (s_clicks[ci].holdMs) {
+                            PostGameMessage(WM_LBUTTONDOWN, 0, lp);
+                            s_clicks[ci].fired = 2;
+                            s_clicks[ci].downAt = (int)el;
+                            g_ffUiClickHeld = 1;
+                            continue;
+                        }
                         if (s_clicks[ci].dbl == 2) {
                             // context menus open on RBUTTONUP over a window
                             PostGameMessage(WM_RBUTTONDOWN, 0, lp);

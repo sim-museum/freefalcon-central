@@ -682,7 +682,15 @@ static inline BOOL GetCursorPos(LPPOINT lpPoint) { if (lpPoint) { lpPoint->x = 0
 #define IDC_HELP            ((LPCSTR)32651)
 
 /* Keyboard */
-static inline SHORT GetAsyncKeyState(int vKey) { (void)vKey; return 0; }
+/* RECON-2: was a stub returning 0, which silently disabled ui95's press-and-hold auto-repeat
+   (C_WM_TIMER checks GetAsyncKeyState(VK_LBUTTON) before sending C_TYPE_REPEAT). Live SDL state,
+   implemented in main_linux.cpp beside FF_GetKeyState. */
+#ifdef __cplusplus
+extern "C" SHORT FF_GetAsyncKeyState(int vKey);
+#else
+extern SHORT FF_GetAsyncKeyState(int vKey);
+#endif
+static inline SHORT GetAsyncKeyState(int vKey) { return FF_GetAsyncKeyState(vKey); }
 /* MP-1: this returned 0 for every key, so ui95's ShiftStates (built from five GetKeyState calls:
    SHIFT, MENU, CONTROL, CAPITAL, NUMLOCK) was always 0. Even with the scancode reaching the handler
    that leaves no capitals, no symbols and no Ctrl/Alt hotkeys anywhere in the UI. Route it to the

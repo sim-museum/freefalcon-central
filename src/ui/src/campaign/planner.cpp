@@ -244,6 +244,11 @@ void LoadPlannerWindows()
 static void SpinViewCB(long ID, short hittype, C_Base *control)
 {
     C_Button *btn;
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_RECON"))
+        fprintf(stderr, "[recon] SpinView id=%ld hit=%d state=%d direction=%d\n", ID, (int)hittype,
+                (int)((C_Button*)control)->GetState(), (int)Recon.Direction), fflush(stderr);
+#endif
 
     if (hittype not_eq C_TYPE_LMOUSEUP) return;
 
@@ -359,6 +364,11 @@ static void ZoomPannerCB(long, short hittype, C_Base *control)
         return;
 
     dx = pnr->GetVRange();
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_RECON"))
+        fprintf(stderr, "[recon] ZoomPanner hit=%d vrange=%d distance %.0f -> %.0f\n", (int)hittype, dx,
+                Recon.Distance, Recon.Distance + dx * 10), fflush(stderr);
+#endif
 
     Recon.Distance += dx * 10;
 

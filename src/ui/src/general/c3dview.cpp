@@ -28,6 +28,7 @@ extern bool g_bReconLatLong; //Wombat778 11-3-2003
 #ifdef FF_LINUX
 extern "C" int FF_ReadbackPrimaryRect(IDirectDrawSurface7 *, int, int, int, int);   // RECON-1, d3d_gl.cpp
 extern "C" void FF_ReconReadbackDisarm(void);
+extern "C" void FF_ReconSetExclusions(int n, const int *rects);   // RECON-2
 #endif
 extern OBJECTINFO Recon; //Wombat778 11-3-2003
 
@@ -578,6 +579,37 @@ BOOL C_3dViewer::ViewGreyOTW()
             if (ffRb < 0) { const char *e = getenv("FF_RECON_READBACK"); ffRb = (e and e[0] == '0') ? 0 : 1; }
             if (ffRb)
             {
+                /* RECON-2: the cached aerial is applied at present time as the last write, so it
+                   would also cover any window the UI stacks ABOVE this view -- the TARGET LIST
+                   (PO's 260913_recon_wrong.mp4: the list never appears, so the bridge can never be
+                   picked and the view stays on the town). Tell the shim which visible windows sit
+                   above the one that owns this viewport; it leaves those pixels alone. */
+                {
+                    int rects[8 * 4]; int n = 0;
+                    const int vl = (int)viewport.left, vt = (int)viewport.top, vr = (int)viewport.right, vb = (int)viewport.bottom;
+                    C_Window *owner = NULL;
+                    for (C_Window *w = gMainHandler->_GetFirstWindow(); w; w = gMainHandler->_GetNextWindow(w))
+                    {
+                        if ( not gMainHandler->FFIsWindowVisible(w)) continue;
+                        const int wl = w->GetX(), wt = w->GetY(), wr = wl + w->GetW(), wb = wt + w->GetH();
+                        if (wl <= vl and wt <= vt and wr >= vr and wb >= vb) { owner = w; n = 0; continue; }
+                        if ( not owner) continue;
+                        if (wr <= vl or wl >= vr or wb <= vt or wt >= vb) continue;
+                        if (n < 8) { rects[n * 4] = wl; rects[n * 4 + 1] = wt; rects[n * 4 + 2] = wr; rects[n * 4 + 3] = wb; n++; }
+                    }
+                    FF_ReconSetExclusions(n, rects);
+                    if (getenv("FF_DEBUG_RECON"))
+                    {
+                        static int last = -1;
+                        if (n != last)
+                        {
+                            last = n;
+                            fprintf(stderr, "[recon] %d window(s) above the view", n);
+                            for (int i = 0; i < n; i++) fprintf(stderr, " [%d,%d-%d,%d]", rects[i*4], rects[i*4+1], rects[i*4+2], rects[i*4+3]);
+                            fprintf(stderr, "\n"); fflush(stderr);
+                        }
+                    }
+                }
                 const int ok = FF_ReadbackPrimaryRect(gMainHandler->GetFront()->targetSurface(),
                                                       (int)viewport.left, (int)viewport.top,
                                                       (int)viewport.right, (int)viewport.bottom);
