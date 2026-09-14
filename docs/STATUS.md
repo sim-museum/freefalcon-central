@@ -13294,3 +13294,57 @@ Retired on the way: TERRAIN-1 S4's "the loader reads the theater as SMALL" — `
 (HCITYEE* in town, HFARMD* at the bridge). The S3 census was sampled over sea (31 % of L0 posts are
 set 0/tile 0). TERRAIN-1 as a *terrain* defect still needs its own gold comparison in flight; its
 recon face was item 5 above.
+
+## 🔲 BACKLOG — POLISH-1: polish ff radar (PO test of the 2026-09-13 AppImage)
+
+**Source:** PO test drive of `FreeFalcon-x86_64-260913.AppImage` (the 22:23 RECON-2 build) across the
+updated CCRP, Maverick, LGB and HARM TEs. Video: `/home/admin/Videos/260913_ff_test.mp4` (17 min,
+1920x1080). PO's report, verbatim and unedited:
+
+> CCRP - bridge upsideown in recon view, rotates in the opposite direction from the rest of the
+> terrain when rotate side-caret is clicked. Right side up it would probably rotate correctly. LAT
+> and LONG of bridge is correct. bomb still falls to the left of the bridge, and still shows
+> explosion one bridge-length before bombs disappear into terrain - bombs on shallow downward
+> trajectory show explosions a little above terrain
+> MAVARICK - perfect! GMT and TGT veiw of tanks match!
+> LGB: GM radar doesn't show the group of buildings around the target
+> HARM: again, GM radar does not show group of buildings near target
+
+### ✅ Confirmed fixed by this test (do not re-open)
+
+* **GMRADAR-8 (GMT displacement)** — *"MAVERICK - perfect! GMT and TGT view of tanks match!"* The
+  mirrored sweep image (`c4b2b830`) was the whole of it. This is the PO's own sign-off on the
+  4-sprint item.
+* **RECON-2 coordinates** — *"LAT and LONG of bridge is correct"*.
+
+### Open sub-items, in the order they should be taken
+
+1. **RECON-3 — the bridge MODEL is upside down in the recon view, and spins against the terrain.**
+   Two symptoms, probably one cause: the recon camera/model transform has a flipped axis that the
+   terrain does not share. The rotate caret turns the feature one way and the ground the other, so
+   the model is being placed in a frame whose handedness differs from the map's. Note this is the
+   OBJECT, not the aerial — the aerial itself is now correct (RECON-2 item 5). Check
+   `C_3dViewer::LoadBridge` / `LoadDrawableFeature` and `PositionCamera`'s heading sign against
+   `ViewGreyOTW`'s `currentRot_`; the shim's FBO top-down rule (`3e1f12ac`, `c4b2b830`) has already
+   caught two sign errors of this family and is the first thing to check.
+2. **GMOBJ-1 — GM shows no buildings around an LGB/HARM target.** Unchanged by the mirror fix, and
+   now isolated by it: the map is in the right place, but the features near the target are not
+   drawn. The measurement this needs is the one GMOBJ-1 S2 was set up for and never got on a
+   target-dense run: `[GM] targets`/`[GM] blips` at the moment the target is under the cursor, with
+   `FF_DEBUG_GMFEAT=1` to say how many features reached the list. Both the LGB and HARM TEs put
+   buildings under the cursor, so either TE is a valid oracle; the HARM TE is shorter.
+3. **CCRP-5 — bomb impacts left of the bridge.** A lateral miss, not a timing artefact: the drop is
+   on the designate but the bombs land consistently to one side. S2 measured sim/drawable agreement
+   at 2 ft and the release at 138 ft long, so the next measurement is the RELEASE solution, not the
+   effect placement: log the FCC designate, the release point and the ballistic solution's cross-
+   track term over three drops (`FF_DEBUG_BOMBPOS=1` already prints the first two).
+4. **BOOM-4 — the explosion fires one bridge-length before the bomb reaches the ground**, and on a
+   shallow trajectory the burst is drawn slightly above the terrain. This is the half of CCRP-5 S2
+   that the two-bomb-ripple reading did NOT explain, and the PO has now seen it on single impacts.
+   The proximity/detonation test (`bombmain.cpp`, `z >= terrainHeight - bheight`) uses the PHYSICS
+   ground while the effect is clamped to the DRAWN one (`FF_ImpactEffectPos`) — measure both at the
+   instant `SetExploding` is raised, on a shallow and a steep drop.
+
+**Oracles:** every sub-item above has a gold-standard comparison available (the Wine build for
+recon, the PO's own video for the drops), so each sprint must state its predicted numbers before
+the run — see the RECON-2 and GMRADAR-8 S5 entries for the shape that worked.
