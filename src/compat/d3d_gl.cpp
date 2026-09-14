@@ -639,6 +639,33 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_BeginScene(IDirect3DDevice7* This) {
 
     if (dev->inScene) return D3DERR_SCENE_IN_SCENE;
     dev->inScene = true;
+#ifdef FF_LINUX
+    /* RECON-2 (PO 2026-09-13): the recon aerial froze on its first frame. Measured with a hash
+       of the target FBO before and after each frame's draw: frame 1 changed it, every later
+       frame left it UNCHANGED while the terrain renderer was binding the new tiles. The off-screen
+       target's FBO is bound exactly once, at SetRenderTarget (ContextMPR::Setup), and the UI's
+       present (FF_PresentPrimarySurface) binds framebuffer 0 and never restores it -- so from the
+       second frame on every draw of that context landed in the window, under the next present.
+       D3D semantics: the device's render target applies to the whole scene. Re-bind it here.
+       FF_NO_BEGINSCENE_REBIND=1 reverts. */
+    {
+        static int s_off = -1;
+        if (s_off < 0) s_off = getenv("FF_NO_BEGINSCENE_REBIND") ? 1 : 0;
+        if ( not s_off)
+        {
+            D3D7Surface* rt = dev->renderTarget;
+            const GLuint want = (rt and rt != dev->defaultRenderTarget and rt->fboId) ? rt->fboId : 0;
+            GLint have = 0; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &have);
+            if ((GLuint)have != want)
+            {
+                glBindFramebuffer(GL_FRAMEBUFFER, want);
+                static long said = 0;
+                if (said++ < 4 and getenv("FF_DEBUG_RECON"))
+                    fprintf(stderr, "[recon] BeginScene: render target fbo=%u was not bound (had %d) -- re-bound\n", want, (int)have), fflush(stderr);
+            }
+        }
+    }
+#endif
 
     return D3D_OK;
 }
@@ -5466,6 +5493,55 @@ extern "C" void FF_ReconSetExclusions(int n, const int *rects)
         for (int k = 0; k < 4; k++) g_ffReconExcl[i][k] = rects[i * 4 + k];
 }
 
+/* RECON-2 (PO 2026-09-13): the recon aerial never changed after the first frame -- not for a
+   3.5 km move, not for zoom, not for rotation -- although the terrain renderer bound the new
+   tiles ([texbind]: HFARMD* after the move, HCITYEE* before). The UI's off-screen surface gets
+   a depth renderbuffer with its FBO (SetRenderTarget), the viewer draws with z-buffering on, and
+   NOTHING clears that depth between recon frames (on Windows the UI surface has no Z buffer, so
+   the test never bit). Every later frame lost the depth test against the first one. Clear the
+   depth of the current render target; the viewer calls this before each OTW frame. */
+/* RECON-2 probe: a cheap hash of an FBO-backed surface's colour content (every 8th pixel of
+   every 8th row), read straight from the GPU, so a frame's effect on the target can be seen. */
+extern "C" unsigned long FF_HashSurfaceFBO(IDirectDrawSurface7 *dds, int l, int t, int r, int b)
+{
+    extern SDL_GLContext g_GLContext;
+    if ( not g_GLContext or not SDL_GL_GetCurrentContext()) return 0;
+    D3D7Surface *surf = (D3D7Surface *)dds;
+    if ( not surf or not surf->fboId) return 0;
+    GLint prevFBO = 0; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, surf->fboId);
+    const int w = r - l, h = b - t;
+    static std::vector<unsigned char> tmp; tmp.resize((size_t)w * h * 4);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
+    glReadPixels(l, t, w, h, GL_BGRA, GL_UNSIGNED_BYTE, tmp.data());
+    glBindFramebuffer(GL_FRAMEBUFFER, prevFBO);
+    unsigned long hsh = 0;
+    for (int y = 0; y < h; y += 8) for (int x = 0; x < w; x += 8) hsh = hsh * 31u + tmp[((size_t)y * w + x) * 4 + 1];
+    return hsh;
+}
+extern "C" void FF_ClearSurfaceDepth(IDirectDrawSurface7 *dds)
+{
+    extern SDL_GLContext g_GLContext;
+    if ( not g_GLContext or not SDL_GL_GetCurrentContext()) return;
+    D3D7Surface *surf = (D3D7Surface *)dds;
+    GLint prevFBO = 0; glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFBO);
+    const GLuint target = (surf and surf->fboId) ? surf->fboId : 0;
+    glBindFramebuffer(GL_FRAMEBUFFER, target);
+    GLboolean mask = GL_TRUE; glGetBooleanv(GL_DEPTH_WRITEMASK, &mask);
+    const GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST);
+    glDepthMask(GL_TRUE);
+    if (scissor) glDisable(GL_SCISSOR_TEST);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    if (scissor) glEnable(GL_SCISSOR_TEST);
+    glDepthMask(mask);
+    glBindFramebuffer(GL_FRAMEBUFFER, prevFBO);
+    static int said = 0;
+    if ( not said and getenv("FF_DEBUG_RECON"))
+    {
+        said = 1;
+        fprintf(stderr, "[recon] depth cleared on fbo=%u (was bound: %d)\n", target, (int)prevFBO); fflush(stderr);
+    }
+}
 extern "C" void FF_ReconReadbackDisarm(void)
 {
     g_ffReconArmed = 0;

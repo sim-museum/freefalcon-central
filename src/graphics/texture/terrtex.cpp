@@ -27,6 +27,9 @@ extern void ReadDTXnFile(unsigned long count, void * buffer);
 extern void WriteDTXnFile(unsigned long count, void *buffer);
 
 #include "falclib/include/playerop.h"
+#ifdef FF_LINUX
+extern "C" void FF_SurfaceGLInfo(IDirectDrawSurface7 *s, unsigned *glTex, int *dirty);   /* TERRAIN-1 S5 bind probe (d3d_gl.cpp) */
+#endif
 
 #ifdef USE_SH_POOLS
 MEM_POOL gTexDBMemPool = NULL;
@@ -1364,6 +1367,36 @@ void TextureDB::Select(ContextMPR *localContext, TextureID texID)
 
     // Day texture
     ShiAssert(TextureSets[set].tiles[tile].handle[res]);
+#ifdef FF_LINUX
+    /* TERRAIN-1 S5: the disk says the posts at two recon sites 3.5 km apart carry different
+       tiles (set 56 vs sets 23/24/28) and the aerial at both is the same urban tile. So map, once
+       per distinct texID, what this bind actually selects: the tile's source FILE, its handle, the
+       surface behind it and the GL texture id the shim holds for that surface. If files differ and
+       GL ids differ, the upload content is the fault; if GL ids collapse, the handle->surface map
+       is. FF_DEBUG_TEXBIND=1, first 64 distinct ids. */
+    {
+        static int s_on = -1;
+        if (s_on < 0) s_on = getenv("FF_DEBUG_TEXBIND") ? 1 : 0;
+        if (s_on)
+        {
+            static TextureID seen[64]; static int nSeen = 0;
+            int found = 0;
+            for (int k = 0; k < nSeen; k++) if (seen[k] == texID) { found = 1; break; }
+            if ( not found and nSeen < 64)
+            {
+                seen[nSeen++] = texID;
+                TextureHandle *th = (TextureHandle *)TextureSets[set].tiles[tile].handle[res];
+                unsigned gl = 0; int dirty = 0;
+                if (th and th->m_pDDS) FF_SurfaceGLInfo(th->m_pDDS, &gl, &dirty);
+                fprintf(stderr, "[texbind] texID=0x%04x set=%d tile=%d res=%d file=%s %dx%d handle=%p dds=%p gl=%u\n",
+                        (unsigned)texID, set, tile, res, TextureSets[set].tiles[tile].filename,
+                        TextureSets[set].tiles[tile].width[res], TextureSets[set].tiles[tile].height[res],
+                        (void*)th, th ? (void*)th->m_pDDS : NULL, gl);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
     localContext->SelectTexture1(TextureSets[set].tiles[tile].handle[res]);
 
     // Night texture

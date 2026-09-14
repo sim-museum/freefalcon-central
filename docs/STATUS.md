@@ -13258,3 +13258,39 @@ reproduce it with a single bomb (1 SGL) the [bombpos] line will say so directly.
 Harness notes: TE list rows are 17 px apart from y=111 (TE n at 111+17(n-1)); ICP A-G is
 `S0x53` (shift + DIK 0x53), not bare 0x4A; TE-20 starts in CCRP — `0x28` steps to CCIP; a CCIP tap
 in level flight at 12 kft does not release (pipper off the HUD), hold the pickle in CCRP instead.
+
+### RECON-2 (Fable 5.1, 2026-09-13) — the recon window now matches the gold: list, coordinates, zoom/rotate, and the bridge
+
+PO: *"recon is still not right. The location is wrong, the rotate/zoom commands don't work, and the LAT
+LONG are too small to read"* — `260913_recon_wrong.mp4` against `260913_ccrp_recon_gold.mp4`, later
+sharpened to: gold shows the bridge at N 38°25.17' E 127°19.73' with a river; ours shows a cityscape.
+
+Six defects, each measured before it was touched (commits `61d96268` and the one carrying this note):
+
+1. **TARGET LIST invisible** — RECON-1's present-time overlay painted the cached aerial over the list
+   window stacked above it. The viewer now reports the visible windows above its owner and the
+   overlay skips them. (`[recon] 1 window(s) above the view [0,0-500,728]`)
+2. **LAT/LNG cut in half** — the FBO readback rect started at `srcH - b` (window convention); FBOs
+   are top-down. Read from row `t`. Same 10x7 font as Wine, now whole.
+3. **ZOOM moved 10 ft per click** — `GetAsyncKeyState` stub returned 0 *and* the UI's own
+   `C_WM_TIMER` (only source of `C_TYPE_REPEAT`) was never dispatched from the game queue. Both
+   routed; a 4 s hold now yields 37 repeats, 4000 → 3630 ft.
+4. **Aerial did not follow a target-list move** (first half) — terrain blocks round the new position
+   never arrived before the frame; `CenterOnFeatureCB` re-centres the viewpoint and waits for the
+   loader like the window-open path does.
+5. ⭐ **Aerial frozen on its first frame** (second half, and the PO's "cityscape at the bridge") —
+   a hash of the target FBO before/after each frame's draw: frame 1 changed it, every later frame
+   left it *UNCHANGED* while `[texbind]` showed the renderer binding the farm tiles of the new
+   place. The off-screen target's FBO is bound once at `SetRenderTarget`; the UI present binds
+   framebuffer 0 and never restores it, so every draw from frame 2 on went to the window, under the
+   next present. `BeginScene` now re-binds the device's render target (`FF_NO_BEGINSCENE_REBIND=1`
+   reverts). Also cleared the target's depth per recon frame (the shim gives FBOs a depth buffer the
+   Windows UI surface never had).
+6. **Coordinates** — with the view actually moving, our bridge reads N 38°25.17' E 127°19.72'
+   against the gold's 25.17'/19.73', over the same river/road/factory scene (`recon13_sheet.png`).
+
+Retired on the way: TERRAIN-1 S4's "the loader reads the theater as SMALL" — `[terrainfmt]` shows
+`flags=0x1 -> large=1`, `sizeof` 7/9 correct, and `[texbind]` binds the right per-site tiles
+(HCITYEE* in town, HFARMD* at the bridge). The S3 census was sampled over sea (31 % of L0 posts are
+set 0/tile 0). TERRAIN-1 as a *terrain* defect still needs its own gold comparison in flight; its
+recon face was item 5 above.

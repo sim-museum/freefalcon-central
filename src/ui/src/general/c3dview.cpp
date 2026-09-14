@@ -29,6 +29,8 @@ extern bool g_bReconLatLong; //Wombat778 11-3-2003
 extern "C" int FF_ReadbackPrimaryRect(IDirectDrawSurface7 *, int, int, int, int);   // RECON-1, d3d_gl.cpp
 extern "C" void FF_ReconReadbackDisarm(void);
 extern "C" void FF_ReconSetExclusions(int n, const int *rects);   // RECON-2
+extern "C" void FF_ClearSurfaceDepth(IDirectDrawSurface7 *dds);         // RECON-2
+extern "C" unsigned long FF_HashSurfaceFBO(IDirectDrawSurface7 *dds, int l, int t, int r, int b);   // RECON-2 probe
 #endif
 extern OBJECTINFO Recon; //Wombat778 11-3-2003
 
@@ -524,13 +526,38 @@ BOOL C_3dViewer::ViewGreyOTW()
         // RED - As Model Loadings are deferred to Scene drawing, continue to draw the scene till
         // The loader is loading models
         /* do{*/
+#ifdef FF_LINUX
+        /* RECON-2 probe: hash the target before and after this frame's draw. */
+        static long ffFrameNo = 0; ffFrameNo++;
+        const int ffProbe = (ffReconDbg and (ffFrameNo % 40) == 1) ? 1 : 0;
+        unsigned long ffHashBefore = 0;
+        if (ffProbe) ffHashBefore = FF_HashSurfaceFBO(gMainHandler->GetFront()->targetSurface(),
+                                        (int)viewport.left, (int)viewport.top, (int)viewport.right, (int)viewport.bottom);
+#endif
         rendOTW_->context.StartFrame();
         rendOTW_->StartDraw();
+#ifdef FF_LINUX
+        /* RECON-2: the render target's depth is never cleared between recon frames, and the shim
+           attaches a depth buffer to every off-screen target -- so frame 2 onward failed the depth
+           test against frame 1 and the aerial froze. FF_NO_RECON_DEPTHCLEAR=1 reverts. */
+        if ( not getenv("FF_NO_RECON_DEPTHCLEAR"))
+            FF_ClearSurfaceDepth(gMainHandler->GetFront()->targetSurface());
+#endif
         rendOTW_->PreLoadScene(&zeroPos_, &currentRot_);
         rendOTW_->DrawScene(&zeroPos_, &currentRot_);
         rendOTW_->context.FlushPolyLists();
         rendOTW_->EndDraw();
         rendOTW_->context.FinishFrame(NULL);
+#ifdef FF_LINUX
+        if (ffProbe)
+        {
+            const unsigned long after = FF_HashSurfaceFBO(gMainHandler->GetFront()->targetSurface(),
+                                            (int)viewport.left, (int)viewport.top, (int)viewport.right, (int)viewport.bottom);
+            fprintf(stderr, "[recon] frame %ld: target hash before=%08lx after=%08lx (%s)\n", ffFrameNo,
+                    ffHashBefore, after, ffHashBefore == after ? "UNCHANGED by the draw" : "changed");
+            fflush(stderr);
+        }
+#endif
 
         /* // now wait for Loader to end it's work
          TheLoader.WaitForLoader();

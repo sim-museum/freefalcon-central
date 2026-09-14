@@ -9,6 +9,7 @@
 #include "timemgr.h"
 #include "tod.h"
 #include "tmap.h"
+#include "tdskpost.h"   /* TERRAIN-1 S5: sizeof(TdiskPost) in the FF_DEBUG_TERRAINFMT print */
 
 // Provide the one and only terrain database object.  It will be up to the
 // application to initialize and cleanup this object by calling Setup and Cleanup.
@@ -218,6 +219,23 @@ int TMap::Setup(const char *mapPath)
         g_LargeTerrainFormat = true;
     }
     else g_LargeTerrainFormat = false;
+#ifdef FF_LINUX
+    /* TERRAIN-1 S5: S4 showed the theater's post file is in the 9-byte LARGE layout (and the
+       block offsets step by 256 x 9 = 2304), so the runtime's 91 % texID-0 census means the
+       loader is reading it as SMALL. This is the one word that decides which loader runs:
+       print it, with the file position it was read from, so a misaligned header parse can be
+       told from a genuinely clear flag. FF_DEBUG_TERRAINFMT=1. */
+    if (getenv("FF_DEBUG_TERRAINFMT"))
+    {
+        const DWORD here = SetFilePointer(headerFile, 0, NULL, FILE_CURRENT);
+        fprintf(stderr, "[terrainfmt] header %s: nLevels=%d lastNear=%d lastFar=%d flags=0x%x (read ok=%d bytes=%lu) "
+                        "-> large=%d largeUI=%d  lat=%.3f lon=%.3f  filepos after flags/latlon=%lu  sizeof(TdiskPost)=%zu sizeof(TNewdiskPost)=%zu\n",
+                mapPath, nLevels, lastNearTexturedLOD, lastFarTexturedLOD, (unsigned)flags, (int)retval, (unsigned long)bytesRead,
+                (int)g_LargeTerrainFormat, (int)((flags bitand TMAP_LARGEUIMAP) ? 1 : 0), latitude, longitude,
+                (unsigned long)here, sizeof(TdiskPost), sizeof(TNewdiskPost));
+        fflush(stderr);
+    }
+#endif
 
     if (flags bitand TMAP_LARGEUIMAP)   // 128x128 theater
     {
