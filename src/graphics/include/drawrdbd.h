@@ -24,6 +24,16 @@ public:
 
     BOOL OnRoadbed(Tpoint *pos, Tpoint *normal);
 
+#ifdef FF_LINUX
+    /* RECON-3 S6: the bridge census needs to know whether a segment carries a superstructure,
+       because "base + superstructure" is one of the two explanations for the two rows of spans
+       the recon capture shows. */
+    BOOL HasSuperstructure(void) const
+    {
+        return superStructure ? TRUE : FALSE;
+    }
+#endif
+
     // This one is for internal use only.  Don't use it or you'll break things...
     void ForceZ(float z)
     {

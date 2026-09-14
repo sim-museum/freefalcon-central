@@ -194,6 +194,42 @@ void DrawableBridge::Draw(class RenderOTW *renderer, int LOD)
         }
     }
 
+#ifdef FF_LINUX
+    /* RECON-3 S6 (2026-09-14): S5's recon capture shows the bridge drawn as TWO parallel rows of
+       spans with the deck on OPPOSITE sides -- one copy mirrored. This is where a bridge's parts
+       are drawn: a list of DrawableRoadbed segments, each then asked for its SUPERSTRUCTURE in a
+       second pass. Two rows is exactly what "base + superstructure" would look like if the
+       superstructure were placed wrong, and also what "two carriageways" would look like. Count
+       the segments and print each one's position, so the picture can be matched to the data.
+       FF_DEBUG_BRIDGEDRAW=1 (once per bridge). */
+    if (getenv("FF_DEBUG_BRIDGEDRAW"))
+    {
+        static int shown = 0;
+
+        if (shown < 4)
+        {
+            int n = 0;
+            shown++;
+            roadbedObjects.ResetTraversal();
+            obj = roadbedObjects.GetNextAndAdvance();
+            fprintf(stderr, "[bridgedraw] bridge at (%.0f,%.0f,%.1f) LOD=%d segments:",
+                    position.x, position.y, position.z, LOD);
+
+            while (obj)
+            {
+                Tpoint p;
+                obj->GetPosition(&p);
+                fprintf(stderr, " #%d(%.0f,%.0f,%.1f super=%d)", n++, p.x, p.y, p.z,
+                        ((DrawableRoadbed *)obj)->HasSuperstructure() ? 1 : 0);
+                obj = roadbedObjects.GetNextAndAdvance();
+            }
+
+            fprintf(stderr, "  total=%d\n", n);
+            fflush(stderr);
+        }
+    }
+#endif
+
     // First draw the raodbed (should all be DrawableRoadbed)
     roadbedObjects.ResetTraversal();
     obj = roadbedObjects.GetNextAndAdvance();

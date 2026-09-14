@@ -13796,3 +13796,41 @@ the same `position`/`orientation` as the base (`drawrdbd.cpp:38`), so a mirrored
 that orientation is applied, not at the data.
 
 **RECON-3: sprint 1 of its new pass.**
+
+### RECON-3 S6 (Opus 5, 2026-09-14) — ⛔ S5's "drawn twice, one copy mirrored" is WITHDRAWN; and the off-centre placement now has arithmetic
+
+S5 read the recon capture as the bridge being drawn twice with one copy mirrored. S6 counted the
+parts instead of reading the picture (`FF_DEBUG_BRIDGEDRAW=1`, a census inside `DrawableBridge::Draw`
+itself, which is where a bridge's segments and superstructures are drawn):
+
+    [bridgedraw] bridge at (1648254,1320669,-1143.3) LOD=0 segments: #0(1648254,1320669,-1143.3 super=0)  total=1
+
+⛔ **ONE segment, and it has NO superstructure.** So the two rows of spans cannot be "base plus
+misplaced superstructure" and cannot be two carriageways — there is only one part being drawn, once.
+The two rows are the single model's own geometry: the near and far truss walls of a through-truss
+bridge seen obliquely, which is also why the deck appears low in one row and high in the other.
+**S5's reading was wrong and is withdrawn.** The lesson is the one this project keeps re-learning:
+a picture suggests, a census decides.
+
+**What survives from S5, and now has numbers.** The bridge is drawn at the LEFT EDGE of the pane
+instead of its centre, and the camera arithmetic explains how far off it should be:
+
+| | |
+|---|---|
+| feature | (1648254, 1320669) |
+| camera | (1646886, 1320669), 3758 ft up |
+| standoff | 1368 ft in x |
+| angle off nadir | atan(1368/3758) = **20°** |
+
+⭐ **A 20° offset in a viewport of roughly 30° total field is most of the way to the frame edge —
+which is exactly where the bridge is.** So the likely defect is not registration at all: the recon
+camera stands 1368 ft back from the feature but does not appear to LOOK at it. A camera that is
+offset and aimed straight down puts its subject near the edge; a camera aimed at its subject puts it
+in the middle, which is what the gold shows.
+
+**S7:** find the recon view's look direction. `ReconArea` already has `FF_RECON_HDG` from an earlier
+sprint, and `C_3dViewer::SetCamera` takes heading/pitch/roll alongside the offset — read what pitch
+and heading the recon window sets, and test the prediction directly: aiming the camera at the feature
+should move the bridge from the edge to the centre. That is a one-run A/B with a stated prediction.
+
+**RECON-3: sprint 2 of its new pass.**

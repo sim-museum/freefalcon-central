@@ -138,13 +138,11 @@ void CenterOnFeatureCB(long, short hittype, C_Base *control)
                                     "  rendOTW=%p viewPoint=%p",
                             pos.x, pos.y, pos.z, (void *)r, (void *)(r ? r->viewpoint : NULL));
 
-                    if (r and r->viewpoint)
-                    {
-                        Tpoint *cam = r->viewpoint->GetFrom();
-                        Tpoint *coa = r->viewpoint->GetAt();
-                        fprintf(stderr, "  camera=(%.0f,%.0f,%.0f) coa=(%.0f,%.0f,%.0f)",
-                                cam->x, cam->y, cam->z, coa->x, coa->y, coa->z);
-                    }
+                    /* RECON-3 S6: the camera/COA print this block first carried used
+                       RViewPoint::GetFrom/GetAt, which do not exist on that class -- the file was
+                       committed without a rebuild and did not compile. The pointers below are what
+                       the question actually needed (they are compared with the pair ViewGreyOTW
+                       prints); the positions are already reported by that trace. */
 
                     fprintf(stderr, "\n"), fflush(stderr);
                 }
