@@ -1530,6 +1530,24 @@ void BombClass::ApplyProximityDamage(float groundZ, float detonateHeight)
 
                     rangeSquare = tmpX * tmpX + tmpY * tmpY;; // + tmpZ*tmpZ;
 
+#ifdef FF_LINUX
+                    /* BOOM-4 S7: two runs of aiming at open ground taught that waiting for the
+                       bomb to land on a structure does not work. This walk is already over every
+                       feature near the burst, so it can simply SAY what was there -- id, position,
+                       height above the burst, and whether it is a flat container. That answers
+                       "what did the bomb miss", and it hands the next sprint real coordinates for
+                       FF_SET_DESIGNATE instead of a guess. FF_DEBUG_BOMBTRACK=1, 600 ft radius. */
+                    if (getenv("FF_DEBUG_BOMBTRACK") and rangeSquare < 600.0f * 600.0f)
+                        fprintf(stderr, "[boom4] near-feature id=%d at (%.0f,%.0f,%.1f) "
+                                        "d=%.0f ft dz=%+.1f ft flat=%d top=%d type=%d\n",
+                                (int)testObject->Id().num_, testObject->XPos(), testObject->YPos(),
+                                testObject->ZPos(), (double)sqrt(rangeSquare),
+                                testObject->ZPos() - ZPos(),
+                                testObject->IsSetCampaignFlag(FEAT_FLAT_CONTAINER) ? 1 : 0,
+                                testObject->IsSetCampaignFlag(FEAT_CONTAINER_TOP) ? 1 : 0,
+                                (int)testObject->Type()), fflush(stderr);
+#endif
+
                     if (wc and wc->DamageType == NuclearDam)
                     {
                         if (rangeSquare < damageRadiusSqrd * g_fNukeDamageMod)

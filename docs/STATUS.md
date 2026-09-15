@@ -14320,3 +14320,31 @@ of the impact at burst time — the second is the more useful instrument, becaus
 bomb *missed*.
 
 **BOOM-4: 2 sprints this pass.**
+
+### BOOM-4 S7 (Opus 5, 2026-09-14) — ⭐ the burst now names what was AROUND it, and hands S8 a real structure to aim at
+
+S5 and S6 both waited for a bomb to happen to land on a building, and neither did. S7 stops waiting:
+`ApplyProximityDamage` already walks every feature near the burst, so it can simply say what is
+there.
+
+    [boom4] near-feature id=28668 at (1809383,1290346,-682.0) d=468 ft dz=+15.7 ft flat=0 top=0 type=963
+
+⭐ **One feature within 600 ft of the impact, and it is NOT a flat container** (`flat=0`) — a tall
+structure, 468 ft from where the bomb went off, with its coordinates printed. **That is the aim point
+S8 needs**: `FF_SET_DESIGNATE="1809383,1290346"` puts the CCRP on a real structure, and S5's
+`bombAboveObj` then measures the burst height against the object's own base instead of against the
+terrain. Three sprints of "the tall-structure case has not occurred" end with a coordinate.
+
+**Two smaller things the run settled:**
+* `dz=+15.7 ft` — the feature sits 15.7 ft below the bomb at this point in the frame, i.e.
+  **`ApplyProximityDamage` runs BEFORE the final position snap.** Any height comparison made here is
+  one snap early, which matters for exactly the measurement S8 is about to take.
+* ⚠️ **The release is not reproducible from the key schedule alone.** The same build with two 25 s
+  holds (40 s, 70 s) released **nothing**; four holds (40/70/100/130 s) released one bomb, as in S6.
+  The hold has to coincide with the FCC's own solution, so a run that produces no bomb is not
+  evidence about the bomb code — **the fourth silent-harness trap in this session.**
+
+**S8:** designate 28668, drop, and read `bombAboveObj`. If the burst sits at the object's own height
+the S4 assumption was right and BOOM-4 closes; if it sits 78 ft above a 20 ft structure, it does not.
+
+**BOOM-4: 3 sprints this pass.**
