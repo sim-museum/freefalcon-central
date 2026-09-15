@@ -14283,3 +14283,40 @@ so pick an aim point on the airbase itself, where `FEAT_FLAT_CONTAINER` and tall
 present, and read `bombAboveObj` for each.
 
 **BOOM-4: 1 sprint this pass.**
+
+### BOOM-4 S6 (Opus 5, 2026-09-14) — the release mechanics are measured at last: a tap never pickles, and this sortie carries exactly ONE bomb
+
+S5 asked for a drop against a structure. Two runs, and neither got one — but the runs settled
+something every bomb item in this tree has been assuming.
+
+| pickle input | bombs released |
+|---|---|
+| six 400 ms taps (BOOM-4's own recipe, at 40/50/60/70/80/95 s) | **0** |
+| four 25 s holds (at 40/70/100/130 s) | **1** |
+
+⭐ **A tap does not release.** `CheckForBombRelease` sets `bombPickle` only while the FCC's own
+condition is met, so the pickle has to be HELD ACROSS the release decision; a 400 ms press almost
+never overlaps it. That, with S5's throttle finding, fully explains why BOOM-4's recipe had stopped
+producing bombs — and neither cause is in the code under test.
+
+⭐⭐ **And the sortie carries ONE weapon.** `[bombtrack]` saw exactly one bomb entity, **id 28029**,
+across the whole run despite four separate 25-second holds:
+
+    [bombtrack] id=28029 ... (34 frames, one id)
+
+**So every BOOM-4 and CCRP-5 measurement to date is a single sample by construction.** That matters
+beyond this item: **CCRP-5 S9 plans to repeat a drop three times to separate bias from dispersion —
+it will need three RUNS, not three releases in one run**, and CCRP-5 S3's "six-bomb stick" came from
+a loadout this harness no longer reaches.
+
+⚠️ **The feature-hit case still has not occurred.** Both drops landed within ~150 ft of the
+designate and both report `hitObj=(nil)`: the TE 20 designate sits on open ground, not on a
+structure, so S5's instrument has had nothing to print. *(Both drops also re-confirm the shipped
+fixes: `gnd=-682.0`, `sim z=-682.0`, `d(sim-draw)=(0,0,0.0)`.)*
+
+**S7:** stop hoping the aim point lands on a building. Either read a feature's coordinates out of the
+campaign object list and put `FF_SET_DESIGNATE` on it, or list the features within a few hundred feet
+of the impact at burst time — the second is the more useful instrument, because it also says what the
+bomb *missed*.
+
+**BOOM-4: 2 sprints this pass.**
