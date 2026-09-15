@@ -14621,3 +14621,44 @@ or the `[loadluma]` mean changing) rather than against wall-clock seconds, then 
 again. Until then LOAD-1's central claim — a ~31 s white screen — has never been reproduced headless.
 
 **LOAD-1: 1 sprint this pass.**
+
+### LOAD-1 S6 (Opus 5, 2026-09-14) — ⛔ S5's "the screen never changed" was MY sampling error; the recipe advances through six screens and then backs out at the 78 s click
+
+S5 reported *"the screen luma is constant at 171.4 for 180 seconds — the picture never changed"*.
+**That is wrong, and it came from reading the head and the tail of a 356-line trace whose two ends
+happen to be the same value.** S6 read the middle.
+
+**MEASURED — every change in `[loadluma] mean` across the campaign run, with a no-click control:**
+
+| | distinct luma levels |
+|---|---|
+| **control, no clicks at all** | **2** (0.0, then 171.4 — the main menu, static) |
+| the ASAN click recipe | **9** |
+
+    1.7s  171.4        <- main menu
+   15.9s   18.3        <- after click 1 (924,745) at 14 s
+   28.1s   37.1        <- after click 2 (905,758) at 26 s
+   35.8s  138.2        <- after click 3 (563,751) at 34 s
+   43.5s   72.6 -> 95.6 -> 118.8   <- click 4 (495,390) at 42 s, a transition
+   57.7s  108.6        <- after click 5 (110,135) at 56 s
+   79.5s  171.4        <- after clicks 6 and 7 ... and it stays here for the last 100 s
+
+⭐ **So the clicks DO work and the campaign UI advances through six screens** — the control proves the
+changes are the clicks, not the game animating itself. ⭐⭐ **And the failure has an exact address:
+after the click at 78 s (`976,750`) the run returns to a screen at the MAIN-MENU luma and never
+leaves it.** The click meant to commit to the flight backs out instead, which is why no mission load
+ever starts and why S5 saw 171.4 at both ends.
+
+*(S5's other two findings stand and are untouched by this: `SetDrawFlag(0)` never fires — 1 call in
+182 s — and the screen is never white.)*
+
+⭐ **The instrument is also now proven as a screen-change detector**, which is what S5 asked for
+without knowing it: `[loadluma]` reports within its sample period whether a click advanced the UI or
+not. **Re-timing the campaign recipe no longer needs screenshots — it needs this trace and one run
+per adjustment.**
+
+**S7:** re-aim the 78 s click. Everything before it works; the recipe needs the button that COMMITS
+to the takeoff rather than the one that returns. Watch `[loadluma]` — an advance changes the mean
+within 2 s, a back-out returns it to 171.4.
+
+**LOAD-1: 2 sprints this pass, one of them spent correcting the previous one.**
