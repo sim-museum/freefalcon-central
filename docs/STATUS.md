@@ -15277,3 +15277,51 @@ between this and LANDAP-1 the autopilot cannot complete it: LANDAP-1 keeps it ci
 and once that is stepped past, this drops it in the sea short of the runway.
 
 **LANDAP-2: filed with its measurement already taken. 0 sprints.**
+
+### LANDAP-2 S1 (Opus 5, 2026-09-15) — ⭐⭐ the zero is not a loader bug: the destination is a **`WP_LAND` waypoint**, and the player's autopilot steers at it like any other point. LANDAP-1 and LANDAP-2 are one family
+
+LANDAP-2 asked whether the destination waypoint's altitude of 0 is what the mission data says or
+something the loader dropped. A one-shot `[wpchain]` dump (index, action, flags, position) at the
+first `[NAV]` tick answers it and more:
+
+    [wpchain]  0 action= 1 flags=0x00000080 pos=(775715.1, 1307071.8, -5000.0)
+    [wpchain]  1 action= 0 flags=0xffff0000 pos=(710115.5, 1330031.7, -2000.0)
+    [wpchain]  2 action= 0 flags=0xffff4000 pos=(719955.5, 1326751.7, -2000.0)   <- current steerpoint
+    [wpchain]  3 action= 7 flags=0xffff0100 pos=(775715.1, 1307071.8,     0.0)
+
+⭐ **Action 7 is `WP_LAND`** (`campwp.h:25`), and action 1 is `WP_TAKEOFF`. Waypoints 0 and 3 sit at
+**the same x,y** — the airbase — one to leave from at 5,000 ft and one to land at, at 0.
+
+**So the zero is the data's intent, not a defect.** A `WP_LAND` waypoint says "land here"; its
+altitude is not a cruise altitude to fly to. **The defect is that `DigitalBrain::FollowWP` does not
+look at the action at all** — it reads `self->curWaypoint`, takes its position, and steers at it. A
+landing point therefore reads to the player's autopilot as "fly to this spot at sea level", which is
+exactly the 14° dive LANDAP-2 measured, 6 nm short of the field.
+
+⭐ **And the machinery to do it properly EXISTS — on the AI side only.** `winglogic.cpp:969` tests
+`curWaypoint->GetWPAction() == WP_LAND and not OnGround() and distAirbase < 30 nm` and hands over to
+the landing brain (`landme.cpp`, `LandingMode`). LANDAP-1 S6 measured `DigitalBrain::Actions` running
+**0 times for the player** across a whole sortie, so that transition can never fire for a human.
+
+**The two items are one family, and it is worth saying plainly:** the player's route autopilot has
+**none** of the AI brain's route machinery — not steerpoint sequencing (LANDAP-1), not the
+LAND-waypoint hand-off (LANDAP-2). `StrgSel` is attitude steering toward a fixed point and nothing
+else. That is why *"09 Landing Final Approach"*, the TE the PO uses to judge landings, cannot be
+completed on autopilot: it orbits waypoint 1, and if you step past that by hand it dives at the sea.
+
+**What it is NOT:** the route data is sound. The destination is at the airfield (1,554 ft from the
+gold tape's rollout end), the legs carry sensible cruise altitudes, and the actions are correct.
+Nothing in the mission file needs changing.
+
+**S2 — the PO decision, stated so it can be answered in one line.** Three shapes, cheapest first:
+1. **Harness-only:** teach the test recipe to press the steerpoint key and hand-fly the last 6 nm.
+   Nothing ships; the landing gates get an oracle again.
+2. **Autopilot honours the action:** when the current steerpoint is `WP_LAND` and the aircraft is
+   inside the AI's own 30 nm gate, hand over to the same landing logic the AI uses. This is what the
+   shipped game does for every AI aircraft, so it is a port-faithfulness fix rather than a new
+   feature — but it is the player's aircraft, and handing a human's jet to an AI brain needs the
+   PO's word.
+3. **Leave it:** the real F-16's autopilot does not land the aeroplane either. If that is the ruling,
+   both items close as *not defects* and the gates stop expecting a touchdown.
+
+**LANDAP-2: 1 sprint.**

@@ -656,6 +656,23 @@ void OTWDriverClass::Cycle(void)
                            MODE. Count the calls by whose aircraft they are rather than reasoning
                            from the call graph: if the player's counters stay at 0 while the AI's
                            climb, the sequencer simply does not run for the player. */
+                        /* LANDAP-2 S1: the destination waypoint's z printed as 0.0 while
+                           waypoint 1 carries -2000.0, and the autopilot dives for it. Print the
+                           WHOLE chain once -- index, action and position -- so "the data says 0"
+                           and "the loader dropped it" can be told apart, and so a LAND waypoint can
+                           be recognised by its action rather than by its place in the list. */
+                        { static int dumped = 0;
+                          if (!dumped++) {
+                            WayPoint w = pa->waypoint ? pa->waypoint : cw;
+                            int i = 0;
+                            for (; w and i < 64; w = w->GetNextWP(), i++) {
+                                float ax=0.f, ay=0.f, az=0.f; w->GetLocation(&ax, &ay, &az);
+                                fprintf(stderr, "[wpchain] %2d action=%2d flags=0x%08lx pos=(%.1f, %.1f, %.1f)%s\n",
+                                        i, w->GetWPAction(), (unsigned long)w->GetWPFlags(), ax, ay, az,
+                                        (w == pa->curWaypoint) ? "   <- current steerpoint" : "");
+                            }
+                            fflush(stderr);
+                          } }
                         extern long g_ff_selnext_player, g_ff_selnext_ai;
                         extern long g_ff_actions_player, g_ff_actions_ai;
                         fprintf(stderr,
