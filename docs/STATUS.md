@@ -14549,3 +14549,38 @@ there and holds here, the defect is scenario-specific and the S3 census (91% of 
 belongs to that scenario rather than to the terrain loader.
 
 **TERRAIN-1: 2 sprints this pass.**
+
+### TERRAIN-1 S7 (Opus 5, 2026-09-14) — the DOGFIGHT scenario measures MORE varied than the landing one; the symptom does not reproduce anywhere
+
+S6 measured the landing TE against its own gold and found the port's ground at least as varied as the
+reference. The PO's report was about **dogfight** terrain, so S7 flew one — **TE 29 "Offensive BFM"**,
+confirmed by the load line — and applied the identical rule.
+
+| | ground px | mean rgb | **stdev** | distinct |
+|---|---|---|---|---|
+| GOLD, landing final (Wine) | 17,532 (2.2%) | [48,113,63] | 48.6 | 4,605 |
+| PORT, landing TE 09 | 11,154 (1.4%) | [64,116,68] | 62.7 | 4,401 |
+| **PORT, dogfight TE 29 @45 s** | 11,097 (1.4%) | [73,**117**,79] | **68.1** | 4,185 |
+| **PORT, dogfight TE 29 @75 s** | 11,125 (1.4%) | [73,117,79] | **68.0** | 4,155 |
+
+⭐⭐ **The dogfight ground is the most varied of the three** — stdev 68.1 against the landing TE's 62.7
+and the gold's 48.6, with 4,185 distinct colours. **"Grey untextured dogfight terrain" does not
+describe what this build renders**, in the very scenario the PO named.
+
+*(`dog_105` returned only 137 ground pixels and is excluded: at that instant the view is off the
+ground. Reported rather than dropped silently — a frame with no ground in it is not a frame with grey
+ground in it.)*
+
+⭐ **Where that leaves the item.** Three sprints ago TERRAIN-1's root-cause claim (S3's "91% of binds
+are one tile", S4's "the loader reads the theater as SMALL") was already retired by RECON-2's
+`[terrainfmt]` evidence, and the census behind it was shown to have been sampled over sea. **Now the
+symptom itself fails to reproduce in either scenario, measured against a gold for one of them.**
+
+⚠️ **The one thing that would close it properly is the PO, not another run.** Their report is from
+the 2026-07 smoke test, several terrain changes ago, and the standing rule here is that *a fix in dev
+is not a fix in the AppImage they run*. **S8: ask them to look at dogfight terrain on the current
+build** — and if it is fine, close TERRAIN-1 as fixed-by-other-work rather than leaving an
+unreproducible item on the board.
+
+**TERRAIN-1: 3 sprints this pass. Not reproducible in the landing scenario, not reproducible in the
+dogfight scenario, and its old root cause already withdrawn.**
