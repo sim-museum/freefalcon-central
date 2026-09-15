@@ -2681,9 +2681,29 @@ bool ProcessGameMessages() {
                 break;
 
             case FM_JOIN_FAILED:
+            {
                 fprintf(stderr, "[FM] FM_JOIN_FAILED received\n");
+                // JOINFAIL-1: the crash the item describes needs the failure to arrive with NO main
+                // UI handler up -- the join was started from the loading screen, where the handler
+                // is down. That state cannot be reached by TIMING from here: gMainHandler is
+                // already up on the first frame of this loop. FF_TEST_JOINFAIL_NULLHANDLER=1 puts
+                // the recovery path in exactly that state and restores it immediately afterwards;
+                // the dispatch is single-threaded, so nothing else observes the NULL.
+                C_Handler* savedHandler = gMainHandler;
+                const bool nullHandler = getenv("FF_TEST_JOINFAIL_NULLHANDLER") != NULL;
+                if (nullHandler) {
+                    fprintf(stderr, "[FF_TEST_JOINFAIL] handing CampaignJoinFail a NULL gMainHandler\n");
+                    fflush(stderr);
+                    gMainHandler = NULL;
+                }
                 CampaignJoinFail();
+                if (nullHandler) {
+                    gMainHandler = savedHandler;
+                    fprintf(stderr, "[FF_TEST_JOINFAIL] survived the no-handler recovery path\n");
+                    fflush(stderr);
+                }
                 break;
+            }
 
             case FM_SHUTDOWN_CAMPAIGN:
                 fprintf(stderr, "[FM] FM_SHUTDOWN_CAMPAIGN received\n");
@@ -3745,6 +3765,31 @@ static void main_loop(void) {
                 SimulationLoopControl::StopGraphics();
                 fprintf(stderr, "[AUTO_TEST] StopGraphics() called\n");
                 fflush(stderr);
+            }
+        }
+
+        // FF_LINUX (JOINFAIL-1): FF_TEST_JOINFAIL="<sec>" raises a campaign JOIN FAILURE at that
+        // time, through the same FM_JOIN_FAILED dispatch a real load failure uses.
+        // WHY A HOOK: the item is "the graceful-failure path segfaults" -- CampaignJoinFail() ->
+        // C_Handler::RemoveUserCallback() -> SIGSEGV when the failure arrives with no main UI
+        // handler up. Both sites were guarded, and the fix has sat UNVERIFIED because nothing here
+        // can make a load fail on demand. It fires whether or not the UI is up, on purpose: the
+        // crash needs the no-handler case, which is exactly the one that cannot be reached by
+        // clicking.
+        {
+            static int s_jfInit = 0; static Uint32 s_jfAt = 0; static int s_jfFired = 0;
+            if (!s_jfInit) {
+                s_jfInit = 1;
+                const char* e = getenv("FF_TEST_JOINFAIL");
+                if (e) { float at = 0.0f; if (sscanf(e, "%f", &at) == 1) s_jfAt = (Uint32)(at * 1000.0f) + 1; }
+                if (s_jfAt) fprintf(stderr, "[FF_TEST_JOINFAIL] scheduled at %ums\n", s_jfAt - 1);
+            }
+            if (s_jfAt && !s_jfFired && SDL_GetTicks() >= s_jfAt - 1) {
+                s_jfFired = 1;
+                fprintf(stderr, "[FF_TEST_JOINFAIL] raising FM_JOIN_FAILED at %ums (gMainHandler=%s)\n",
+                        (unsigned)SDL_GetTicks(), gMainHandler ? "up" : "NULL");
+                fflush(stderr);
+                QueuePendingMessage(FM_JOIN_FAILED, 0, 0);
             }
         }
 

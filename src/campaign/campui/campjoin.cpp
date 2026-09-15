@@ -1,3 +1,4 @@
+#include <string.h>
 
 #include "Mesg.h"
 #include "find.h"
@@ -166,12 +167,25 @@ void CampaignPreloadSuccess(int remote_game)
     }
 }
 
+/* JOINFAIL-1 control. FF_TEST_JOINFAIL_NOGUARD names WHICH guard to bypass:
+     "stop"  StopCampaignLoad's RemoveUserCallback      "find"  CampaignJoinFail's FindWindow
+     "1"/"all"  both.
+   Per-site, because the two do not behave the same when `this` is NULL and a single switch cannot
+   tell you which one is load-bearing -- the first control run here bypassed only FindWindow and did
+   NOT crash, which read as "the guard is not what saves us". */
+static bool jf_noguard(const char* site)
+{
+    const char* e = getenv("FF_TEST_JOINFAIL_NOGUARD");
+    if (not e or not *e) return false;
+    if (strcmp(e, "1") == 0 or strcmp(e, "all") == 0) return true;
+    return strstr(e, site) != NULL;
+}
+
 void CampaignJoinSuccess(void)
 {
     MonoPrint("Got all campaign data Starting it up\n");
 
     if (gMainHandler)
-        if (gMainHandler)   // JOINFAIL-1: see CampaignJoinFail
         gMainHandler->RemoveUserCallback(CampaignConnectionTimer);
 
     campaignStart = true;
@@ -323,6 +337,13 @@ void CampaignJoinSuccess(void)
 void CampaignJoinFail(void)
 {
     MonoPrint("Failed to get campaign data\n");
+    /* JOINFAIL-1: print what the recovery path ACTUALLY sees. Without this, a harness that forces
+       the no-handler state elsewhere cannot tell "the guard held" from "my injection never got
+       here" -- and those two read identically as a pass. */
+    fprintf(stderr, "[joinfail] CampaignJoinFail entered: gMainHandler=%p noguard=%s\n",
+            (void*)gMainHandler, getenv("FF_TEST_JOINFAIL_NOGUARD") ?
+                                 getenv("FF_TEST_JOINFAIL_NOGUARD") : "none");
+    fflush(stderr);
 
     StopCampaignLoad();
 
@@ -335,7 +356,10 @@ void CampaignJoinFail(void)
     // JOINFAIL-1 (FF_LINUX): a failed load can arrive with no main UI handler up (the join was
     // started from the loading screen); every gMainHandler-> call here then segfaults inside
     // the very path meant to return us to the menu. Guard it, as CampaignJoinSuccess does.
-    win = gMainHandler ? gMainHandler->FindWindow(COMMLINK_WIN) : NULL;
+    // JOINFAIL-1 control: FF_TEST_JOINFAIL_NOGUARD=1 restores the PRE-FIX dereference, so the
+    // verification harness can show the original fault reproducing before it trusts the pass.
+    // A gate whose control cannot fail is not a gate (BoB's revpad lesson, MA's S290).
+    win = (gMainHandler || jf_noguard("find")) ? gMainHandler->FindWindow(COMMLINK_WIN) : NULL;
 
     if (win)
     {
@@ -356,8 +380,10 @@ void CampaignJoinFail(void)
 void StopCampaignLoad(void)
 {
     MonoPrint("Stop Campaign Load\n");
+    if (jf_noguard("stop"))
+        fprintf(stderr, "[joinfail] StopCampaignLoad: gMainHandler=%p, guard BYPASSED\n", (void*)gMainHandler);
 
-    if (gMainHandler)   // JOINFAIL-1: see CampaignJoinFail
+    if (gMainHandler || jf_noguard("stop"))   // JOINFAIL-1: see CampaignJoinFail
         gMainHandler->RemoveUserCallback(CampaignConnectionTimer);
 
     PostMessage(FalconDisplay.appWin, FM_SHUTDOWN_CAMPAIGN, 0, game_Campaign);

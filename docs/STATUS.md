@@ -14724,3 +14724,47 @@ Three runs now, on two paths, with no drawflag-off window anywhere.)*
 
 **LOAD-1: 4 sprints this pass — AT THE CAP. The campaign clock is under control and the load is one
 correctly-timed click away.**
+
+### JOINFAIL-1 S1 (Opus 5, 2026-09-15) — ✅ VERIFIED, with a control that reproduces the original SIGSEGV on demand — and only ONE of the two guards is load-bearing
+
+The item: *"the graceful-failure path segfaults"* — `CampaignJoinFail()` → `C_Handler::RemoveUserCallback()`
+→ SIGSEGV, i.e. the try/catch meant to turn a failed load into a clean return to the menu crashed
+inside its own recovery. Both sites were guarded in Sprint 23 and the fix has sat **unverified since**,
+with the recorded verification *"an incompatible mission must fall back to the menu"* — which nothing
+in the harness could produce.
+
+**Two new hooks and a gate.** `FF_TEST_JOINFAIL=<sec>` raises `FM_JOIN_FAILED` through the same
+dispatch a real failure uses. That alone was not enough: **`gMainHandler` is already up on the first
+frame of the main loop**, so the no-handler case — the one that crashes — cannot be reached by timing.
+`FF_TEST_JOINFAIL_NULLHANDLER=1` hands the recovery path a NULL handler and restores it immediately
+afterwards (the dispatch is single-threaded, so nothing else sees it). `tools/ff_joinfail.sh` drives
+both arms.
+
+| arm | what the recovery path saw | result |
+|---|---|---|
+| shipped guards | `gMainHandler=(nil) noguard=none` | **survives**, returns, process alive at the timeout |
+| control, `NOGUARD=stop` | `gMainHandler=(nil) noguard=stop` | **SIGSEGV (rc=139)** — the original fault, on demand |
+| control, `NOGUARD=find` | `gMainHandler=(nil) noguard=find` | **no crash** |
+
+⭐ **So the two guards are not equivalent.** `StopCampaignLoad`'s `gMainHandler->RemoveUserCallback()`
+is the one that segfaults on a NULL `this`; `CampaignJoinFail`'s `gMainHandler->FindWindow(COMMLINK_WIN)`
+does not fault on this build (undefined behaviour that happens not to touch the object — the guard
+stays, precisely because that is luck, not a property). **JOINFAIL-1's crash is the `stop` site.**
+
+⚠️ **Two instrument faults were caught before they became findings**, both of the house type:
+
+* **The control passed, and that was the harness's fault.** `${NOGUARD:+FF_TEST_JOINFAIL_NOGUARD=$NOGUARD}`
+  sets the variable when `NOGUARD=0` as well — `"0"` is a non-empty string and the code under test only
+  checks `getenv()` presence. Both arms ran with the same env. Fixed with an explicit `case`.
+* **A pass and a never-arrived injection read identically.** The first runs reported "survived the
+  no-handler path" while nothing proved the NULL had been *seen inside* `CampaignJoinFail`. Added
+  `[joinfail] CampaignJoinFail entered: gMainHandler=%p noguard=%s` — printed by the recovery path
+  itself, so the state under test is evidence rather than an assumption. Every table row above quotes
+  that line.
+
+**Also corrected:** the first patch put the no-guard control in `CampaignJoinSuccess` (a `replace(...,1)`
+landed on the first of two identical comment lines), producing a harmless nested `if` in the wrong
+function. Reverted; the control is now applied per-site by name.
+
+**JOINFAIL-1 closes:** the guarded recovery path is exercised, survives, and its control fails without
+the guard. 1 sprint.
