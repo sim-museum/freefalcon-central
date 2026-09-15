@@ -322,6 +322,26 @@ void OTWDriverClass::Cycle(void)
                 fprintf(stderr, "[ACMI] FF_ACMI_STOP: stopping recording -> tape flushed\n");
                 fflush(stderr);
                 gACMIRec.StopRecording();
+
+                /* ACMI-3 S1 (2026-09-15): convert the flight we JUST recorded, here.
+                   FF_ACMI_IMPORT runs on return to the UI (main_linux.cpp, FM_START_UI), and a
+                   harness that ends by timeout never returns -- so the import fired BEFORE the
+                   flight, found nothing, and the .flt stayed a .flt. FM-GOLD-1 S1 caught it in the
+                   log's ORDER:
+                       FF_ACMI_IMPORT: converting ... -> done      <- at UI entry
+                       FF_ACMI_RECORD: starting recording          <- the flight
+                       FF_ACMI_STOP:  stopping recording           <- the .flt is written HERE
+                   Converting at the stop is where the data actually exists. The UI-entry call
+                   stays: it is the path a human playing the game takes. */
+                if (getenv("FF_ACMI_IMPORT"))
+                {
+                    extern void ACMI_ImportFile(void);
+                    fprintf(stderr, "[ACMI] FF_ACMI_STOP: converting the recording just made\n");
+                    fflush(stderr);
+                    ACMI_ImportFile();
+                    fprintf(stderr, "[ACMI] FF_ACMI_STOP: conversion done\n");
+                    fflush(stderr);
+                }
             }
         }
     }

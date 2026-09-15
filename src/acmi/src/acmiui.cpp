@@ -903,6 +903,14 @@ void ACMI_ImportFile(void)
 
     FindClose(findHand);
 
+    /* ACMI-3 S1 (2026-09-15): say what the walk found and what Import returned. Converting at
+       recording-stop now runs this function at the right moment (FM-GOLD-1 S1 showed the UI-entry
+       call fires BEFORE the flight), and it STILL produces no tape -- so the failure is inside, and
+       until now it was silent on both counts: how many .flt files the walk saw, and whether
+       ACMITape::Import succeeded. Neither was ever printed. */
+    fprintf(stderr, "[ACMI] ImportFile: walk found %d .flt file(s)\n", nFlts);
+    fflush(stderr);
+
     for (f = 0; f < nFlts; f++)
     {
         strcpy(fltname, fltNames[f]);
@@ -921,9 +929,16 @@ void ACMI_ImportFile(void)
                 // left in place is imported again -- one flight, a fresh duplicate
                 // tape each time you leave the sim. Only on success: a failed
                 // import must leave the raw flight where it is.
-                if (ACMITape::Import(fltname, fname))
                 {
-                    ffRetireImportedFlt(fltname);
+                    BOOL _ok = ACMITape::Import(fltname, fname);
+                    fprintf(stderr, "[ACMI] ImportFile: Import('%s' -> '%s') = %s\n",
+                            fltname, fname, _ok ? "OK" : "FAILED");
+                    fflush(stderr);
+
+                    if (_ok)
+                    {
+                        ffRetireImportedFlt(fltname);
+                    }
                 }
 
                 break;

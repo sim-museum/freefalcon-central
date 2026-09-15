@@ -15587,3 +15587,55 @@ finding.** The test is now cheap and its answer is unambiguous either way.
 
 **FM-GOLD-1: 5 sprints this pass — OVER THE CAP, rotating off.** The item is one verified write away
 from the comparison it was built for.
+
+### ACMI-3 S1 (Opus 5, 2026-09-15) — ⭐⭐ **root-caused to a byte**: the import bails because the `.flt` record walk DESYNCHRONISES, and the callsign count reads as `0x0100000A` instead of `10`
+
+ACMI-3 has stood as *"a recorded flight can never become a loadable tape"* with no mechanism. It has
+one now, and two fixes shipped on the way to it.
+
+**1. The conversion ran at the wrong time — fixed.** `FF_ACMI_IMPORT` fires on return to the UI
+(`main_linux.cpp`, `FM_START_UI`), and a harness that ends by timeout never returns, so the import
+ran BEFORE the flight and found nothing (FM-GOLD-1 S1 caught the ordering in the log). The same
+conversion now also runs at `FF_ACMI_STOP`, where the `.flt` has just been written. The UI-entry call
+stays — that is the path a human takes.
+
+**2. And it still produced no tape, which is the real ACMI-3.** The import was silent about both of
+the things that matter, so both now print:
+
+    [ACMI] ImportFile: walk found 1 .flt file(s)
+    [ACMI] ImportFile: Import('acmibin\acmi0000.flt' -> 'acmibin\TAPE0003.vhs') = FAILED
+
+**3. `FF_DEBUG_ACMI=1` then names the line and the number:**
+
+    [ACMI] ACMICallsignList: count=16777226  bytes=335544520  offset=38958
+    [ACMI] rejecting bogus callsign count=16777226 -- import bailed
+    [ACMI] Import BAILED at acmitape.cpp:1032
+
+⭐⭐ **16777226 is `0x0100000A`.** The plausible true value is **10** = `0x0000000A`. The read itself
+is correct — `import_count = 0; fread(&import_count, sizeof(int32_t), 1, …)`, four bytes into a
+zeroed 64-bit long, exactly the ACMI-1 stride fix — so **the file POSITION is wrong**: the walk
+arrives at offset 38958 expecting a count and gets `0A 00 00 01`, the low byte of the real count plus
+a byte of the next record. **One byte of desynchronisation, accumulated earlier in the walk.**
+
+⭐ **And there is a strong candidate for where.** FM-GOLD-1 S1 decoded our own `.flt` and found the
+position record is
+
+    BYTE type | float time | int32 objType | int32 uid | float x,y,z,yaw,pitch,roll   = 37 bytes
+    ... followed by a 4-BYTE TAIL before the next record starts                        = 41 on disk
+
+`tools/acmi_dump.py`'s own header pins `ACMIEntityPositionData` at **41 bytes**. **If the importer
+models that record as 37 and the writer emits 41, the walk loses 4 bytes per position record** — and
+with hundreds of them, arriving at the callsign list mis-aligned is exactly what would happen.
+
+**S2:** compare the WRITER's and the READER's size for `ACMIRecAircraftPosition` — `acmirec.h`'s
+`ACMIGenPositionRecord` against what the import's `fread` consumes per record — and print the file
+offset after each record type so the desync's first divergence is visible rather than inferred. The
+guard at `acmitape.cpp:1021` stays either way: it is what turns a 335 MB allocation into a clean
+bail.
+
+**Why this matters beyond automation:** ACMI is the PO's own quantitative instrument ("gives a
+quantitative measure of sim/pilot performance that can be tracked and optimized", 2026-08-09), and
+**no flight flown in this port has ever produced a loadable tape.** The gold tapes are all from the
+Windows original.
+
+**ACMI-3: 1 sprint. A dead feature is one byte-offset from working.**
