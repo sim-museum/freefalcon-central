@@ -14662,3 +14662,36 @@ to the takeoff rather than the one that returns. Watch `[loadluma]` — an advan
 within 2 s, a back-out returns it to 171.4.
 
 **LOAD-1: 2 sprints this pass, one of them spent correcting the previous one.**
+
+### LOAD-1 S7 (Opus 5, 2026-09-14) — ⛔ S6's "it backs out" is wrong too: the 78 s click reaches the TAKEOFF-TYPE screen, and the run waits there because the mission is **T−00:50:43** away
+
+S6 read the luma timeline and concluded the click at 78 s *"returns to a main-menu-luma screen"*.
+S7 photographed both ends of that click instead of inferring from a mean.
+
+**At 68 s** (`FF_UI_SCREENSHOT=68`, recipe truncated to six clicks) the screen is the campaign **ATO
+frag order** — flight `RIDER1: SWEEP` selected, a pilot slot taken, `TASK: Sweep  TOT 10:50:00`, and
+a bottom bar ending `… MUNITIONS | TAKEOFF`. **The recipe's 7th click, (976,750), lands on TAKEOFF.**
+
+**At 110 s, with that click included,** the 171.4 screen is photographed and it is **not the main
+menu**: it is the **takeoff-type chooser — RAMPSTART / TAXI / TAKEOFF — with a countdown reading
+`T− 00:50:43`.**
+
+⭐ **So the recipe advances correctly all the way to the last choice.** S6's "backs out" was a mean
+that happens to match the main menu's; two screens can share a luma. *(Second correction in this item
+from the same cause — a statistic standing in for a picture.)*
+
+⭐⭐ **And what holds the run is the CLOCK, not a missed click.** `T− 00:50:43` is fifty minutes of
+campaign time before the mission; the 8th click at (200,595) lands inside the TAKEOFF panel and
+changes nothing, because there is nothing to enter yet. **The campaign path does not stall — it
+waits.**
+
+⭐ **The port already has the knob for it:** `src/falclib/timerthread.cpp:101` reads
+**`FF_CAMP_TIMECOMP`**. A headless campaign recipe needs it; no amount of re-aiming clicks will
+substitute for fifty minutes.
+
+**S8:** set `FF_CAMP_TIMECOMP`, let the clock run down, then click the takeoff panel. That is the
+first time this project will have driven the campaign to a mission load — and the load is precisely
+the window LOAD-1 is about, so the item's central claim becomes measurable in the same run.
+
+**LOAD-1: 3 sprints this pass, two of them spent correcting readings taken from a statistic instead
+of a picture. The item is now one knob away from its own measurement.**
