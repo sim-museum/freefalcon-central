@@ -15038,3 +15038,35 @@ numbers. If they read 0.00 there too, the query is lying everywhere and this is 
 they read ~28 ft, the elevation is genuinely missing on the approach and that is the landing defect.
 
 **LANDAP-1: 2 sprints.**
+
+### LANDAP-1 S3 (Opus 5, 2026-09-15) — the elevation query WORKS: at a ground start all four sources read −26.00 ft. So the approach's zeros are real, not a trace artefact
+
+S2 found every elevation source reading 0.00 for the whole TE-09 approach and named the discriminator:
+read the same four numbers where the aircraft is provably ON a runway. TE-02's ground start:
+
+    [GROUND] acZ=-5.99  groundZ=  0.00  aboveGround=5.99  vpAccurate= 0.00  vpApprox= 0.00  onGround=1  physLod=5   <- load-time transient
+    [GROUND] acZ=-31.99 groundZ=-26.00  aboveGround=5.99  vpAccurate=-26.00 vpApprox=-26.00 onGround=1  drawn=-26.00
+
+⭐ **All four sources agree at −26.00 ft** (z is positive-down, so the surface is 26 ft up), the gear
+standoff is a steady **5.99 ft**, and `onGround=1` — 44 samples of it. *(The first sample is the
+load-time transient GEAR-1 already recorded: elevation 0 until the fine terrain resolves.)*
+
+⛔ **So the query is not lying, and the approach's zeros are a real state of the world**: along the
+whole TE-09 descent the physics elevation, both viewpoint queries and the drawn mesh all report sea
+level.
+
+⚠️ **Two readings remain, and they need different fixes.** Either **(a)** the theatre's elevation is
+genuinely ~0 along that approach — in which case the aircraft descending to "8.92 ft above ground" was
+8.92 ft above the actual runway and simply ran out of sortie before the last few feet, and LANDAP-1 is
+about time/glidepath, not terrain — or **(b)** the elevation under the approach is not loaded, the
+aircraft is descending toward a surface 26-ish ft below the real one, and `OnGround()` can never
+latch. **The ACMI gold's landing holds ~28 ft through rollout, which favours (b)** but was recorded at
+a different airbase, so it does not settle it.
+
+**S4 (the discriminator, one run):** query the elevation AT the destination runway's own coordinates —
+the TE's own arrival waypoint — rather than along the flown path, and compare with the same query at
+TE-02's runway (−26.00, known good). A destination that reads 0.00 while a known airbase reads −26.00
+is (b) and is a terrain-streaming defect on the approach corridor; a destination that reads a real
+elevation is (a) and the landing is a glidepath/time problem.
+
+**LANDAP-1: 3 sprints.**
