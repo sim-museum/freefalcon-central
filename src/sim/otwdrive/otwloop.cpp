@@ -616,6 +616,53 @@ void OTWDriverClass::Cycle(void)
                     }
                 }
 
+                /* LANDAP-1 S5: S4 eliminated the terrain and left one fork -- the approach
+                   descends into the sea because the sortie runs out before the route reaches the
+                   airfield, or because the route's final leg does not end at the runway. The
+                   discriminator is the DISTANCE to the waypoints, printed on the same one-second
+                   tick as [GROUND] so the two series line up. Prints the current steerpoint the
+                   autopilot is actually steering to (DigitalBrain::FollowWP reads exactly this
+                   curWaypoint) and the LAST waypoint in the chain, which is where the plan ends.
+                   Converging-then-stopping is a duration problem; a plateau or a non-zero floor at
+                   the last waypoint is a route defect. FF_DEBUG_GROUND=1 gates it with [GROUND]. */
+                {
+                    WayPoint cw = pa->curWaypoint;
+
+                    if (cw)
+                    {
+                        float wx = 0.0f, wy = 0.0f, wz = 0.0f;
+                        cw->GetLocation(&wx, &wy, &wz);
+                        float dx = wx - pa->XPos(), dy = wy - pa->YPos();
+                        float dCur = (float)sqrt(dx * dx + dy * dy);
+
+                        /* walk to the end of the chain: the destination the plan finishes at.
+                           Bounded -- a corrupt or circular list must not hang the render loop. */
+                        WayPoint last = cw;
+                        int idx = 0, guard = 0;
+
+                        while (last->GetNextWP() and ++guard < 64)
+                        {
+                            last = last->GetNextWP();
+                            idx++;
+                        }
+
+                        float lx = 0.0f, ly = 0.0f, lz = 0.0f;
+                        last->GetLocation(&lx, &ly, &lz);
+                        float ldx = lx - pa->XPos(), ldy = ly - pa->YPos();
+                        float dLast = (float)sqrt(ldx * ldx + ldy * ldy);
+
+                        fprintf(stderr,
+                                "[NAV] cur=(%.1f, %.1f, %.1f) action=%d dCur=%.0f ft (%.2f nm)  "
+                                "last[+%d]=(%.1f, %.1f, %.1f) dLast=%.0f ft (%.2f nm)\n",
+                                wx, wy, wz, cw->GetWPAction(), dCur, dCur / 6076.0f,
+                                idx, lx, ly, lz, dLast, dLast / 6076.0f);
+                    }
+                    else
+                    {
+                        fprintf(stderr, "[NAV] curWaypoint=NULL -- the autopilot has no steerpoint\n");
+                    }
+                }
+
                 fprintf(stderr,
                         "[GROUND] pos=(%.1f, %.1f) acZ=%.2f groundZ=%.2f "
                         "aboveGround=%.2f vpAccurate=%.2f vpApprox=%.2f onGround=%d dead=%d "

@@ -15106,3 +15106,71 @@ that is the defect.
 
 **LANDAP-1: 4 sprints — AT THE CAP. Root-caused to the autopilot mode (S1), corrected (S1), and the
 terrain suspicion raised (S2) and eliminated (S3, S4) without leaving the item.**
+
+### LANDAP-1 S5 (Opus 5, 2026-09-15) — ⭐⭐ ROOT CAUSE: **the player's steerpoint never sequences.** The autopilot flies to waypoint 1, misses it by 941 ft, and then circles it for the rest of the sortie — and the gold tape for this exact TE was sitting in the gold store
+
+S4 left one fork: *"if it converges and the sortie simply runs out of time, the item is a duration
+problem; if it plateaus or diverges, the route's final leg does not end at the runway."* S5 added
+`[NAV]` to the `FF_DEBUG_GROUND` tick (`otwloop.cpp`) — the current steerpoint the autopilot is
+actually steering to (the same `curWaypoint` `DigitalBrain::FollowWP` reads), the last waypoint in
+the chain, and the range to each — and flew the corrected FollowWP recipe for 620 s.
+
+⛔ **NEITHER branch of the fork is right, and the third answer is worse than both.**
+
+| sample | current steerpoint | dCur | dLast | alt |
+|---|---|---|---|---|
+| 0 | (719955.5, 1326751.7) | 5,498 ft | 64,554 ft (10.62 nm) | 2011 ft |
+| 5 | (719955.5, 1326751.7) | **941 ft** | 59,065 ft | 1967 ft |
+| 21 | (719955.5, 1326751.7) | 12,526 ft | **49,778 ft (8.19 nm)** | 1897 ft |
+| 33 | (719955.5, 1326751.7) | 15,860 ft | 54,680 ft | 1836 ft |
+| 47 | (719955.5, 1326751.7) | 13,154 ft | 61,382 ft (10.10 nm) | **58 ft** |
+
+⭐⭐ **The steerpoint is the SAME waypoint in all 48 samples.** The aircraft flies to waypoint 1,
+passes within **941 ft** of it, and nothing advances `curWaypoint` — so `FollowWP` keeps steering at
+a point the aeroplane has already flown over, and the jet turns back onto it. `dCur` out-and-back and
+`dLast` bottoming out at 8.19 nm then growing again is a **circle**. It never gets closer than 8 nm
+to the destination, and in the last twelve samples it flies that circle all the way down from 1836 ft
+to 58 ft and into the sea. `onGround=1`: still 0 samples.
+
+**This retro-explains every earlier sprint on the item.** S2's "follows the plan and descends to
+43.86 ft", S3/S4's sea-level terrain (it IS over water — the circle is over water), TE2-7 S1's
+capture that found "sea, sky and smoke on the horizon" at 170 s. All of it is one orbit.
+
+⭐ **And the route data is FINE — the gold proves it.** `~/gold standard/free falcon/260808/`
+holds **`260808_landing_final_approach.vhs`**, an ACMI tape of this very TE:
+
+    entities=1 features=724 positions=1440  playTime=195.9s
+    id=1  type=2564  samples=716  alt 28..2003 ft
+
+* gold starts at **(717856, 1328497) at 2002.9 ft** — the same place our run starts (715159,
+  1329440 at 2011 ft, a few seconds earlier on the same leg);
+* gold touches down at **(772911, 1309677) at 28 ft, 157.5 s after the start**, 9.58 nm of ground
+  track, and rolls out to (776126, 1308571);
+* **our plan's last waypoint is (775715.1, 1307071.8) — 1,554 ft from the gold's rollout end and
+  0.63 nm from its touchdown point.** The final leg ends on the airfield.
+
+So the route is right, the destination is right, the terrain is right (S3/S4), the autopilot mode is
+right (S1), and 620 s is more than three times the 157 s the approach actually takes. **The one
+broken link is waypoint sequencing for the player's aircraft.**
+
+**Where it lives.** `DigitalBrain::FollowWP` (`autopilot.cpp:508`) reads `self->curWaypoint` and does
+nothing else with it. The code that advances a steerpoint on arrival is
+`DigitalBrain::SelectNextWaypoint`, called from `DigitalBrain::FollowWaypoints`
+(`waypoint.cpp:412`, `rng < 2.0f` and friends) — which is an **AI brain mode**. Whether that mode
+runs for a player aircraft under `StrgSel`, and what the shipped game uses to sequence a *player's*
+steerpoint (the F-16's steerpoint sequencing is time-based on the waypoint's arrival/departure times,
+and those fields are in the data), is exactly S6's question.
+
+**S6:** print `GetWaypointIndex()`, `curMode`, `onStation` and the waypoint's arrival/departure times
+on the same tick, and find the call site that *should* fire at `rng < 2.0 nm` — the 941 ft pass is
+well inside that gate, so either `FollowWaypoints` is not running for the player or it is running and
+its advance is being skipped. **Do not add a sequencer until the trace says which**: a player whose
+steerpoint auto-advances when they did not ask for it is its own defect, and the real F-16 only does
+it in AUTO.
+
+**Delivered this sprint:** `tools/ff_landap_approach.sh` — the recipe, written down, with the Ctrl+1
+keypress that four sprints re-typed by hand and TE2-7 S1 lost a run to. It refuses to start if
+FFViper is already running and it prints whether `Strg=1` was ever seen **before** any distance in
+its log is believed.
+
+**LANDAP-1: 5 sprints (4 on the previous pass + this one). Root cause now named at the line.**
