@@ -2377,10 +2377,11 @@ void RadarDopplerClass::AddTargetReturns(RenderGMRadar* renderer, bool Shaping)
                 fprintf(stderr, "[GM] targets mode=%d shaping=%d walked=%ld outOfRange=%ld scanRejected=%ld drawn=%ld (simAwake=%ld) lockSkipped=%ld locked=%d gain=%.2f\n",
                         (int)mode, (int)Shaping, ffWalk, ffOut, ffDrop, ffDrawn, ffShaped, ffLockSkip,
                         lockedTarget ? 1 : 0, GainScale);
-                fprintf(stderr, "[GM] blips n=%ld clipped=%ld drawn=%ld black=%ld shaped=%ld rMean=%.3f rMax=%.3f colorMean=%.1f | first: radius=%.1f sign=%.1f w2u=%g scaleX=%.1f rgain=%.2f\n",
+                fprintf(stderr, "[GM] blips n=%ld clipped=%ld drawn=%ld black=%ld shaped=%ld rMean=%.3f rMax=%.3f colorMean=%.1f points=%ld lightOut=%.0f | first: radius=%.1f sign=%.1f w2u=%g scaleX=%.1f rgain=%.2f\n",
                         g_ffGMBlip.n, g_ffGMBlip.clipped, g_ffGMBlip.drawn, g_ffGMBlip.black, g_ffGMBlip.shaped,
                         g_ffGMBlip.n ? g_ffGMBlip.rSum / g_ffGMBlip.n : 0.0f, g_ffGMBlip.rMax,
                         g_ffGMBlip.drawn ? g_ffGMBlip.cSum / g_ffGMBlip.drawn : 0.0f,
+                        g_ffGMBlip.points, g_ffGMBlip.cOutSum,
                         g_ffGMBlip.radius0, g_ffGMBlip.sign0, g_ffGMBlip.w2u, g_ffGMBlip.sx, g_ffGMBlip.gain);
                 fflush(stderr);
             }

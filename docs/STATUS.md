@@ -14430,3 +14430,40 @@ on Windows, and there is still no Wine GM capture in the gold library — so thi
 judgement, not as a silent correction.**
 
 **GMOBJ-1: 3 sprints.**
+
+### GMOBJ-1 S4 (Opus 5, 2026-09-14) — the candidate fix exists and is measured: a deaggregated building goes from 22.7 units of light to 800, against an aggregated objective's 1,020
+
+S3 measured the inversion. S4 builds the fix GMRADAR-6 already proved on movers —
+**`FF_GM_FEATURE_INTENSITY=<0-255>`, an intensity floor plus the full 2×2 block, DEFAULT OFF** — and
+measures it.
+
+⚠️ **The first run of it appeared to do nothing, and the instrument was why.** `colorMean` is
+accumulated from `cSum`, which is summed **before** any floor is applied — an instrument sitting
+upstream of the thing it is meant to measure. It reported 22.7 and 56.3 with the floor on and off
+alike. **Added `points` and `lightOut`, accumulated where the points are actually emitted.**
+
+**MEASURED, the PO's HARM TE, the same two samples in both runs** *(n=85 and n=144 in both — this
+recipe is frame-deterministic, so these are the same frames)*:
+
+| sample | floor OFF: points / lightOut | floor 200: points / lightOut | gain |
+|---|---|---|---|
+| mid | 85 / **1,934** | 340 / **68,000** | **×35** |
+| near | 144 / **8,109** | 576 / **115,200** | **×14** |
+
+⭐ **Per building that is 22.7 units of light → 800** (four points at 200), against the **1,020** an
+aggregated campaign objective emits. **A deaggregated building now reads about as brightly as the
+objective it replaced** — which is precisely the inversion S3 measured, undone. *(`colorMean` still
+prints 22.7/56.3 in both runs, correctly: it is the computed value before the floor. Read `lightOut`.)*
+
+⚠️ **Default OFF, and it must stay off until the PO or a Wine capture says otherwise.** The
+arithmetic being floored is upstream and identical on Windows; the gold library still holds **no**
+Wine capture of the GM scope (checked again this sprint — 5 screenshots and 5 videos, all air-to-air
+or recon). This is a **judgement to put to the PO**, in the shape GMRADAR-6 used and with the number
+that item lacked.
+
+**S5:** capture the scope itself with `FF_UI_SCREENSHOT` at the same two ranges, floor off and on,
+and send the PO the pair. They reported this three times in one test drive; two pictures and a
+question ("is the right-hand one what you expect to see?") close it faster than any further
+measurement.
+
+**GMOBJ-1: 4 sprints — AT THE CAP, with a measured candidate fix behind a flag.**

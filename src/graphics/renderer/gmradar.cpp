@@ -776,14 +776,65 @@ void RenderGMRadar::DrawBlip(DrawableObject* drawable, float GainScale, bool Sha
         }
 #endif
 
+#ifdef FF_LINUX
+        /* GMOBJ-1 S4 (PO, three reports: "GM radar doesn't show the group of buildings around the
+           target"). GMRADAR-6 gave MOVERS an intensity floor and the full 2x2 block and explicitly
+           exempted GM, reasoning that "hundreds of features drawn at their computed intensity ARE
+           the picture". GMOBJ-1 S3 measured that picture on the PO's own HARM TE: deaggregated
+           buildings draw at colorMean 8.7-56.3 of 255 in ONE pixel (rMean never exceeds 0.4 px, so
+           the r > 1.0 branch below never adds the other three points), while the aggregated
+           objectives they replace draw a 2x2 block at full 255 -- about 46x the light per building.
+           FF_GM_FEATURE_INTENSITY=<0-255> applies the same floor here so the PO can judge the two
+           pictures. DEFAULT OFF: the arithmetic is upstream and identical on Windows, and the gold
+           library still holds no Wine capture of the GM scope, so this is a judgement to be put to
+           the PO, not a silent correction. */
+        {
+            static int s_floor = -2;
+
+            if (s_floor == -2)
+            {
+                const char *e = getenv("FF_GM_FEATURE_INTENSITY");
+                s_floor = e ? atoi(e) : 0;
+                if (s_floor < 0) s_floor = 0;
+                if (s_floor > 255) s_floor = 255;
+            }
+
+            if (s_floor > 0)
+            {
+                if (BlitColor < (float)s_floor) BlitColor = (float)s_floor;
+
+                /* cSum above is read BEFORE this floor, so the existing colorMean cannot see the
+                   change -- an instrument upstream of the thing it is meant to measure. Account
+                   for what is actually emitted. */
+                g_ffGMBlip.cOutSum += BlitColor * 4.0f;
+                g_ffGMBlip.points  += 4;
+
+                SetColor(0xFF000000 bitor (F_I32(BlitColor) << 8));
+                Render2DPoint(x,        y);
+                Render2DPoint(x,        y + 1.0f);
+                Render2DPoint(x + 1.0f, y);
+                Render2DPoint(x + 1.0f, y + 1.0f);
+                return;
+            }
+        }
+#endif
+
         SetColor(0xFF000000 bitor (F_I32(BlitColor) << 8));
         Render2DPoint(x,      y);
+#ifdef FF_LINUX
+        g_ffGMBlip.cOutSum += BlitColor;
+        g_ffGMBlip.points  += 1;
+#endif
 
         BlitColor /= 4.0f; //r * 64.0f * gain;
         SetColor(0xFF000000 bitor (F_I32(BlitColor) << 8));
 
         if (r > 1.0f)
         {
+#ifdef FF_LINUX
+            g_ffGMBlip.cOutSum += BlitColor * 3.0f;
+            g_ffGMBlip.points  += 3;
+#endif
             Render2DPoint(x,      y + 1.0f);
             Render2DPoint(x + 1.0f, y);
             Render2DPoint(x + 1.0f, y + 1.0f);

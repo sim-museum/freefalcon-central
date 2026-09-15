@@ -31,7 +31,9 @@ typedef struct GroundMapVertex: public MPRVtxClr_t
 struct FF_GMBlipStatT
 {
     long n, clipped, drawn, black, shaped;
+    long points;            /* GMOBJ-1 S4: points actually emitted (1 per blip, or 4 with the floor) */
     float rSum, rMax, cSum;
+    float cOutSum;          /* GMOBJ-1 S4: intensity as EMITTED -- cSum is read before any floor */
     float radius0, sign0, w2u, sx, gain;
 };
 extern FF_GMBlipStatT g_ffGMBlip;
