@@ -545,6 +545,85 @@ void OTWDriverClass::Cycle(void)
 #endif
 
 #ifdef FF_LINUX
+    /* FM-GOLD-1 S4 (2026-09-15): FF_STICK="<roll>,<pitch>[,<start_s>[,<dur_s>]]" holds a stick
+       deflection on the PLAYER's airframe, so an automated flight can actually manoeuvre.
+       FM-GOLD-1 S3 measured TE-03 "Max Turn at Corner" flying dead straight -- max bank 0.000 deg
+       over 151 s -- because the recipe engages the route autopilot and nothing commands a turn.
+       The gold's engagement tapes sit at 13-18 deg/s with 6-7 g peaks, so without an input there is
+       nothing to compare.
+       Written straight onto AirframeClass::rstick/pstick, which is what the flight model integrates
+       (autopilot.cpp writes the same fields), rather than through the input chain -- a synthetic
+       DirectInput axis would have to survive the whole read path and this project has already lost
+       sprints to synthetic input that "never happened".
+       Values are stick units in [-1, 1]; start/duration in seconds of sim time from the first frame
+       this runs. Unset changes nothing. */
+    if (const char* ffStick = getenv("FF_STICK"))
+    {
+        /* S5: SEGMENTS, semicolon-separated -- "roll,pitch,start,dur;roll,pitch,start,dur;...".
+           A single constant deflection cannot fly a max-rate turn: S4 held full roll AND full pitch
+           and the jet split-S'd into the ground (20,397 -> 219 ft in 85 s, turn p95 1.13 deg/s),
+           because heading barely changes while the nose is down. A level max-rate turn is two
+           phases -- roll in, then NEUTRALISE the roll and hold the pull at ~75-80 deg of bank. */
+        enum { FF_STICK_MAX = 8 };
+        static float sRoll[FF_STICK_MAX], sPitch[FF_STICK_MAX], sStart[FF_STICK_MAX], sDur[FF_STICK_MAX];
+        static int sN = 0, sParsed = 0;
+        static unsigned long sT0 = 0;
+
+        if (not sParsed)
+        {
+            sParsed = 1;
+            const char* q = ffStick;
+
+            while (q and *q and sN < FF_STICK_MAX)
+            {
+                float a1 = 0.0f, a2 = 0.0f, a3 = 0.0f, a4 = 1e9f;
+                int n = sscanf(q, "%f,%f,%f,%f", &a1, &a2, &a3, &a4);
+
+                if (n >= 2)
+                {
+                    sRoll[sN] = a1; sPitch[sN] = a2;
+                    sStart[sN] = (n >= 3) ? a3 : 0.0f;
+                    sDur[sN] = (n >= 4) ? a4 : 1e9f;
+                    fprintf(stderr, "[stick] segment %d: roll=%.2f pitch=%.2f start=%.1fs dur=%.1fs\n",
+                            sN, sRoll[sN], sPitch[sN], sStart[sN], sDur[sN]);
+                    sN++;
+                }
+
+                const char* c = strchr(q, ';');
+                q = c ? c + 1 : 0;
+            }
+
+            fflush(stderr);
+        }
+
+        AircraftClass *pa = (AircraftClass *)SimDriver.GetPlayerAircraft();
+
+        if (pa and pa->af and sN > 0)
+        {
+            if (not sT0) sT0 = vuxRealTime;
+            float el = (float)(vuxRealTime - sT0) / 1000.0f;
+
+            for (int k = 0; k < sN; k++)
+            {
+                if (el >= sStart[k] and el < sStart[k] + sDur[k])
+                {
+                    pa->af->rstick = sRoll[k];
+                    pa->af->pstick = sPitch[k];
+                    static int said[FF_STICK_MAX] = {0};
+
+                    if (not said[k]++)
+                    {
+                        fprintf(stderr, "[stick] segment %d active at t=%.1fs: rstick=%.2f pstick=%.2f\n",
+                                k, el, sRoll[k], sPitch[k]);
+                        fflush(stderr);
+                    }
+
+                    break;
+                }
+            }
+        }
+    }
+
     // FF_DEBUG_GROUND: sample the terrain elevation under the player against the
     // aircraft's own z, once a second. z is positive-down, so aboveGround =
     // groundZ - acZ: positive means the aircraft is above the terrain, NEGATIVE

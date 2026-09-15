@@ -15505,3 +15505,45 @@ compares directly with the gold's 13–18 °/s at 380–450 kts. One hook, one r
 
 **FM-GOLD-1: 3 sprints. Mission, recorder, decoder and oracle are all in place; only the pilot is
 missing.**
+
+### FM-GOLD-1 S4 (Opus 5, 2026-09-15) — `FF_STICK` ships and the jet manoeuvres for the first time (bank 0 -> 66 deg). It still reaches only **1.6 g** where the gold reaches 6–7
+
+S3 isolated the last missing ingredient as stick input. S4 builds it and flies it.
+
+⭐ **`FF_STICK="roll,pitch,start,dur[;...]"` (new, `otwloop.cpp`)** writes the deflection straight onto
+`AircraftClass::af->rstick/pstick` — the fields the flight model integrates and the autopilot itself
+writes — rather than through the input chain, because this project has lost sprints to synthetic
+input that never arrived. Segments are semicolon-separated so a manoeuvre can have phases.
+
+**It works.** TE-03 "Max Turn at Corner", `FF_SIM_KEY="0x1e@5"` (no autopilot):
+
+| | max bank | turn p95 | turn max | peak g | alt |
+|---|---|---|---|---|---|
+| S3, no stick | **0.000 deg** | 0.02 °/s | 0.08 | 0.0 | 18,198–20,452 ft |
+| S4, one segment (roll 0.7 + pitch 0.6) | **65 deg** | 1.13 °/s | 4.22 | 1.5 | 20,397 → **219** ft |
+| S4, two segments (roll in 3 s, then pitch only) | **66 deg** | 1.08 °/s | 4.57 | 1.6 | 20,397 → **133** ft |
+| **gold (PO's tapes)** | 105.8 | **13–18 °/s** | 17.5–22.6 | **6–7** | 9,232–23,396 ft |
+
+⭐ **The aeroplane manoeuvres** — bank went from 0.000° to 66° — and the two-phase profile (roll in,
+then neutralise the roll and hold the pull) did not change the outcome.
+
+**The numbers are internally consistent, which is what makes the gap meaningful.** At 1.6 g and
+395 kts the turn rate should be `g·sqrt(n²−1)/V` ≈ **3.5 °/s**, and we measure a max of **4.57**.
+Holding altitude at 66° of bank needs **2.46 g**, and the aircraft descends — 20,397 ft to 133 ft.
+So the flight model is behaving correctly *for the g it is producing*. **The question is why the g
+stops at 1.6.**
+
+⚠️ **NOT claimed: that our flight model under-pulls.** `pstick = 0.75` is assumed to be three
+quarters of a full pull, and **that assumption is unverified** — `af->pstick`'s units, clamps and
+whatever the flight-control system does with it downstream are all untested. Claiming a flight-model
+deficit on an unverified input scale is exactly the shape of error this item has already avoided
+twice (the missile-as-ownship in S1, the preview-load in S3).
+
+**S5 — verify the input before judging the model.** Two arms of one run each: `pstick=1.0` and
+`pstick=0.4`. If peak g scales with the deflection, the input is linear and 1.6 g at 0.75 means the
+model pulls softly; **if g saturates at 1.6 regardless, the limit is downstream of `pstick`** and the
+hook is writing a field something else overrides. Print the g the sim computes (`af` carries it)
+alongside, so the ACMI-derived g and the sim's own can be compared rather than assumed equal.
+
+**FM-GOLD-1: 4 sprints. The first manoeuvring automated flight in this port, and a 4x gap against
+the gold that is now precisely located but not yet attributed.**
