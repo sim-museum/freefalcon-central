@@ -8220,6 +8220,46 @@ void SimFuelDoorClose(unsigned long val, int state, void *)
 // this fixes the SP3 bug where the nose would pitch up uncontrollably on landing if the AP
 // was used in pitch hold mode during any flight.
 
+
+/* AP-1 (FF_LINUX). `SimRightAPSwitch` guards the "jet was entered with the switch off centre" case
+   with the SAME test twice -- `(not StrgSel) and (not StrgSel)` -- while the two sibling sites in
+   this file read `(not StrgSel) and (not HDGSel)`. With the left switch in HDG Select the guard
+   still passes and force-sets RollHold, clobbering the heading mode. `git log -L` puts the
+   duplication upstream of the port, so Windows has it too: changing it is a PO call, not ours.
+   This function does BOTH jobs without making that call. It evaluates both forms, reports every
+   time they DISAGREE (that is the only moment the defect is reachable), and returns the shipped
+   answer unless FF_AP_FIX_STRGSEL is set. Default OFF = the oracle's behaviour, unchanged. */
+static bool ff_ap1_guard(bool strgSel, bool hdgSel, int site)
+{
+    const bool shipped = (not strgSel) and (not strgSel);   /* the duplicate, verbatim */
+    const bool sibling = (not strgSel) and (not hdgSel);    /* what lines 8321/8372 do */
+
+    if (getenv("FF_DEBUG_AP"))
+    {
+        /* Report EVERY evaluation, not only the disagreements: "the guard never disagreed" is only
+           evidence if the guard ran at all. A silent trace and an unreached call site look the
+           same. */
+        static long e = 0;
+
+        if (e++ < 20)
+            fprintf(stderr, "[AP-1] site=%d eval: StrgSel=%d HDGSel=%d -> shipped=%d sibling=%d\n",
+                    site, (int)strgSel, (int)hdgSel, (int)shipped, (int)sibling), fflush(stderr);
+    }
+
+    if (shipped != sibling)
+    {
+        static long n = 0;
+
+        if (n++ < 50 or getenv("FF_DEBUG_AP"))
+            fprintf(stderr, "[AP-1] site=%d guard DIFFERS: StrgSel=%d HDGSel=%d shipped=%d sibling=%d%s\n",
+                    site, (int)strgSel, (int)hdgSel, (int)shipped, (int)sibling,
+                    getenv("FF_AP_FIX_STRGSEL") ? "  (sibling applied)" : "  (shipped applied)");
+        fflush(stderr);
+    }
+
+    return getenv("FF_AP_FIX_STRGSEL") ? sibling : shipped;
+}
+
 void SimRightAPSwitch(unsigned long val, int state, void *)
 {
     //This is the right switch, in the upper position.
@@ -8239,7 +8279,7 @@ void SimRightAPSwitch(unsigned long val, int state, void *)
                 // SimDriver.GetPlayerAircraft()->SetNewRoll();  // ...but only if RollHold is selected.
                 // Following test and set is overkill but guards against the possibility that someone entered a jet that
                 // had the right switch in something other than center position as the default.
-                if (( not SimDriver.GetPlayerAircraft()->IsOn(AircraftClass::StrgSel)) and ( not SimDriver.GetPlayerAircraft()->IsOn(AircraftClass::StrgSel)))
+                if (ff_ap1_guard(SimDriver.GetPlayerAircraft()->IsOn(AircraftClass::StrgSel), SimDriver.GetPlayerAircraft()->IsOn(AircraftClass::HDGSel), 1))
                 {
                     SimDriver.GetPlayerAircraft()->SetAPFlag(AircraftClass::RollHold); // needed in case this is the first time and switch is still in default position
                     SimDriver.GetPlayerAircraft()->SetNewRoll();
@@ -8271,7 +8311,7 @@ void SimRightAPSwitch(unsigned long val, int state, void *)
                 // MD -- 20031109: we should be holding roll at this point as well if the roll more switch is
                 // centered.  Also a good place to set the RollHold flag in case this is the first time that the
                 // AP has been activated.
-                if (( not SimDriver.GetPlayerAircraft()->IsOn(AircraftClass::StrgSel)) and ( not SimDriver.GetPlayerAircraft()->IsOn(AircraftClass::StrgSel)))
+                if (ff_ap1_guard(SimDriver.GetPlayerAircraft()->IsOn(AircraftClass::StrgSel), SimDriver.GetPlayerAircraft()->IsOn(AircraftClass::HDGSel), 2))
                 {
                     SimDriver.GetPlayerAircraft()->SetAPFlag(AircraftClass::RollHold); // needed in case this is the first time and switch is still in default position
                     SimDriver.GetPlayerAircraft()->SetNewRoll();
@@ -8388,6 +8428,20 @@ void SimRightAPDown(unsigned long val, int state, void *)
 //Left AP Switch
 void SimLeftAPSwitch(unsigned long val, int state, void *)
 {
+    /* AP-1: did the key even arrive, and did the switch move? Three presses should walk
+       RollHold -> StrgSel -> HDGSel; a harness that cannot SEE that cannot claim the guard was
+       tested with HDG Select selected. */
+    if (getenv("FF_DEBUG_AP"))
+    {
+        AircraftClass* _ac = SimDriver.GetPlayerAircraft();
+        fprintf(stderr, "[AP-1] SimLeftAPSwitch: ac=%p ownship=%d keydown=%d  before: Roll=%d Strg=%d HDG=%d\n",
+                (void*)_ac, _ac ? (int)_ac->IsSetFlag(MOTION_OWNSHIP) : -1, (int)(state bitand KEY_DOWN),
+                _ac ? (int)_ac->IsOn(AircraftClass::RollHold) : -1,
+                _ac ? (int)_ac->IsOn(AircraftClass::StrgSel) : -1,
+                _ac ? (int)_ac->IsOn(AircraftClass::HDGSel) : -1);
+        fflush(stderr);
+    }
+
     //This is the right switch, in the upper position.
     if (SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP) and (state bitand KEY_DOWN))
     {

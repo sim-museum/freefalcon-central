@@ -14768,3 +14768,46 @@ function. Reverted; the control is now applied per-site by name.
 
 **JOINFAIL-1 closes:** the guarded recovery path is exercised, survives, and its control fails without
 the guard. 1 sprint.
+
+### AP-1 S1 (Opus 5, 2026-09-15) — the duplicated guard is REPRODUCED end to end: with HDG Select selected the autopilot flies **RollHold**, and heading select never runs
+
+Registered in Sprint 18 from a code reading and left as a PO call because the duplication predates the
+port (Windows has it too). A registered defect nobody can demonstrate is hard to decide, so this
+sprint demonstrates it.
+
+`SimRightAPSwitch` guards the "jet entered with the switch off centre" case with
+`(not StrgSel) and (not StrgSel)` at two sites, where two siblings in the same file read
+`(not StrgSel) and (not HDGSel)`. Both sites now call `ff_ap1_guard(strg, hdg, site)`, which
+evaluates **both** forms, reports every evaluation and every disagreement, and returns the **shipped**
+answer unless `FF_AP_FIX_STRGSEL=1`. **Default off: the oracle's behaviour is unchanged.**
+
+**Getting there took three wrong recipes, and each was caught by an instrument rather than by luck:**
+
+1. AP key only (`0x1e`): the guard ran (both sites) with `StrgSel=0 HDGSel=0` — the two forms agree,
+   so nothing to see. The defect needs HDG Select *selected*.
+2. `0x02` (the left AP switch, per `config/keystrokes.key`) three times: **nothing at all** — and only
+   a trace inside `SimLeftAPSwitch` showed the handler was never entered. Column 4 of the key file is
+   a modifier **bitmask** (shift 1, ctrl 2, alt 4), and that binding is `2` = **Ctrl+1**. A bare DIK
+   could never reach it.
+3. `C0x02` ×3 then the AP key twice: the switch walks exactly as the code says —
+   `Roll=0 Strg=0 HDG=0` → `Roll=1` → `Strg=1` → **`HDG=1`** — and then both guard sites report
+   `StrgSel=0 HDGSel=1 shipped=1 sibling=0`. **The guard disagrees with its own siblings.**
+
+⭐⭐ **AND HERE IS WHAT IT COSTS, measured.** `DigitalBrain`'s roll-mode dispatch tests `RollHold`
+**first**:
+
+| arm | AP flags | branch that runs |
+|---|---|---|
+| shipped | `Roll=1 HDG=1 Strg=0` | **`RollHold()`** |
+| `FF_AP_FIX_STRGSEL=1` | `Roll=0 HDG=1 Strg=0` | **`HDGSel()`** |
+
+So the force-set `RollHold` does not merely sit there: it **takes the branch**, and `HDGSel()` is
+never called while the HDG Select flag is still on. The switch says heading select, the jet holds
+wings level, and nothing reports a conflict. That is the "AP roll-switch initial state" TE-09
+suspected from the beginning.
+
+**STILL A PO CALL, and now a decidable one.** Fixing it diverges from the Windows oracle in a way a
+player can feel; matching the oracle keeps a mode that silently does not work. The flag exists so
+either answer is one env var away, and the A/B above is the evidence for the choice.
+
+**AP-1: 1 sprint. Reproduced, measured, not decided.**

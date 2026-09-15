@@ -308,6 +308,23 @@ void DigitalBrain::RealisticAP(void)
         }
 
         //Left switch
+        /* AP-1 (FF_LINUX): this is where the duplicated guard in SimRightAPSwitch is CASHED.
+           RollHold is tested FIRST, so once that guard force-sets it, HDGSel() is never called
+           even though the HDGSel flag is still on -- heading select is dead, silently. Trace
+           which branch actually runs (once a second) so the effect is measured, not inferred. */
+        if (getenv("FF_DEBUG_AP"))
+        {
+            static long n = 0;
+
+            if ((n++ % 60) == 0)
+                fprintf(stderr, "[AP-1] roll mode: Roll=%d HDG=%d Strg=%d -> %s\n",
+                        (int)self->IsOn(AircraftClass::RollHold), (int)self->IsOn(AircraftClass::HDGSel),
+                        (int)self->IsOn(AircraftClass::StrgSel),
+                        self->IsOn(AircraftClass::RollHold) ? "RollHold()" :
+                        self->IsOn(AircraftClass::HDGSel) ? "HDGSel()" :
+                        self->IsOn(AircraftClass::StrgSel) ? "FollowWP()" : "(none)"), fflush(stderr);
+        }
+
         if (self->IsOn(AircraftClass::RollHold))
             RollHold();
         else if (self->IsOn(AircraftClass::HDGSel))
