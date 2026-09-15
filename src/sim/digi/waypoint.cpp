@@ -777,8 +777,17 @@ void DigitalBrain::GoToCurrentWaypoint(void)
     MachHold(desSpeed, self->GetKias(), FALSE);
 }
 
+/* LANDAP-1 S6: S5 measured the player's steerpoint never advancing across 48 samples of a 620 s
+   autopilot approach, so the aircraft orbits waypoint 1. SelectNextWaypoint is the only code that
+   advances it, and it is reached only from FollowWaypoints -- an AI brain MODE. Count the calls by
+   whose aircraft they are, so "it never runs for the player" stops being an inference drawn from a
+   call graph. Read on the [NAV] tick. */
+long g_ff_selnext_player = 0, g_ff_selnext_ai = 0;
+
 void DigitalBrain::SelectNextWaypoint(void)
 {
+    if (self and self->IsPlayer()) g_ff_selnext_player++; else g_ff_selnext_ai++;
+
     WayPointClass* tmpWaypoint = self->curWaypoint;
     WayPointClass* wlist = self->waypoint;
     UnitClass *campUnit = NULL;

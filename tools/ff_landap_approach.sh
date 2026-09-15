@@ -23,10 +23,11 @@ if pgrep -x FFViper >/dev/null 2>&1; then
 fi
 log="$OUT/approach.log"
 echo "TE-09 autopilot approach -- ${SECS}s, FollowWP recipe (LANDAP-1 S1)"
+echo "  FF_SIM_KEY=${FF_SIM_KEY:-0x1e@5;C0x02@12}"
 ( cd "$GD" && timeout -k 5 -s KILL "$SECS" env \
     DISPLAY="${DISPLAY:-:0}" \
     FF_UI_CLICK="624,745@8;210,247@14;825,750@18;976,750@30" \
-    FF_SIM_KEY="0x1e@5;C0x02@12" \
+    FF_SIM_KEY="${FF_SIM_KEY:-0x1e@5;C0x02@12}" \
     FF_DEBUG_GROUND=1 FF_DEBUG_AP="${FF_DEBUG_AP:-1}" \
     ${FF_GROUND_PROBE:+FF_GROUND_PROBE="$FF_GROUND_PROBE"} \
     "$BIN" -d "$GD" -w ) >"$log" 2>&1

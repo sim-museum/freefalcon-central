@@ -56,8 +56,14 @@ static const int MAXATCSTATUS = sizeof(ATCModes) / sizeof(ATCModes[0]);
 #endif
 
 
+/* LANDAP-1 S6: the same question one level up -- does the AI action dispatcher (the only path to
+   FollowWaypoints, and so to SelectNextWaypoint) run for the player's aircraft at all? */
+long g_ff_actions_player = 0, g_ff_actions_ai = 0;
+
 void DigitalBrain::Actions(void)
 {
+    if (self and self->IsPlayer()) g_ff_actions_player++; else g_ff_actions_ai++;
+
     float cur;
 
     RadarClass* theRadar = (RadarClass*) FindSensor(self, SensorClass::Radar);

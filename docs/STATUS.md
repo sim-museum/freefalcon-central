@@ -15174,3 +15174,60 @@ FFViper is already running and it prints whether `Strg=1` was ever seen **before
 its log is believed.
 
 **LANDAP-1: 5 sprints (4 on the previous pass + this one). Root cause now named at the line.**
+
+### LANDAP-1 S6 (Opus 5, 2026-09-15) — ⭐⭐ **there is NO automatic steerpoint sequencing for the player anywhere in this codebase**, measured three ways — and one keypress makes the autopilot fly the route
+
+S5 found the steerpoint frozen for 48 samples and named S6's question: does `FollowWaypoints` (the
+only path to `SelectNextWaypoint`) run for a player aircraft under `StrgSel`?
+
+**1. Counted, not reasoned about.** `DigitalBrain::Actions` and `DigitalBrain::SelectNextWaypoint`
+now count their calls by whose aircraft they are, and the counters ride on the `[NAV]` tick. Across a
+400 s TE-09 approach, every sample:
+
+    Actions p/ai=0/0   SelectNextWP p/ai=0/0
+
+⭐ **Zero — and not only for the player.** The AI action dispatcher does not run for *anything* in
+this sortie, so the sequencer that would advance a steerpoint is never reached by any route.
+
+**2. Every setter of the player's step command is a PILOT action.** `FireControlComputer::
+StepNextWayPoint` has exactly one caller (`navfcc.cpp:695`), gated on `waypointStepCmd`, and every
+assignment to that field comes from a human input: `SimNextWaypoint`/`SimPrevWaypoint`
+(`commands.cpp:919,927` — `keystrokes.key` line 75 binds `SimNextWaypoint` to **DIK 0x1F, the S
+key**), the ICP number/mark pages, and the GM scope. **Nothing time-based, nothing distance-based,
+nothing automatic.**
+
+⭐⭐ **3. And the prediction holds in flight.** Same recipe plus ONE `S` press at t=45 s
+(`FF_SIM_KEY="0x1e@5;C0x02@12;0x1f@45"`):
+
+| sample | current steerpoint | dCur | dLast | alt |
+|---|---|---|---|---|
+| 0 | 719955.5 (wp 1) | 5,468 | 64,524 | 2012 ft |
+| 20 | 719955.5 (wp 1) | 10,199 | 50,304 | 1900 ft |
+| **24** | **775715.1 (the runway)** | 49,745 | 49,745 | 1888 ft |
+| 36 | 775715.1 | 46,406 | 46,406 | 1822 ft |
+| 48 | 775715.1 | 40,969 | 40,969 | 1034 ft |
+| 54 | 775715.1 | 38,919 | 38,919 | **115 ft** |
+
+**After the press the steerpoint IS the destination and the range falls monotonically for the rest of
+the flight** — 49,745 → 38,919 ft, every sample, against S5's orbit that never got inside 8 nm.
+LANDAP-1's root cause is confirmed by making the defect go away.
+
+**What this means for the item, stated carefully.** Faithfulness is a PO question: the real F-16 steps
+steerpoints on pilot command in MAN, and Falcon 4's players expect AUTO to sequence them. This port
+has only the manual path. **Either way it is a defect of the AUTOPILOT's contract**: `StrgSel` is
+sold as the route follower, and a route follower that cannot leave waypoint 1 unattended does not
+follow a route.
+
+⚠️ **A SECOND defect is now visible underneath, and it is not the same one.** With the aircraft
+finally aimed at the airfield it is at **115 ft with 6.4 nm still to run** — it is descending to sea
+level long before the runway, which is the same ending S2–S4 measured, now for a different reason.
+The gold tape covers the whole 9.58 nm from 2003 ft to touchdown in 157.5 s on a steady ~1.9°
+path; ours is below 200 ft at 6 nm. **The descent profile is the next item, not the next sprint of
+this one.**
+
+**S7:** the closing experiment — the same run, long enough to reach the field (the gold says the
+ground track is 9.58 nm), with the step key pressed and `onGround` watched. If it touches down, the
+item closes with "the autopilot needs a sequencer" as the PO decision it is. If it flies into the sea
+at 6 nm, file the descent profile separately with this run's numbers.
+
+**LANDAP-1: 6 sprints (2 this pass). Root cause confirmed by removing it.**

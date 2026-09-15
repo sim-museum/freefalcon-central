@@ -651,11 +651,21 @@ void OTWDriverClass::Cycle(void)
                         float ldx = lx - pa->XPos(), ldy = ly - pa->YPos();
                         float dLast = (float)sqrt(ldx * ldx + ldy * ldy);
 
+                        /* LANDAP-1 S6: SelectNextWaypoint is the only code that advances a
+                           steerpoint, and it is reached only from FollowWaypoints, an AI brain
+                           MODE. Count the calls by whose aircraft they are rather than reasoning
+                           from the call graph: if the player's counters stay at 0 while the AI's
+                           climb, the sequencer simply does not run for the player. */
+                        extern long g_ff_selnext_player, g_ff_selnext_ai;
+                        extern long g_ff_actions_player, g_ff_actions_ai;
                         fprintf(stderr,
                                 "[NAV] cur=(%.1f, %.1f, %.1f) action=%d dCur=%.0f ft (%.2f nm)  "
-                                "last[+%d]=(%.1f, %.1f, %.1f) dLast=%.0f ft (%.2f nm)\n",
+                                "last[+%d]=(%.1f, %.1f, %.1f) dLast=%.0f ft (%.2f nm)  "
+                                "Actions p/ai=%ld/%ld  SelectNextWP p/ai=%ld/%ld\n",
                                 wx, wy, wz, cw->GetWPAction(), dCur, dCur / 6076.0f,
-                                idx, lx, ly, lz, dLast, dLast / 6076.0f);
+                                idx, lx, ly, lz, dLast, dLast / 6076.0f,
+                                g_ff_actions_player, g_ff_actions_ai,
+                                g_ff_selnext_player, g_ff_selnext_ai);
                     }
                     else
                     {
