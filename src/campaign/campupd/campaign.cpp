@@ -1749,6 +1749,31 @@ void StartReadCampFile(FalconGameType type, char *filename)
 
     reading_campressed_file = TRUE;
 
+    /* FM-GOLD-1 S3 (2026-09-15): FF_TE_FILE=<name> substitutes the Tactical Engagement this load
+       opens, so a harness can choose a mission BY NAME instead of by clicking a pixel in a list.
+       The TE row was the last pixel coordinate left in the FF recipes, and this project's own
+       record says a recipe naming a pixel is testing that pixel: ma/port/ab.sh sat in the front end
+       for weeks after a font change moved its menu, reporting "no frame captured".
+
+       Wanted here because the flight-model oracle needs "03 Max Turn at Corner" and the recorded
+       recipe reaches "09 Landing Final Approach". Applies to TE loads only, once per run, and logs
+       the substitution; unset changes nothing. */
+    if (type == 3)
+    {
+        /* EVERY type-3 load, not just the first: the game opens the TE file more than once
+           (a list/preview read, then the real one), and substituting only the first made the
+           PREVIEW read the wanted mission while the flight still loaded the recipe's own. The log
+           showed both names, which is the only reason it was caught. */
+        static const char* ffTe = getenv("FF_TE_FILE");
+
+        if (ffTe and *ffTe and strcmp(filename, ffTe) != 0)
+        {
+            fprintf(stderr, "[FF_LINUX] FF_TE_FILE: '%s' -> '%s'\n", filename, ffTe);
+            fflush(stderr);
+            filename = (char*)ffTe;
+        }
+    }
+
     GetCampFilePath(type, filename, path);
 
     // FF_LINUX: Debug - print the campaign file path being opened

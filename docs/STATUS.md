@@ -15462,3 +15462,46 @@ clicked by pixel and TE-03 sits six rows above TE-09; that row index should then
 harness**, not rediscovered.
 
 **FM-GOLD-1: 2 sprints. The comparison is now one correctly-aimed run away.**
+
+### FM-GOLD-1 S3 (Opus 5, 2026-09-15) — `FF_TE_FILE` ships (missions by NAME, not by pixel), TE-03 flies and records — and the jet does not turn: **max bank 0.000 degrees**
+
+**1. The last pixel coordinate in the FF recipes is gone.** The TE was selected by clicking a row in
+a list (`FF_UI_CLICK="…;210,247@14;…"`), which is the failure mode this project has already paid for
+once — `ma/port/ab.sh` sat in the front end for weeks after a font change moved its menu, reporting
+"no frame captured". **`FF_TE_FILE=<name>`** (new, `campaign.cpp`, TE loads only) substitutes the
+mission by name and logs the substitution.
+
+⚠️ **And its first version was wrong in a way only the log caught.** Substituting the FIRST type-3
+load left the log reading
+
+    FF_TE_FILE: '09 Landing Final Approach' -> '03 Max Turn at Corner'
+    StartReadCampFile: type=3 filename='03 Max Turn at Corner'
+    StartReadCampFile: type=3 filename='09 Landing Final Approach'   <- the flight
+
+**The game opens the TE file more than once** — a list/preview read and then the real one — so only
+the preview got the wanted mission. Fixed to substitute every type-3 load; the corrected run reads
+**15 loads of "03 Max Turn at Corner" and 0 of "09"**.
+
+**2. TE-03 flies and records.** 298 KB of `.flt`, **524 position samples over 151 s**, 18,198–20,452 ft.
+
+⛔ **3. And the aeroplane flies dead straight.**
+
+    type=2564 uid=1: 524 samples | kts median 318 max 525
+                     turn p95 0.02 deg/s, max 0.08 | peak 0.0 g | max bank 0 deg
+
+**Max bank 0.000 degrees over two and a half minutes.** The gold's engagement tapes sit at 13–18 °/s
+p95 with 6–7 g peaks. **The TE puts the jet at corner conditions; nothing commands a turn.** The
+recipe engages the route autopilot (`FollowWP`), which holds wings level — and LANDAP-1 established
+that this autopilot is the only thing flying the aeroplane in an automated run.
+
+**So the missing ingredient is isolated, and it is the last one: STICK INPUT.** Not the mission (TE-03
+is right), not the recorder (524 samples), not the oracle (the gold envelope is measured), not the
+decoder (S1 cross-validated it).
+
+**S4:** `UserStickInputs.rstick/pstick` are what the autopilot itself reads (`autopilot.cpp:99`).
+A test hook in the same shape as `FF_SIM_KEY` — hold a roll and a pull for N seconds, with the
+autopilot off — puts the jet into the manoeuvre the TE was built for, and the same statistic then
+compares directly with the gold's 13–18 °/s at 380–450 kts. One hook, one run.
+
+**FM-GOLD-1: 3 sprints. Mission, recorder, decoder and oracle are all in place; only the pilot is
+missing.**
