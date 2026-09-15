@@ -14467,3 +14467,43 @@ question ("is the right-hand one what you expect to see?") close it faster than 
 measurement.
 
 **GMOBJ-1: 4 sprints — AT THE CAP, with a measured candidate fix behind a flag.**
+
+### TERRAIN-1 S5 (Opus 5, 2026-09-14) — ⭐ the terrain GOLD exists after all, and the first comparison drawn from it was sea-against-sea
+
+The item was parked with *"TERRAIN-1 as a terrain defect still needs its own gold comparison in
+flight"*, and GMOBJ-1 S2's survey of the FreeFalcon gold library concluded *"not one frame shows the
+ground"* — all air-to-air, over sea, instant action.
+
+⭐ **That survey missed a video.** `gold standard/free falcon/260808/260808_landing_final_approach.mp4`
+— 224 s, 1920×1080, the game window 1024×768 at (101,113) — is **the same mission the port can fly as
+TE 09**, and at **t≈150 it is on short final over green terrain with the airbase ahead**; at t≈190 it
+is on the runway with grass, trees and hills in frame. **This item has a gold, and it is the strongest
+kind: the same TE, from the PO's own Wine build.**
+
+**The gold's ground band, measured** (rows 62–95% of the window, full width):
+
+| gold frame | mean rgb | stdev | distinct |
+|---|---|---|---|
+| t=150 short final over terrain | **[75,109,99]** | **62.0** | 19,367 |
+| t=190 on the runway | [141,141,139] | 14.2 | 695 |
+| t=20/40/60 over the sea | [49,54,55] … | 60.4 … | 25,827 … |
+
+⚠️ **And the first comparison I drew from it was wrong, caught by looking at the picture.** The port's
+TE 09 captures at 30/60/90 s gave mean [48,54,56] stdev 58.8 against the gold's [49,54,55] stdev 60.4
+— a 2% agreement that looked like a result. **Both frames are over the SEA at that point**, and the
+band is mostly water and cockpit. It is a real agreement about water and says nothing about terrain.
+*(Populations must match before a statistic means anything — the same rule that caught the GM mode
+and the item-tint this session.)*
+
+⚠️ **The second attempt ended the mission.** Captures at 140/180/220 s: the 140 s frame is still over
+water, and by 180 s the run is showing **PILOT OPTIONS / END MISSION** over an external sea view —
+59 distinct colours in the band, which would have read as "a uniform surface" if the frame had not
+been looked at. The autopilot alone does not fly this approach to the runway.
+
+**S6, now precisely defined:** get the port to the gold's t=150 state — short final, ~800 ft, airbase
+ahead — and compare that band with **[75,109,99] / stdev 62.0**. The harness needs an approach that
+survives: either the TE's own autopilot mode with the throttle managed (CCRP-5 S7's recipe), or the
+ILS/steerpoint sequence. **Then the item has the comparison it was parked for.**
+
+**TERRAIN-1: 1 sprint this pass. The oracle is found and characterised; the measurement is one flying
+problem away.**
