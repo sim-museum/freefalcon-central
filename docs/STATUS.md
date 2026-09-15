@@ -14967,3 +14967,39 @@ Select the autopilot force-sets `RollHold` and `HDGSel()` never runs, and Sprint
 route. **Either could explain this; neither has been shown to.** First sprint on the item should print
 the AP mode and switch state at the start of the approach with `FF_DEBUG_AP` — one run, both
 hypotheses tested.
+
+### LANDAP-1 S1 (Opus 5, 2026-09-15) — ⭐⭐ ROOT CAUSE, and the harness fix is ONE KEYPRESS: the recorded recipe flies the whole approach in **RollHold**, never following the route
+
+Registered in TE2-7 S2 after the TE-09 autopilot descended cleanly and never reported `onGround=1`.
+S1 prints what the autopilot is actually doing, every second, for the whole flight
+(`FF_DEBUG_AP` + this session's `[AP-1]` roll-mode trace):
+
+    [AP-1] roll mode: Roll=1 HDG=0 Strg=0 -> RollHold()      … for the ENTIRE approach
+
+⭐⭐ **`RollHold` is wings-level attitude hold. `StrgSel` — the waypoint/route autopilot — is never
+selected**, so the aircraft flies straight ahead from wherever the AP key engaged it, descends on the
+glide path only by coincidence, and ends in the sea. Nothing is broken in the approach logic; the
+route follower was never switched on.
+
+⭐ **And it is one keypress.** `SimLeftAPSwitch` cycles RollHold → StrgSel → HDGSel, and it is bound
+to **Ctrl+1** (`config/keystrokes.key` column 4 is a modifier BITMASK — the AP-1 sprint's lesson). One
+press from the observed state:
+
+    FF_SIM_KEY="0x1e@5;C0x02@12"
+    [AP-1] roll mode: Roll=0 HDG=0 Strg=1 -> FollowWP()
+
+**The corrected recipe is recorded here** — every automated TE-09 measurement should carry that
+second key.
+
+⚠️ **It still did not land inside 300 s** (`onGround=1`: 0 samples; the last sample is 122.94 ft AGL
+at a position ~40 km from where the RollHold arm ended, i.e. it really is flying the plan). So
+route-following is necessary and not yet sufficient: **S2 extends the run and measures how long the
+route takes**, rather than assuming 300 s ought to be enough.
+
+⭐ **This retro-explains Sprint 18's "nondeterministic" TE-09.** That sprint measured route-following
+engaging 2/2 on 07-25 and 0/3 on 07-26 with matching scripts and suspected "AP roll-switch initial
+state". It is exactly that: the left switch's position decides RollHold vs StrgSel, `Viper.pop`
+persists AP settings between sessions, and nothing in the script set it. The flakiness was a missing
+keypress, not a race.
+
+**LANDAP-1: 1 sprint. Root-caused; the harness fix is in hand; the landing itself is S2.**
