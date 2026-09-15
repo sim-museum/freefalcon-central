@@ -14867,3 +14867,45 @@ drawable-lag fixes and JOINFAIL-1's verified recovery guards have landed.
    only in the dev build where JOINFAIL-1 measured it.
 
 **DELIVERY 260915: 1 sprint.**
+
+### TE2-7 S1 this pass (Opus 5, 2026-09-15) — the gold this item was "blocked on" is **in the repo**, and it shows the same flat grey runway we draw
+
+TE2-7 has been parked as *"blocked on a Wine side-by-side… what would settle it: the PO's Wine shot
+from the TE-02 start position in HUD view"*, after five mechanisms were ruled out (binding, depth
+bias, surface textures, art presence, mip filtering, UVs, wrap mode, atlas mapping). **The repo holds
+a Wine recording of an F-16 rolling out on a runway**, at the same 1024×768 the port captures at:
+`260808_landing_final_approach.mp4`, extracted pixel-exact with the existing
+`tools/gold_video.sh landing <t>`.
+
+**MEASURED, on the gold, in the near-field runway band (lower third, central half):**
+
+| gold frame | what it shows | bright "marking-proxy" pixels |
+|---|---|---|
+| `landing 190` | rollout, runway fills the near field | 22.25% |
+| `landing 200` | rollout, slower | **0.00%** |
+| `landing 205` | rollout, slower still | **0.00%** |
+
+⭐ **And the pictures are unambiguous: Wine's runway under the aircraft is flat grey concrete with
+tyre streaks and no painted markings** — no centreline, no edge lines, nothing. Which is exactly what
+this port draws, and exactly what TE2-7 called the defect.
+
+**So the item's founding statement — *"the PO's Wine gold shows painted runway markings; ours is flat
+grey"* — is refuted by the gold.** The five mechanisms ruled out over three sprints were looking for
+the cause of a difference the oracle does not show.
+
+⚠️ **The proxy alone would not have carried this**, and saying so matters: "bright pixels" cannot
+distinguish white paint from sunlit concrete, which is why `landing 190` reads 22%. The verdict rests
+on the two rollout frames reading **0.00%** *and* on looking at them.
+
+⚠️ **The other half did not work.** A matched capture of OUR rollout was attempted with the recorded
+TE-09 recipe (`FF_UI_CLICK="624,745@8;…"`, `FF_SIM_KEY="0x1e@5"`, orbit view at 100 s, captures at
+110/130/150/170 s) and **never reached rollout**: at 130 s the jet is still airborne over water and by
+170 s the frame is sea, sky and smoke on the horizon — the autopilot flight did not land. **S2 must
+re-time that recipe against something the run PRINTS** (AGL from the ACMI series, or a HUD trace)
+rather than wall-clock seconds — the same correction LOAD-1 S6 had to make to its own recipe.
+
+**RECOMMENDATION (a PO call, not mine to make):** close TE2-7 as *not a defect* on this evidence, or
+keep it open only for the specific question "should Kunsan's runway carry painted markings at all",
+which is a **data** question about the theatre, not a rendering one.
+
+**TE2-7: 1 sprint this pass.**
