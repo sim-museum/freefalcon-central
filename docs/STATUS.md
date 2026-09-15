@@ -14245,3 +14245,41 @@ separates bias from dispersion.
 
 **CCRP-5: 4 sprints this pass (S5–S8) — AT THE CAP, and it ends with the measurement the item was
 opened for.**
+
+### BOOM-4 S5 (Opus 5, 2026-09-14) — the shipped fixes hold on a fresh drop; the tall-structure assumption is now instrumented rather than assumed; and the old recipe had stopped dropping bombs
+
+S4 shipped the flat-container ground snap and left one sentence unmeasured: *"A hit on a TALL
+structure is left alone: id=28049 (flat=0) burst 77 ft up, which is a building, not a defect."*
+Nothing in the trace said how tall the thing was. S5 makes that checkable and re-verifies what shipped.
+
+**The probe now reads the feature, not just the terrain:**
+
+    [boom4] branch=FEATURE id=%d z=%.1f gnd=%.1f flat=%d objZ=%.1f objXY=(%.0f,%.0f)
+            bombAboveObj=%.1f ft type=%d
+
+A burst 78 ft above a feature whose base **is** the terrain is a roof; 78 ft above a road is the
+defect. The next feature hit answers it from the log instead of from an inference.
+
+⭐ **Regression check, fresh drop:**
+
+    [bombpos] EXPLODE sim=(1808977,1290554,-682.0) gnd=-682.0 drawable=(1808977,1290554,-682.0)
+              d(sim-draw)=(0,0,0.0) ...
+
+**Burst exactly at ground level, drawable exactly on the bomb.** S3's drawable snap (was 20.4 ft) and
+S4's ground snap both hold.
+
+⚠️ **And the harness had gone quiet — the third time this session.** BOOM-4's own recipe
+(`0x39@40+400` three times, no throttle input) produced **no release at all**: `[boom4]` count 0,
+`[bombpos]` count 0. Adding CCRP-5 S7's throttle recipe (`0x0D@20+1000;S0x0D@22;S0x0D@24;S0x0D@26`)
+brought the bombs back immediately. **So the releases in BOOM-4 S1-S4 depended on an unmanaged jet
+state**, and a rerun of those sprints without the throttle would have reported "the fix broke the
+drop". Recipes in this tree should carry the throttle.
+
+⚠️ **The tall-structure case did not occur in this drop** (`hitObj=(nil)`, terrain hit), so S4's
+sentence is still untested — but it is now a measurement away rather than a rebuild away.
+
+**S6:** aim a drop at a structure rather than open terrain — the TE 20 designate sits on flat ground,
+so pick an aim point on the airbase itself, where `FEAT_FLAT_CONTAINER` and tall features are both
+present, and read `bombAboveObj` for each.
+
+**BOOM-4: 1 sprint this pass.**

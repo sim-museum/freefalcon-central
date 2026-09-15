@@ -1040,9 +1040,22 @@ int BombClass::Exec(void)
                        and it NULLs hitObj for a flat container -- so hitObj=(nil) in the explosion
                        trace does not prove the other branch was taken. FF_DEBUG_BOMBTRACK=1. */
                     if (getenv("FF_DEBUG_BOMBTRACK"))
-                        fprintf(stderr, "[boom4] branch=FEATURE id=%d z=%.1f gnd=%.1f flat=%d\n",
+                    {
+                        /* BOOM-4 S5: S4 left "a hit on a TALL structure bursts 78.6 ft up, which is
+                           a building, not a defect" as an ASSUMPTION -- nothing in the trace said
+                           how tall the thing was. Print the feature's OWN position, so the burst
+                           height can be read against the object's base rather than against the
+                           terrain, plus its entity type. A burst 78 ft above a feature whose base
+                           IS the terrain is a roof; 78 ft above a road is the defect. */
+                        fprintf(stderr, "[boom4] branch=FEATURE id=%d z=%.1f gnd=%.1f flat=%d "
+                                        "objZ=%.1f objXY=(%.0f,%.0f) bombAboveObj=%.1f ft type=%d\n",
                                 (int)Id().num_, ZPos(), terrainHeight,
-                                hitObj->IsSetCampaignFlag(FEAT_FLAT_CONTAINER) ? 1 : 0), fflush(stderr);
+                                hitObj->IsSetCampaignFlag(FEAT_FLAT_CONTAINER) ? 1 : 0,
+                                hitObj ? hitObj->ZPos() : 0.0f,
+                                hitObj ? hitObj->XPos() : 0.0f, hitObj ? hitObj->YPos() : 0.0f,
+                                hitObj ? (hitObj->ZPos() - ZPos()) : 0.0f,
+                                hitObj ? (int)hitObj->Type() : -1), fflush(stderr);
+                    }
 #endif
 
                     // if we've hit a flat container, NULL it out now so that this is
@@ -1088,9 +1101,22 @@ int BombClass::Exec(void)
                        and it NULLs hitObj for a flat container -- so hitObj=(nil) in the explosion
                        trace does not prove the other branch was taken. FF_DEBUG_BOMBTRACK=1. */
                     if (getenv("FF_DEBUG_BOMBTRACK"))
-                        fprintf(stderr, "[boom4] branch=FEATURE id=%d z=%.1f gnd=%.1f flat=%d\n",
+                    {
+                        /* BOOM-4 S5: S4 left "a hit on a TALL structure bursts 78.6 ft up, which is
+                           a building, not a defect" as an ASSUMPTION -- nothing in the trace said
+                           how tall the thing was. Print the feature's OWN position, so the burst
+                           height can be read against the object's base rather than against the
+                           terrain, plus its entity type. A burst 78 ft above a feature whose base
+                           IS the terrain is a roof; 78 ft above a road is the defect. */
+                        fprintf(stderr, "[boom4] branch=FEATURE id=%d z=%.1f gnd=%.1f flat=%d "
+                                        "objZ=%.1f objXY=(%.0f,%.0f) bombAboveObj=%.1f ft type=%d\n",
                                 (int)Id().num_, ZPos(), terrainHeight,
-                                hitObj->IsSetCampaignFlag(FEAT_FLAT_CONTAINER) ? 1 : 0), fflush(stderr);
+                                hitObj->IsSetCampaignFlag(FEAT_FLAT_CONTAINER) ? 1 : 0,
+                                hitObj ? hitObj->ZPos() : 0.0f,
+                                hitObj ? hitObj->XPos() : 0.0f, hitObj ? hitObj->YPos() : 0.0f,
+                                hitObj ? (hitObj->ZPos() - ZPos()) : 0.0f,
+                                hitObj ? (int)hitObj->Type() : -1), fflush(stderr);
+                    }
 #endif
 
                     // if we've hit a flat container, NULL it out now so that this is
