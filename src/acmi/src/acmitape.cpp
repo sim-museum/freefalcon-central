@@ -676,7 +676,26 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 }
 
                 if (hdr.type == ACMIRecAircraftPosition)
-                    fread(&tempTarget, sizeof(tempTarget), 1, flightFile);
+                {
+                    /* ACMI-3 S2 (2026-09-15) -- THE DESYNC. `tempTarget` is declared `long`
+                       (acmitape.cpp:53), so `sizeof(tempTarget)` is 8 on this 64-bit build while
+                       the field on disk is ACMIAircraftPositionRecord::RadarTarget, an `int32_t`
+                       (acmirec.h:307). Every AIRCRAFT position record therefore over-read by FOUR
+                       BYTES, and with hundreds of them before the callsign list the file pointer
+                       walked off: S1 measured the callsign count arriving as 0x0100000A where the
+                       true value is 10 -- the low byte of the count plus a byte of the next record.
+                       Read exactly the 32 bits the format defines, which is the same correction
+                       ACMI-1 made for the callsign count itself a few hundred lines below. */
+                    int32_t radarTarget32 = -1;
+
+                    if ( not fread(&radarTarget32, sizeof(int32_t), 1, flightFile))
+                    {
+                        CleanupACMIImportPositionData(flightFile, rawPositionData);
+                        return FFAcmiBail(__LINE__, flightFile);
+                    }
+
+                    tempTarget = radarTarget32;
+                }
                 else
                     tempTarget = -1;
 

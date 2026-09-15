@@ -15639,3 +15639,53 @@ quantitative measure of sim/pilot performance that can be tracked and optimized"
 Windows original.
 
 **ACMI-3: 1 sprint. A dead feature is one byte-offset from working.**
+
+### ACMI-3 S2 (Opus 5, 2026-09-15) — ✅ **FIXED. `sizeof(long)` was 8 where the format says 4, and every aircraft position record over-read by four bytes.** The port has produced its first loadable tape
+
+S1 traced the failure to a one-byte desync and named the record sizes as the suspect. The answer is
+one declaration.
+
+⭐⭐ **The bug.** The aircraft position record on disk is
+
+    ACMIAircraftPositionRecord = ACMIRecHeader(5) + ACMIGenPositionData(32) + int32_t RadarTarget(4) = 41
+
+and the importer reads that trailing field with
+
+    long tempTarget;                                        // acmitape.cpp:53
+    fread(&tempTarget, sizeof(tempTarget), 1, flightFile);  // 8 bytes on a 64-bit build
+
+**Eight bytes read where the format defines four.** Every aircraft position record over-read by 4,
+and with hundreds of them before the callsign list the file pointer walked off — which is exactly
+S1's measurement: the callsign count arriving as **`0x0100000A`** (16,777,226) where the true value
+is **10**, the low byte of the count plus a byte of the next record.
+
+It is the same class as ACMI-1's fix a few hundred lines below, whose comment says it outright:
+*"the count is a 32-bit Windows `long` on disk, so read exactly 4 bytes"*. The same sentence applies
+here and nobody had applied it.
+
+✅ **Fixed** — read an `int32_t`, with a bail if it is short. Same run, same recipe:
+
+    [ACMI] ACMICallsignList: count=2  bytes=40  offset=202482     <- was 16777226
+    [ACMI] ImportFile: Import('acmibin\acmi0000.flt' -> 'acmibin\TAPE0003.vhs') = OK
+
+⭐ **And `TAPE0003.vhs` is real — 323,200 bytes, and `tools/acmi_dump.py` reads it exactly as it
+reads the PO's gold tapes:**
+
+    entities=1  features=0  positions=348
+    startTime=33000.0s (09:10:00 game time)  playTime=100.5s
+    32-bit layout self-check: header 80 OK, entities 116 OK, features 116 OK, positions 14384 OK
+    id=1  type=2564  samples=348  alt 20288..20451 ft  t 33000.0..33100.3s
+
+**This is the first loadable ACMI tape ever produced by this port.** Type 2564 is the same ownship
+type as the gold tapes, and the layout self-check passes on every section.
+
+**Why it matters to the PO.** ACMI is their stated measurement instrument — *"gives a quantitative
+measure of sim/pilot performance that can be tracked and optimized"* — and until now no flight flown
+here could be loaded back. Every gold tape in `~/gold standard/free falcon/` came from the Windows
+original because our side could not make one.
+
+⚠️ **What is not fixed:** the tape carries **one entity**, because the TE flown has one aircraft
+(FM-GOLD-1 S2 established that the recorder itself records ground units, ejects and bombs too). A
+multi-aircraft mission is the next thing to record, and it is now worth doing.
+
+**ACMI-3: 2 sprints. Closed.**
