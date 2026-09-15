@@ -14385,3 +14385,48 @@ worth more than a fifth sprint spent proving a negative.
 
 **BOOM-4: 4 sprints this pass — AT THE CAP, with its shipped fixes verified and its last question
 shown to be out of reach of the instrument built for it.**
+
+### GMOBJ-1 S3 (Opus 5, 2026-09-14) — ⭐⭐ the inversion is measured across a whole approach: bright blips 49 → 20 while dim ones 38 → 146
+
+S2 named the mechanism from the code — an objective's features switch from a **2×2 block at full
+`0xFF00FF00`** to **one pixel at a computed intensity** when it deaggregates — and left the numbers
+for a target-dense run. S3 flew the PO's own TE (**26 HARMs**, mode verified `mode=14` = GM) and read
+them.
+
+**MEASURED, three samples as the aircraft closes on the target group:**
+
+| sample | campaign blips (2×2 @ 255) | sim blips (1 px) | sim `colorMean` | sim `rMean` (px) |
+|---|---|---|---|---|
+| far | **49** | 38 | **8.7 / 255** | 0.029 |
+| mid | **31** | 85 | **22.7 / 255** | 0.076 |
+| near | **20** | 144 | **56.3 / 255** | 0.187 |
+
+⭐ **The two populations invert as you close.** Bright aggregated blips fall **49 → 20** while dim
+per-building blips rise **38 → 146**: the closer you get to the target, the more of the picture is
+drawn by the dim path. That is the PO's *"GM radar doesn't show the group of buildings around the
+target"*, measured over an approach rather than argued from source.
+
+⭐ **And the per-building light gap is a factor of ~46.** A campaign blip is four points at 255 =
+1020 units of light; a deaggregated building at the mid sample is one point at 22.7. *(`black=0`
+throughout — none is literally zero, which is why "missing" is the right word from a cockpit and the
+wrong word for a census.)*
+
+⚠️ **`rMean` never exceeds 0.4 px, so the `r > 1.0` branch that would add the other three points of
+the 2×2 never runs — not once in 3,171 traced frames.** Every deaggregated building is a single pixel
+by construction, at any range in this TE.
+
+⭐ **Summed over the scope the target area gets DARKER as it fills up:** far ≈ 49×1020 + 38×8.7 ≈
+**50,300** units; near ≈ 20×1020 + 144×56.3 ≈ **28,500**. Roughly **half the light, at the moment the
+target matters most.** *(A scope-wide total, not a target-area crop — the trend is the claim, not the
+absolute.)*
+
+**S4 — and GMRADAR-6 already contains the shape of the fix.** That item gave movers an intensity
+floor plus the full 2×2 block and *deliberately exempted GM* on the grounds that "hundreds of
+features drawn at their computed intensity ARE the picture". **These numbers test that reasoning:**
+at 8.7–56 of 255 in one pixel, the features are not the picture, they are below it. Add
+`FF_GM_FEATURE_INTENSITY=<0-255>` in the same shape, **default off**, capture the scope with and
+without, and put the pair to the PO. S2's caution stands — the arithmetic is upstream and identical
+on Windows, and there is still no Wine GM capture in the gold library — so this ships as a **PO
+judgement, not as a silent correction.**
+
+**GMOBJ-1: 3 sprints.**
