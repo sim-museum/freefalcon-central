@@ -15325,3 +15325,47 @@ Nothing in the mission file needs changing.
    both items close as *not defects* and the gates stop expecting a touchdown.
 
 **LANDAP-2: 1 sprint.**
+
+### FM-GOLD-1 (NEW, 2026-09-15, Opus 5) — the F-16's manoeuvring envelope now has a gold oracle, measured from the PO's own ACMI tapes; and `acmi_dump.py` could silently hand you a MISSILE
+
+Every flight-model argument in this port has so far been made against reasoning or against a single
+sortie. `~/gold standard/free falcon/260808/` holds **five ACMI tapes of the PO flying the real
+game** (TAPE0006–0010, 7–8 MB each), which is a telemetry oracle nobody had opened.
+
+⚠️ **First, the tool had to be fixed, and the reason is the point.** `acmi_dump.py` picked *"the
+entity with the longest position chain"* as the ownship. On TAPE0010 that is a **missile** — type
+2019, 1,876 kts, an implied **32 g** — which reads exactly like an F-16 envelope until you check the
+type. **Added `--id N` / `--type N`**, and the tool now prints the entity it selected on every run.
+The ownship is **type 2564** on all five tapes. [[instrument-bookkeeping-lies]]: a census that does
+not name its population is not a measurement.
+
+**The envelope, ownship only, explicitly selected:**
+
+| tape | samples | secs | alt max | kts median | kts max | turn p95 | turn max | implied g at peak |
+|---|---|---|---|---|---|---|---|---|
+| TAPE0006 | 602 | 161 | 22,865 | 511 | 681 | **14.26** | 17.54 | 6.1 |
+| TAPE0007 | 699 | 188 | 14,876 | 395 | 641 | **17.96** | 72.71 ⚠ | 24.0 ⚠ |
+| TAPE0008 | 585 | 271 | 23,396 | 537 | 706 | **12.97** | 22.61 | 7.0 |
+| TAPE0010 | 56 | 232 | 37,455 | 546 | 546 | 0.02 | 0.02 | 0.0 (cruise) |
+
+**The usable oracle:**
+
+* **speed** — median **395–537 kts**, maximum **641–706 kts**;
+* **turn rate** — **p95 of 13–18 °/s** across three engagement tapes;
+* **peak turn** 17.5–22.6 °/s at 380–450 kts, i.e. **6–7 g**;
+* **cruise** at 37,455 ft holds 546 kts with no turning at all.
+
+⚠️ **TAPE0007's 72.71 °/s / 24 g is rejected as a sampling artefact** — a single-sample yaw jump
+between records spaced ~0.27 s apart, not a manoeuvre. It is listed rather than quietly dropped
+because the next person will see it too. TAPE0009 is excluded: 155 samples over 656 s (~4 s spacing)
+is too coarse for a turn rate.
+
+**What this unlocks.** Any claim about our flight model can now be checked against a number the PO
+himself flew: *does our F-16 reach 13–18 °/s at 380–450 kts around 15,000–23,000 ft, and does it hold
+546 kts in cruise at 37,000 ft?* **S1 is the matching run** — a TE with a hard turn, our own ACMI
+recorded, the same statistic computed by the same script. The tapes are the "instant action 5am" and
+campaign sorties in `260808/`, so a comparable engagement is reachable.
+
+**Filed as its own item because it is a yardstick, not a defect.** Nothing is claimed broken here.
+
+**FM-GOLD-1: 0 sprints — the oracle is built.**

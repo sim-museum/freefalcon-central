@@ -145,6 +145,23 @@ def main():
 
     ent, pts = tracks[0]
 
+    # FM-GOLD-1 (2026-09-15): "the entity with the longest chain" is NOT always the ownship.
+    # On TAPE0010 it is a MISSILE -- 1,876 kts and an implied 32 g -- which read as an F-16
+    # envelope until the type was checked (type 2019, not 2564). Any measurement taken from this
+    # tool without naming its entity is a measurement of an unknown population.
+    #   --id N    select the entity with uniqueID N
+    #   --type N  select the first entity of that type (2564 = the player's F-16 on these tapes)
+    for i, o in enumerate(opts):
+        if o in ('--id', '--type') and i + 1 < len(opts):
+            want = int(opts[i + 1])
+            key = 'uniqueID' if o == '--id' else 'type'
+            match = [(e, q) for e, q in tracks if e[key] == want]
+            if not match:
+                print(f'  !! no entity with {key}={want} has a position chain')
+                return 1
+            ent, pts = match[0]
+    print(f'\n  selected: id={ent["uniqueID"]} type={ent["type"]} samples={len(pts)}')
+
     if '--track' in opts or '--approach' in opts:
         sel = pts
         if '--approach' in opts:
