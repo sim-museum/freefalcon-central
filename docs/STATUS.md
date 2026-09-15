@@ -14584,3 +14584,40 @@ unreproducible item on the board.
 
 **TERRAIN-1: 3 sprints this pass. Not reproducible in the landing scenario, not reproducible in the
 dogfight scenario, and its old root cause already withdrawn.**
+
+### LOAD-1 S5 (Opus 5, 2026-09-14) — the drawflag window does not occur on the CAMPAIGN path either; and the campaign recipe never reaches a load
+
+S4 built `FF_LOAD_PAINT` / `FF_LOAD_LUMA` and left them **default off** with an explicit condition:
+*"enabling this before S5 confirms the window on the campaign path would ship an untested display
+freeze."* S5 ran the campaign path.
+
+**MEASURED, 182 s, the campaign click recipe, `FF_DEBUG_DRAWFLAG=1 FF_LOAD_LUMA=500`:**
+
+    [drawflag] SetDrawFlag(1) call #1 (was 0)          <- one call in the entire run
+    [loadluma] t=1148ms  doUI=1 drawflag=1 drawflagoff=0 mean=0.0   min=0 max=0
+    [loadluma] t=1653ms  doUI=1 drawflag=1 drawflagoff=0 mean=171.4 min=0 max=247
+    ...
+    [loadluma] t=182028ms doUI=1 drawflag=1 drawflagoff=0 mean=171.4 min=0 max=247
+    (356 samples, drawflagoff=0 in every one)
+
+⭐ **`SetDrawFlag(0)` never fires — on the TE path (S4) or on the campaign path.** The mechanism S3
+named, and the fix S4 built for it, address a window this build does not enter. **S4's caution was
+right, and `FF_LOAD_PAINT` must stay default-off.**
+
+⚠️ **But this is a negative on the WINDOW and inconclusive on the LOAD, and the difference matters.**
+The eight clicks all fired and `save0` was read 14 times, so the campaign UI was alive — yet **the
+screen luma is constant at 171.4 for 180 seconds**: the picture never changed, and no mission load
+ever started. The recipe enters the campaign and then stalls.
+
+⭐ **One thing the constant does say: it is not white.** `mean=171.4, max=247` is a mid-bright UI
+screen, not the 255 the PO's *"white screen instead of the animated progress bar"* describes. Whatever
+this recipe is looking at is not the reported symptom.
+
+**S6 — the blocker is the click path, not the instrument.** `run-asan-campaign-flight-soak.sh`'s
+timings are, in its own words, *"deliberately generous… tuned on the release build they drift"* — it
+was built for the ASAN build, which is slower. On the release build the screens advance sooner and
+the later clicks miss. **Re-time it against something the run prints** (the UI screen id per click,
+or the `[loadluma]` mean changing) rather than against wall-clock seconds, then take the measurement
+again. Until then LOAD-1's central claim — a ~31 s white screen — has never been reproduced headless.
+
+**LOAD-1: 1 sprint this pass.**
