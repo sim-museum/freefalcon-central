@@ -14348,3 +14348,40 @@ terrain. Three sprints of "the tall-structure case has not occurred" end with a 
 the S4 assumption was right and BOOM-4 closes; if it sits 78 ft above a 20 ft structure, it does not.
 
 **BOOM-4: 3 sprints this pass.**
+
+### BOOM-4 S8 (Opus 5, 2026-09-14) — ⛔ features are stored AT GROUND LEVEL, so S5's instrument can never answer S4's question
+
+S7 found a tall structure 468 ft from the last burst and handed S8 its coordinates. S8 designated it
+(`FF_SET_DESIGNATE="1809383,1290346"`) and dropped.
+
+**The aim point moved and the bomb followed it** — the burst landed at (1809029,1290598) against a
+designate of (1809383,1290346), a **435 ft** miss — but `hitObj=(nil)` again: it hit terrain, because
+435 ft is far outside a building's footprint. Three features are now listed around the burst:
+
+    [boom4] near-feature id=28591 at (1809076,1291132,-682.0) d=546 ft dz=+12.8 ft flat=0 type=3204
+    [boom4] near-feature id=28640 at (1809521,1290310,-682.0) d=573 ft dz=+12.8 ft flat=1 type=1120
+    [boom4] near-feature id=28668 at (1809383,1290346,-682.0) d=436 ft dz=+12.8 ft flat=0 type=963
+
+⭐ **Read the z column: every feature is at −682.0, and the terrain there is −682.0.** A tall factory,
+a flat road and a third structure all report the SAME z, because **a feature's position carries no
+height — it sits at ground level by construction.** The game's own comment two lines above the walk
+says so: *"Features are at ground level, and so is this bomb"*. The `dz=+12.8 ft` is not the
+building's height; it is how far the bomb still is above the ground at this point in the frame, and
+it is identical for all three.
+
+⛔ **So S5's `bombAboveObj` cannot answer S4's question.** Comparing the burst's z with the object's
+z compares it with the TERRAIN, which is what the trace already did. **"A hit on a tall structure
+bursts 78.6 ft up, which is a building, not a defect" is not verifiable from position data at all** —
+it needs the feature's own geometry (its LOD bounding box), which is a different subsystem.
+
+**Where that leaves the item.** Everything BOOM-4 set out to fix is shipped and has now been
+re-verified on three separate drops today — `d(sim-draw)=(0,0,0.0)` (was 20.4 ft) and the burst
+exactly at ground level on flat containers (was 6.4 ft under). The only open thread is one
+unverifiable sentence about a case the PO has not reported since.
+
+**S9 should CLOSE BOOM-4** unless the PO reports bursts hanging above buildings again, in which case
+the instrument to build is a feature-LOD height lookup, not another drop. Recording it that way is
+worth more than a fifth sprint spent proving a negative.
+
+**BOOM-4: 4 sprints this pass — AT THE CAP, with its shipped fixes verified and its last question
+shown to be out of reach of the instrument built for it.**
