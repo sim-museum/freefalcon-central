@@ -14507,3 +14507,45 @@ ILS/steerpoint sequence. **Then the item has the comparison it was parked for.**
 
 **TERRAIN-1: 1 sprint this pass. The oracle is found and characterised; the measurement is one flying
 problem away.**
+
+### TERRAIN-1 S6 (Opus 5, 2026-09-14) — ⭐ measured against its own gold at last: the port's terrain is **as varied as the Wine reference**, not a uniform grey
+
+S5 found the oracle and named the state to compare. S6 got the port there and measured — after three
+band choices that measured the wrong thing.
+
+⚠️ **Three failed attempts, none of them published as a result:**
+1. the fixed 62–95% "ground band" is **all cockpit** in the TE 09 view (the F-16 panel fills the
+   lower half) — which is why three frames in a row gave the same number;
+2. a horizon detector keyed on `B ≤ G` fires **in the haze**, above the actual horizon;
+3. two hand-picked rectangles came out **blue-dominant** — sea, not land — while the gold's box is
+   green-dominant.
+
+⭐ **What worked is content, not geometry: ONE rule applied to BOTH frames** — a pixel is ground if
+it is green-dominant (`G > B+6`, `G > R+6`, `G > 30`) and in the upper 75% of the frame:
+
+| | ground px | mean rgb | **stdev** | distinct |
+|---|---|---|---|---|
+| **GOLD** t=150, short final (Wine) | 17,532 (2.2%) | [48,**113**,63] | **48.6** | 4,605 |
+| **PORT** t=140, TE 09 approach | 11,154 (1.4%) | [64,**116**,68] | **62.7** | 4,401 |
+| **PORT** t=165 | 11,219 (1.4%) | [65,**117**,68] | **62.8** | 4,528 |
+
+⭐⭐ **The port's ground is MORE varied than the gold's** — stdev 62.7 against 48.6, and 4,401
+distinct colours from 36% fewer pixels — with the mean green within 3 counts (116 vs 113).
+**"A uniformly grey surface" does not describe this.** The symptom does not reproduce on the landing
+TE, measured against the PO's own Wine recording of the same mission.
+
+⚠️ **Two things that keep this from closing the item.** The gold is an **H.264 video**, and
+compression reduces colour variety — so its 48.6 is a lower bound and "more varied" is the weaker
+half of the claim; "not uniform" is the solid half. And the PO's report was about **dogfight**
+terrain, which is a different scenario from a landing approach.
+
+*(Also fixed here: TE 09 used to end itself at ~180 s. CCRP-5 S7's throttle recipe keeps it flying
+past 165 s, which is what made the approach frames available at all — the fifth item this session to
+be unblocked by that recipe.)*
+
+**S7:** run the same measurement on a dogfight — the scenario the PO actually reported — using the
+identical rule and, if one exists, an instant-action gold. If the port's ground variety collapses
+there and holds here, the defect is scenario-specific and the S3 census (91% of binds being one tile)
+belongs to that scenario rather than to the terrain loader.
+
+**TERRAIN-1: 2 sprints this pass.**
