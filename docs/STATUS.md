@@ -14909,3 +14909,61 @@ keep it open only for the specific question "should Kunsan's runway carry painte
 which is a **data** question about the theatre, not a rendering one.
 
 **TE2-7: 1 sprint this pass.**
+
+### TE2-7 S2 (Opus 5, 2026-09-15) — the comparison is DONE (0.00% both sides), and the recipe that would not deliver it is a defect of its own
+
+S1 measured the Wine gold and found no painted markings in the near-field runway. S2 owed the other
+half: the same measurement on ours, at the same geometry.
+
+**1. The flying recipe still would not deliver it — and now it is understood.** `FF_DEBUG_GROUND`
+(which already existed) prints the aircraft's height above terrain and `onGround` once a second, so
+the recipe can be timed against what the run prints rather than wall clock. With that:
+
+* the TE-09 autopilot approach descends steadily — 2014 → 210 → 107 → **8.92 ft** above ground over
+  ~60 samples;
+* extending the run to 340 s, the last sample is **27.99 ft, `onGround=0`**, and the capture at
+  +292 s is a **PILOT OPTIONS / END MISSION** dialog over open sea.
+
+⭐ **`onGround=1` never appears. The autopilot approach does not land** — registered below as its own
+item rather than buried here.
+
+**2. So the comparison was taken where the aircraft is already ON the runway.** TE-02 is a runway
+ground start; `~/Documents/260906/ff_pit/te02_view1_external.png` is exactly that view. **One rule,
+applied to all three frames** — bright, near-neutral pixels (the marking proxy) in the lower-third,
+central-half band:
+
+| frame | size | mean RGB | marking-proxy pixels |
+|---|---|---|---|
+| **GOLD** rollout t=200 | 1024×768 | (112,110,104) | **0.00%** |
+| **GOLD** rollout t=205 | 1024×768 | (105,105, 98) | **0.00%** |
+| **OURS** TE-02 ground start | 800×600 | ( 94, 94, 91) | **0.00%** |
+
+⭐⭐ **Identical, and the pictures agree with the number**: flat grey concrete, tyre streaks, no
+centreline, no edge lines — on both sides. **TE2-7 is closed on this evidence: the port renders the
+near-field runway as the original does.**
+
+⚠️ **Provenance, stated because it matters:** ours is a 2026-09-06 capture, not one taken today. Two
+attempts to re-take it on the current build failed on RECIPE TIMING — the TE-02 click script's
+screenshots landed on the loading screen — which is the same fault LOAD-1 S6 recorded for its own
+recipe. Nothing between 09-06 and today touched runway art, and the tarmac in both is the same flat
+grey, but a same-day capture would be better and the way to get one is to key the shot off
+`[GROUND]`'s first `onGround=1` line rather than off seconds.
+
+### LANDAP-1 (NEW, 2026-09-15) — the TE-09 autopilot approach never touches down
+
+Found while trying to photograph a rollout for TE2-7. With the recorded recipe
+(`FF_UI_CLICK="624,745@8;210,247@14;825,750@18;976,750@30"`, `FF_SIM_KEY="0x1e@5"`) the aircraft flies
+a clean descending approach — `FF_DEBUG_GROUND` shows 2014 → 8.92 ft above ground — and then **never
+reports `onGround=1`**; a 340 s run ends in a PILOT OPTIONS / END MISSION dialog over the sea.
+
+**Why it matters beyond the capture:** *"09 Landing Final Approach"* is the TE the PO flies to judge
+landings, RWY-2's acceptance flight ran on it, and Sprint 22's parity result came from an ACMI tape
+rather than from this path. If the autopilot cannot complete the approach on the current build, every
+automated landing measurement has to be hand-flown or tape-driven.
+
+**Related, not assumed to be the same:** AP-1 (this session) measured that with the left switch in HDG
+Select the autopilot force-sets `RollHold` and `HDGSel()` never runs, and Sprint 18 recorded
+`SimAutopilotType=APNormal` persisting into `Viper.pop` as an attitude hold that does not follow the
+route. **Either could explain this; neither has been shown to.** First sprint on the item should print
+the AP mode and switch state at the start of the approach with `FF_DEBUG_AP` — one run, both
+hypotheses tested.
