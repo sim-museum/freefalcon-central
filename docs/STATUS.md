@@ -15231,3 +15231,49 @@ item closes with "the autopilot needs a sequencer" as the PO decision it is. If 
 at 6 nm, file the descent profile separately with this run's numbers.
 
 **LANDAP-1: 6 sprints (2 this pass). Root cause confirmed by removing it.**
+
+### LANDAP-2 (NEW, 2026-09-15, Opus 5) — ⭐⭐ the descent is a **dive to the steerpoint's altitude, and that altitude is ZERO**: the glide path matches the gold until the steerpoint becomes the runway, then the aircraft drops 1,054 ft in 0.7 nm
+
+Split out of LANDAP-1 S6, which said the descent profile was a separate item. It is, and the gold
+tape settles it without another flight.
+
+**Glide path, gold against ours** — altitude and slope against the ground distance still to run
+(gold: `260808_landing_final_approach.vhs`; ours: the S6 run with the steerpoint stepped at t=45 s):
+
+| | 9.6 nm | 8.2 nm | 7.3 nm | 6.9 nm | 6.6 nm | 4.2 nm | 2.3 nm | 0.3 nm |
+|---|---|---|---|---|---|---|---|---|
+| **gold alt** | 2003 | 1872 | — | — | 1571 | 1581 | 893 | **28 (down)** |
+| **gold slope** | 1.94° | 2.11° | — | — | 2.15° | 3.50° | 3.54° | — |
+| **port alt** | — | 1911 | 1791 | 1418 | **736** | — | — | — |
+| **port slope** | — | 2.17° | 2.27° | 1.89° | **1.01°** | — | — | — |
+
+⭐ **Our approach is RIGHT until it is not.** From 8.2 to 7.3 nm the slope sits at 2.17–2.27° against
+the gold's 2.11–2.15° at the same range — the two aircraft are flying the same path. Then, in the
+next 0.7 nm, ours loses **1,054 ft** (1791 → 736) — a **14° descent** where the gold is doing 2.2° —
+and LANDAP-1 S6's last sample has it at **115 ft with 6.4 nm still to run**.
+
+⭐⭐ **And the cause is printed in the `[NAV]` trace, in the waypoint's own z:**
+
+    cur =(719955.5, 1326751.7, -2000.0)     <- waypoint 1: z = -2000 (Falcon z is DOWN) = 2,000 ft
+    last=(775715.1, 1307071.8,     0.0)     <- the DESTINATION: z = 0
+
+**The destination waypoint's altitude is zero.** The moment LANDAP-1's steerpoint step makes it the
+current steerpoint, the autopilot has an altitude target of **sea level** — and it descends to it as
+directly as it can, 6 nm short of the field. The gold's runway is at **28 ft** and its own profile
+never exceeds 3.8°.
+
+**So there are two questions, and they need different people:**
+1. **Data:** should that waypoint carry the airfield's elevation? The gold touches down at 28 ft at
+   (772911, 1309677) and our last waypoint is 1,554 ft from its rollout end, so the POSITION is
+   right and only the altitude is suspect. Whether the mission file stores 0 or the loader drops it
+   is one grep and a print — **that is S1's experiment.**
+2. **Autopilot:** even with a correct waypoint altitude, an approach autopilot that flies straight at
+   the steerpoint's altitude has no glide path. The gold flies 2° then 3.5° then eases to 2.9°.
+   Whether this port's AP is supposed to do that, or whether the pilot is, is a PO question — but
+   **a 14° dive toward sea level with the field 6 nm away is wrong under any answer.**
+
+**Why it matters to the PO:** *"09 Landing Final Approach"* is the TE they fly to judge landings, and
+between this and LANDAP-1 the autopilot cannot complete it: LANDAP-1 keeps it circling waypoint 1,
+and once that is stepped past, this drops it in the sea short of the runway.
+
+**LANDAP-2: filed with its measurement already taken. 0 sprints.**
