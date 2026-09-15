@@ -13,7 +13,7 @@ This is the live status of the Scrum effort to finish the Linux port (plan:
 | 0 Plan & baseline | ✅ done | Plan, board, clean build, ASAN variant |
 | 1 Correctness sweep | ✅ done | ~14 verified fixes (heap, flak rand, ptr truncation, CRLF, save/load) + audit |
 | 2 Crash elimination | ✅ core done | Systemic `new[]/delete` heap corruption eliminated across IA+Campaign+Dogfight; objectiv OOB; chash heterogeneous-record; far-terrain texture-delete crash |
-| 3 Rendering correctness | 🔄 PO-gated | Runway candidate fix ready; far-terrain crash fixed; `glClear` race + terrain-through-MFD open (need eyes) |
+| 3 Rendering correctness | 🔄 PO-gated | Runway candidate fix ready; far-terrain crash fixed; `glClear` race open; terrain-through-MFD **not reproduced** (MFD-1 S1, 2026-09-15: 0.0% terrain-coloured pixels in both MFDs against a 42.3% control in the same frame) |
 | 4 Feature coverage | 🔄 partial | IA/Campaign/Dogfight soaked clean; TE nav inconclusive; ACMI/night/weather visual |
 | 5 Cross-platform discipline | ✅ done | Windows build green (risk LOW); choice-point recs |
 | 6 Packaging | ✅ done | `install.sh` (ingests user data) + `build-appdir.sh` (relocatable AppDir) |
@@ -14811,3 +14811,36 @@ player can feel; matching the oracle keeps a mode that silently does not work. T
 either answer is one env var away, and the A/B above is the evidence for the choice.
 
 **AP-1: 1 sprint. Reproduced, measured, not decided.**
+
+### MFD-1 S1 (Opus 5, 2026-09-15) — Sprint 3's "terrain bleeds through the MFD screens" does **not reproduce**, measured in both pit views with the detector proved in the same frame
+
+`docs/SPRINT3_RENDERING.md` Issue B has been open since Sprint 3 as *"need eyes"*, with a candidate
+fix already designed (`FF_MFD_DEPTH=1`, make the XYZRHW instrument quads write depth at the near
+plane). It was deferred behind Issue A (landing), which has since closed. **Before building the fix,
+this sprint asks whether the symptom is still there.**
+
+**Measured** (Instant Action, capture at 45 s, 1024×768) — the fraction of **terrain-coloured**
+pixels (green-dominant, mid-brightness) inside each MFD rectangle:
+
+| region | 3-D virtual pit (`-v 4`) | 2-D pit (`-v 1`) |
+|---|---|---|
+| left MFD (200,580)-(345,715) | **0.0%** (0 / 19,575) | **0.0%** |
+| right MFD (660,580)-(805,715) | **0.0%** (0 / 19,575) | **0.0%** |
+| centre console | 0.3% | — |
+| **outside the canopy (control, same frame)** | **42.3%** | 5.1% (sky band) |
+
+⭐ **The control is the point.** A detector that reports 0% everywhere has measured nothing, so the
+same rule was run over a region that IS terrain in the same picture: 42.3%. The detector can see
+terrain; there is none inside the MFDs. Both views were confirmed to have actually switched
+(`[FF_VIEW_SCRIPT] view mode 1 / 4`) rather than trusting the flag.
+
+**So `FF_MFD_DEPTH` should NOT be built.** The change would make instrument quads write depth to fix a
+bleed-through that this build does not have, and an un-needed depth write in the XYZRHW path is a
+regression risk for everything else drawn there.
+
+⚠️ **What this does not settle:** one scenario (IA), one time of day, one resolution. The original
+report came from a different build and possibly a different MFD mode. If the PO still sees it, the
+capture recipe above is the way to show it — and the number to quote is the percentage, not an
+impression.
+
+**MFD-1: 1 sprint. Not reproduced; the prepared fix is withdrawn rather than shipped.**
