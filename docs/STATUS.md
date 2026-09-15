@@ -15689,3 +15689,60 @@ original because our side could not make one.
 multi-aircraft mission is the next thing to record, and it is now worth doing.
 
 **ACMI-3: 2 sprints. Closed.**
+
+### ACMI-4 (NEW, 2026-09-15, Opus 5) — ⭐⭐ **our tape against the PO's gold tape of the SAME mission: 629 features to 724, the same ownship type, the same altitude band.** And the "zero features" scare was geography, not a defect
+
+ACMI-3 S2 produced this port's first loadable tape and noted it carried **one entity and zero
+features**, where the gold tapes carry 150/376 and 1/724. A tape with no world in it would be a real
+defect — the ACMI viewer would play an aeroplane against nothing — so ACMI-4 asks whether the
+recorder is dropping features or the mission simply had none.
+
+⭐ **The instrument: `FF_DEBUG_ACMI=1` now counts what the two walkers in `InitACMIRecord`
+(`simdrive.cpp:2046`) actually offer.** That function is the ONLY writer of feature records and it
+runs **once**, when recording starts — so whatever the lists hold at that instant is the whole world
+the tape will ever contain.
+
+⛔ **TE-03 "Max Turn at Corner"** (the FM-GOLD mission, which starts over the sea at 20,000 ft):
+
+    [acmi] t=33000.0 movers=0 features=0 (featureList=0x5ff50ad8b170)
+
+⭐ **TE-09 "Landing Final Approach"** — same binary, same hook, a mission that starts near an airbase:
+
+    [acmi] t=32408.3 movers=0 features=608 (featureList=0x60c002e7d3b0)
+
+**So the recorder was never broken.** The zero was the harness's geography, the same trap this port
+has fallen into before (`ff-harness-geography-and-probe-population`: TEs start over sea, and a zero
+there measures the map, not the code). ACMI-3 S2's "one entity, zero features" stands as a fact about
+that mission and must not be repeated as a fact about the port.
+
+⭐⭐ **And because the PO's gold store holds a tape of THIS EXACT MISSION, the recorder can now be
+scored rather than described** — `260808_landing_final_approach.vhs` against our `TAPE0005.vhs`:
+
+| | gold | ours |
+|---|---|---|
+| entities | 1 | **1** |
+| features | 724 | **629** (87%) |
+| start time | 32417.0 s (09:00:17) | **32408.4 s (09:00:08)** |
+| ownship type | 2564 | **2564** |
+| ownship altitude band | 28 .. 2003 ft | **45 .. 2013 ft** |
+| play time | 195.9 s | 95.3 s |
+| ownship samples | 716 | 177 |
+| samples per second | **3.65 Hz** | **1.86 Hz** |
+
+**The world, the aircraft and the flight path agree** — same mission clock to within 9 seconds, same
+ownship type, and an altitude band matching the gold's top to 10 ft.
+
+⚠️ **Two gaps, both measured, neither explained yet:**
+
+* **Our ownship is sampled at half the gold's rate** (1.86 Hz vs 3.65 Hz). ACMI-3's TE-03 tape ran at
+  3.46 Hz, so the rate is not a constant of our recorder — it moves with something. For an instrument
+  the PO uses to measure *"sim/pilot performance"*, half the samples is half the resolution.
+* **95 features missing** (629 vs 724, 13%). Our own walker offered 608 at record start and the tape
+  holds 629, so features arrive from more than that one snapshot; the shortfall may be range-based
+  (what was instantiated near the aircraft at that moment) rather than a dropped write.
+
+**S2:** find what sets the position sample rate — the gold's 3.65 Hz and our 1.86 Hz on the same
+mission is the sharper of the two, it is a number on both sides, and it bounds every measurement
+anyone takes from one of our tapes.
+
+**ACMI-4: 1 sprint. The recorder exonerated, and scored against gold for the first time.**

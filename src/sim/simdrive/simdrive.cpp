@@ -2060,6 +2060,7 @@ void SimulationDriver::InitACMIRecord(void)
     ACMITodOffsetRecord todRec;
     ACMIFeaturePositionRecord featPos;
     ACMIFeatureStatusRecord featStat;
+    int nMover = 0;   /* ACMI-4 S1: census of what the walkers offer -- see the trace below */
 
     // record the tod offset
     todRec.hdr.time = OTWDriver.todOffset;
@@ -2284,11 +2285,13 @@ void SimulationDriver::InitACMIRecord(void)
             gACMIRec.GenPositionRecord(&genPos);
         }
 
+        nMover++;
         // next one in the loop
         theMover = (SimMoverClass*)objectWalker.GetNext();
     }
 
     // Do Each feature
+    int nFeat = 0;
     theObject = (SimFeatureClass*)featureWalker.GetFirst();
 
     while (theObject)
@@ -2321,10 +2324,31 @@ void SimulationDriver::InitACMIRecord(void)
         featStat.data.prevStatus = (theObject->Status() bitand VIS_TYPE_MASK);
         gACMIRec.FeatureStatusRecord(&featStat);
 
+        nFeat++;
         // next one in the loop
         theObject = (SimFeatureClass*)featureWalker.GetNext();
     }
 
+    /* ACMI-4 S1 (2026-09-15): our first loadable tape (ACMI-3 S2) carried ZERO features, while both
+       of the PO's gold tapes carry hundreds -- 376 on a 150-entity instant action and 724 on a
+       SOLO landing flight, so it is not a "nothing else was flying" effect. Count what each walker
+       actually offers this pass, so an empty tape section can be told apart from an empty world.
+       FF_DEBUG_ACMI=1 (shared with the recorder's other traces), printed once a second. */
+    if (getenv("FF_DEBUG_ACMI"))
+    {
+        static float lastPrint = -1.0f;
+        float now = SimLibElapsedTime * MSEC_TO_SEC;
+
+        if (lastPrint < 0.0f or now - lastPrint >= 1.0f)
+        {
+            lastPrint = now;
+            MonoPrint("[acmi] t=%.1f movers=%d features=%d (featureList=%p)\n",
+                      now, nMover, nFeat, (void*)featureList);
+            printf("[acmi] t=%.1f movers=%d features=%d (featureList=%p)\n",
+                   now, nMover, nFeat, (void*)featureList);
+            fflush(stdout);
+        }
+    }
 }
 
 #if 0
