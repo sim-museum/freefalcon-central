@@ -14695,3 +14695,32 @@ the window LOAD-1 is about, so the item's central claim becomes measurable in th
 
 **LOAD-1: 3 sprints this pass, two of them spent correcting readings taken from a statistic instead
 of a picture. The item is now one knob away from its own measurement.**
+
+### LOAD-1 S8 (Opus 5, 2026-09-15) — time compression runs, and it OVERSHOOTS: the campaign advances to Day 2 and the flight departs without us
+
+S7 found the campaign path waits at `T− 00:50:43` and named `FF_CAMP_TIMECOMP` as the missing knob.
+S8 set it to 1024.
+
+⭐ **The clock runs and the UI comes alive.** With compression the luma changes **every second**
+(110.9, 110.1, 110.9 …) where the uncompressed run sat flat at 171.4 for 100 s. The screenshot at
+200 s shows the campaign at **Day 2, 5:47:04** — from Day 1, 9:00 at the start.
+
+⛔ **And that is too far.** The same screenshot shows the frag order **empty** — `TASK: Not
+available`, `TOT: Not available`, `TGT: Not available`, and the pilot panel gone. **The fifty-minute
+countdown passed in a few seconds of wall clock and the flight took off without us.** The 8th click
+at 100 s had nothing left to click.
+
+⭐ **So the knob works and the recipe's problem is now a TIMING window, precisely bounded:** the
+takeoff chooser appears at ~79 s with `T− 00:50:43`; at 1024× that reaches zero in about **three
+seconds**. The click must land inside that window, and at 100 s it was twenty seconds late.
+
+**S9 — two ways, cheapest first:** (1) keep 1024× but move the takeoff click to ~82 s, right behind
+the chooser; or (2) use a modest compression (64× gives ~47 s of wall clock for the same countdown)
+and keep the click where it is. **Either way `[loadluma]` is the oracle** — it shows within a second
+whether the click landed, and the load window LOAD-1 is about begins the moment it does.
+
+*(Also confirmed again in this run: `SetDrawFlag` is called **once**, `SetDrawFlag(1)` at startup.
+Three runs now, on two paths, with no drawflag-off window anywhere.)*
+
+**LOAD-1: 4 sprints this pass — AT THE CAP. The campaign clock is under control and the load is one
+correctly-timed click away.**
