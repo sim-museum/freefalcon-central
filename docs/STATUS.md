@@ -15420,3 +15420,45 @@ same statistic — that is now a single run away, where before this sprint it wa
 ACMI-3.
 
 **FM-GOLD-1: 1 sprint. The measurement chain is closed end to end and cross-validated.**
+
+### FM-GOLD-1 S2 (Opus 5, 2026-09-15) — the envelope run needs a different MISSION, and the game ships the exact one: **`03 Max Turn at Corner`**
+
+S1 closed the measurement chain. S2 asked what to fly, and found two reasons TE-09 cannot answer the
+question — plus the mission that can.
+
+**1. TE-09 is an autopilot approach, not a manoeuvre.** Decoded from our own recording: 223 kts
+median, **turn p95 3.51 °/s**, 44–2013 ft. The gold's engagement tapes sit at **13–18 °/s p95** with
+**6–7 g** peaks at 380–450 kts. Comparing the two would be comparing a cruise with a fight, which S1
+already flagged and S2 confirms with the numbers side by side.
+
+**2. Our recording holds exactly ONE entity — and that is the mission, not the recorder.** A strict
+walk of `acmi0000.flt` over the run's own time window:
+
+    record-type bytes seen: 8 x6396, 2 x629, 12 x609, 7 x258, 3 x177, ...
+    type-3 (position) objTypes: {2564: 177}      uids: {1: 177}
+
+177 position records, all the ownship, against 51–299 entities with position chains on the gold
+tapes. ⚠️ **Not claimed as a defect:** `ACMIRecorder::GenPositionRecord` is called from
+`grndmain.cpp` (ground units), `simeject.cpp` and `bombmain.cpp`, so the recorder is not
+player-only. TE-09 "Landing Final Approach" simply has nothing else flying. **A single-aircraft
+mission is the wrong population to conclude anything from** — the same trap FM-GOLD-1 S1 avoided when
+`--csv` handed it a missile.
+
+⭐ **3. And the right mission ships with the game.** `campaign/SAVE/` holds the F-16 training
+syllabus, including:
+
+    03 Max Turn at Corner.trn        <- the gold's peak measurement, by name
+    04 Max Turn Above Corner.trn
+    05 Max Turn Below Corner.trn
+
+**`03 Max Turn at Corner` is a maximum-rate turn at corner velocity** — precisely the 17.5–22.6 °/s
+at 380–450 kts the gold tapes peak at. It needs no new input hook and no hand-flying: the TE puts the
+aircraft in the state the measurement wants.
+
+**S3:** point the recipe at TE-03 instead of TE-09 — the only change is which row the second UI click
+selects (`FF_UI_CLICK="624,745@8;210,247@14;…"`) — fly it with `FF_ACMI_RECORD=1 FF_ACMI_STOP=<sec>`,
+and run the same statistic. One exploratory run is needed to find the row, because the list is
+clicked by pixel and TE-03 sits six rows above TE-09; that row index should then be **recorded in the
+harness**, not rediscovered.
+
+**FM-GOLD-1: 2 sprints. The comparison is now one correctly-aimed run away.**
