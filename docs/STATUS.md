@@ -14844,3 +14844,26 @@ capture recipe above is the way to show it — and the number to quote is the pe
 impression.
 
 **MFD-1: 1 sprint. Not reproduced; the prepared fix is withdrawn rather than shipped.**
+
+### DELIVERY 260915 (Opus 5, 2026-09-15) — a new FreeFalcon AppImage, and the shipped binary is shown to run today's code
+
+The PO's newest FreeFalcon image was **260913**. Since then RECON-3's viewport fix, BOOM-4's
+drawable-lag fixes and JOINFAIL-1's verified recovery guards have landed.
+
+`~/Documents/260915/FreeFalcon-x86_64-260915.AppImage` (3.09 GB, packed 03:39; 11 GB of game data).
+
+**VERIFIED BY RUNNING IT:**
+
+1. It launches and paints its UI — `[Screenshot] Saved 1024x768 framebuffer … nonblack=92.2%
+   nonwhite=100.0% distinct15bit=654`.
+2. It carries **today's** code, proved by exercising a hook that did not exist yesterday:
+
+       [FF_TEST_JOINFAIL] scheduled at 8000ms
+       [FF_TEST_JOINFAIL] raising FM_JOIN_FAILED at 8010ms (gMainHandler=up)
+       [FF_TEST_JOINFAIL] handing CampaignJoinFail a NULL gMainHandler
+       [joinfail] CampaignJoinFail entered: gMainHandler=(nil) noguard=none
+
+   …and **0 crash signatures**: the guarded recovery path survives inside the shipped artefact, not
+   only in the dev build where JOINFAIL-1 measured it.
+
+**DELIVERY 260915: 1 sprint.**
