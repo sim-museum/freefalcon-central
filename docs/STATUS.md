@@ -15369,3 +15369,54 @@ campaign sorties in `260808/`, so a comparable engagement is reachable.
 **Filed as its own item because it is a yardstick, not a defect.** Nothing is claimed broken here.
 
 **FM-GOLD-1: 0 sprints — the oracle is built.**
+
+### FM-GOLD-1 S1 (Opus 5, 2026-09-15) — ⭐⭐ **our half of the comparison works**: an automated flight now leaves a readable recording, cross-validated against the run's own traces. And the tool's `long` size was wrong by a factor of two
+
+The oracle was built with the item. S1 owed the other side: can an automated flight in THIS build be
+measured the same way?
+
+⭐ **1. Yes, and the hooks already existed.** `FF_ACMI_RECORD=1` starts the recording as the mission
+begins and `FF_ACMI_STOP=<sec>` flushes it, both `FF_LINUX` additions already in `otwloop.cpp`. A
+200 s TE-09 run with both set writes `acmibin/acmi0000.flt`, 227 KB:
+
+    [ACMI] FF_ACMI_RECORD: starting recording
+    [ACMI] FF_ACMI_STOP: stopping recording -> tape flushed
+
+⛔ **2. The `.vhs` conversion still does not happen for an automated run — and the log shows why, in
+its ORDER:**
+
+    [ACMI] FF_ACMI_IMPORT: converting acmibin/acmi*.flt -> TAPEnnnn.vhs   <- at UI entry
+    [ACMI] FF_ACMI_IMPORT: done                                          <- nothing to convert yet
+    [ACMI] FF_ACMI_RECORD: starting recording                            <- the flight
+    [ACMI] FF_ACMI_STOP: stopping recording -> tape flushed              <- the .flt is written HERE
+
+The import runs on **return to the UI**; a harness that exits by timeout never returns, so the flight
+it just flew is never converted. That is **ACMI-3** ("a recorded flight can never become a loadable
+tape"), reproduced with the mechanism visible. `TAPE0001/0002.vhs` in `acmibin` are the game's own
+**2008** demo tapes (1.3 s and 0.5 s of play) — not ours, and not evidence of anything.
+
+⭐⭐ **3. But it does not block measurement, because the `.flt` is readable — once the layout is
+right.** `read_flt`'s own comment says the `long` is native, *"8 bytes from our 64-bit build"*.
+**The data says 4.** A live recording decodes as
+
+    BYTE type=3 | float time | int32 objType | int32 uid | float x,y,z,yaw,pitch,roll
+
+— 37 bytes plus a 4-byte tail — and the first position record reads **objType 2564, uid 1**, which is
+exactly the ownship type on the PO's gold tapes. With `longsize=8` the same file yields **one** record
+at t=0; with 4 it yields **177 over 95 s**. Default changed, with the evidence in the comment.
+
+⭐ **4. And it cross-validates.** The decoded run:
+
+    altitude   44 .. 2013 ft      speed median 223 kts, max 321      turn p95 3.51 deg/s
+
+which is the TE-09 autopilot approach exactly as `[GROUND]` and `[NAV]` independently recorded it
+(2011 ft down to 58 ft, gentle route-following turns). Two instruments, same flight, same numbers —
+the parse is right.
+
+⚠️ **This run is NOT an envelope test and must not be compared with the gold's.** An autopilot
+approach at 223 kts and 3.5 °/s against a dogfight at 13–18 °/s would be comparing a cruise with a
+fight. **S2 is the matching run**: a TE with a hard turn, `FF_ACMI_RECORD` + `FF_ACMI_STOP`, and the
+same statistic — that is now a single run away, where before this sprint it was blocked behind
+ACMI-3.
+
+**FM-GOLD-1: 1 sprint. The measurement chain is closed end to end and cross-validated.**

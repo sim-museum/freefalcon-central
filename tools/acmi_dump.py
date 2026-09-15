@@ -204,7 +204,14 @@ def main():
 # Records are located by signature scan rather than sequential parse, because
 # several record types have sizes we do not model.
 # ---------------------------------------------------------------------------
-def read_flt(path, longsize=8, actype=None, tmin=0.0, tmax=1e9):
+def read_flt(path, longsize=4, actype=None, tmin=0.0, tmax=1e9):
+    # FM-GOLD-1 S1 (2026-09-15): the default was 8, on the reasoning above that our 64-bit build
+    # writes a native `long`. THE DATA SAYS 4. A live recording from this build decodes as
+    #     BYTE type=3 | float time | int32 objType | int32 uid | float x,y,z,yaw,pitch,roll
+    # -- 37 bytes, then a 4-byte tail before the next record -- and the first position record reads
+    # type=2564 uid=1, which is exactly the ownship type on the PO's gold tapes. With longsize=8 the
+    # same file yields ONE record at t=0; with 4 it yields 177 over 95 s whose altitude and speed
+    # match the run's own [GROUND]/[NAV] traces. Cross-validated, so the default changes.
     d = open(path, 'rb').read()
     out = []
     reclen = 5 + 4 + longsize + 24
