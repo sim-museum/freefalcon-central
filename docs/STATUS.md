@@ -15003,3 +15003,38 @@ persists AP settings between sessions, and nothing in the script set it. The fla
 keypress, not a race.
 
 **LANDAP-1: 1 sprint. Root-caused; the harness fix is in hand; the landing itself is S2.**
+
+### LANDAP-1 S2 (Opus 5, 2026-09-15) — route-following is ON and it still does not land, and the reason may be underneath: **every terrain elevation source reads 0.00 for the whole approach**
+
+S1's corrected recipe (`FF_SIM_KEY="0x1e@5;C0x02@12"`) puts the autopilot in `FollowWP()`. S2 flies it
+for 620 s.
+
+**It still never reports `onGround=1`.** The aircraft follows the plan, descends to **43.86 ft**, and
+the sortie ends — after which `[GROUND]` shows a fixed camera position and `player(0,0)`, i.e. the
+player aircraft is gone.
+
+⭐ **And the same trace carries something more interesting than the autopilot.** In **every** sample
+of **every** approach run this session:
+
+    [GROUND] pos=(715064.1, 1314273.0) acZ=-232.59 groundZ=0.00 aboveGround=232.59
+             vpAccurate=0.00 vpApprox=-0.00 onGround=0 dead=0 physLod=0 drawn=0.00
+
+**`groundZ`, `vpAccurate`, `vpApprox` and `drawn` are all 0.00, and `physLod` is 0, for the entire
+flight.** Four independent elevation sources — the physics query, two viewpoint queries and the drawn
+mesh — agree on zero, all the way to Kunsan, whose runway the ACMI gold puts at **~28 ft** through
+rollout (Sprint 20/22).
+
+⚠️ **So "the autopilot does not land" may be the wrong framing.** `aboveGround` is computed as
+`groundZ − acZ`; with `groundZ` pinned at 0 the sim believes the aircraft is 8.9 ft above sea level
+when it is over a runway at 28 ft. **You cannot touch down on terrain that reads zero** — and the
+`OnGround()` latch is what every landing measurement in this project keys off.
+
+⚠️ **Not yet established:** whether the elevation really is unloaded (a streaming/LOD failure —
+`physLod=0` is suggestive) or whether this particular query path returns 0 by design away from a
+loaded tile, in which case the number is a trace artefact and the landing failure is elsewhere. Those
+are different defects and the trace cannot tell them apart. **S3 settles it the cheap way:** run the
+TE-02 GROUND START, where the aircraft is provably sitting on the runway, and read the same four
+numbers. If they read 0.00 there too, the query is lying everywhere and this is a measurement bug; if
+they read ~28 ft, the elevation is genuinely missing on the approach and that is the landing defect.
+
+**LANDAP-1: 2 sprints.**
