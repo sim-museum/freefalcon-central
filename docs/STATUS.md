@@ -15746,3 +15746,56 @@ mission is the sharper of the two, it is a number on both sides, and it bounds e
 anyone takes from one of our tapes.
 
 **ACMI-4: 1 sprint. The recorder exonerated, and scored against gold for the first time.**
+
+### ACMI-4 S2 (Opus 5, 2026-09-15) — ⭐⭐ **the tape's sample rate is a read-out of the SIM LOOP rate, and ours runs at 31 Hz where the gold's implies 58 Hz.** The FPS counter says 59 the whole time
+
+S1 measured our ownship at 1.86 Hz against the gold's 3.65 Hz on the same mission and called the
+cause unexplained. It is now measured, and it is not about the recorder.
+
+⭐ **The gate.** `aircraft.cpp:2170` writes a position record `if (gACMIRec.IsRecording() and
+(SimLibFrameCount bitand 0x0000000f) == 0)` — **one sample per 16 sim frames**, nothing else. So
+
+    tape sample rate = sim loop rate / 16
+
+and the tape is a **frame-rate meter that cannot be fooled by the renderer**.
+
+⚠️ **Reasoning from the constants would have got this wrong**, which is why the instrument prints
+both clocks at the write itself (`FF_DEBUG_ACMI=1`, first 30 writes). `SimLibMajorFrameTime` is
+0.06 s and `simdrive.cpp:730` advances `SimLibElapsedTime` by exactly that per frame — predicting
+0.96 s between samples, **1.04 Hz, which matches neither side**. The clock is overwritten from
+`vuxGameTime` (`simdrive.cpp:991/1001/1022`) and the timer thread (`timerthread.cpp:203`), so sim
+time follows REAL time and the frame count advances at whatever rate the loop achieves.
+
+⭐⭐ **Measured, 28 consecutive writes, steady state:**
+
+    [acmirate] #2  frame=32  (+16)  simtime=32413.630 (+0.513)
+    [acmirate] #3  frame=48  (+16)  simtime=32414.140 (+0.509)
+    [acmirate] #4  frame=64  (+16)  simtime=32414.662 (+0.521)
+    ...
+    mean interval 0.512 s -> 1.95 Hz;  0.0320 s per sim frame -> 31.2 Hz sim loop
+
+| | sim loop | tape rate |
+|---|---|---|
+| **gold** (`260808_landing_final_approach.vhs`) | **58.4 Hz** | 3.65 Hz |
+| **ours** (`TAPE0005.vhs`, same mission) | **31.2 Hz** | 1.95 Hz |
+
+**Our simulation steps a little over half as often as the original's.**
+
+🔴 **And the renderer says nothing is wrong.** The same run's log carries `FPS: 59 (avg over 5 sec)`
+throughout. The frame-rate counter measures the DRAW loop; the sim loop underneath it runs at 31 Hz.
+Anyone watching the FPS number would conclude the port performs correctly — which is the
+`instrument-bookkeeping-lies` trap exactly, and it is why this needed a measurement the renderer
+cannot reach.
+
+**What it costs the PO.** Physics, autopilot and AI all step on the sim loop, so every one of them
+gets half the updates the original gave them, and every quantity this port has measured from a tape
+— LANDAP's glide path, FM-GOLD's turn rates — was sampled at half the gold's resolution. It also
+makes the control loops coarser, which is felt rather than seen.
+
+⚠️ **Not yet attributed.** 31 Hz could be a fixed cap, a sleep, a vsync coupling, or genuine CPU
+cost; the gold's 58 Hz is one tape's figure, not a spec. **S3:** find what paces `SimCycle` — print
+the real time spent in the sim step next to the wall clock between steps, which separates "we are
+slow" from "we are waiting".
+
+**ACMI-4: 2 sprints. The recorder is a frame-rate meter, and it has caught something the FPS counter
+hides.**

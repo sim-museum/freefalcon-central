@@ -2207,6 +2207,32 @@ int AircraftClass::Exec(void)
             }
 
             gACMIRec.AircraftPositionRecord(&airPos);
+
+            /* ACMI-4 S2 (2026-09-15): the tape's sample rate is the ONE number that bounds every
+               measurement anyone takes from a recording, and S1 measured ours at 1.86 Hz against
+               the gold's 3.65 Hz on the same mission. The gate above fires every 16 counts of
+               SimLibFrameCount, and SimLibElapsedTime advances SimLibMajorFrameTime (0.06 s) per
+               count -- which predicts 0.96 s between samples, i.e. 1.04 Hz, and matches NEITHER
+               figure. So print the two clocks at the write itself rather than reasoning from the
+               constants. FF_DEBUG_ACMI=1, first 30 writes only. */
+            if (getenv("FF_DEBUG_ACMI"))
+            {
+                static int nrec = 0;
+                static unsigned lastFrame = 0;
+                static float lastT = 0.0f;
+                float tnow = SimLibElapsedTime * MSEC_TO_SEC;
+
+                if (nrec < 30)
+                {
+                    printf("[acmirate] #%d frame=%u (+%u)  simtime=%.3f (+%.3f)  id=%d\n",
+                           nrec, SimLibFrameCount, SimLibFrameCount - lastFrame,
+                           tnow, tnow - lastT, (int)Id().num_);
+                    fflush(stdout);
+                    lastFrame = SimLibFrameCount;
+                    lastT = tnow;
+                    nrec++;
+                }
+            }
         }
 
         if ( not IsLocal())
