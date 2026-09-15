@@ -15547,3 +15547,43 @@ alongside, so the ACMI-derived g and the sim's own can be compared rather than a
 
 **FM-GOLD-1: 4 sprints. The first manoeuvring automated flight in this port, and a 4x gap against
 the gold that is now precisely located but not yet attributed.**
+
+### FM-GOLD-1 S5 (Opus 5, 2026-09-15) — ⛔ **the pitch input saturates: 0.4 and 1.0 fly the same.** The 1.6 g ceiling is NOT the flight model's, and S4's gap must not be attributed to it
+
+S4 measured 1.6 g where the gold reaches 6–7 and said plainly that `pstick = 0.75` being
+three-quarters of a pull was an assumption. S5 tests it with three deflections over a 2.5x range,
+everything else identical:
+
+| `pstick` | samples | turn p95 | turn max | peak g | at kts | max bank |
+|---|---|---|---|---|---|---|
+| **0.40** | 292 | 1.07 | 4.56 | **1.7** | 396 | 67 |
+| **0.75** (S4) | 295 | 1.08 | 4.57 | **1.6** | 395 | 66 |
+| **1.00** | 314 | 1.10 | 127.18 ⚠ | 51.4 ⚠ | 441 | 65 |
+| gold | — | 13–18 | 17.5–22.6 | 6–7 | 380–450 | 106 |
+
+⛔ **The g does not move.** 0.4 gives 1.7 g, 1.0 gives the same flight — turn p95 **1.07 / 1.08 /
+1.10** across the whole range, bank **67 / 66 / 65**. *(The 127 °/s and 51 g at `pstick=1.0` are a
+single-sample spike — a yaw wrap between records, the same artefact the gold's own TAPE0007 shows at
+72 °/s. The p95 is 1.10, in line with the others, which is why p95 is the statistic and the maximum
+is not.)*
+
+⭐⭐ **So the input saturates and the limit is downstream of `af->pstick`.** Something recomputes or
+clamps that field between our write in the OTW cycle and the flight model integrating it.
+**S4's 4x gap against the gold therefore says nothing about the flight model** — it says our pitch
+command never reaches it. Attributing it would have been exactly the error this item has now avoided
+three times (the missile-as-ownship in S1, the preview-load in S3, the unverified stick scale here).
+
+⚠️ **Roll behaves differently and that is a clue.** `rstick = 0.8` does produce bank (0° → 66°),
+while `pstick` over 0.4–1.0 produces nothing measurable. A brief roll input can leave the aircraft
+banked with no sustained authority, so this does not prove roll survives either — but pitch is
+clearly the one being overridden.
+
+**S6 (next pass): write the field the sim reads.** `autopilot.cpp:99` reads
+`UserStickInputs.pstick/rstick` and the FLCS path writes `af->` from there, so our write is probably
+being overwritten on the sim thread each frame. Set `UserStickInputs` instead and repeat this exact
+three-point scale test — **if g then tracks the deflection, the input is live and the flight model
+can finally be judged against the gold; if it still saturates at 1.7 g, the clamp is real and IS the
+finding.** The test is now cheap and its answer is unambiguous either way.
+
+**FM-GOLD-1: 5 sprints this pass — OVER THE CAP, rotating off.** The item is one verified write away
+from the comparison it was built for.
