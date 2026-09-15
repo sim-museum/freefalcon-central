@@ -591,6 +591,31 @@ void OTWDriverClass::Cycle(void)
                     ffDrawn = FF_DrawnGroundLevel(pa->XPos(), pa->YPos());
                 }
 
+                /* LANDAP-1 S4: probe a FIXED point as well as the player's. Every elevation source
+                   reads 0.00 along the TE-09 approach; the question is whether the terrain system
+                   is broken in that run or the theatre really is at sea level there. Probing a
+                   known-good location (TE-02's airbase reads -26.00 ft) inside the SAME run answers
+                   it without comparing two runs. FF_GROUND_PROBE="x,y". */
+                if (const char* gp = getenv("FF_GROUND_PROBE"))
+                {
+                    float px = 0.0f, py = 0.0f;
+
+                    if (sscanf(gp, "%f,%f", &px, &py) == 2)
+                    {
+                        float pz = GetGroundLevel(px, py);
+                        float pdrawn = -99999.0f;
+
+                        if (renderer and renderer->viewpoint)
+                        {
+                            extern float FF_DrawnGroundLevel(float x, float y);
+                            pdrawn = FF_DrawnGroundLevel(px, py);
+                        }
+
+                        fprintf(stderr, "[GROUNDPROBE] at (%.1f, %.1f) groundZ=%.2f drawn=%.2f\n",
+                                px, py, pz, pdrawn);
+                    }
+                }
+
                 fprintf(stderr,
                         "[GROUND] pos=(%.1f, %.1f) acZ=%.2f groundZ=%.2f "
                         "aboveGround=%.2f vpAccurate=%.2f vpApprox=%.2f onGround=%d dead=%d "

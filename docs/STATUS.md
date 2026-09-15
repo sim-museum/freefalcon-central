@@ -15070,3 +15070,39 @@ is (b) and is a terrain-streaming defect on the approach corridor; a destination
 elevation is (a) and the landing is a glidepath/time problem.
 
 **LANDAP-1: 3 sprints.**
+
+### LANDAP-1 S4 (Opus 5, 2026-09-15) — the fork is settled INSIDE ONE RUN: the terrain system works, and the ground under the approach really is sea level
+
+S3 left two readings — the elevation genuinely being 0 along the approach, or the terrain not being
+loaded there — and named the discriminator. New `FF_GROUND_PROBE="x,y"` samples a FIXED point
+alongside the player's every second, so both readings are taken by the same process in the same
+flight.
+
+Probing TE-02's airbase (1044566, 1270503), which a ground start measured at **−26.00 ft**, while
+flying the TE-09 approach 300 km away:
+
+    [GROUNDPROBE] at (1044566.0, 1270503.0) groundZ=  0.00  drawn=  0.00      <- first sample, load-time
+    [GROUNDPROBE] at (1044566.0, 1270503.0) groundZ=-21.78  drawn=-21.78
+    [GROUNDPROBE] at (1044566.0, 1270503.0) groundZ=-21.78  drawn=-21.78
+    [GROUND]      pos=(716434.0, 1329010.5) acZ=-2012.27 groundZ=0.00 drawn=0.00
+
+⭐ **The terrain system returns a real elevation for a known location in the very run where the
+player's own position reads zero.** So the query is not broken and the data is not missing globally:
+**the ground under the TE-09 approach is genuinely at sea level — the aeroplane is over WATER.**
+
+⭐ **Which reframes the item again, and simplifies it.** The aircraft is not descending toward a
+mis-read runway; it is descending toward the sea, short of land, and the sortie ends there. S2's
+"route-following is on and it still does not land" plus this says the approach **never reaches the
+airfield** — a navigation/termination question, not a terrain or contact one.
+
+*(The probe reads −21.78 where the ground start read −26.00: the same coordinates sampled at a
+different LOD. Both are real elevations; the difference is not the point here and is not claimed as
+one.)*
+
+**S5 (next pass):** print the distance from the aircraft to the destination waypoint each second. If
+it converges and the sortie simply runs out of time, the item is a duration problem and the recipe
+needs a longer run; if it plateaus or diverges, the route's final leg does not end at the runway and
+that is the defect.
+
+**LANDAP-1: 4 sprints — AT THE CAP. Root-caused to the autopilot mode (S1), corrected (S1), and the
+terrain suspicion raised (S2) and eliminated (S3, S4) without leaving the item.**
