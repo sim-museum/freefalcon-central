@@ -16550,3 +16550,20 @@ decision** — every speed-gated cue in the sim reads `GetKias()`.
 
 **GOLDVID-FF-1: 3 sprints. The self-check is run and passed; the discrepancy it exposed is real,
 measured, and upstream.**
+
+**GOLDVID-FF-1 S2 addendum (S3, same night)** — ⛔ **the MiG Alley row of S2's cross-port table is
+wrong and is corrected here.** S2 wrote *"MiG Alley: HUD airspeed is TRUE airspeed, Mach is
+`Speed / a(alt)`"*. Tonight's MA STATEMATCH-1 S6 measured both halves and neither holds:
+`MODINT.CPP:805` sets the info line's speed from `pModel->Speed = VecLen(Vel)` — **ground** speed, the
+same shape as FF's `GetVt()` — while `MODEL.CPP:1474` computes Mach from `AirSpeed = VecLen(wind-Vel)`
+over `sqrt(402.7 * AmbTemp)`, with `AmbTemp` carrying a **per-mission** sea-level temperature. The
+corrected table:
+
+| sim | HUD airspeed is… | Mach is… | atmosphere |
+|---|---|---|---|
+| **MiG Alley** | ground speed | `TAS / sqrt(402.7·AmbTemp)` | **per-mission** (Korean seasonal table + random walk) |
+| **FreeFalcon** | CAS **of ground speed** | `af->vt / (sqrt(ttheta)·AASL)` | **ISA, altitude only** |
+
+**Both sims feed their airspeed box from world-frame velocity and their Mach from true airspeed.**
+That is the durable cross-port fact; the ISA-vs-mission atmosphere is the one that decides whether a
+gold-free Mach check is valid at all (FF yes, MA no).
