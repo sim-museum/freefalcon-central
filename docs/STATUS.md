@@ -16321,3 +16321,51 @@ and guidance. Nothing to fix; worth knowing before anyone "improves" either half
 **GOLDVID-FF-2: 3 sprints. Of the item's four uses, three are delivered (RWR symbology captured,
 ours compared, IR asymmetry verified); chaff-bundle counts and launch-to-impact timing remain and
 both need a launch event located in the gold's eight minutes.**
+
+## GOLDVID-FF-2 S4 (Opus 5, 2026-09-16) — ⭐⭐ **the launch event is FOUND: a red `MISSILE LAUNCH` annunciator, dark at t=440 s and lit at t=450 s** — ⛔ **and my attempt to narrow it to 2 s was void, caught by its own validity check**
+
+The item's last two uses — chaff bundles against `ChaffChance`, and launch-to-impact timing — were
+both blocked on the same thing: **finding a launch in the gold's eight minutes.** Found.
+
+**Method.** Sampled the flight segment every 10 s (t=160…450) and measured the RWR region. Most
+cockpit frames sit at ~1,100 green pixels; **t=440 and t=450 jump to 4,623 and 5,001**. Inspecting
+those two:
+
+| t | `MISSILE LAUNCH` annunciator |
+|---|---|
+| 440 s | box present, **dark** |
+| 450 s | **LIT — red `MISSILE` over white `LAUNCH`** |
+
+⭐ **So a radar launch in the real game raises a red `MISSILE LAUNCH` lamp on the threat-warning
+panel** — a large, unambiguous, machine-detectable signal. At t=450 the scope also shows a **newly
+diamonded threat at ~3 o'clock**. Three o'clock is **east**, and TE 28's eastern threat is the
+**SA-6** — semi-active radar, which *should* warn. **The radar half of the asymmetry is now confirmed
+in the gold**, complementing S3's proof that the IR half cannot warn in our port.
+
+⛔⛔ **And the narrowing attempt failed — reported because the failure is the useful part.** I sampled
+t=442/444/446/448 and got "red pixels: 0, dark" for every one, which would bracket the launch to
+**448–450 s**. **That conclusion is void.** Adding a presence check — counting the pale grey
+`LAUNCH` legend that proves the box is *in the crop at all* — gives:
+
+| t | red (lit?) | pale (box present?) | verdict |
+|---|---|---|---|
+| 440 | 0 | **96** | box present, genuinely dark |
+| 442–448 | 0 | **0–10** | **box NOT in crop — reading means nothing** |
+| 450 | 40 | 39 | lit (confirmed visually) |
+
+**The view pans between frames, so a fixed crop stops containing the panel**, and "no red" silently
+became "no panel". Without the presence check I would have reported a 2-second bracket built on four
+empty measurements. **This is the third time tonight a fixed crop has produced a confident wrong
+number** (the BoB mirror diff, the Julia disc aspect, now this) — on a *windowed, hand-panned* gold
+capture, a fixed region is simply not a valid instrument. [[gate-frame-must-match-the-eye]]
+
+**So the honest bracket is 440 s → 450 s**, and the lit/unlit verdicts at those two times rest on the
+images, not the counter.
+
+**S5 (a new pass — this item is at its 4-sprint cap):** narrow the launch by **tracking the panel**
+rather than assuming its position — locate the threat-warning bezel per frame, then read the lamp
+inside it. With the launch time pinned, launch-to-impact timing and the chaff-bundle count both
+follow directly, and both have a clean start signal now that the lamp is identified.
+
+**GOLDVID-FF-2: 4 sprints — at cap, rotating off. Symbology captured (S1), ours compared and correct
+(S2), IR asymmetry proved structurally (S3), launch event located (S4).**
