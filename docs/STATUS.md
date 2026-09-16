@@ -16163,3 +16163,53 @@ command-guidance law. So SA-8 vs SA-6 differences seen on the video are doctrine
 guidance models, and must not be "fixed" by inventing a distinction the engine does not have.
 
 **Status: 2 items filed, 0 sprints. GOLDVID-FF-1 has already paid for itself.**
+
+## GOLDVID-FF-2 S1 (Opus 5, 2026-09-15) — ⭐⭐ **the RWR and HSD, from the real game, on record for the first time** — our threat symbology has never had an oracle and now has one
+
+The item listed four things the missile video could settle. This sprint does the enabling half:
+confirming the footage contains them, and capturing the reference.
+
+**Screens visited** (`260915_missile_threat.mp4`, 8m 16s): aircraft selection (t≈60) → **TE briefing
+map titled "28 MISSILE THREAT"** with the route, `STRAIGHT SWEEP`, `TASK: Sweep`, `TGT: west of
+Bergen` (t≈330) → **full-cockpit flight** (t≈150–460) → game closed by t≈480.
+
+⭐ **Crucially it is the FULL PIT, not a HUD-only view.** Both threat displays are on screen and
+legible, which is what makes the item possible at all.
+
+### The RWR — "THREAT WARNING PRIME", left glareshield
+
+Zoomed 6×, the real game's scope draws:
+
+* **two concentric rings** plus **crosshairs** at 12/3/6/9 and **tick marks** around the rim;
+* a **priority threat as a bright yellow alphanumeric inside a DIAMOND outline**, at its bearing
+  (here ~11–12 o'clock, just inside the inner ring);
+* a **secondary threat as a dim plain character**, no diamond, further out (~7–8 o'clock);
+* adjacent annunciator boxes — `HANDOFF` with green bars, `MODE`, and a third — lit green.
+
+**So brightness AND outline both carry meaning: diamond + bright = the one about to kill you.** That
+is a concrete, gradeable specification, and our RWR has never been compared with anything.
+
+### The HSD — right MFD
+
+* `DEP DCPL NORM` / `CNTL` top, `SWAP FLCS SMS [HSD] DCLT` bottom with HSD boxed;
+* range **15** nm with an up-triangle; heading/course **328 / 30** in cyan; cyan steering line;
+* **white range rings**, and — the part that matters — **orange/tan LETHAL-RADIUS rings** drawn at
+  different radii, with an orange **`8`** near the centre.
+
+**That `8` is almost certainly the SA-8**, the northern threat in TE 28, and those orange rings are
+exactly the per-threat lethal radii the Falcon 4.0 manual's Figure 28-7 warns about (*"the scope
+displays lethal radius for a given threat and not a constant range scale"*). **We now have a picture
+of the thing the manual only describes.**
+
+⚠️ **What is NOT established, and I am not claiming it.** The alphanumerics inside the symbols are
+**at the edge of legibility** at this capture scale (windowed desktop recording). I read the HSD's
+`8` with reasonable confidence and did **not** resolve the RWR symbol's character. **Identifying which
+threat is which from this video needs either a larger capture or correlation with the mission's known
+layout — not squinting.** [[instrument-bookkeeping-lies]]
+
+**The remaining three uses from the item are unblocked and unstarted:** the IR-vs-radar launch-warning
+asymmetry (the SA-13 should give **no** warning at all), how many chaff bundles the real game needs
+against `RadarDataTable[].ChaffChance`, and launch-to-impact timing.
+
+**GOLDVID-FF-2: 1 sprint. The oracle exists and is captured; the comparisons against our own RWR are
+the next three sprints.**
