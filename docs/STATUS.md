@@ -16798,3 +16798,67 @@ times across the two videos and so has repeat samples; (3) the **main menu / han
 
 **GOLDVID-FF-1: 5 sprints (a new pass). The item's four earlier sprints read one strip of pixels from
 a 293-second recording.**
+
+## GOLDVID-FF-1 S6 (Opus 5, 2026-09-16) — the gold's **TE planning screen** read out in full (~30 gradeable values) — ⛔ **and we cannot capture ours: `FF_SHOT_FRAMES` does not fire on the front-end at all**
+
+S5's census listed five FreeFalcon front-end screens no sprint had read. This sprint took the
+richest of them — the TE planning / theatre-map screen at t=48 of the refuel video, saved as
+`docs/reference/260915_gold_te_planning.png` — and tried to put ours beside it.
+
+⭐ **The gold screen, read at full resolution.** It is the best gradeable UI reference this project
+has:
+
+```
+27 REFUELING
+┌ P │ Takeoff  │ Role     │ Package │ Status  ┐
+│ ▲  08:58:38   Training     87       Ingress │
+│ ▲  08:58:44   Tanker       87       Ingress │
+│ ▲  09:00:00   AWACS       110       Ingress │
+└─────────────────────────────────────────────┘
+STINGRAY1: TRAINING        [1Lt Joe Pilot]
+TASK: Pyonggang   TOT: Pyonggang   TOT: 08:07:44
+map: route with numbered waypoints, legs 38.7 / 40.1 / 20.1 / 30.8 / 13.1,
+     "Alternate Field  Sun-Chon Airbase", theatre inset "Day 1, 9:03:02  Stop▼"
+buttons: RESUME · SETUP · SCHEDULE · VICTORY CONDITIONS · COMMS · SAVE · ATO ·
+         OOB · FLIGHT PLAN · BRIEFING · MUNITIONS · TAKEOFF
+```
+
+⭐ **Two things it settles in passing.** The window title reads **"FreeFalcon - Wine desktop"**, so the
+gold is FF under Wine — the oracle setup is confirmed on screen rather than assumed. And the package
+table shows the **tanker's takeoff at 08:58:44 against the player's 08:58:38** with a TOT of
+**08:07:44**, which is the flight-plan timing that FTOI-1-adjacent work (GOLDVID-FF-1 S4) predicted
+would be where the tanker's speed actually comes from — `SetWPSpeed()` is leg distance ÷ leg time, and
+this screen shows both.
+
+⛔ **And then the comparison could not be made.** Our port reaches this screen — `FF_UI_CLICK` drives
+it and the clicks demonstrably fire:
+
+```
+[FF_UI_CLICK] firing (624,745) at 8013ms
+[FF_UI_CLICK] firing (210,247) at 14000ms
+[FF_UI_CLICK] firing (825,750) at 18009ms
+```
+
+— but **no screenshot was produced at any requested swap count**. Two runs, ten different counts
+between **30 and 1800**, 60–70 s each, zero `.bmp` files and zero capture lines on stderr.
+
+**`FF_SHOT_FRAMES` lives in the SIM's swap loop, not the front-end's.** That is consistent with
+`ff_validate.sh`'s own framing (*"sim mode: FF_SIM_SCREENSHOT / FF_VIEW_SCRIPT 's' → captured by the
+SIM thread"*), and it means **this port currently has no way to capture a 2-D UI screen at all**.
+
+⚠️ **Which is why S5's five front-end screens are not merely unread — they are ungradeable today.**
+MiG Alley has `MA_SHOT` and BoB has `BOB_SHOT`, and both have produced findings tonight (MA's weather
+panel, MA's black Campaign screen, BoB's title-menu comparison). FreeFalcon has no equivalent, and
+that gap has been invisible because every FF sprint so far graded the *sim*, not the UI.
+
+**S7 — build the hook before grading anything:** an `FF_UI_SHOT=<n>`/`FF_UI_SHOT_DIR` that captures the
+front-end framebuffer the way `FF_SHOT_FRAMES` captures the sim's. The glReadPixels block at
+`main_linux.cpp:409` is the model; it needs a counterpart on the UI present path. **Then** the TE
+planning screen, the briefing, the theatre map, the main menu and the load screen all become
+gradeable field by field, which is exactly what turned MiG Alley's weather panel into a shipped fix.
+
+⚠️ **Nothing is claimed about our UI's fidelity here.** Not "it matches", not "it differs" — it was
+not captured.
+
+**GOLDVID-FF-1: 6 sprints. A reference worth having, and a missing instrument found by trying to use
+one that does not exist.**
