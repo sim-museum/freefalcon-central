@@ -16862,3 +16862,56 @@ not captured.
 
 **GOLDVID-FF-1: 6 sprints. A reference worth having, and a missing instrument found by trying to use
 one that does not exist.**
+
+## GOLDVID-FF-1 S7 (Opus 5, 2026-09-16) — ⛔ **S6 was wrong: FreeFalcon DOES have a UI capture hook** — fixed its two defects, captured our TE planning screen, and **it matches the gold on every element compared**
+
+S6 concluded *"this port has no way to capture a 2-D UI screen at all"* and proposed building one.
+**That was wrong.** `main_linux.cpp:3593` has had one all along:
+
+```c
+// FF_LINUX debug: periodic UI screenshot when FF_UI_SCREENSHOT env var is set
+```
+
+I searched for the *sim* hook's naming (`FF_SHOT_*`) and missed a differently-named hook two thousand
+lines away in the same file. **A grep for one name is not a search for a capability.**
+
+⭐ **It had two real defects, both now fixed** (same pattern GOLDVID-FF-2 S2 applied to the sim path):
+
+| defect | why it matters |
+|---|---|
+| every shot written to the **same hardcoded `/tmp/ff_ui.bmp`** | a rendered frame is game data and `/tmp` here is a 7.6 GB tmpfs — the standing rule forbids it, and filling it has killed a session before |
+| one file, overwritten each period | a run could never leave a **sequence**, so no capture could be matched to a state |
+
+**Shipped:** `FF_UI_SHOT_DIR=<dir>` — numbered `ui_0001.bmp`, `ui_0002.bmp`, … each announced on
+stderr. **Unset keeps the old `/tmp/ff_ui.bmp` behaviour exactly**, so nothing existing breaks.
+Verified: 19 shots from one 60 s run.
+
+⭐⭐ **And the comparison S6 wanted, made.** Ours (`docs/reference/260916_ours_te_planning.png`)
+against the gold (`…/260915_gold_te_planning.png`):
+
+| element | gold | ours | |
+|---|---|---|---|
+| title bar | `27 REFUELING` | `09 Landing Final Approach` | ✅ same slot/style |
+| package table columns | `P │ Takeoff │ Role │ Package │ Status` | identical | ✅ |
+| flight panel | `STINGRAY1: TRAINING` + `[1Lt Joe Pilot]` | `COWBOY1: TRAINING` + `[2Lt Joe Pilot]` | ✅ same widget, portrait slot and label |
+| task block | `TASK:` / `TOT:` / `TOT:` | `TASK:` / `TGT:` / `TOT:` | ✅ same three-line block |
+| theatre map | route, numbered waypoints, leg distances, airbase labels | same, `Kunsan Airbase`, legs 8.7 / 1.4 / 4.7 | ✅ |
+| inset clock | `Day 1, 9:03:02  Stop▼` | `Day 1, 9:00:08  Stop▼` | ✅ same widget and format |
+| button bar | `RESCUE · SETUP · SCHEDULE · VICTORY CONDITIONS · COMMS · SAVE · ATO · OOB · FLIGHT PLAN · BRIEFING · MUNITIONS · TAKEOFF` | **identical, in order** | ✅ |
+| highlights | yellow arrow on `RESCUE`, orange `MUNITIONS` | identical | ✅ |
+
+**Every structural element compared matches.** This is the first time any FreeFalcon UI screen has been
+put beside the real game.
+
+⚠️ **A divergence I nearly reported, and the zoom that killed it.** From the downscaled gold the first
+button read **RESUME** against our **RESCUE** — a clean one-word defect. Zoomed to 3× on both, **the
+gold reads RESCUE too.** Second time tonight that a thumbnail produced a plausible false finding
+(the other was reading the BoB Directives tickboxes as `CRTickBox` when the header says `CRButton`).
+
+⚠️ **What is NOT compared: values.** The two captures are **different TEs** — ours is the harness's
+default `09 Landing Final Approach`, the gold is `27 Refueling` — so this grades *structure and
+layout*, not the numbers in the table. Pointing our harness at TE 27 would make the package table
+directly comparable (the gold's shows three rows: Training, Tanker, AWACS) and is the obvious S8.
+
+**GOLDVID-FF-1: 7 sprints. A capability I declared missing turned out to exist, needed two fixes, and
+then answered the question on the first run.**

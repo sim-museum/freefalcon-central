@@ -3590,13 +3590,25 @@ static void render_frame(void) {
             }
         }
 
-        // FF_LINUX debug: periodic UI screenshot when FF_UI_SCREENSHOT env var is set
-        // (value = period in seconds, written to /tmp/ff_ui.bmp before buffer swap)
+        /* FF_LINUX debug: periodic UI screenshot, FF_UI_SCREENSHOT=<period in seconds>.
+           GOLDVID-FF-1 S7 (2026-09-16): this existed but wrote every shot to the SAME
+           hardcoded /tmp/ff_ui.bmp, so (a) a rendered frame -- game data -- landed in the
+           7.6 GB tmpfs, which the standing rule forbids and which has killed a session
+           before, and (b) each shot overwrote the last, so a run could never leave a
+           sequence to compare. Both fixed the way the sim path was fixed in GOLDVID-FF-2 S2:
+             FF_UI_SHOT_DIR=/home/...   destination; unset keeps the old /tmp/ff_ui.bmp
+                                        exactly, so existing use is not broken.
+           With a directory set, shots are numbered ui_0001.bmp, ui_0002.bmp, ... and each
+           one is announced on stderr, matching what FF_SHOT_FRAMES does for the sim. */
         {
             static int s_shotPeriod = -2;
+            static const char* s_uiShotDir = NULL;
+            static unsigned s_uiShotN = 0;
             if (s_shotPeriod == -2) {
                 const char* e = getenv("FF_UI_SCREENSHOT");
                 s_shotPeriod = e ? atoi(e) : -1;
+                s_uiShotDir = getenv("FF_UI_SHOT_DIR");
+                if (s_uiShotDir and not *s_uiShotDir) s_uiShotDir = NULL;
             }
             if (s_shotPeriod > 0) {
                 static Uint32 s_lastShot = 0;
@@ -3604,7 +3616,16 @@ static void render_frame(void) {
                 if (now - s_lastShot >= (Uint32)s_shotPeriod * 1000u) {
                     s_lastShot = now;
                     extern void SaveGLFramebufferAsBMP(const char* filename);
-                    SaveGLFramebufferAsBMP("/tmp/ff_ui.bmp");
+                    char uiPath[512];
+                    if (s_uiShotDir)
+                        snprintf(uiPath, sizeof uiPath, "%s/ui_%04u.bmp", s_uiShotDir, ++s_uiShotN);
+                    else
+                        snprintf(uiPath, sizeof uiPath, "/tmp/ff_ui.bmp");
+                    SaveGLFramebufferAsBMP(uiPath);
+                    if (s_uiShotDir) {
+                        fprintf(stderr, "[uishot] t=%ums -> %s\n", (unsigned)now, uiPath);
+                        fflush(stderr);
+                    }
                 }
             }
         }
