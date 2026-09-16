@@ -17158,3 +17158,59 @@ or SA-2 west. One frame, one lookup, and it either restores S4's conclusion in c
 produces a much more interesting one.
 
 **GOLDVID-FF-2: 6 sprints (2 in this pass).**
+
+## GOLDVID-FF-2 S7 (Opus 5, 2026-09-16) — the heading read: **311°**, so the 3-o'clock contact is at **~041°** — narrowed from "the SA-6" to **exactly two candidates whose answers point opposite ways**
+
+S6 withdrew S4's identification and named the fix: read the aircraft's heading at t=450 and convert
+the relative bearing. Done, from the gold's own HUD
+(`docs/reference/260915_gold_t450_hud.png`):
+
+```
+heading box   311        (with the 32[0] tick beside it)
+airspeed      589        altitude  2,590
+vertical      -03.0 / -02.0        ARM  0194        7.3 NAV
+```
+
+⭐ **Two instruments agree.** The HUD heading box reads **311**; the HSD in the same frame reads
+**314**. A 3° difference between two displays sampled mid-hard-bank is unremarkable, and both put the
+nose firmly in the **north-west** quadrant — which is all this needs.
+
+⭐ **So the arithmetic S4 never did:** a contact at **~3 o'clock relative** is 90° right of the nose,
+i.e. **311 + 90 ≈ 041°** — **north-east**.
+
+TE 28's threats, from the gold's own SITREP (S5): **SA-8 north**, **SA-13 east**, **MiG-29 south**,
+**SA-2 west**.
+
+| threat | bearing | could it be the 041° contact? |
+|---|---|---|
+| **SA-8** (radar) | north ≈ 000° | **yes** — 41° off |
+| **SA-13** (IR) | east ≈ 090° | **yes** — 49° off |
+| MiG-29 (radar) | south ≈ 180° | no |
+| SA-2 (radar) | west ≈ 270° | no |
+| SA-6 | *not in this TE* | no |
+
+⚠️ **And the two survivors point opposite ways, which is why this is worth finishing rather than
+guessing:**
+
+* if it is the **SA-8** — radar, *should* warn — S4's conclusion is restored in corrected form;
+* if it is the **SA-13** — IR, per the manual should give **no warning at all** — the gold would be
+  **contradicting** the asymmetry, which is a much more interesting result and the opposite of what
+  S4 reported.
+
+**Neither is established.** Bearing alone cannot separate them: 041° sits between two threats 90°
+apart, and the threats' *ranges* are unknown.
+
+⭐ **But the answer is in the picture, and S1 already showed how to read it.** FreeFalcon's RWR draws
+each contact's **type number** — S1 read an `8` off the scope and identified it as the SA-8. So the
+newly-diamonded contact labels itself, and no bearing arithmetic is needed at all.
+
+⛔ **The instrument I zoomed was the wrong one.** The large round green display at the bottom-right of
+the t=450 cockpit is the **HSD** — it reads `DEP DCPL norm CNTL`, carries range rings, a cyan course
+line and the `SWAP FLCS SMS HSD DCLT` softkey row. **The RWR azimuth indicator is a different
+instrument in the same cockpit**, and I did not locate it in this frame. Recorded so S8 does not
+repeat the mistake.
+
+**S8:** find the RWR scope in the t=450 frame (not the HSD) and read the diamonded contact's type
+number. One crop, and it settles a question two sprints have now circled.
+
+**GOLDVID-FF-2: 7 sprints (3 in this pass).**
