@@ -688,6 +688,29 @@ extern "C" void ff_dump_campaign_units(void)
                 fprintf(stderr, "%s\n", printed ? "" : " (no vehicle groups)");
             }
         }
+        /* GOLDVID-FF-2 S12 (2026-09-16): for an AIR unit, list its FLIGHT PLAN.
+           S11 proposed taking the player's t=450 position from an ACMI tape of our own run. That
+           would have measured OUR aeroplane: the gold is the PO flying by hand and ours would be an
+           autopilot from the TE start, so the two paths have nothing to do with each other. The
+           aircraft's position in the gold has to come from the GOLD -- and the gold's HSD shows the
+           aeroplane against its own flight plan, which is in the .trn. Print the waypoints so that
+           read has something to place it among. */
+        if (e->GetDomain() == 2 && e->IsUnit())
+        {
+            WayPoint w = ((Unit)e)->GetFirstUnitWP();
+            int k = 0;
+            while (w && k < 24)
+            {
+                GridIndex wx = 0, wy = 0;
+                w->GetWPLocation(&wx, &wy);
+                fprintf(stderr, "[units]        wp %2d: grid=(%d,%d) -> E=%d N=%d  alt=%d  arrive=%d\n",
+                        k, (int)wx, (int)wy, (int)wx, (int)wy,
+                        (int)w->GetWPAltitude(), (int)w->GetWPArrivalTime());
+                w = w->GetNextWP();
+                k++;
+            }
+            if (k == 0) fprintf(stderr, "[units]        (no waypoints)\n");
+        }
         n++;
         e = (CampEntity) myit.GetNext();
     }

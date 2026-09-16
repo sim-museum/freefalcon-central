@@ -17681,3 +17681,65 @@ this project has a decoder for it (FTOI-1). One recorded run of TE 28 to t=450, 
 tape, and the bearing is arithmetic — with every other term now sourced rather than assumed.
 
 **GOLDVID-FF-2: new pass, sprint 3 of 4.**
+
+## GOLDVID-FF-2 S12 (Opus 5, 2026-09-16) — ⛔ **S11's own next step was wrong and is withdrawn before it cost a run** — ⭐⭐ the player's **flight plan** is out of the file instead, and it is a **tour of the threats**
+
+### ⛔ First, the withdrawal
+
+S11 proposed: *"take the player's t=450 position from an `FF_ACMI_RECORD` tape. One recorded run of
+TE 28 to t=450, one position out of the tape, and the bearing is arithmetic."*
+
+**That would have measured OUR aeroplane.** The gold is the PO flying by hand; our run would be an
+autopilot from the TE start. The two paths have nothing to do with each other, so the tape would have
+given a position with no bearing on the question — a ten-minute run and a confident number about the
+wrong aircraft. ⚠️ *Caught by asking what the instrument would actually be measuring, which is the
+question S11 did not ask when it wrote the step.*
+
+The aircraft's position in the gold has to come **from the gold**.
+
+### ⭐ What the file can give instead: the flight plan
+
+Extended `FF_DUMP_UNITS` to walk each air unit's `GetFirstUnitWP()` chain. The player's flight
+(`4036th Fighter Flight`, in package 110) has nine waypoints:
+
+| wp | E | N | alt | arrive (s after takeoff) | leg bearing |
+|---|---|---|---|---|---|
+| 0 | 434 | 470 | 0 | 0 | 268.5° |
+| 1 | 397 | 469 | 5300 | +156.8 | 358.9° |
+| 2 | 396 | 521 | 5000 | +377.0 | 229.7° |
+| 3 | **363** | **493** | 5000 | +560.3 | 146.8° |
+| 4 | 397 | 441 | 5000 | +823.5 | 20.7° |
+| 5 | **420** | **502** | 5000 | +1099.6 | 155.2° |
+| 6 | 432 | 476 | 5000 | +1220.8 | 161.6° |
+| 7 | 434 | 470 | 0 | +1247.6 | — |
+
+### ⭐⭐ The plan is a tour of the threats — which is a check, and an explanation
+
+| threat | position | nearest waypoint | distance |
+|---|---|---|---|
+| **SA-2** (4032) | E363 N493 | **wp3 — E363 N493** | **0.0** |
+| **AAA** (189) | E421 N502 | **wp5 — E420 N502** | **1.0** |
+| SA-8 (97) | E379 N540 | wp2 — E396 N521 | 25.5 |
+
+**Two of the three threats are waypoints**, exactly. `wp4` (E397 N441) likewise sits on the enemy
+flight's own position (E397 N439). ⭐ That is a strong check that the dump is reading genuine
+flight-plan data rather than plausible noise — and it explains the TE's name: *"28 Missile Threat"* is
+a threat tour, flown deliberately past each site.
+
+### ⭐ And it closes off a shortcut before anyone takes it
+
+The seven leg bearings are **268°, 359°, 230°, 147°, 21°, 155°, 162°**. The gold's HUD heading at the
+frame in question is **311°**, and **no leg is within 40° of it**. So the aeroplane was *not* tracking
+its flight plan at that moment — the PO was hand-flying — and *"assume he was on the leg he was due to
+be on"* is not available as a shortcut.
+
+⚠️ **So the position is still not pinned**, and nothing here contradicts S10/S11's remaining argument:
+the SA-8 is the only one of the three threats north of the player's operating area, and a contact at
+041° is to the north-east.
+
+**S13:** the gold's **HSD**. GOLDVID-FF-2 S8 identified it in the t=450 cockpit — *"range rings, cyan
+course line"* — and an HSD draws the aircraft against **its own flight plan**. With the waypoint
+coordinates now known, that display stops being a picture and becomes a **map with a scale**: the
+course line's shape identifies which legs are in view, and the range rings give the distance.
+
+**GOLDVID-FF-2: new pass, sprint 4 of 4 — at cap.**
