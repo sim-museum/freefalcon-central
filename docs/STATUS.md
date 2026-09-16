@@ -16418,3 +16418,53 @@ sprint of trying.
 
 **GOLDVID-FF-1: 1 sprint. The join profile is captured and the tanker-speed finding is corroborated
 from a second direction.**
+
+## GOLDVID-FF-1 S2 (Opus 5, 2026-09-16) — ⭐⭐ **the gold's HUD speed triple is self-consistent under the game's OWN conversion**, giving a check our port can be held to with no gold at all — and FF's convention is the OPPOSITE of MiG Alley's
+
+Tonight's MiG Alley sprint found that the gold's HUD satisfies `Mach = Speed / a(altitude)`, which
+tests our port at *any* state instead of requiring a state match. FF shows the same three quantities,
+so the same idea should transfer. **It does — but with a different convention.**
+
+**Read from the refuel video (airspeed box, altitude box, Mach):**
+
+| t | airspeed | altitude | Mach shown | TAS recovered | TAS ÷ a(alt) | Δ |
+|---|---|---|---|---|---|---|
+| 150 | 383 | 25,580 | 0.91 | 545 | 0.907 | 0.003 |
+| 180 | 330 | 24,950 | 0.78 | 471 | 0.782 | 0.002 |
+| 210 | 293 | 23,950 | 0.69 | 415 | 0.687 | 0.003 |
+| 240 | 243 | 22,740 | 0.57 | 341 | 0.562 | 0.008 |
+
+**Worst disagreement 0.008 Mach against a display that rounds to 0.01 — every sample consistent.**
+
+⭐ **The method matters as much as the result.** TAS was not assumed: it was recovered by **numerically
+inverting `get_air_speed()`** — the game's own TAS→CAS routine at `waypoint.cpp:2024` — and then
+`Mach = TAS / a(altitude)`. So this is the game checked against itself, not against my model of it.
+
+⭐⭐ **And the convention is the opposite of MiG Alley's:**
+
+| sim | HUD airspeed is… | Mach is… |
+|---|---|---|
+| **MiG Alley** | **TRUE** airspeed | `Speed / a(alt)` |
+| **FreeFalcon** | **CALIBRATED** airspeed | `TAS(Speed, alt) / a(alt)` |
+
+Both self-consistent; neither is wrong. **But they are not interchangeable, and a habit formed on one
+port will produce a wrong answer on the other.** Worth carrying as a cross-port note, because tonight
+already produced one confusion of exactly this kind — the tanker "not doing 300 kts", which was 300
+*true* against ~222 *indicated*.
+
+⭐ **Third independent confirmation of that tanker result.** The filing deduced `refuelSpeed` is TAS
+from the conversion arithmetic; S1 saw the pilot decelerate to exactly 222 and hold it; this sprint
+shows the **HUD's own Mach column agrees with `get_air_speed` across four different speeds and
+altitudes**. Three routes, one answer.
+
+⭐ **What this buys, and it needs nothing from the PO:** our port can be tested by flying anything and
+checking `Mach == TAS(CAS, alt) / a(alt)` from its own HUD. A failure means our airspeed is true
+rather than calibrated, or our Mach uses a fixed speed of sound — both real defects, neither needing
+a gold capture or a matched state.
+
+⚠️ **One reading was ambiguous and I am flagging it rather than hiding it.** The t=210 Mach could be
+read `0.69` or `0.65`; I took 0.69, which fits at Δ0.003 where 0.65 would be Δ0.037. **Choosing the
+reading that fits is mildly circular**, so the conclusion is carried by the other three samples, all
+unambiguous. Drop t=210 entirely and the worst Δ is still 0.008.
+
+**GOLDVID-FF-1: 2 sprints. The join profile (S1) and now a self-check that transfers to our build.**
