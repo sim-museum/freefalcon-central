@@ -16702,3 +16702,45 @@ take an output directory under `/home` like the others. Not changed here — it 
 subject and the gate is load-bearing. [[heavy-jobs-oom-kill-the-session]]
 
 **FTOI-1: 1 sprint. A one-line fix to a primitive that had been silently biasing 881 conversions.**
+
+## FTOI-1 S2 (Opus 5, 2026-09-16) — the blast-radius checks S1 promised, run: **all pass** — and the impact quantified: **55% of the integers the game prints changed by one**
+
+S1 fixed `FloatToInt32` and listed three harnesses it had **not** re-run. Running them is the sprint.
+
+✅ **`tools/ff_joinfail.sh` (20 s, 45 s run)** — PASS. The failure was raised with no main UI handler
+(`gMainHandler=(nil)`), the recovery path was entered, the process survived, **0 crash signatures**.
+
+✅ **`tools/ff_landap_approach.sh` (SECS=300)** — the autopilot engages and follows the route:
+`[AP-1] samples: 42`, `[NAV] samples: 57`, `[GROUND] samples: 317`, ending
+`roll mode: Roll=0 HDG=0 Strg=1 -> FollowWP()` and the harness's own verdict
+**"route-following ENGAGED (Strg=1 seen)"**.
+
+✅ **ACMI** — `FF_ACMI_RECORD=1 FF_ACMI_STOP=60` starts a recording and flushes a **170,717-byte**
+tape (`acmibin/acmi0000.flt`). Recording and flushing both work after the change.
+
+⚠️ **One thing the ACMI run surfaced that is NOT fallout.** `tools/acmi_dump.py` reports
+`!! layout mismatch -- this tape is not the expected 32-bit format` on the new tape. **A tape written
+BEFORE the fix (`acmi0000.flt.imported`, 2026-09-15 20:11) gives the identical complaint**, so the
+decoder's header interpretation is wrong independently of FTOI-1. Recorded here rather than left to
+be rediscovered as a regression; it deserves its own item, not this one's.
+
+⭐ **How big is this fix, actually?** Not an edge case. Taking the **193 float values the running game
+printed through `FF_TRACE_HUD` this session** — real kias/ground-speed/TAS/vcas readings, not a
+synthetic distribution — **107 of them (55%) have a fractional part ≥ 0.5**. Every one of those was
+displayed **one unit low** before the fix. Roughly every other integer FreeFalcon puts on screen moved.
+
+⭐ **Audit: is there a second instance of the class in FreeFalcon?** 42 `__asm` occurrences across 12
+files. The numeric ones:
+
+| site | Linux arm | verdict |
+|---|---|---|
+| `mathlib/math.h:193` `FloatToInt32` | was `static_cast`, now `lrintf` | **the bug — fixed in S1** |
+| `falclib/include/mltrig.h:11` `mlSinCos` | `sin()` / `cos()` vs x87 `fsincos` | equivalent to float precision |
+| `graphics/weather/star.cpp:48` | a second copy of `FloatToInt32` — **commented out** | inert |
+| `graphics/bsplib/cobraoptions.h:25` | SSE face-cull macro — **commented out** | inert |
+
+The remaining sites are Win32 profiling, structured exception handling and UI95 — no arithmetic.
+**No second instance.** Together with the BoB scrum's cross-port check (both Rowan ports already use
+`__builtin_lrint`), the class is now closed across all three sims.
+
+**FTOI-1: 2 sprints. The fix, and then the promised checks actually run rather than listed.**
