@@ -17214,3 +17214,44 @@ repeat the mistake.
 number. One crop, and it settles a question two sprints have now circled.
 
 **GOLDVID-FF-2: 7 sprints (3 in this pass).**
+
+## GOLDVID-FF-2 S8 (Opus 5, 2026-09-16) — ⛔ **the RWR is not in the t=450 view**, so S7's plan cannot run on that frame — ⚠️ **and the same cockpit shows why S1's "that 8" needs re-checking before anything else leans on it**
+
+S7 narrowed the 3-o'clock contact to the SA-8 or the SA-13 and said the RWR's own type number would
+settle it. Went to read it. Four crops of the t=450 cockpit, and the RWR is not among them:
+
+| instrument | what it actually is |
+|---|---|
+| right MFD (large, round-cornered, bottom-right) | **HSD** — `DEP DCPL norm CNTL`, range rings, cyan course line, `SWAP FLCS SMS HSD DCLT` |
+| left MFD | **FCR** — `CRM RWS NORM OVRD CTRL`, range 40, one contact at `14 / -09`, `SWAP TEST FCR DCLT` |
+| upper-right panel | **IFF** — `IFF ON`, `M1 22`, `M2 3412`, `M3 1234`, `MC (5)`, `MH A(6)`, `AUD (7)`, `MS (8)` |
+| below it | **ADI** and `FUEL FLOW 15100 PPH` |
+
+⛔ **No RWR azimuth indicator is visible in the forward cockpit view at t=450.** Either it sits outside
+that view in FreeFalcon's F-16 pit, or it is somewhere in the frame I did not find in four attempts.
+**S7's "one crop and it settles" was too optimistic**, and I am recording that rather than quietly
+trying a fifth.
+
+⚠️⚠️ **And the IFF panel is a warning about the foundation S7 was standing on.** It displays
+**`MC (5)`, `MH A(6)`, `AUD (7)`, `MS (8)`** — parenthesised **mode numbers**, including an **8**, in
+the same cockpit, in the same amber, a few hundred pixels from where a threat symbol would be.
+
+GOLDVID-FF-2 **S1** wrote: *"That `8` is almost certainly the SA-8, the northern threat in TE 28."*
+**That identification is what made S7 believe the RWR labels its contacts by type at all.** It may
+still be right — but *an 8 in this cockpit is not by itself a threat symbol*, and the claim was
+hedged with "almost certainly" when it was made. **It needs re-checking against which instrument it
+was read from, before the item leans on it any further.** ⚠️ I have not re-checked it here.
+
+⭐ **One thing the frame does give, free: a third heading.** Both MFDs show `314` — matching the HSD
+reading in S7 and sitting 3° from the HUD's `311`. **Three instruments, one nose bearing**, so S7's
+north-west quadrant is not in doubt even though its conclusion is still open.
+
+**S9 — two options, and the second is better:**
+1. find the RWR in another frame (a different view or a moment when the pit is less banked); or
+2. **stop reading pixels and read the data.** The gold's TE is `27 Refueling`'s sibling,
+   `28 Missile Threat.trn`, which is **on disk in the PO's install**. The threats' map positions are
+   in it. With the player's position and heading at t=450 — both readable — a contact at 041° can be
+   matched against the actual SA-8 and SA-13 coordinates instead of against a cardinal-direction
+   sentence in a briefing. That settles it without finding any instrument.
+
+**GOLDVID-FF-2: 8 sprints (4 in this pass) — at cap, rotating off.**
