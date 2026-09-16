@@ -133,6 +133,44 @@ void PilotInputs::Update()
 
     rstick = max(min(rstick, 1.0F), -1.0F);
 
+    /* FM-GOLD-1 S6 (2026-09-15): FF_STICK2="<roll>,<pitch>[,<start_s>[,<dur_s>]]" writes the stick
+       HERE, in PilotInputs::Update, rather than in otwloop. S4's hook set `af->` directly and S5
+       measured the result saturating -- 0.4, 0.75 and 1.0 of pitch all produced the same 1.7 g --
+       which is what being overwritten looks like: autopilot.cpp:99 and the FLCS both read
+       UserStickInputs, and this function is what fills it. Writing after the clamps above means
+       every downstream reader sees the commanded value and nothing re-derives it from an axis that
+       is not there. The test S5 asked for is then a three-point scale sweep, unchanged otherwise. */
+    if (const char* ff2 = getenv("FF_STICK2"))
+    {
+        float r = 0.0F, p = 0.0F, t0 = 0.0F, dur = 1.0e9F;
+        int n = sscanf(ff2, "%f,%f,%f,%f", &r, &p, &t0, &dur);
+
+        if (n >= 2)
+        {
+            float now = SimLibElapsedTime * MSEC_TO_SEC;
+            static float sBase = -1.0F;
+
+            if (sBase < 0.0F) sBase = now;
+
+            float el = now - sBase;
+
+            if (el >= t0 and el < t0 + dur)
+            {
+                rstick = max(min(r, 1.0F), -1.0F);
+                pstick = max(min(p, 1.0F), -1.0F);
+                static int nrep = 0;
+
+                if (getenv("FF_DEBUG_STICK") and nrep < 10)
+                {
+                    printf("[stick2] t=%.1f  rstick=%.2f pstick=%.2f (written in PilotInputs::Update)\n",
+                           el, rstick, pstick);
+                    fflush(stdout);
+                    nrep++;
+                }
+            }
+        }
+    }
+
     /*******************************************************************************/
     // Retro 12Jan2004 - featuring left/right throttle axis =)
     // =======================================================

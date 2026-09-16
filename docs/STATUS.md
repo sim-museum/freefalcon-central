@@ -15937,3 +15937,47 @@ different one that never approaches. The comparison is of SHAPE, not of duration
 it can be made without picking one.**
 
 **LANDAP-2: 2 sprints. The defect is no longer described, it is plotted against the real thing.**
+
+### FM-GOLD-1 S6 (Opus 5, 2026-09-15) — ⭐ **the stick write now lands where the sim reads it, proven by trace** — ⛔ **and the test I ran to check it was flown by the AUTOPILOT, so it answers nothing about the flight model**
+
+S5 named the fix: *"write the field the sim reads"* — `UserStickInputs`, not `af->`. That is done and
+verified. The measurement around it is not, and the reason is my own harness choice.
+
+⭐ **`FF_STICK2="<roll>,<pitch>[,<start_s>[,<dur_s>]]"` (new, `pilotinputs.cpp:134`)** sets
+`pstick`/`rstick` inside `PilotInputs::Update`, **after** the axis read and the clamps, so every
+downstream reader (`autopilot.cpp:99`, the FLCS) sees the commanded value:
+
+    [stick2] t=20.1  rstick=0.00 pstick=0.39 (written in PilotInputs::Update)
+
+**10 writes per arm, on schedule.** S4's hook wrote `af->` and was overwritten each frame; this one
+is not.
+
+⛔ **The three-point scale test, and why it proves nothing.** Three runs of TE-03, identical but for
+the pitch held from t=20 s, compared by `[NAV]`'s distance to the steerpoint:
+
+| sample | pitch 0.4 | pitch 0.75 | pitch 1.0 |
+|---|---|---|---|
+| 20 | 16.88 nm | 17.15 | 16.86 |
+| 60 | 12.23 | 12.70 | 12.18 |
+| 100 | **8.74** | **9.25** | **8.67** |
+
+**0.4 and 1.0 land within 0.8% of each other and 0.75 is the odd one out** — which is not a scale at
+all, and I first mis-read the 0.4-vs-0.75 pair as a monotonic response before the third arm arrived.
+
+⛔⛔ **The confound is in the harness name.** `tools/ff_landap_approach.sh` exists to drive the
+**autopilot** — its `FF_SIM_KEY="0x1e@5;C0x02@12"` engages it deliberately, and the runs logged **106
+`[AP-1]` ticks**. The autopilot was flying the aeroplane to the steerpoint in all three arms, so the
+paths are the autopilot's, not the stick's. **A pitch input fighting an engaged AP is exactly the
+experiment not to run**, and I ran it three times.
+
+⚠️ **The tapes did not convert either.** `FF_ACMI_STOP=130` inside a 150 s run never arrives — the
+flight does not start until ~60 s in — so all three arms recorded and none imported. **There is no g
+measurement from this sprint**, and the gold envelope (turn p95 13–18 °/s, 6–7 g) is still uncompared.
+
+**S7, with both faults fixed:** a harness that does NOT engage the autopilot (drop the second
+`FF_SIM_KEY`), and `SECS` long enough that `FF_ACMI_STOP` fires (≈260 s with a 170 s stop, matching
+the ratio that worked for ACMI-4). Then the three-point sweep measures the aeroplane instead of the
+autopilot, and the tape gives g directly.
+
+**FM-GOLD-1: 6 sprints (1 in this pass). The write is fixed and verified; the experiment around it
+has to be rebuilt.**
