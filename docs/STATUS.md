@@ -16369,3 +16369,52 @@ follow directly, and both have a clean start signal now that the lamp is identif
 
 **GOLDVID-FF-2: 4 sprints — at cap, rotating off. Symbology captured (S1), ours compared and correct
 (S2), IR asymmetry proved structurally (S3), launch event located (S4).**
+
+## GOLDVID-FF-1 S1 (Opus 5, 2026-09-16) — ⭐⭐ **the gold's tanker-join speed profile, read off the HUD: 383 → 330 → 293 → 243 → 222 kts** — and it lands on exactly the speed the item's filing predicted
+
+The item's remaining work was the approach timeline. This sprint reads the **airspeed profile of a
+correct tanker join** straight from the real game.
+
+**Measured, from the HUD airspeed box:**
+
+| t (s) | HUD airspeed |
+|---|---|
+| 150 | **383 kts** |
+| 180 | 330 |
+| 210 | 293 |
+| 240 | 243 |
+| 250 | **222** (from the item's filing) |
+
+⭐ **A smooth, monotonic deceleration of 161 kts over 100 seconds**, flattening as the pilot closes.
+That is the gold reference for what a correct join looks like — a profile, not a rule of thumb.
+
+⭐⭐ **And it independently confirms the tanker-speed conclusion.** The filing deduced that
+`refuelSpeed` is a **true** airspeed, because a stabilised HUD read of **222 KIAS** matches
+`get_air_speed(300, 20000)` — the game's own TAS→CAS routine — rather than the 295–315 the data would
+show if the value were indicated. **This sprint shows the pilot arriving at 222 by a continuous
+deceleration and settling there**, which is what formating on a tanker looks like. Two independent
+routes to the same number: the conversion arithmetic, and the pilot's own behaviour.
+
+⚠️ **I validated the crop and the validation was still wrong — reported because it is the same trap a
+fourth time.** Before reading anything I checked the airspeed box was present across t=60…270 by
+counting green pixels, and got "present" for 90 and 120. **It was not.** Looking at the strip shows
+those two frames hold the **RWR scope**, which is also green, in the same screen position. The count
+answered *"is something green here"* when the question was *"is the airspeed box here"*.
+
+**The refinement worth keeping: a presence check must be specific to the thing being read, not merely
+to its colour.** Tonight's earlier failures (BoB mirror, Julia disc, FF launch lamp) were fixed crops
+on a panning view; this one is a fixed crop on a *stable* view that nevertheless changes content.
+**Both fail the same way — the instrument cannot tell absence from substitution.** [[instrument-bookkeeping-lies]]
+
+**Valid reads are therefore t=150–240 plus the filing's t=250**, and the earlier points are discarded
+rather than guessed at.
+
+**What remains on this item:** range and overtake against the manual's table (*10 kts per 1,000 ft
+inside 1 nm*), the boom contact itself, and the tanker's ground track. All three need the **range**
+readout, which is smaller type than the airspeed and sits elsewhere on the HUD — and on this capture
+scale S2 of GOLDVID-FF-2 already established that **small HUD digits do not survive**. That may make
+range unreadable from this video, which would be worth knowing early rather than after another
+sprint of trying.
+
+**GOLDVID-FF-1: 1 sprint. The join profile is captured and the tanker-speed finding is corroborated
+from a second direction.**
