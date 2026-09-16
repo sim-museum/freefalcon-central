@@ -17255,3 +17255,54 @@ north-west quadrant is not in doubt even though its conclusion is still open.
    sentence in a briefing. That settles it without finding any instrument.
 
 **GOLDVID-FF-2: 8 sprints (4 in this pass) — at cap, rotating off.**
+
+## TEPKG-1 S2 (Opus 5, 2026-09-16) — ⭐⭐ **TE 28 matches the gold EXACTLY, 8 of 8 values** — so the TE 27 package difference is **not systematic**, and its shape names the suspect
+
+S1 established the TE 27 package number is a stable 97 against the gold's 87, disproved the
+double-load confound, and left the cause open. The obvious next evidence was a second TE from the
+same install, and both golds provide one.
+
+⭐ **TE 28's package table, gold against ours:**
+
+| | gold | ours |
+|---|---|---|
+| row 1 | `A 08:47:44 Sweep 110 Ingress` | `A 08:47:44 Sweep 110 Ingress` ✅ |
+| row 2 | `A 08:49:00 AWACS 413 Ingress` | `A 08:49:00 AWACS 413 Ingress` ✅ |
+
+**Eight of eight values identical** — both takeoff times to the second, both roles, **both package
+numbers**, both statuses, and the green player row in the same place.
+(`docs/reference/260915_gold_te28_packages.png` beside `…/260916_ours_te28_planning.png`.)
+
+⭐ **So the port does not renumber packages.** Whatever happens in TE 27 is **specific to TE 27**, not a
+general defect — which is a much smaller and much more tractable problem than S1 left open.
+
+⛔ **And it retires S1's own hypothesis.** S1 reasoned that "the AWACS package is numbered from a
+different pool" because AWACS matched at 110 while the other two rows did not. **110 is the AWACS's
+number in TE 27 and the PLAYER's number in TE 28.** The numbers are not role-specific, so there is no
+separate pool.
+
+⭐ **What the two TEs differ in is exactly where the discrepancy lives:**
+
+| | TE 27 | TE 28 |
+|---|---|---|
+| player's flight | Training, package **87** / ours **97** ⛔ | Sweep, package **110** / ours **110** ✅ |
+| second flight | **Tanker**, package **87** / ours **97** ⛔ — *shares the player's package* | AWACS, **413** / **413** ✅ — independent |
+| third flight | AWACS, **110** / **110** ✅ — independent | — |
+
+**Every row that matches is an independent package; the only two rows that differ are the two that
+SHARE one** — and the thing they share is a **tanker attached to the player's package**.
+
+⚠️ **Hypothesis, untested, and it connects to code already read.** GOLDVID-FF-1 S4 found
+`package.cpp`'s `AMIS_ADDTANKER` path: a package that needs fuel **requests a tanker at runtime**
+(`newmis.RequestMission()`), rather than the pairing being stored. If that request runs on load and
+allocates the package id, the player's flight and its tanker would be numbered by the allocator
+instead of by the file — which is exactly the two rows that differ, in exactly the TE that has a
+tanker. **Not tested here**, and worth saying that an equally good explanation may exist.
+
+⚠️ **Still unexplained: the 2-second Training takeoff** (08:58:36 ours, 08:58:38 gold) in TE 27. TE 28's
+two takeoff times match to the second, so that too is TE-27-specific and shares the suspect.
+
+**S3:** trace whether the tanker package is allocated at load in TE 27 — one `fprintf` on the
+`AMIS_ADDTANKER` path, with TE 27 and TE 28 as the A/B, and the answer is in one run each.
+
+**TEPKG-1: 2 sprints. A possible port-wide defect is now a TE-27-specific one with a named suspect.**
