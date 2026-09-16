@@ -17617,3 +17617,67 @@ world `vector`, so one trace of a known objective's grid against its world posit
 is which, with no assumption at all.
 
 **GOLDVID-FF-2: new pass, sprint 2 of 4.**
+
+## GOLDVID-FF-2 S11 (Opus 5, 2026-09-16) — ⭐⭐ **the grid axis convention, from the game's own converter and its own comment** — and the three threats placed on a compass at last — ⚠️ **the bearing question still needs the player's position at t=450, and is still not guessed**
+
+S10 named the three threats and stopped at the compass, because *"a bearing computed on a guessed axis
+order is exactly the kind of confident wrong answer this item has already produced twice."* This gets
+the convention from the source instead.
+
+### ⭐ Two citations, and they are unambiguous
+
+```c
+void ConvertGridToSim(GridIndex x, GridIndex y, vector *pos)   // camplib/campwp.cpp:465
+{
+    pos->x = GridToSim(y);        // sim X  <-  grid Y
+    pos->y = GridToSim(x);        // sim Y  <-  grid X
+}
+```
+
+```c
+// (Remember, X is north, Y is east, and Z is down)            // graphics/weather/tod.cpp:578
+//  ... X buckets (since X is North/Up)                        // renderer/otwcull.cpp:196
+```
+
+**The grid axes are swapped relative to the sim vector, and the sim frame is X=North, Y=East.**
+Therefore in the S9/S10 dump's `grid=(a,b)`, **`a` is EAST and `b` is NORTH** — the opposite of the
+reading anyone would take from the printed order, which is precisely why it was worth not guessing.
+
+⚠️ **One inconsistency found on the way, and left alone.** Most heading sites use
+`atan2(dx, dy)` (`navunit.cpp:271`, `battalio.cpp:2051`, `atcbrain.cpp:3155`) while
+`flight.cpp:2781` uses `atan2(dy, dx)`. With X=north that is a compass bearing in one form and a
+mathematical angle from east in the other. **This sprint does not rely on either** — it uses the axis
+statement, which is not ambiguous. Recorded because the next person to reach for a heading here will
+meet it.
+
+### ⭐⭐ TE 28's threats, on a compass at last
+
+From the player's package (`110th Null Package`, grid 394,522 → **E 394, N 522**):
+
+| threat | E | N | ΔE | ΔN | **bearing** | range (grid) |
+|---|---|---|---|---|---|---|
+| **SA-8** (97) | 379 | 540 | −15 | **+18** | **320°** (NW) | 23.4 |
+| **SA-2** (4032) | 363 | 493 | −31 | −29 | **227°** (SW) | 42.4 |
+| **ZSU-23-4 AAA** (189) | 421 | 502 | +27 | −20 | **127°** (SE) | 33.6 |
+
+### ⭐ What that does and does not settle
+
+The gold's contact is at **~041°** — north-east. **None of the three sits at 041° from the TE start**,
+which is expected: the player has flown for seven and a half minutes on a heading of ~311°, so the
+start position is the wrong origin and the sprint stops short of claiming otherwise.
+
+⭐ **But it strengthens S10's answer from a second direction.** The **SA-8 is the only one of the three
+with any northerly component at all** (N 540 against the player's 522); the SA-2 and the AAA are both
+**south** of the player's start. A contact to the north-east can only plausibly be the northern threat.
+S10 reduced the candidates to "the SA-8, or the AAA battalion's Gun Dish"; **the geometry now argues
+against the AAA**, which sits 127° — behind the right shoulder of a 311° heading and getting further
+behind as the player flies away from it.
+
+⚠️ **Still not claimed**: that the contact *is* the SA-8. That needs the player's position at t=450,
+which is the one input still missing after three sprints of narrowing.
+
+**S12:** the player's t=450 position. The `FF_ACMI_RECORD` tape already carries position over time and
+this project has a decoder for it (FTOI-1). One recorded run of TE 28 to t=450, one position out of the
+tape, and the bearing is arithmetic — with every other term now sourced rather than assumed.
+
+**GOLDVID-FF-2: new pass, sprint 3 of 4.**
