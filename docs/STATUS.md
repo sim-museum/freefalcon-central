@@ -16567,3 +16567,60 @@ corrected table:
 **Both sims feed their airspeed box from world-frame velocity and their Mach from true airspeed.**
 That is the durable cross-port fact; the ISA-vs-mission atmosphere is the one that decides whether a
 gold-free Mach check is valid at all (FF yes, MA no).
+
+## GOLDVID-FF-1 S4 (Opus 5, 2026-09-16) — ⛔ **`refuelSpeed` has ZERO readers in the entire tree.** The data the item's headline was about is inert, and the tanker's speed comes from somewhere else entirely — a planned GROUND speed
+
+The item opened with *"is `refuelSpeed` an indicated or a true airspeed?"* and S1 answered it from the
+gold. S2 called the agreement *"three routes, one answer"*. This sprint checked the premise that all
+three share: that the game reads the value at all.
+
+⛔ **It does not.** Three occurrences in the whole repository, and none of them is a read:
+
+```
+src/sim/airframe/readin.cpp:824   { "refuelSpeed", ID_FLOAT, OFFSET(refuelSpeed), "310.0"},   <- loads it
+src/sim/include/airframe.h:279    float refuelSpeed;  // 2002-02-08 MN tanker speed ...        <- declares it
+src/sim/include/airframe.h:1798   return auxaeroData->refuelSpeed;                             <- the getter
+```
+
+`GetRefuelSpeed()` is called **nowhere**, and the member is read **nowhere else**. `git log -S
+"GetRefuelSpeed"` returns four commits: the FreeFalcon import, the two rebase mechanics around it,
+and my own STATUS text. **No caller has ever existed in this repository's history** — so this is
+upstream data plumbing that was never wired, not something the Linux port removed. (The loader's
+default is `"310.0"`, so an aircraft whose `.dat` omits the key silently gets 310 — of nothing.)
+
+⭐ **What DOES set an AI flight's speed**, found by following the other end: `SetWPSpeed()`
+(`campwp.cpp:911`) —
+
+```c
+time  = wp->GetWPArrivalTime() - pw->GetWPDepartureTime();
+speed = (Distance(x, y, px, py) * CampaignHours) / time;
+wp->SetWPSpeed(speed);
+```
+
+**leg distance ÷ leg time: a planned GROUND speed.** Which fits the night's other finding exactly —
+S3 showed FF's HUD airspeed is the CAS of the *world-frame* velocity, and now the AI's commanded speed
+turns out to be a planned *ground* speed too. **FreeFalcon is ground-speed-centric internally**, and
+that is the coherent picture, not two unrelated quirks.
+
+⚠️ **What this does and does not overturn.**
+
+| claim | status |
+|---|---|
+| "the gold's tanker was stabilised such that the player read **222 KIAS**" | **stands** — read directly off the HUD |
+| "a pilot formating on the tanker sees ~220 KIAS, not 300" | **stands** — same reading |
+| "`refuelSpeed`'s 295–315 are TRUE airspeeds" | **plausible but now unsupported by the game** — the numbers are consistent with TAS, but since nothing reads them the agreement is about how the .dat was *authored*, not about behaviour |
+| S2's "third independent confirmation" | **withdrawn to two.** The filing's deduction and S2's HUD-Mach agreement are both about units and both stand; they were never independent of `refuelSpeed` being live |
+
+⭐ **And one plain, user-facing consequence:** editing `refuelSpeed` in any `.dat` changes nothing.
+A tanker flies its flight plan's leg speed. Anyone tuning AAR behaviour — including us, if the PO
+wants the refuel TE to feel right — must change the **waypoint timing**, not the aircraft data.
+
+⚠️ **Not claimed:** that the TE's tanker uses this campaign planner rather than a speed authored into
+`27 Refueling.trn`. A saved TE carries waypoints with arrival times, so the same formula applies, but
+that is an inference. **The measurement that would settle it** is a trace of the tanker entity's own
+`af->vt` during the refuel TE, compared with the gold's ~300 kt TAS — the natural S5, and the
+`FF_TRACE_HUD` site added in S3 is the place to hang it.
+
+**GOLDVID-FF-1: 4 sprints — at cap, rotating off.** The item delivered the join profile (S1), a
+self-check that transfers to our build (S2), our build passing it plus HUDSPD-1 (S3), and the
+correction that its own headline datum is inert (S4).
