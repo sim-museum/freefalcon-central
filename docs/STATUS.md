@@ -16624,3 +16624,81 @@ that is an inference. **The measurement that would settle it** is a trace of the
 **GOLDVID-FF-1: 4 sprints — at cap, rotating off.** The item delivered the join profile (S1), a
 self-check that transfers to our build (S2), our build passing it plus HUDSPD-1 (S3), and the
 correction that its own headline datum is inert (S4).
+
+## FTOI-1 — 🔴 `FloatToInt32` TRUNCATES on Linux where the original ROUNDS: 881 call sites, every one biased low
+
+`src/mathlib/math.h:193` is two different functions depending on the platform:
+
+```c
+static inline int FloatToInt32(float x)
+{
+#if WIN32
+    __asm { fld dword ptr [x]; fistp dword ptr [x]; mov eax, dword ptr [x]; }
+#else
+    return static_cast<int>(x);        // <- the Linux port
+#endif
+}
+```
+
+`fistp` stores using the **x87 control word's rounding mode**, which is **round-to-nearest (ties to
+even)** by default. `static_cast<int>` **truncates toward zero**. So on Linux every value converted by
+this function is up to **1 unit low, always in the same direction** — and it is called in **881
+places**.
+
+## FTOI-1 S1 (Opus 5, 2026-09-16) — ✅ **fixed in one line, and the file itself proves the intent**
+
+⭐ **The codebase distinguishes the two conversions, and the Linux fallback collapsed them.** Sixteen
+lines below `FloatToInt32`, in the same header:
+
+```c
+// Fast float to int conversion (always truncates) see http://www.stereopsis.com/FPU.html
+static inline long Ftol(float val)
+```
+
+**`Ftol` exists precisely because `FloatToInt32` does not truncate.** Two converters, one documented
+as truncating, and the port made both of them truncate. That is not a judgement call about which
+rounding is "better" — it is a divergence from an intent the source states in a comment.
+
+**Where it is visible to the player:** the HUD airspeed box is
+`a = FloatToInt32(cockpitFlightData.kias)` (`navhud.cpp:72`), the campaign altitude readout is
+`FloatToInt32(ZPos() * -1.0F)` (`unit.h:545`), and `F_I32()` wraps it for the graphics engine
+(`dxdefines.h:21`). A stabilised 222.7 kt reads **222** on Windows and **222** here; a stabilised
+222.6 reads **223** there and **222** here. Small, constant, and one-directional.
+
+✅ **The fix:** `return static_cast<int>(lrintf(x));` — `lrintf` uses the current rounding mode, which
+is the same round-to-nearest-even `fistp` uses, so this restores the original semantics rather than
+approximating them. Reverting for an A/B is putting the `static_cast` back.
+
+⭐ **Verified, not assumed:**
+
+| check | result |
+|---|---|
+| full rebuild (779 targets) | clean |
+| no-AP stick flight, 200 s | flies; autopilot gate passes (`[AP-1] samples: 0`); HUD trace sane |
+| `tools/ff_validate.sh` frame gate | **VERDICT: REAL CONTENT** — 94.4% non-black, 102,766 distinct colours |
+
+⚠️ **One assertion appears in the flight log and it is PRE-EXISTING**, not caused by this change:
+`[Failed: slotNumber < instance.ParentObject->nSlots] drawbsp.cpp:219`. The identical line, same file
+and same count, is in the log of the **2026-09-13** build taken before this sprint. Stated here so it
+is not read as fallout.
+
+⭐⭐ **Cross-port: this is the SECOND instance of this exact bug class tonight.** MiG Alley's
+WEATHERPANEL-1 S1, an hour earlier, found three altitude rows one foot low because
+`t = CloudLayer/30.48` truncated a quotient that is fractionally below the round number. **Different
+sim, different codebase, same shape: a float→int display conversion that truncates where the original
+rounded.** Worth a deliberate sweep in BoB rather than waiting for the next gold capture to surface
+it one field at a time.
+
+⚠️ **Blast radius, stated plainly.** 881 call sites is not a local change. Anything previously
+measured against the truncating build may now differ by one unit — including recorded pixel
+coordinates, altitudes, and any gate baseline captured from this port rather than from a gold. The
+two gates above were re-run; **the ACMI, landing-AP and two-instance harnesses were not**, and should
+be before their numbers are compared with pre-fix runs.
+
+⚠️ **Unrelated housekeeping noticed while running the gate:** `tools/ff_validate.sh` writes its
+captured frame to `/tmp/ffval/shot.bmp`. A rendered frame is game data and the standing rule is that
+it must not go into the 7.6 GB tmpfs. It is one 1024×768 BMP so nothing broke, but the harness should
+take an output directory under `/home` like the others. Not changed here — it is not this sprint's
+subject and the gate is load-bearing. [[heavy-jobs-oom-kill-the-session]]
+
+**FTOI-1: 1 sprint. A one-line fix to a primitive that had been silently biasing 881 conversions.**

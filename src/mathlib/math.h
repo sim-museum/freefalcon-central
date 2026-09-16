@@ -200,7 +200,16 @@ static inline int FloatToInt32(float x)
         mov eax, dword ptr [x];
     }
 #else
-    return static_cast<int>(x);
+    /* FTOI-1 S1 (2026-09-16, FF_LINUX): ROUND, do not truncate.
+       The Windows arm is `fld` + `fistp`, which stores using the x87 control word's rounding
+       mode -- by default ROUND-TO-NEAREST (ties to even). `static_cast<int>` truncates toward
+       zero, so every one of the 881 call sites read up to 1 unit LOW on Linux, always in the
+       same direction. The file itself proves the intent: `Ftol()` a few lines below is
+       commented "Fast float to int conversion (ALWAYS TRUNCATES)" and exists precisely because
+       FloatToInt32 does not. lrintf() uses the current rounding mode, which is the same
+       round-to-nearest-even fistp uses, so this restores the original semantics exactly.
+       To revert for A/B, put `static_cast<int>(x)` back here. */
+    return static_cast<int>(lrintf(x));
 #endif
 }
 #if WIN32
