@@ -16969,3 +16969,73 @@ Ours saved as `docs/reference/260916_ours_te27_planning.png`.
 
 **GOLDVID-FF-1: 8 sprints — 4 in this pass, at cap, rotating off.** The item has gone from a HUD
 strip to the first value-level UI parity check the project has.
+
+## TEPKG-1 — the TE package number: **ours reads 97 where the gold reads 87**, and the confound that was supposed to explain it does not
+
+GOLDVID-FF-1 S8 put our TE 27 package table beside the gold's and found six of nine values exact,
+with three differences. It offered a confound for two of them — that the harness loads
+`09 Landing Final Approach` first and substitutes `27 Refueling` afterwards, so a package-id counter
+could have advanced — and named the run that would settle it.
+
+## TEPKG-1 S1 (Opus 5, 2026-09-16) — ⛔ **S8's confound is DISPROVED by its own log, and the number does not drift across the run.** The divergence is real and unexplained
+
+⛔ **No second TE was ever loaded.** The S8 run's log shows every type-3 read substituted, and only
+one file opened:
+
+```
+[FF_LINUX] FF_TE_FILE: '09 Landing Final Approach' -> '27 Refueling'
+[FF_LINUX] StartReadCampFile: Opening path='…/campaign/save/27 Refueling.trn'
+[FF_LINUX] FF_TE_FILE: '09 Landing Final Approach' -> '27 Refueling'
+[FF_LINUX] StartReadCampFile: Opening path='…/campaign/save/27 Refueling.trn'
+[FF_LINUX] FF_TE_FILE: '09 Landing Final Approach' -> '27 Refueling'
+```
+
+**TE 09's data was never read.** The title bar's `09 Landing Final Approach` is the *clicked list
+row's caption*, not the loaded file — which is why it looked like a double load and was not one.
+
+⛔ **And the "repeated re-reads advance a counter" variant is dead too.** The TE *is* re-read several
+times, so the capture sequence `FF_UI_SHOT_DIR` now produces was checked end to end — captures **8,
+12, 16 and 23**, spanning about 45 seconds and multiple substituted re-reads:
+
+```
+ui_0008   Training 08:58:36  pkg 97     Tanker 08:58:44  pkg 97
+ui_0012   Training 08:58:36  pkg 97     Tanker 08:58:44  pkg 97
+ui_0016   Training 08:58:36  pkg 97     Tanker 08:58:44  pkg 97
+ui_0023   Training 08:58:36  pkg 97     Tanker 08:58:44  pkg 97
+```
+
+**Stable at 97 from the first planning-screen capture to the last.** It does not drift, so nothing is
+accumulating. *(This is the first use of the numbered-sequence capture S7 added; with the old
+single-overwriting `/tmp/ff_ui.bmp` this check was not possible.)*
+
+⭐ **So the divergence is real, and its shape is the clue:**
+
+| row | gold | ours |
+|---|---|---|
+| Training | **87** | **97** |
+| Tanker | **87** | **97** |
+| AWACS | **110** | **110** |
+
+**Training and Tanker share a package number in both builds — the relationship is preserved — and
+only the absolute value differs, by exactly +10. AWACS is identical.** A global sequential counter
+would have moved the AWACS row too, so whatever numbers the player's package is not what numbers the
+AWACS package. That matches the campaign code's own structure: `AMIS_ADDTANKER` and `AMIS_ADDAWACS`
+are handled on separate paths in `package.cpp`.
+
+⚠️ **Not claimed:** that this is a defect. Both builds read **the same `27 Refueling.trn`** from the
+same install, which makes a port difference the leading explanation — but a package number is not
+obviously player-visible in any way that matters, and it may be legitimately derived from state the
+two builds initialise differently. **It is a measured divergence with a narrowed cause, not a bug
+report.**
+
+⚠️ **The third difference from S8 — the player's Training takeoff at 08:58:36 against the gold's
+08:58:38 — is untouched here** and remains unexplained. Note it is 2 seconds on the *player's own*
+flight while both other rows match to the second.
+
+**S2:** find where the Training/Tanker package number is assigned (`package.cpp`'s
+`AMIS_ADDTANKER` path against the AWACS one) and whether it derives from anything the two builds
+could initialise differently — and check the same two values against the *other* gold video
+(`260915_missile_threat`, TE 28), which is an independent sample from the same install.
+
+**TEPKG-1: 1 sprint. A confound eliminated, a drift hypothesis eliminated, and the divergence pinned
+to one of two package-creation paths.**
