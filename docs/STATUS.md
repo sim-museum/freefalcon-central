@@ -17743,3 +17743,88 @@ coordinates now known, that display stops being a picture and becomes a **map wi
 course line's shape identifies which legs are in view, and the range rings give the distance.
 
 **GOLDVID-FF-2: new pass, sprint 4 of 4 — at cap.**
+
+## GOLDVID-FF-1 S9 (Opus 5, 2026-09-16) — the census's **TE-selection screen** read at last: ⭐ ours matches it element for element with **one** difference — ⭐⭐⭐ and the same frame answers **TEPKG-1's open PO question** and closes GOLDVID-FF-2's SA-13
+
+S5's census listed five front-end screens no sprint had looked at. This reads the second of them.
+
+### ⭐ Ours against the gold, element for element
+
+(`docs/reference/260915_gold_te_selection_sitrep.png` beside `…/260916_ours_te_selection.png`)
+
+| element | gold | ours |
+|---|---|---|
+| tab row `TRAINING · SAVED · ONLINE`, TRAINING green | ✅ | ✅ |
+| clock, top right | `Day 1, 8:51:58` | `Day 1, 9:03:02` ✅ same widget and format |
+| theatre inset, top right | Korea map | ✅ |
+| USA flag, top right | ✅ | ✅ |
+| TE list, 34 rows | `01 Basic Handling` … `34 F-18 Carrier Landing` | ✅ **identical wording, all 34** |
+| detail panel | flag, title, `Teams / F-16s / Aircraft / Players`, `SitRep` + text | ✅ **all present** |
+| footer | `RESCUE … COMMS  COMMIT`, COMMIT green | ✅ |
+| **selected row** | **green text, no bar** | ⛔ **green text on a grey (120,120,120) selection bar** |
+
+**One difference on the whole screen**: we paint a grey highlight bar behind the selected row and the
+real game does not.
+
+⚠️ **And the trap I nearly filed instead.** My first capture (15 s) showed the detail panel as an
+*empty rectangle* with no row highlighted — which reads as "the panel never populates". The **next**
+frame (18 s) has every field. The click at 14.012 s had simply not been processed yet.
+[[harness-reachable-state]] — caught by looking at the next frame rather than writing up the first.
+
+### ⭐⭐⭐ The SitRep text, at 4× — and it closes GOLDVID-FF-2 S10's disjunction
+
+> *"To the North is an **SA-8**, east is an **SA-13**, the south is blocked by an Alamo carrying
+> Mig-29, and west is the venerable **SA-2**."*
+
+Against S10's unit dump of the same TE:
+
+| the prose says | the data says | |
+|---|---|---|
+| North: **SA-8** | SA-8 battalion at **E379 N540** — the northernmost of the three | ✅ |
+| West: **SA-2** | SA-2 battalion at **E363 N493** — the westernmost | ✅ |
+| East: **SA-13** | the eastern threat (**E421 N502**) is **13× ZSU23-4 + 3× BMP-2** — an AAA battalion | ⛔ |
+
+S10 left it open: *"the briefing sentence either names something the TE does not contain, or was
+misread."* **It was not misread** — verified at 4× zoom. **The TE's own prose names an SA-13 its unit
+data does not contain.**
+
+⭐ **And the roster reading is corroborated by the radars**: the SA-2 battalion carries a **Fan Song**
+and the SA-8 a **Thin Skin**. Those are textbook pairings, produced by a class lookup that had no way
+to know it. The data is right and the prose is the odd one out.
+
+⭐⭐ **So the identification closes as far as it can.** Three independent sources now agree the **SA-8
+is the northern threat**: the grid coordinates, this SitRep, and S11's bearing arithmetic (320°). S7's
+two candidates were "the SA-8 or the SA-13"; **there is no SA-13**.
+
+### ⭐⭐⭐ And the version strings answer TEPKG-1's PO question
+
+TEPKG-1 S4 ran out of internal explanations for our TE-27 package number (97 against the gold's 87)
+and ended: *"was the gold recorded against this same install, or a different FreeFalcon build?"*
+**The gold's own main menu says.**
+
+| | version banner |
+|---|---|
+| **gold** (t=40, its own title line) | **`FreeFalcon 6.0  *  FFViper 2.3.3.44`** |
+| **ours** | **`FFViper : 7.0.0 Linux`** |
+
+And ours is not an invention: `src/ui/src/winmain.cpp:112` declares
+`FREE_FALCON_VERSION = "7.0.0"` — *"the only place in the entire code base where the name and the
+version should be defined"* — while the Windows path reads the number out of `FFViper.exe`'s own file
+version resource, which is what produced the gold's `2.3.3.44`.
+
+⛔⛔ **The gold was recorded against FreeFalcon 6.0; this port is of the FreeFalcon 7.0.0 source.**
+They are different releases. TEPKG-1's four sprints eliminated the allocator, the UI, the decode and
+the file; **the remaining candidate was "a different build", and it is confirmed.** Two releases can
+read the same `.trn` and number a package differently.
+
+⚠️ **The FILE is still shared** — TEPKG-1 S3 verified all five copies of `27 Refueling.trn` on this box
+are byte-identical — so the divergence is binary-to-binary, not data.
+
+⭐ **A false finding killed on the way**: our badge reads `FREE FALCON 5.0` while the banner says
+7.0.0, which looked like an art/version mismatch. **The gold's badge reads 5.0 too** — it is a shared
+art asset, and ours is faithful.
+
+**S10:** the remaining three census screens — the TE briefing, the theatre map with its data panel,
+and the load screen.
+
+**GOLDVID-FF-1: new pass, sprint 1 of 4.**
