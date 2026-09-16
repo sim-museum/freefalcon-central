@@ -512,6 +512,37 @@ void SimulationDriver::Cycle()
         }
     }
 
+    /* ACMI-4 S3 (2026-09-15): S2 measured the sim loop at 31.2 Hz against the gold's 58.4 Hz, with
+       the renderer reporting FPS 59 throughout, and could not say whether we are SLOW (each cycle
+       costs too much) or WAITING (the cycle is not called, or is called and refused). This gate is
+       where the two separate: Cycle() is entered at some rate, and only the calls with >= 10 ms of
+       elapsed game time actually run a frame. Count both, plus the wall time spent inside the frame,
+       and report once a second. FF_DEBUG_SIMRATE=1. */
+    if (getenv("FF_DEBUG_SIMRATE"))
+    {
+        static int entered = 0, ran = 0;
+        static double inFrame = 0.0;
+        static struct timespec t0 = {0, 0};
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        entered++;
+
+        if (t0.tv_sec == 0) t0 = now;
+
+        double wall = (now.tv_sec - t0.tv_sec) + (now.tv_nsec - t0.tv_nsec) * 1e-9;
+
+        if ((elapsedTime >= 10) and (gameCompressionRatio)) ran++;
+
+        if (wall >= 1.0)
+        {
+            printf("[simrate] Cycle() entered %d/s, ran a frame %d/s (%.1f%%), elapsedTime=%ld ms, "
+                   "in-frame %.1f ms/s\n", entered, ran, 100.0 * ran / max(entered, 1),
+                   elapsedTime, inFrame * 1000.0);
+            fflush(stdout);
+            entered = 0; ran = 0; inFrame = 0.0; t0 = now;
+        }
+    }
+
     if ((elapsedTime >= 10) and (gameCompressionRatio))
     {
         // Check if the graphics are runnning and read inputs, if so.

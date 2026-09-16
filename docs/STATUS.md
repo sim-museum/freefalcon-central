@@ -15799,3 +15799,41 @@ slow" from "we are waiting".
 
 **ACMI-4: 2 sprints. The recorder is a frame-rate meter, and it has caught something the FPS counter
 hides.**
+
+### ACMI-4 S3 (Opus 5, 2026-09-15) — ⭐ **we are WAITING, not slow: `SimulationDriver::Cycle()` is entered 32 times a second and runs a frame on 100% of them**
+
+S2 measured the sim loop at 31.2 Hz against the gold's 58.4 Hz and named the split to make: are we
+slow (each cycle costs too much) or waiting (the cycle is not called, or is called and refused)?
+`FF_DEBUG_SIMRATE=1` (new, `simdrive.cpp:512`) counts both sides of the pacing gate.
+
+⭐ **In flight, second after second:**
+
+    [simrate] Cycle() entered 32/s, ran a frame 32/s (100.0%), elapsedTime=32 ms
+    [simrate] Cycle() entered 32/s, ran a frame 32/s (100.0%), elapsedTime=32 ms
+    [simrate] Cycle() entered 31/s, ran a frame 31/s (100.0%), elapsedTime=32 ms
+
+**Nothing is being refused.** The gate is `if ((elapsedTime >= 10) and gameCompressionRatio)` — a
+100 Hz ceiling — and every single entry passes it. The sim runs at 32 Hz because **it is only asked
+to run 32 times a second**.
+
+⭐ **So the pacing is upstream, in the sim thread's own loop** (`simloop.cpp:638`), and the Linux port
+has its own code there:
+
+    DWORD waitTime = (currentMode == Step2 || currentMode == StartRunningGraphics) ? 50 :
+                     (currentMode == RunningGraphics) ? 5 : 100;
+    bool gotSig = ThreadManager::sim_wait_for_campaign(waitTime);
+
+**5 ms in RunningGraphics** would allow ~200 Hz of entries, so at 32 Hz roughly **27 of every 32 ms
+are spent somewhere else in that loop iteration** — either inside `Cycle()` itself or in the rest of
+the body.
+
+⚠️ **And my own instrument has a hole, which I am not going to paper over.** It reports
+`in-frame 0.0 ms/s` in every line: the accumulator is declared and printed but never filled — I timed
+the entries and forgot to time the work. **So this sprint can say where the rate is set but NOT where
+the 27 ms goes**, and the trace's in-frame column is worthless until that is fixed.
+
+**S4:** bracket the `Cycle()` call itself with the monotonic clock and report in-frame against
+between-frames. That is the one measurement that separates "Cycle is expensive" from "the loop waits
+on something", and it is two lines on top of what is already there.
+
+**ACMI-4: 3 sprints. The question is halved: not refused, not the gate — the caller.**
