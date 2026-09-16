@@ -15981,3 +15981,64 @@ autopilot, and the tape gives g directly.
 
 **FM-GOLD-1: 6 sprints (1 in this pass). The write is fixed and verified; the experiment around it
 has to be rebuilt.**
+
+### FM-GOLD-1 S7 (Opus 5, 2026-09-15) — ⭐⭐⭐ **the F-16 flies itself for the first time, and it MEETS the gold envelope**: 439 kts / 26.5 °/s / 9.0 g against the PO's 395–537 kts / 13–18 °/s / 6–7 g. S4's "4× short" was never the flight model
+
+⛔ **First, S6's own prescription was wrong, and I followed it.** S6 ended: *"a harness that does NOT
+engage the autopilot (drop the second `FF_SIM_KEY`)"*. But `ff_landap_approach.sh`'s key string is
+`"0x1e@5;C0x02@12"` and **the FIRST key, `0x1e`, is `DIK_A` — the autopilot toggle**. Dropping only
+the second key leaves the AP engaged in **RollHold**, which the script's own header says flies
+"wings-level from wherever the AP engaged". So the first S7 run reproduced S6's defect exactly:
+
+| what the tape showed | what it means |
+|---|---|
+| roll **exactly** 0.000000, all 701 samples | not a jet — a wings-level hold |
+| yaw **exactly** 90.000°, all 701 samples | heading hold |
+| ground-track turn rate max **1.43 °/s** | vs gold p95 13–18 |
+| 106 `[AP-1]` ticks | the autopilot was flying |
+
+⚠️ I reported that run as "autopilot off" before checking — the `grep` had been aimed at an empty
+directory. **An exactly-constant column is the tell**: real flight never holds roll at 0.000000 for
+200 s. [[instrument-bookkeeping-lies]]
+
+**The fix is a harness of its own, not a flag on the AP harness.** `tools/ff_fm_stick.sh` enters the
+TE with the same front-end clicks and sends **no sim key at all**, then *gates on its own premise*:
+it prints `[AP-1]` and `[stick2]` counts and **exits 3 with "every g and turn-rate number from this
+tape is void"** if the AP engaged. S6 and S7 both needed that gate; now it cannot be skipped.
+
+⭐ **With the AP off and a rolled pull (`FF_STICK2=0.7,0.6,40,150`), the aeroplane manoeuvres.**
+Roll swings **−177…+172°**, pitch reaches **−77°**, altitude runs 20,387 → 309 ft — it rolls in,
+pulls, and eventually spirals into the ground, which is what a held full-deflection input with no
+pilot does. Sample spacing **0.266 s**, matching the gold's 0.27 s, so the statistics are comparable.
+
+**Measured in the gold's own regime** (alt > 5,000 ft, |pitch| < 30° — the terminal dive excluded the
+same way the gold rejected TAPE0007's 24 g tumble):
+
+| statistic | ours (TAPE0007, n=190) | gold (PO's tapes) | verdict |
+|---|---|---|---|
+| speed median | **439 kts** | 395–537 kts | ✅ inside |
+| turn p95 | **26.5 °/s** | 13–18 °/s | ✅ exceeds |
+| turn max | 31.1 °/s | 17.5–22.6 °/s | ✅ exceeds |
+| g p95 | **8.99 g** | 6–7 g at peak | ✅ exceeds |
+
+⭐ **This overturns FM-GOLD-1 S4's headline.** S4 reported 1.6 g against the gold's 6–7 and called it
+"a 4× gap"; S5 found the input saturating. **The deficit was harness, end to end** — not the flight
+model. The F-16 in this port reaches at least the envelope the PO himself flies.
+
+**Read the "exceeds" honestly.** The gold is *what a human chose to fly in a tactical situation*, not
+the airframe's limit. A full-deflection rolled pull held for 150 s is more aggressive than any human
+input, so exceeding it is the expected outcome and **not evidence of a defect**. The claim this
+sprint supports is the weaker, safer one: **the FM is capable of the gold envelope.**
+
+⚠️ **One number to follow up, not yet a claim:** peak **10.74 g**. The real F-16's FLCS limits to
+9 g. p95 at 8.99 is right on the limiter; a max above it hints there may be **no g-limiter in the
+FLCS path**. That wants its own sprint with a symmetric pull before anyone calls it a bug.
+
+⭐ **By-product: the gold oracle is now cross-validated.** `acmi_dump.py` has two parsers whose field
+orders differ (`.vhs` → `pitch,roll,yaw`; `.flt` → `yaw,pitch,roll`), which would silently swap axes
+if either were wrong. Checking the `.vhs` yaw field against ground-track heading derived from x/y on
+two gold tapes: **median error 2.4° (TAPE0006) and 1.9° (TAPE0008)**. The field is genuinely yaw, so
+the envelope in FM-GOLD-1's table measures what it says it measures.
+
+**FM-GOLD-1: 7 sprints (2 in this pass). The item's original question is ANSWERED — our F-16 meets
+the PO's envelope. What remains is the g-limiter question, which is a new item, not this one.**
