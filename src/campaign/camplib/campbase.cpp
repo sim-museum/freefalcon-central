@@ -155,8 +155,17 @@ CampBaseClass::CampBaseClass(VU_BYTE **stream, long *rem) : FalconEntity(VU_LAST
         static long ff_stream_ents = 0;
         ff_stream_ents++;
         if (ff_trace_campid_on())
-            fprintf(stderr, "[campid] stream entity %ld: type=%d camp_id=%d\n",
-                    ff_stream_ents, (int)share_.entityType_, (int)camp_id);
+            /* TEPKG-1 S4 (2026-09-16): print the STREAM OFFSET this camp_id was read at, the way
+               BoB's BOB_TRACE_SAVEOFF does for its savegames. S3 established the number comes from
+               the file, so the remaining question is whether TE 27's package record is read at the
+               wrong place or read correctly from different bytes -- and only an offset can tell
+               those apart. `start_load_stream` is the same base the engine's own load_log uses two
+               dozen lines above, so the numbers are directly comparable with that log. */
+            fprintf(stderr, "[campid] stream entity %ld @ %08lx (+%ld): type=%d camp_id=%d\n",
+                    ff_stream_ents,
+                    (unsigned long)(*stream - start_load_stream),
+                    (long)(*stream - start_load_stream),
+                    (int)share_.entityType_, (int)camp_id);
     }
     local_flags = CBC_AGGREGATE;
     deag_owner = FalconNullId;

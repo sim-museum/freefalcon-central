@@ -214,6 +214,16 @@ PackageClass::PackageClass(VU_BYTE **stream, long *rem) : AirUnitClass(stream, r
         // lastPackageId = share_.id_.num_;
     }
 
+    /* TEPKG-1 S4 (2026-09-16): name the PACKAGES among the camp_ids the stream trace prints.
+       S3 traced every camp_id read out of the .trn but had to GUESS which entities were packages
+       from a raw entityType index (TE 27's two "type=530" entries). This prints from inside
+       PackageClass's own stream ctor, so a line here is a package by construction. Same env. */
+    {
+        extern int ff_trace_campid_on();
+        if (ff_trace_campid_on())
+            fprintf(stderr, "[campid] PACKAGE loaded: camp_id=%d entityType=%d vuId=%u\n",
+                    (int)GetCampID(), (int)share_.entityType_, (unsigned)share_.id_.num_);
+    }
     memset(element, 0, sizeof(VU_ID)*MAX_UNIT_CHILDREN);
     memcpychk(&elements, stream, sizeof(uchar), rem);
     memcpychk(element, stream, sizeof(VU_ID)*elements, rem);

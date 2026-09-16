@@ -17405,3 +17405,89 @@ different `27 Refueling.trn`, the divergence is not a port defect at all.
 
 **TEPKG-1: 3 sprints.** A named suspect measured and killed, the number traced to its real source, and
 one of this sprint's own results thrown out for resting on a compressed file.
+
+## TEPKG-1 S4 (Opus 5, 2026-09-16) — ⭐⭐ **the decode is exonerated**: the packages are named from inside `PackageClass`'s own ctor, the record layout is confirmed byte-exact, and the one stride anomaly turns out to be **the second flight** — ⛔ **so the only explanation left standing is that the gold was not recorded against this file**, which is a question for the PO
+
+S3 traced every `camp_id` and had to **guess** which entities were packages from a raw `entityType`
+index (TE 27's two `type=530` rows). S4 stops guessing.
+
+### ⭐ The packages, named by the class that builds them
+
+A line printed from inside `PackageClass(VU_BYTE**, long*)` is a package **by construction**:
+
+```
+TE 27:  PACKAGE camp_id=97   entityType=530  vuId=12006
+        PACKAGE camp_id=110  entityType=530  vuId=12007
+TE 28:  PACKAGE camp_id=413  entityType=530  vuId=12008
+        PACKAGE camp_id=116  entityType=530  vuId=12007
+        PACKAGE camp_id=110  entityType=530  vuId=12006
+```
+
+⭐⭐ **The `vuId` is what makes this decisive.** In **both** files the player's package is `vuId=12006`
+and the support package `12007`. TE 27's `12006` carries **97**; TE 28's `12006` carries **110** —
+and **110 is exactly what TE 28's screen shows and what the gold shows.** The same code, reading the
+same field of the same structure, is provably right on TE 28.
+
+### ⛔ Retracted inside the sprint: this instrument's absolute offsets are meaningless
+
+S3's next step was "print the stream offset", and it was implemented as the engine's own `load_log`
+does it — `*stream - start_load_stream`. **`start_load_stream` is an `int`, not a base pointer**
+(`extern int start_save_stream, start_load_stream;`), so that expression is pointer-minus-int and the
+absolute figure is nonsense (`+96854885253727`). ⚠️ **The engine's own load log has carried the same
+flaw since 1998**, which is why it looked idiomatic. Only the **differences** between consecutive
+prints are valid — those are true byte deltas — and only differences are used below.
+
+### ⭐ The layout, from the valid differences — and the anomaly that dissolves
+
+Distance from one entity's `camp_id` to the next's (the rest of record *N* plus record *N+1*'s
+fixed `CampBaseClass` header):
+
+| | TE 27 | TE 28 |
+|---|---|---|
+| big-entity stride | **1270** (0x4F6) | **1270** (0x4F6) |
+| package → next | **163** (after 97) · **155** (after 110) | **155** (after 413) · **155** (after 116) · **155** (after 110) |
+
+**A package record is 155 bytes — except TE 27's package 97, which is 163.** Eight bytes longer, in
+exactly the record that disagrees with the gold. That is the shape of a decode fault, and for a few
+minutes it looked like one.
+
+⭐ **It is not.** `PackageClass`'s stream ctor reads a variable-length element array:
+
+```c
+memcpychk(&elements, stream, sizeof(uchar), rem);
+memcpychk(element, stream, sizeof(VU_ID)*elements, rem);
+```
+
+`VU_ID` is `uint32_t num_` + `VU_SESSION_ID creator_` = **8 bytes**. **163 − 155 = 8 = exactly one
+`VU_ID`.** TE 27's package 97 is the only package in either file that holds **two** flights — Training
+*and* Tanker, which is visible on the screen itself, since those are the two rows that share the
+number. The stride difference is the second element and nothing else. **The layout is confirmed
+correct, to the byte.**
+
+### ⛔ What that leaves
+
+Across four sprints this number has been chased through three layers and cleared at every one:
+
+| layer | verdict |
+|---|---|
+| runtime allocator (`FindUniqueID`, S2's `AMIS_ADDTANKER` suspect) | ⛔ **zero calls** — S3 |
+| the UI (`GetCampID()` → the table cell) | ⛔ faithful — it shows what the reader produced, S3 |
+| the stream decode | ⛔ **exonerated here** — right on TE 28, byte-exact layout on TE 27 |
+| the file | ⛔ not the variable — all **five** copies on this box are byte-identical (S3) |
+
+⚠️⚠️ **So the leading explanation is now the one thing this session cannot test: that the gold video
+was not recorded against this install.** Every internal explanation has been eliminated by
+measurement, and *"a different FreeFalcon build, or a `27 Refueling.trn` that is not the one here"*
+is the only candidate left. It is not a satisfying answer and it is the honest one.
+
+### For the PO, one question
+
+**Was `260915_ff_te_planning` recorded against `/home/admin/sgl/SAT/freeFalcon/…/FreeFalcon6`,
+or against a different FreeFalcon install?** If different, TEPKG-1 closes as not-a-defect. If the
+same, then a value that is provably in the file is being displayed differently by the two builds, and
+that is worth a fifth sprint with the original binary's own behaviour as the oracle.
+
+⚠️ **Not claimed:** that the port is correct. It is *unrefuted* on this evidence, which is a weaker
+statement. The 2-second Training takeoff difference from S1 is still open and untouched.
+
+**TEPKG-1: 4 sprints — at cap, and blocked on the PO rather than on the code.**
