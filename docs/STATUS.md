@@ -17880,3 +17880,49 @@ test is a run that clicks TAKEOFF.
 1 Hz — and read the credits screen, which is the last item on the census.
 
 **GOLDVID-FF-1: new pass, sprint 2 of 4.**
+
+## GOLDVID-FF-1 S11 (Opus 5, 2026-09-16) — ⛔ **S10's own next step could not have worked either, and this time the reason is structural**: `FF_UI_SCREENSHOT` lives in the UI loop and cannot see anything the sim draws
+
+S10 recorded a null it refused to report (59 captures, no load screen) because the run never entered
+the sim, and proposed the fix: *"add `976,750@30` to the click list and sample at 1 Hz."* Ran it.
+
+### ⭐ The run did what S10 asked
+
+```
+[FF_UI_CLICK] firing (210,247) at 14014ms
+[FF_UI_CLICK] firing (825,750) at 18005ms
+[FF_UI_CLICK] firing (976,750) at 30006ms      <- TAKEOFF
+```
+
+All four clicks fired; the run entered the sim.
+
+### ⛔ And the captures stop at exactly that moment
+
+**30 captures at 1 Hz — and then nothing**, with the last at ~30 s. Not a timeout artefact: the run
+had 90 s. The most-blue frame across all 30 is the main menu again (`b − (r+g)/2 = 5.6`).
+
+`FF_UI_SCREENSHOT`'s hook is in `main_linux.cpp`'s **UI** loop. Once `OTWDriver` takes over the frame
+loop, that loop stops running — so **the hook cannot capture a sim-side splash by construction**, at
+any sampling rate, with any click list. S10's proposed step was the wrong instrument, not a wrong
+parameter.
+
+⭐ **The right one already exists**: `FF_SHOT_FRAMES=<n,n,n>` / `FF_SHOT_DIR` (`main_linux.cpp:398`),
+the sim-side capture GOLDVID-FF-2 S2 fixed. Whether it fires early enough to catch a splash drawn
+during sim *init* is the open question — its frame numbers count rendered frames, and the splash may
+precede frame 1.
+
+### ⚠️ Twice in two sprints
+
+S10 caught a null whose run could not produce the event. S11 caught a null whose **instrument** could
+not observe the event. Same failure in a different place, and both were only visible by asking what
+the harness actually does rather than reading the zero. [[harness-reachable-state]]
+[[instrument-bookkeeping-lies]]
+
+⚠️ **Still unanswered:** whether our port draws the loading splash at all. Two sprints have narrowed
+*how to ask*, and neither has asked it. That is worth saying plainly rather than letting the
+narrowing read as progress toward an answer.
+
+**S12:** `FF_SHOT_FRAMES=1,2,3,5,10` with `FF_SHOT_DIR`, on a run that takes off — and if the splash
+precedes frame 1, a one-shot in `OTWDriver::Enter()` itself.
+
+**GOLDVID-FF-1: new pass, sprint 3 of 4.**
