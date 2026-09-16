@@ -664,6 +664,30 @@ extern "C" void ff_dump_campaign_units(void)
                 n, (int)e->GetCampID(), nm ? nm : "(null)", cn,
                 (int)ci[0], (int)ci[1], (int)ci[2], (int)ci[3], (int)ci[4],
                 (int)x, (int)y, (int)e->GetTeam());
+        /* GOLDVID-FF-2 S10 (2026-09-16): for a GROUND unit, also list its VEHICLE COMPOSITION.
+           S9 got as far as "three Air Defense Battalions, sptype 31 / 21 / 4" and could not say
+           which missile system each one is: GetClassName on the UNIT returns the unit class
+           ("Air Defense") for all three. The model is one level down, in the unit class data's
+           VehicleType[] -- itself a class-table description index -- so the same GetClassName
+           resolves it. This is the step that turns "an SA-something" into a name. */
+        if (e->GetDomain() == 3 && e->IsUnit())
+        {
+            UnitClassDataType* uc = ((Unit)e)->GetUnitClassData();
+            if (uc)
+            {
+                fprintf(stderr, "[units]        unit-class '%s' :", uc->Name);
+                int printed = 0;
+                for (int vg = 0; vg < VEHICLE_GROUPS_PER_UNIT; vg++)
+                {
+                    if (uc->NumElements[vg] <= 0) continue;
+                    char* vn = GetClassName((int)uc->VehicleType[vg]);
+                    fprintf(stderr, "%s %dx %s", printed ? "," : "",
+                            uc->NumElements[vg], (vn && *vn) ? vn : "(unnamed)");
+                    printed++;
+                }
+                fprintf(stderr, "%s\n", printed ? "" : " (no vehicle groups)");
+            }
+        }
         n++;
         e = (CampEntity) myit.GetNext();
     }

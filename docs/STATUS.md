@@ -17568,3 +17568,52 @@ player's TE start position from this same dump and the heading already read from
 and only then compute a bearing.
 
 **GOLDVID-FF-2: new pass, sprint 1 of 4.** The pixels are out of the loop; the data is in it.
+
+## GOLDVID-FF-2 S10 (Opus 5, 2026-09-16) — ⭐⭐⭐ **the three threats are NAMED from their own vehicle rosters — and one of S7's two candidates does not exist in this TE**
+
+S9 got the threats out of the `.trn` as *"three Air Defense Battalions, sptype 31 / 21 / 4"* and could
+not say which missile system each one was: `GetClassName` on the **unit** returns the unit class
+(`Air Defense`) for all three. The model is one level down, in `UnitClassDataType::VehicleType[]` —
+itself a class-table description index, so the same `GetClassName` resolves it.
+
+### ⭐⭐⭐ TE 28's ground threats, by composition
+
+| camp id | sptype | grid | vehicles | **what it is** |
+|---|---|---|---|---|
+| **4032** | 4 | (363,493) | 4× **SA-2**, 1× **Fan Song B**, 3× KrAz F 255B, 1× SA-14 | **SA-2 Guideline** battery |
+| **97** | 21 | (379,540) | 3× **SA-8**, 1× **Thin Skin**, 7× KrAz T 255B, 5× BMP-2 | **SA-8 Gecko** battery |
+| **189** | 31 | (421,502) | 13× **ZSU23-4**, 3× BMP-2 | **ZSU-23-4 AAA** — guns, not missiles |
+
+The radars name them as clearly as the launchers do: **Fan Song** is the SA-2's, **Thin Skin** the
+SA-8's. This is the game's own data, not a reading of a briefing.
+
+### ⛔⛔ S7's question had two candidates and one of them is not here
+
+GOLDVID-FF-2 S7 narrowed the gold's 3-o'clock contact to *"exactly two candidates whose answers point
+opposite ways — the SA-8 or the SA-13."* **There is no SA-13 in TE 28.** The three ground threats are
+an SA-2, an SA-8 and an AAA battalion.
+
+⚠️ **That is the second correction to this item's own threat inventory.** S5 had already withdrawn
+*"SA-6 to the east"* in favour of *"SA-2 to the WEST … and the SA-13 is east"*, read from the gold's
+briefing text. The SA-2 is confirmed by the file. **The SA-13 is not in the file at all** — so the
+briefing sentence S5 read either names something the TE does not contain, or was misread. Either way,
+*the item has now been wrong about its own threat list twice, both times from prose, and right once,
+from the data.*
+
+⭐ **So S7's two candidates reduce to one**: if the contact is a SAM it is the **SA-8**. The remaining
+alternative is not the SA-13 but the **ZSU-23-4 battalion**, whose Gun Dish radar would also paint an
+RWR — and which sits on the *opposite side* of the player's package from the two SAMs (grid 421 against
+363 and 379, with the package at 394).
+
+### ⚠️ Still not computed, and still deliberately
+
+The bearing needs the player's position at t=450 **and** the campaign grid's axis convention (which of
+the pair is north). Neither is established, and this item has already produced two confident wrong
+answers from unverified premises. The *relative* geometry above is as far as the data goes without
+guessing.
+
+**S11:** the axis convention, from the game itself — `CampBaseClass::SetLocation` converts grid to a
+world `vector`, so one trace of a known objective's grid against its world position names which axis
+is which, with no assumption at all.
+
+**GOLDVID-FF-2: new pass, sprint 2 of 4.**
