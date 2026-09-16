@@ -145,6 +145,19 @@ CampBaseClass::CampBaseClass(VU_BYTE **stream, long *rem) : FalconEntity(VU_LAST
     base_flags = tmp;
     memcpychk(&owner, stream, sizeof(Control), rem);
     memcpychk(&camp_id, stream, sizeof(short), rem);
+    /* TEPKG-1 S3 (2026-09-16): the OTHER source of camp_id -- read straight out of the .trn.
+       FindUniqueID's trace (below) reported ZERO runtime allocations across a full TE 27 and
+       TE 28 planning run, so if that zero is honest every camp_id the planning screen shows came
+       from here. Print what the stream hands us, so "our package reads 97 where the gold reads 87"
+       can be settled against the FILE rather than against a hypothesis. Default-off, same env. */
+    {
+        extern int ff_trace_campid_on();
+        static long ff_stream_ents = 0;
+        ff_stream_ents++;
+        if (ff_trace_campid_on())
+            fprintf(stderr, "[campid] stream entity %ld: type=%d camp_id=%d\n",
+                    ff_stream_ents, (int)share_.entityType_, (int)camp_id);
+    }
     local_flags = CBC_AGGREGATE;
     deag_owner = FalconNullId;
     components = NULL;
@@ -926,16 +939,38 @@ Objective GetEntityObjective(VuEntity* e)
 // My global for last assigned id
 short gLastId = 32767;
 
+/* TEPKG-1 S3 (2026-09-16): trace every RUNTIME camp-id allocation.
+   The TE planning screen's "Package NN" is GetCampID() (ui/src/taceng/te_units.cpp:1303,
+   ui/src/campaign/cmap.cpp:902), and camp_id has exactly two sources: it is READ FROM THE STREAM
+   for an entity loaded out of the .trn (CampBaseClass's stream ctor), or it is allocated HERE for
+   an entity the game constructs at runtime. That split is testable against the measured numbers:
+   TE 27's AWACS reads 110 in both builds (file) while the player's package reads gold 87 / ours 97
+   (allocated). This trace prints which branch ran, the counter it ran against and the id handed
+   out, so the A/B of TE 27 against TE 28 says whether our number comes from the allocator and, if
+   so, what the allocator had already seen. Default-off: FF_TRACE_CAMPID=1. */
+int ff_trace_campid_on()
+{
+    static int on = -1;
+    if (on < 0) on = getenv("FF_TRACE_CAMPID") ? 1 : 0;
+    return on;
+}
+static int ff_trace_campid() { return ff_trace_campid_on(); }
+
 short FindUniqueID()
 {
     CampEntity e;
     short id, eid;
+    static long ff_campid_calls = 0;
+    ff_campid_calls++;
 
     if (gLastId < MAX_CAMP_ENTITIES - 1)
     {
         // simple algorythm to find a unique id
         gLastId++;
         id = gLastId;
+        if (ff_trace_campid())
+            fprintf(stderr, "[campid] call %ld: SEQUENTIAL -> %d (gLastId now %d)\n",
+                    ff_campid_calls, (int)id, (int)gLastId);
         return id;
     }
     else
@@ -966,7 +1001,13 @@ short FindUniqueID()
         for (id = 1; id < MAX_CAMP_ENTITIES; id++)
         {
             if ( not CampSearch[id])
+            {
+                if (ff_trace_campid())
+                    fprintf(stderr, "[campid] call %ld: FIRST-FREE-SCAN -> %d"
+                            " (highest existing camp_id %d, gLastId now %d)\n",
+                            ff_campid_calls, (int)id, (int)highest, (int)gLastId);
                 return id;
+            }
         }
 
         MonoPrint("Error Exceeded max entity count\n");

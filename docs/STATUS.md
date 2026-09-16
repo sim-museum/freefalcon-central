@@ -17306,3 +17306,102 @@ two takeoff times match to the second, so that too is TE-27-specific and shares 
 `AMIS_ADDTANKER` path, with TE 27 and TE 28 as the A/B, and the answer is in one run each.
 
 **TEPKG-1: 2 sprints. A possible port-wide defect is now a TE-27-specific one with a named suspect.**
+
+## TEPKG-1 S3 (Opus 5, 2026-09-16) — ⛔ **S2's hypothesis is DEAD: nothing allocates a package number at runtime — ZERO allocations across both TEs** — ⭐⭐ the `97` comes **out of the file**, which moves the whole question into the stream decoder — ⛔ **and a scan I ran to settle it is worthless, because the `.trn` is compressed**
+
+S2 left a named suspect: `package.cpp`'s `AMIS_ADDTANKER` path requests a tanker at runtime
+(`newmis.RequestMission()`), so if that ran on load it would number the player's package and its
+tanker — exactly the two rows that differ — by the allocator instead of by the file. **S3 tested it.**
+
+### The mechanism, first — because the suspect was named without reading the allocator
+
+The TE planning screen's `Package NN` is `GetCampID()` (`ui/src/taceng/te_units.cpp:1303`,
+`ui/src/campaign/cmap.cpp:902`, `ui/src/common/ato.cpp:455`), and `camp_id` has **exactly two
+sources**:
+
+* `FindUniqueID()` in `CampBaseClass`'s ordinary ctor — the **runtime allocator**; or
+* `memcpychk(&camp_id, stream, …)` in `CampBaseClass`'s **stream** ctor — **read from the `.trn`**.
+
+`FindUniqueID` is also stranger than the suspect assumed: `gLastId` starts at **32767** against a
+`MAX_CAMP_ENTITIES` of 28,000, so the **first** call takes the "we're out of space" branch (census the
+list, return the first free id) and every later call takes `++gLastId`. Two different schemes in one
+function — which would make a "the allocator numbered it" story very hard to falsify by argument.
+So it was falsified by measurement instead.
+
+⭐ **Shipped: `FF_TRACE_CAMPID=1`** (default-off, `campbase.cpp`) — prints every runtime allocation
+with its branch and counter, **and** every `camp_id` read out of the stream.
+
+### ⛔ Result 1: zero runtime allocations, in both TEs
+
+```
+27 Refueling      exit=124(timeout)  UI shots=43  campid allocations=0
+28 Missile Threat exit=124(timeout)  UI shots=43  campid allocations=0
+```
+
+⚠️ **The zero was checked before it was believed**, per the standing lesson:
+
+* the instrument is in the binary — `strings build/src/ffviper/FFViper | grep campid` returns both
+  format strings and the `ff_trace_campid`/`ff_campid_calls` symbols;
+* the run reached the screen — all three `FF_UI_CLICK`s fired (8.0 s / 14.0 s / 18.0 s) and **43 UI
+  captures** were written, the last of them showing the rendered package table.
+
+**So `AMIS_ADDTANKER` cannot be numbering anything: nothing numbers anything at runtime.** S2's
+hypothesis is retired, and with it the last "the port creates it" explanation.
+
+### ⭐⭐ Result 2: the number is read from the `.trn`, and the screen shows exactly what the reader produced
+
+TE 27's stream, every `camp_id` in load order:
+
+```
+71   97   4032   4033   4034   4035   110   4036   4037
+```
+
+and the screen (`docs/reference/260916_ours_te27_packages_97.png`):
+
+```
+P │ Takeoff  │ Role     │ Package │ Status
+A │ 08:58:36 │ Training │   97    │ Ingress     <- gold: 87
+A │ 08:58:44 │ Tanker   │   97    │ Ingress     <- gold: 87
+A │ 09:00:00 │ AWACS    │  110    │ Ingress     <- gold: 110 ✅
+```
+
+**Both numbers the screen shows are in the stream set; 87 is not.** The UI is faithful and the
+allocator is uninvolved — **97 is born in the stream decode**. That is a much narrower place to look
+than "somewhere in the port".
+
+TE 28's stream gives `413`, `116`, `110`, `97`, `71`, `189`; its screen shows **110 and 413**, both
+present and both matching the gold — which is S2's "TE 28 is exact" seen from underneath.
+
+### ⛔ Result 3 — retracted inside the sprint: the raw-file scan is worthless
+
+I scanned `27 Refueling.trn` for the little-endian short `97` and `87`. It came back
+**97: 0 occurrences; 87: 2 occurrences** — which reads exactly like "the file says 87 and we decode
+97", and is a finding I would have been glad to report.
+
+**It proves nothing. The file is compressed.** Three of the `camp_id`s the trace actually read —
+`4034`, `4037` — and the entity type `438` occur **nowhere** in the file as raw shorts either, and the
+bytes around the `87`/`110` candidates are LZSS-shaped (`… 8a f4 9b f4 57 00 8f 6a f4 73 f4 …`).
+A value's absence from a compressed stream says nothing about whether it is in the data.
+⚠️ *Recorded so S4 does not repeat it.* Second time tonight that a cheap scan produced a confident
+wrong answer (the other was BoB's evenly-spaced mirror sample).
+
+⭐ **And the file is not the variable either:** all **five** copies of `27 Refueling.trn` on this box
+are byte-identical (`md5 7582bd80b919…`, 12,285 bytes, dated 2010-09-19). There is one TE 27 here.
+
+### ⭐ By-catch: a S7 divergence that was never a divergence
+
+With the harness pointed at TE 27, the flight panel reads **`STINGRAY1: TRAINING`** — *identical to
+the gold*. GOLDVID-FF-1 S7 recorded ours as `COWBOY1: TRAINING` and graded it "same widget"; the
+callsign matches too, once the right TE is loaded. One more item on that comparison moves from
+"structurally same" to "exact".
+
+**S4:** instrument the decode itself — print the **stream offset** at which each `camp_id` is read,
+the way BoB's `BOB_TRACE_SAVEOFF` was made to do for its savegames. TE 28 decodes correctly and TE 27
+has one wrong value, so the two offsets put side by side should say whether TE 27's package record is
+being read at the wrong place or read correctly from different bytes.
+⚠️ **And one question for the PO that would short-circuit all of it:** *was the gold recorded against
+this same install?* Everything here assumes it was; if it was a different FreeFalcon build or a
+different `27 Refueling.trn`, the divergence is not a port defect at all.
+
+**TEPKG-1: 3 sprints.** A named suspect measured and killed, the number traced to its real source, and
+one of this sprint's own results thrown out for resting on a compressed file.
