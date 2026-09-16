@@ -17999,10 +17999,83 @@ So `1,2,3,5,10` had to land on the splash rather than on the menu. It did.
 
 ### By-catch, not investigated
 
-The run ends with `[Failed: slotNumber < instance.ParentObject->nSlots]` (`drawbsp.cpp:219`),
-repeatedly. Pre-existing — nothing in this port was changed this sprint — and non-fatal. Recorded
-so it is not rediscovered as new.
+The run ends with `[Failed: slotNumber < instance.ParentObject->nSlots]` (`drawbsp.cpp:219`).
+Pre-existing — nothing in this port was changed this sprint — and non-fatal. Recorded so it is not
+rediscovered as new.
+
+⚠️ **Corrected in BSPSLOT-2:** this said "repeatedly". It fired **once**; the two lines in the log
+are ShiAssert's header and its detail for a single event. And it is not benign — see BSPSLOT-2.
 
 **GOLDVID-FF-1: new pass, sprint 4 of 4 — AT CAP.** The load screen was the last open census item
 and it lands at 0.9861. Next pass should start from the census's own remaining entries, not from
 this one.
+
+## BSPSLOT-2 (Opus 5, 2026-09-16) — ⭐⭐ **BSPSLOT-1's twin, one function away, left behind — and its "tolerance" returns without writing the output** ⛔ **a caller passes an uninitialised `Tpoint` to a constructor, before the slot guard is even reached**
+
+**Story:** BSPSLOT-2 (`DrawableBSP` slot-index safety). **Sprint 1.** Taken because both GOLDVID-FF
+items are at their 4-sprint cap, and this came out of GOLDVID-FF-1 S12's own by-catch.
+
+### Where it came from, and a correction to S12
+
+S12's run ended with `[Failed: slotNumber < instance.ParentObject->nSlots]` at `drawbsp.cpp:219`,
+which I wrote up as firing *"repeatedly"*. **It fired once** — the two log lines are ShiAssert's
+header and its detail for a single event. S12's entry now says so.
+
+The more useful correction is that I filed it as benign. It is not.
+
+### ⭐ The twin
+
+`drawbsp.cpp:123` is `AttachChild`'s slot assertion. **BSPSLOT-1 guarded and instrumented it**, and
+the comment it left at the top of that function complains, in its own words, that *"the two sibling
+fixes had drifted apart"*. Line **219** is `GetChildOffset`'s — the same test, one function away —
+and BSPSLOT-1 did not touch it. It had drifted apart again.
+
+### ⛔ The tolerance does not tolerate
+
+```c
+// THIS IS A HACK TO TOLERATE OBJECTS WHICH DON'T YET HAVE SLOTS
+if (slotNumber >= instance.ParentObject->nSlots)  return;      // <- writes nothing
+*offset = instance.ParentObject->pSlotAndDynamicPositions[slotNumber];
+```
+
+The early return leaves `*offset` **untouched**, so what the caller reads depends entirely on what
+the caller put there. Audited, every caller:
+
+| caller | its `Tpoint` | on the tolerance path |
+|---|---|---|
+| `wpnstatn.cpp:199` | `Tpoint hpPos = {0,0,0};` | **safe** — reads a zero |
+| `sfx.cpp:2033` | filled by `ObjectSetData` + clamped at 1964–73 | **stale**, not garbage |
+| `tankbrn.cpp:192-193` | `Tpoint rackLoc; Tpoint simLoc;` — **uninitialised** | **garbage** into `boom[].rx/ry/rz` |
+
+### ⛔ And tankbrn is broken before the guard is even reached
+
+`tankbrn.cpp:288`, on the **success** path, with no slot involved:
+
+```c
+boom[BOOM].drawPointer = new DrawableBSP(MapVisId(boomModel), &simLoc, &IMatrix);
+((DrawableBSP*)self->drawPointer)->GetChildOffset(0, &simLoc);   // simLoc first WRITTEN here
+```
+
+`simLoc` is handed to the constructor as the child's position **before anything has written it**.
+That is a read of stack garbage independent of everything above, and it is the port's standing bug
+class. [[rowan-port-uninit-and-stub-traps]]
+
+### Shipped
+
+* `GetChildOffset`'s tolerance path now writes a **zero offset** before returning, so it is
+  tolerant for every caller rather than only for the one that pre-initialises — a child at the
+  parent's origin is exactly what `wpnstatn.cpp` already gets.
+* the same `FF_DEBUG_SLOT=1` reporting its sibling has had since BSPSLOT-1, so *which* model lacks
+  slots stops being a mystery: `[SLOT] GetChildOffset OOB: parent id=… slot=… nSlots=… -> zero offset`.
+* `tankbrn.cpp`'s two `Tpoint`s initialised to `{0,0,0}`, matching `wpnstatn.cpp`'s own declaration.
+
+### Verification
+
+Builds clean. A run with `FF_DEBUG_SLOT=1` on S12's recipe is queued behind the display lock to
+report which parent asks. **Whether it fires, and for which model, is not claimed here** — the
+assertion fired once in S12's run, and once is not a reproduction rate.
+
+**S2:** read that report. If the parent is a tanker, the `tankbrn` ctor read above is the same
+object and the two findings are one.
+
+**BSPSLOT-2: 1 sprint.**

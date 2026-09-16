@@ -189,8 +189,13 @@ void TankerBrain::InitBoom(void)
 {
     unsigned long boomModel = 0;
     unsigned long drogueModel = 0;
-    Tpoint rackLoc;
-    Tpoint simLoc;
+    /* BSPSLOT-2 (2026-09-16): both were uninitialised, and simLoc is passed to a DrawableBSP
+       CONSTRUCTOR below BEFORE anything writes it -- a read of stack garbage on the success
+       path, independent of the slot guard. GetChildOffset's tolerance branch also used to
+       return without writing, so on that path boom[].rx/ry/rz took garbage too.
+       wpnstatn.cpp already declares its equivalent as `Tpoint hpPos = {0,0,0};`. */
+    Tpoint rackLoc = {0, 0, 0};
+    Tpoint simLoc  = {0, 0, 0};
 
     // 26NOV03 - FRB - Variable values from <ac>.dat file
 

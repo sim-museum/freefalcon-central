@@ -220,7 +220,30 @@ void DrawableBSP::GetChildOffset(int slotNumber, Tpoint *offset)
 
     // THIS IS A HACK TO TOLERATE OBJECTS WHICH DON'T YET HAVE SLOTS
     // THIS SHOULD BE REMOVED IN THE LATE BETA AND SHIPPING VERSIONS
-    if (slotNumber >= instance.ParentObject->nSlots)  return;
+    if (slotNumber >= instance.ParentObject->nSlots)
+    {
+        // BSPSLOT-2 (2026-09-16): this is AttachChild's twin, one function up, and BSPSLOT-1
+        // left it behind -- the comment at the top of AttachChild complains about exactly that
+        // ("the two sibling fixes had drifted apart") and it had happened again here.
+        //
+        // The upstream tolerance returns WITHOUT WRITING *offset, which is safe only for a
+        // caller that pre-initialised it. wpnstatn.cpp does (`Tpoint hpPos = {0,0,0};`);
+        // tankbrn.cpp does NOT (`Tpoint simLoc;` / `Tpoint rackLoc;`, tankbrn.cpp:192), and
+        // copies the result straight into boom[].rx/ry/rz. sfx.cpp's `pos` is left holding an
+        // earlier, valid value -- stale rather than garbage. Write a zero offset so the
+        // tolerance is actually tolerant for every caller; a child at the parent's origin is
+        // what a caller that initialises already gets.
+        if (offset) { offset->x = 0.0f; offset->y = 0.0f; offset->z = 0.0f; }
+        static int ffDbgSlot = -1;
+        if (ffDbgSlot < 0) ffDbgSlot = getenv("FF_DEBUG_SLOT") ? 1 : 0;
+        if (ffDbgSlot)
+        {
+            fprintf(stderr, "[SLOT] GetChildOffset OOB: parent id=%d slot=%d nSlots=%d -> zero offset\n",
+                    id, slotNumber, instance.ParentObject->nSlots);
+            fflush(stderr);
+        }
+        return;
+    }
 
     *offset = instance.ParentObject->pSlotAndDynamicPositions[slotNumber];
     offset->x *= scale;
