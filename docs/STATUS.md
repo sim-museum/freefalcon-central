@@ -17828,3 +17828,55 @@ art asset, and ours is faithful.
 and the load screen.
 
 **GOLDVID-FF-1: new pass, sprint 1 of 4.**
+
+## GOLDVID-FF-1 S10 (Opus 5, 2026-09-16) — the census closed out: **two of its five "front-end screens" were mis-identified**, three are now read, and the fourth is not a front-end screen at all — ⚠️ **plus a null result of mine that is not evidence and is labelled as such**
+
+S5's census listed five screens *"neither FF item has ever looked at"*, with the caution that the
+identifications came from 320×180 thumbnails and were provisional. Read at full resolution, two of the
+five are something else.
+
+### ⭐ The census list, resolved
+
+| S5 called it | what it is | status |
+|---|---|---|
+| main menu / hangar | ✅ correct | **read** — S9: structurally identical to ours, and its version banner answered TEPKG-1 |
+| "TE briefing screen — cockpit photo beside a text list" | the **TE selection** screen (the 34-row list + detail panel + SitRep) | **read** — S9: one difference in the whole screen |
+| "theatre map with a data panel" | the **TE planning** screen | **read** — S7/S8 already compared it |
+| "the load screen — blue, with aircraft silhouettes" | the **OTW loading splash** — not a front-end screen | ⛔ see below |
+| FreeFalcon splash / credits | — | still unread |
+
+**So "five unread front-end screens" is really three front-end screens, all now read, plus a sim-entry
+splash and the credits.** ⚠️ S5 flagged its own identifications as provisional and was right to.
+
+### ⭐ The load screen is the OTW splash, and the source says so
+
+`src/sim/otwdrive/splash.cpp` reads `FalconSplashThrDirectory`, set to `<data>/art/splash` — and that
+directory on this install holds `leave1.gif … leave16.gif`, with resolution variants
+(`leave12_1024.gif`, `leave12_960.gif`). It lives in **`sim/otwdrive`**, so it is shown on entering
+the **3-D world**, not during a front-end load.
+
+⭐ **And its position in the gold confirms it**: t=60 and t=348 in the missile video, each immediately
+after a planning screen — i.e. after TAKEOFF, entering the sim. Not a screen the front end ever shows.
+(`docs/reference/260915_gold_loading_splash.png`.)
+
+### ⚠️ A null result of mine that is NOT evidence
+
+I ran our port with `FF_UI_SCREENSHOT=1` — **59 captures at one-second intervals across the whole
+sequence** — and found **no blue-dominant frame at all**. That looks like "our port never draws the
+load screen".
+
+⛔ **It is not evidence.** That run's click list is `624,745@8; 210,247@14; 825,750@18` — it stops at
+the **planning screen** and never clicks TAKEOFF, so it never enters the sim and therefore *could not*
+have shown a splash that only appears on sim entry. **A null from a run that cannot produce the
+event says nothing**, and I nearly wrote it up before checking what the run actually did.
+[[harness-reachable-state]]
+
+⚠️ There *is* a related thing in the port worth knowing, separately: `FF_LoadingClear()` paints the
+screen **black** before the multi-second campaign decode, with its own comment saying the real splash
+comes later from `OTWDriver::Enter()`. Whether our sim entry shows `leave*.gif` is untested — and the
+test is a run that clicks TAKEOFF.
+
+**S11:** capture the sim-entry splash properly — add `976,750@30` to the click list and sample at
+1 Hz — and read the credits screen, which is the last item on the census.
+
+**GOLDVID-FF-1: new pass, sprint 2 of 4.**
