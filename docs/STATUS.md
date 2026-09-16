@@ -15880,3 +15880,60 @@ bracket moves there.
 
 **ACMI-4: 4 sprints — AT THE CAP, parked.** A tape-format fix became a frame-rate meter, and the
 meter found the sim thread idle 99.7% of the time.
+
+### LANDAP-2 S2 (Opus 5, 2026-09-15) — ⭐⭐ **the gold approach and ours, side by side from the two tapes: the real game closes 10 nm → 0.26 nm and lands; ours reaches 8.24 nm, turns away, and dives at the sea 10 nm out**
+
+LANDAP-1 and LANDAP-2 root-caused the player autopilot in source. ACMI-4 gave us a readable tape of
+the same TE. **The PO's gold store has a tape of that TE too**, so for the first time the two can be
+laid against each other — same mission, same runway, same units.
+
+The reference point is the `WP_LAND` waypoint from LANDAP-2 S1's own dump: **(775715, 1307072)**.
+
+⭐ **GOLD — `260808_landing_final_approach.vhs` (716 samples, 196 s):**
+
+| t (s) | range (nm) | alt (ft) | pitch | roll |
+|---|---|---|---|---|
+| 0 | 10.15 | 2003 | 3.5° | 0.0° |
+| 50 | 6.11 | 1660 | 5.4° | −0.7° |
+| 100 | 2.94 | 909 | 8.4° | 1.5° |
+| 148 | 1.00 | 156 | 9.8° | 0.1° |
+| 195 | **0.26** | **28** | 13.1° | −8.3° |
+
+**Monotonic closure from 10 nm to a quarter of a mile, wings level within ±5°, a 2.6° glide slope,
+and a 13° flare at 28 ft. It lands.**
+
+⛔ **OURS — `TAPE0005.vhs`, same TE, autopilot engaged (177 samples, 95 s):**
+
+| t (s) | range (nm) | alt (ft) | pitch | roll |
+|---|---|---|---|---|
+| 0 | 10.93 | 2000 | 2.7° | 0.0° |
+| 27 | 8.78 | 1918 | 6.0° | **−30.1°** |
+| 51 | **8.24** | 1905 | 7.9° | **−30.2°** |
+| 74 | 9.21 | 1782 | 5.4° | −28.6° |
+| 95 | **10.11** | **45** | **−13.0°** | −16.7° |
+
+⛔⛔ **Both filed defects are in this one table.**
+
+* **The orbit (LANDAP-1).** Roll is pinned at **−30° for the entire flight** — a continuous banked
+  turn — and the range bottoms out at **8.24 nm** and then *increases*. The aircraft never gets
+  closer than eight miles and is flying away by the end. That is "it circles waypoint 1", measured in
+  the gold's own frame.
+* **The dive (LANDAP-2).** In the last 20 seconds pitch goes to **−13°** and altitude falls
+  1782 → 45 ft **while still 10 nm from the field**. That is the `WP_LAND` point's zero altitude being
+  steered at as if it were a cruise altitude.
+
+⭐ **And this hands the PO's pending decision an acceptance test**, which it did not have: whichever
+option is chosen, the tape of a fixed TE-09 must show **range decreasing monotonically from 10 nm to
+under 0.5 nm, roll within ±5° outside deliberate turns, and altitude on a ~2.6° slope** — all three
+of which the gold delivers and none of which we do. **Pass/fail from one recording, no pixels, no
+judgement.**
+
+⚠️ **One caveat on the comparison, stated rather than buried:** the gold flight is 196 s and ours 95 s
+because our recording stopped earlier — ours is not a truncation of the same trajectory, it is a
+different one that never approaches. The comparison is of SHAPE, not of duration.
+
+**S3:** blocked on the PO's choice between the three costed options (harness-only / autopilot honours
+`WP_LAND` / rule that an F-16 AP does not land). **The evidence for that choice is now as concrete as
+it can be made without picking one.**
+
+**LANDAP-2: 2 sprints. The defect is no longer described, it is plotted against the real thing.**
