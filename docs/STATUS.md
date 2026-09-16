@@ -16099,3 +16099,67 @@ turn, speed held) would say whether the command curve is right. **That is a ques
 
 **GLIMIT-1: 1 sprint. Opened on a suspicion, closed by measuring the right variable. `FF_DEBUG_NZ`
 ships so no future sprint has to derive a load factor from positions again.**
+
+---
+
+# NEW GOLD STANDARD VIDEOS (PO, 2026-09-15) — the two training TEs, on video, from the real game
+
+`~/gold standard/free falcon/` gained two videos tonight, both **1920×1080 ~60 fps desktop
+recordings with FreeFalcon in a ~1024×768 window** (titled "FreeFalcon - Wine desktop"):
+
+| file | length | size | TE |
+|---|---|---|---|
+| `260915_refuel.mp4` | 4m 53s | 38 MB | `27 Refueling` |
+| `260915_missile_threat.mp4` | 8m 16s | 181 MB | `28 Missile Threat` |
+
+⭐ **These are worth more than the ACMI tapes for one reason: they show the COCKPIT.** The tapes give
+trajectory and attitude; the video gives HUD, MFDs, RWR and the threat-warning symbology — everything
+our port draws and none of which a tape can grade.
+
+## GOLDVID-FF-1 — the refuel video has ALREADY answered an open question
+
+Asked tonight: is `refuelSpeed` (kc10.dat **295**, f16cbk40/50 **315**, f16cbk52 **300**) an indicated
+or a true airspeed? The source gave no consumer of `GetRefuelSpeed()`, so it could not be settled by
+reading. **The video settles it.** At t=250 s, stabilised, the HUD airspeed box reads:
+
+```
+   222          <- HUD CAS, clearly legible
+```
+
+**222 KIAS.** If `refuelSpeed` were indicated, the box would read 295–315. It does not. Running the
+game's own `get_air_speed()` (waypoint.cpp:2024, TAS → CAS) backwards from 222 KIAS gives **≈300 kts
+TAS at 20,000 ft, ≈310 at 22,000** — squarely inside the refuelSpeed range. **`refuelSpeed` is a TRUE
+airspeed**, and the Falcon 4.0 manual's "the tanker is flying at a fixed airspeed of 300 knots" is
+also TAS. A pilot formating on the tanker correctly sees **~220 KIAS**, not 300.
+
+⚠️ **The altitude box is NOT legible at this capture scale** and I did not read it — so the exact TAS
+is bracketed (300–312), not pinned. Large HUD digits survive the windowed capture; small ones do not.
+
+**Remaining work on this video:** the timeline of the approach — overtake vs range as the player
+closes, what the boom contact looks like, and the tanker's actual ground track. That is directly
+comparable with LANDAP-style analysis and needs no new capture from the PO.
+
+## GOLDVID-FF-2 — the missile-threat video, and what it can settle that nothing else can
+
+TE 28 puts four threats round the player: **SA-8 north (radar, command)**, **SA-13 west (IR)**,
+**MiG-29/AA-10 south (radar, semi-active)**, **SA-6 east (radar, semi-active)**. 8m 16s is long
+enough for several engagements.
+
+**What to grade, in priority order:**
+1. **RWR symbology.** Threat symbols, ring positions, lethal-radius behaviour, launch light and tone.
+   Our RWR has never been compared to anything.
+2. **The IR asymmetry.** The manual promises **no launch warning at all** for the SA-13. Confirm the
+   gold shows a silent IR launch and a warned radar launch — that is a behavioural check our port
+   either reproduces or does not.
+3. **Countermeasure effect.** `beamrider.cpp` rolls `RadarDataTable[radarType].ChaffChance` per
+   bundle, with a comment recording retuning from `0.0 0.1 0.5 0.5 0.2 0.1`. The video shows how many
+   bundles the real game needs. That is a tunable with a gold reference for the first time.
+4. **Missile flight and timing** — launch to impact, which is the manual's "16 seconds from an SA-6
+   at 8 nm" claim, checkable.
+
+⚠️ **One thing this video canNOT settle.** FreeFalcon maps **both** `SensorClass::Radar` and
+`SensorClass::RadarHoming` to the **same `BeamRiderClass`** (missmain.cpp:332) — there is no separate
+command-guidance law. So SA-8 vs SA-6 differences seen on the video are doctrine and data, not two
+guidance models, and must not be "fixed" by inventing a distinction the engine does not have.
+
+**Status: 2 items filed, 0 sprints. GOLDVID-FF-1 has already paid for itself.**
