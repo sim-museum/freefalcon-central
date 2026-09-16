@@ -17100,3 +17100,61 @@ told.
 gold.
 
 **GOLDVID-FF-2: 5 sprints (1 in this pass). The video's front end corrected the item's own premise.**
+
+## GOLDVID-FF-2 S6 (Opus 5, 2026-09-16) — the re-audit S5 promised: ⛔ **S4's "the radar half of the asymmetry is now confirmed in the gold" is WITHDRAWN**, and it has **two** independent faults, the second worse than the first
+
+S5 found the gold's SITREP contradicts the item's threat inventory and flagged that S1–S4 had not
+been re-read for conclusions that depended on an SA-6 being present. Done. One does.
+
+⛔ **The load-bearing sentence, S4:**
+
+> *"At t=450 the scope also shows a **newly diamonded threat at ~3 o'clock**. Three o'clock is **east**,
+> and TE 28's eastern threat is the **SA-6** — semi-active radar, which should warn. **The radar half
+> of the asymmetry is now confirmed in the gold**."*
+
+**Fault 1 (from S5).** The gold's own briefing says *"east is an SA-13"* — the **IR** threat — and
+there is **no SA-6 in this TE at all**. So the identification is wrong even taking the bearing at
+face value.
+
+⛔ **Fault 2, and this one is more fundamental: the RWR shows RELATIVE bearing, not a compass
+direction.** From FreeFalcon's own code, not from general knowledge:
+
+```c
+src/sim/rwr/vehrwr.cpp:315   listElement->bearing = atan2(target->YPos() - platform->YPos(),
+                                                          target->XPos() - platform->XPos());   // world frame
+src/sim/rwr/playerrwr.cpp:522  angle = record->bearing - platform->Yaw();                        // minus own heading
+```
+
+The stored bearing is world-frame; the display subtracts the aircraft's **yaw**. **"3 o'clock" means
+90° right of the nose.** It means *east* only if the aeroplane happened to be heading north at
+t=450 — which was never checked, and which is a one-frame lookup because the HUD heading is in the
+same picture.
+
+⛔ **So the conclusion is withdrawn.** The **observation** stands — a contact newly diamonded at
+~3 o'clock at t=450 — but nothing identifies *which* of the four threats it is.
+
+⚠️ **And the corrected reading is more interesting than the wrong one, which is why it must not be
+quietly dropped.** If the contact really is to the east, east is the **IR** SA-13, and an IR threat
+appearing on the scope would **contradict** the manual's no-warning asymmetry rather than confirm it.
+That would be a finding worth having. **It is not established** — the bearing is relative and the
+heading is unknown — but the item should chase it rather than assume the old answer.
+
+⭐ **What survives S1–S4, checked rather than assumed:**
+
+| sprint | claim | status |
+|---|---|---|
+| S1 | the RWR/HSD symbology captured from the real game | **stands** — a picture, no threat identification in it |
+| S2 | our RWR is structurally correct against the gold | **stands** — a structural comparison, not bearing-dependent |
+| S3 | our port *cannot* warn for an IR threat, by three independent gates | **stands** — a statement about **our code**, proved by reading it, with no dependence on which threat sits where |
+| S4 | the launch event found (red `MISSILE LAUNCH`, dark t=440, lit t=450) | **stands** — the annunciator, not the scope contact |
+| S4 | *"the radar half of the asymmetry is now confirmed in the gold"* | ⛔ **withdrawn** |
+
+**S3 is the load-bearing result of this item and it is untouched**, because it is about our port rather
+than about the gold's geometry.
+
+**S7:** read the aircraft's **heading** off the HUD in the t=450 frame, convert the 3 o'clock relative
+bearing to a compass bearing, and identify the contact properly — SA-8 north, SA-13 east, MiG-29 south
+or SA-2 west. One frame, one lookup, and it either restores S4's conclusion in corrected form or
+produces a much more interesting one.
+
+**GOLDVID-FF-2: 6 sprints (2 in this pass).**
