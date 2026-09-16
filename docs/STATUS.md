@@ -16744,3 +16744,57 @@ The remaining sites are Win32 profiling, structured exception handling and UI95 
 `__builtin_lrint`), the class is now closed across all three sims.
 
 **FTOI-1: 2 sprints. The fix, and then the promised checks actually run rather than listed.**
+
+## GOLDVID-FF-1 S5 (Opus 5, 2026-09-16) — **censused, as the MiG Alley, BoB and julia-racer gold videos were tonight**: both FF videos contain **five front-end screens neither FF item has ever looked at** — ⚠️ **and a large part of both recordings is the PO's DESKTOP, including this session's own earlier output**
+
+Three items in three other projects were reopened tonight because their gold videos had been read by
+stepping to interesting timestamps. GOLDVID-FF-1 and FF-2 were read the same way — both only ever
+looked at the in-flight HUD and RWR — so the same census was run.
+
+⭐ **Method, identical to the others:** frames every 4 s, 16×16 luma signature, grouped by Hamming
+distance. Contact sheets at `docs/reference/260915_gold_scenes_{refuel,missile}.png`.
+
+| video | length | frames | distinct scenes |
+|---|---|---|---|
+| `260915_refuel` | 293 s | 73 | **13** |
+| `260915_missile_threat` | 496 s | 124 | **15** |
+
+⭐ **Five FreeFalcon front-end screens appear in both, and no sprint has read any of them:**
+
+| screen | refuel | missile |
+|---|---|---|
+| **main menu / hangar** — F-16 photo over a menu bar | t=36–44 | t=20 |
+| **TE briefing screen** — cockpit photo beside a text list | t=48 | t=40 |
+| **theatre map with a data panel** — the Balkans/Korea map, route, side panel | t=64, 280 | t=44, 340, 476 |
+| **the load screen** — blue, with aircraft silhouettes | t=264 | t=60, 348 |
+| **the FreeFalcon splash / credits** | end | t=480 |
+
+Our port's UI95 work has never had a gold reference for any of these. The **TE briefing** in
+particular is text-heavy, which is exactly what made MiG Alley's weather panel gradeable field by
+field a few sprints ago.
+
+⚠️⚠️ **And the caution this census produced, which the other three did not.** The first 15–20 seconds
+of **both** FF videos are **not the game**: they are the PO's desktop — a terminal, a Kanban board, a
+file manager. The terminal is showing **this session's own earlier answers**: the refuel video opens
+on the `TE 27 — Refueling` key/action table and the missile-evasion notes I wrote when the PO asked
+*"for wine ff, what are the key commands … for the missile evasion TE and for the refueling TE?"*,
+and the missile video opens on my `refuelSpeed` analysis.
+
+**That is not gold and must never be quoted as evidence about FreeFalcon** — it is my own prior output
+photographed off a screen, and treating it as an independent source would be a circular confirmation
+of exactly the kind this project keeps catching. What it *is* good for: it dates the recordings to
+this session, immediately after those answers, and shows the PO flew the TE by following them.
+
+⭐ **A small genuine by-product:** the recordings confirm the PO used the instructions as given, so
+the flight in GOLDVID-FF-1's video is the documented procedure being executed — which is why its join
+profile (S1) reads as a clean, deliberate approach rather than an improvised one.
+
+⚠️ **All screen identifications here are from 320×180 thumbnails and are provisional.** Each needs a
+full-resolution look before anything is graded against it.
+
+**S6 candidates:** (1) the **TE briefing screen** at full resolution against ours — text-heavy and
+therefore gradeable value by value; (2) the **theatre map with its data panel**, which appears five
+times across the two videos and so has repeat samples; (3) the **main menu / hangar**.
+
+**GOLDVID-FF-1: 5 sprints (a new pass). The item's four earlier sprints read one strip of pixels from
+a 293-second recording.**
