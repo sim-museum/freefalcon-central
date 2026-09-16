@@ -15837,3 +15837,46 @@ between-frames. That is the one measurement that separates "Cycle is expensive" 
 on something", and it is two lines on top of what is already there.
 
 **ACMI-4: 3 sprints. The question is halved: not refused, not the gate — the caller.**
+
+### ACMI-4 S4 (Opus 5, 2026-09-15) — ⭐⭐ **the simulation costs 0.1 ms per frame and the loop waits 31.9 ms between them.** We are not slow by a factor of 320; we are idle
+
+S3 located the rate and admitted it could not price the work — its `in-frame` column printed 0.0 in
+every line because the accumulator was never filled. S4 fills it: a `CLOCK_MONOTONIC` bracket around
+the frame body and another around the gap between entries.
+
+⭐⭐ **In flight, second after second:**
+
+    [simrate] Cycle() entered 32/s, ran 32/s (100.0%), elapsedTime=32 ms |
+              mean gap between entries 32.0 ms, mean time INSIDE Cycle 0.1 ms
+
+| | measured |
+|---|---|
+| frames the sim actually computes | **32 per second** |
+| cost of one frame | **0.1 ms** |
+| gap between frames | **31.9 ms** |
+| **duty cycle** | **0.3%** |
+
+**The port spends 99.7% of its sim thread doing nothing.** Running the gold's 58 Hz would cost
+5.8 ms per second of CPU — the machine is nowhere near the limit, and "we can't keep up" was never
+the explanation.
+
+⭐ **Where the wait is.** `simloop.cpp:642`, Linux-port code:
+
+    DWORD waitTime = ... (currentMode == RunningGraphics) ? 5 : 100;
+    bool gotSig = ThreadManager::sim_wait_for_campaign(waitTime);
+
+A 5 ms bound should give ~200 entries/s. **We get 32**, so either that wait returns far later than
+its bound or the rest of the loop iteration (outside the frame body, so outside this bracket) holds
+the thread. Those are the only two options left and one measurement separates them.
+
+**What it means for the PO.** Physics, autopilot and AI step 32 times a second against the original's
+58 — coarser control loops, and every tape this port writes samples at half the gold's resolution
+(ACMI-4 S2) — **and none of that is a cost problem.** It is a scheduling one, which is a much better
+kind of bug to have.
+
+**S5 (next pass):** bracket `sim_wait_for_campaign` itself. If the wait eats the 32 ms, the fix is in
+the port's own thread code; if it returns promptly, the time is in the rest of `Loop()` and the
+bracket moves there.
+
+**ACMI-4: 4 sprints — AT THE CAP, parked.** A tape-format fix became a frame-rate meter, and the
+meter found the sim thread idle 99.7% of the time.

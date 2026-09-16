@@ -469,12 +469,23 @@ void SimulationDriver::Exit(void)
     F4SoundStop();
 }
 
+/* ACMI-4 S4 (2026-09-15): wall time spent INSIDE the frame body, and how many frames it covers.
+   S3 reported "in-frame 0.0 ms/s" in every line because its accumulator was printed but never
+   filled -- the trace could locate the rate and not the cost. These are filled by the bracket
+   around the frame body below and read by the FF_DEBUG_SIMRATE report. */
+static double g_ffInFrame = 0.0;
+static int    g_ffInFrameN = 0;
+
 void SimulationDriver::Cycle()
 {
     //START_PROFILE("SIMCYCLE_BEGIN");
     //VuListIterator objectWalker (objectList);
     static int runFrame, runGraphics = false;
     long elapsedTime;
+    /* ACMI-4 S4: the frame-body bracket. Function scope because the close sits inside the cycle
+       loop, several blocks below the open. */
+    struct timespec tFrame0 = {0, 0};
+    bool timeFrame = getenv("FF_DEBUG_SIMRATE") != NULL;
     float gndz;
 
     // FF_LINUX: FalconLocalSession may be NULL during early startup
@@ -521,7 +532,7 @@ void SimulationDriver::Cycle()
     if (getenv("FF_DEBUG_SIMRATE"))
     {
         static int entered = 0, ran = 0;
-        static double inFrame = 0.0;
+        static double gapAccum = 0.0;
         static struct timespec t0 = {0, 0};
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
@@ -533,18 +544,34 @@ void SimulationDriver::Cycle()
 
         if ((elapsedTime >= 10) and (gameCompressionRatio)) ran++;
 
+        /* S4: the gap BETWEEN entries. S3 could say Cycle() is entered 32/s and could not say where
+           the other 27 ms of each 32 went, because it never timed anything -- the honest fix is to
+           measure the interval here and the work itself below (see the bracket around the frame
+           body), so "Cycle is expensive" and "the loop waits" separate. */
+        static struct timespec tPrevEntry = {0, 0};
+
+        if (tPrevEntry.tv_sec)
+            gapAccum += (now.tv_sec - tPrevEntry.tv_sec) + (now.tv_nsec - tPrevEntry.tv_nsec) * 1e-9;
+
+        tPrevEntry = now;
+
         if (wall >= 1.0)
         {
-            printf("[simrate] Cycle() entered %d/s, ran a frame %d/s (%.1f%%), elapsedTime=%ld ms, "
-                   "in-frame %.1f ms/s\n", entered, ran, 100.0 * ran / max(entered, 1),
-                   elapsedTime, inFrame * 1000.0);
+            printf("[simrate] Cycle() entered %d/s, ran %d/s (%.1f%%), elapsedTime=%ld ms | "
+                   "mean gap between entries %.1f ms, mean time INSIDE Cycle %.1f ms\n",
+                   entered, ran, 100.0 * ran / max(entered, 1), elapsedTime,
+                   1000.0 * gapAccum / max(entered, 1),
+                   1000.0 * g_ffInFrame / max(g_ffInFrameN, 1));
             fflush(stdout);
-            entered = 0; ran = 0; inFrame = 0.0; t0 = now;
+            entered = 0; ran = 0; gapAccum = 0.0; t0 = now;
+            g_ffInFrame = 0.0; g_ffInFrameN = 0;
         }
     }
 
     if ((elapsedTime >= 10) and (gameCompressionRatio))
     {
+        if (timeFrame) clock_gettime(CLOCK_MONOTONIC, &tFrame0);
+
         // Check if the graphics are runnning and read inputs, if so.
         if (curFlyState == FLYSTATE_FLYING or curFlyState == FLYSTATE_DEAD)
         {
@@ -760,6 +787,14 @@ void SimulationDriver::Cycle()
         SimLibFrameCount ++;
         SimLibElapsedTime += FloatToInt32(SimLibMajorFrameTime * SEC_TO_MSEC + 0.5F);
         UPDATE_SIM_ELAPSED_SECONDS; // COBRA - RED - Scale Elapsed Seconds
+
+        if (timeFrame)   /* ACMI-4 S4: close the bracket opened at the top of this block */
+        {
+            struct timespec tFrame1;
+            clock_gettime(CLOCK_MONOTONIC, &tFrame1);
+            g_ffInFrame += (tFrame1.tv_sec - tFrame0.tv_sec) + (tFrame1.tv_nsec - tFrame0.tv_nsec) * 1e-9;
+            g_ffInFrameN++;
+        }
     }
 
     //STOP_PROFILE("SIMCYCLE_RUNFRAME");
