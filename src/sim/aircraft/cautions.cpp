@@ -624,6 +624,30 @@ void AircraftClass::CorrectCAT(void)
 
 void AircraftClass::CheckForOverG(void)
 {
+    /* GLIMIT-1 S1 (2026-09-15): report the aircraft's OWN normal load factor. FM-GOLD-1 S7
+       derived "10.74 g" from the ACMI tape's yaw rate x speed -- that is the HORIZONTAL TURN
+       component, not Nz, and comparing it against the F-16's 9 g FLCS limit compares two
+       different quantities. af->nzcgb is what the flight model actually computes and what
+       CheckForOverG, the GLOC model and the cockpit all read. Peak-hold so one line at the end
+       of a run answers "how many g did it pull", with the running value every ~2 s. */
+    if (getenv("FF_DEBUG_NZ") and this == SimDriver.GetPlayerEntity())
+    {
+        static float peak = -99.0F, trough = 99.0F;
+        static int n = 0;
+        float nz = GetNz();
+
+        if (nz > peak) peak = nz;
+
+        if (nz < trough) trough = nz;
+
+        if ((n++ % 120) == 0)
+        {
+            printf("[nz] nz=%.2f peak=%.2f trough=%.2f  kias=%.0f alpha=%.1f curMaxGs=%.1f\n",
+                   nz, peak, trough, GetKias(), af->alpha, af->curMaxGs);
+            fflush(stdout);
+        }
+    }
+
     //check for bombs etc
     if (GetNz() > af->curMaxGs)
     {

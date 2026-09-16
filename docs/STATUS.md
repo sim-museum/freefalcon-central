@@ -16042,3 +16042,60 @@ the envelope in FM-GOLD-1's table measures what it says it measures.
 
 **FM-GOLD-1: 7 sprints (2 in this pass). The item's original question is ANSWERED — our F-16 meets
 the PO's envelope. What remains is the g-limiter question, which is a new item, not this one.**
+
+### GLIMIT-1 S1 (NEW, Opus 5, 2026-09-15) — ⛔ **the "10.74 g" I flagged in FM-GOLD-1 S7 is NOT a load factor and there is no missing g-limiter.** The aircraft's own Nz peaks at **3.63 g** and `curMaxGs` is correctly **9.0**
+
+FM-GOLD-1 S7 ended by flagging one number for follow-up: a peak of **10.74 g**, above the real F-16's
+9 g FLCS limit, "hinting there may be no g-limiter in the FLCS path". This sprint was opened to test
+that, and the first thing it found was that **the number was the wrong quantity**.
+
+⛔ **Derived-from-tape "g" is not Nz.** Every g figure in FM-GOLD-1 — ours *and* the gold's — is
+computed as **yaw rate × ground speed / g**. That is the *horizontal turn* component of acceleration.
+The 9 g FLCS limit is a limit on **normal load factor**, which is a different vector. Comparing the
+two is the same class of error as measuring the landscape render target and calling it the mirror.
+
+⭐ **So measure what the flight model actually computes.** `af->nzcgb` is the value `CheckForOverG`,
+the GLOC model and the cockpit all read, and `AircraftClass::GetNz()` returns it. Added
+**`FF_DEBUG_NZ`** in `CheckForOverG` (peak-hold + a line every ~2 s), gated to the player entity.
+
+**The same flight as FM-GOLD-1 S7 — `FF_STICK2=0.7,0.6,40,150`, autopilot off, gate passed:**
+
+```
+[nz] nz=0.94 peak=0.94 trough=0.94  kias=397 alpha=2.2  curMaxGs=9.0
+[nz] nz=3.62 peak=3.63 trough=0.91  kias=340 alpha=13.3 curMaxGs=9.0
+[nz] nz=3.49 peak=3.63 trough=0.91  kias=527 alpha=4.5  curMaxGs=9.0
+```
+
+| quantity | value |
+|---|---|
+| peak true Nz | **3.63 g** |
+| trough | 0.91 g |
+| `curMaxGs` (the jet's configured limit) | **9.0** — correct for a clean F-16 |
+| derived "g" from the same flight (S7) | 8.99 p95 / 10.74 max |
+
+**There is no over-g and nothing to fix.** The airframe never approached its 9 g limit, the limit is
+configured correctly, and the "missing limiter" hypothesis is **withdrawn**.
+
+⭐ **What FM-GOLD-1 S7 still says, correctly.** Its comparison was derived-statistic against
+derived-statistic — the gold envelope is computed from the PO's tapes by the *same* formula — so the
+apples-to-apples verdict stands: our turn performance meets the envelope the PO flies. **Only the
+absolute wording needs reading as a turn statistic, not a load factor.** Restated: *our F-16 matches
+the gold's turn rates; its true peak load factor in that manoeuvre is 3.6 g.*
+
+⚠️ **Two secondary results worth keeping.**
+
+* **A full symmetric pull does not probe the g limit.** `FF_STICK2=0.0,1.0` sent the jet near
+  vertical (**pitch 83.7°**), speed collapsed to a **147 kt** median and altitude ran to 22,695 ft —
+  a zoom climb. g = v·ω, so when v collapses there is no g to measure. The rolled pull is the only
+  arm that loads the airframe.
+* **Over-g damages STORES, not the airframe.** `CheckForOverG` compares Nz against `curMaxGs` of
+  5.5 / 6.5 / 7.0 (bomb and tank limits) and calls `StoreToDamage`. Separately `gloc.cpp` is wired
+  (`doGLOC = PlayerOptions.BlackoutOn()`) and starts accumulating grey-out above **4.5 g** for the
+  player. Both consequences exist; neither was reached at 3.63 g.
+
+**S2, if the PO wants it:** 3.63 g from a 0.6 pitch command at 340–527 kts may be *under*-commanding —
+a real FLCS maps roughly stick-to-g. A clean stick-vs-Nz sweep (0.25 / 0.5 / 0.75 / 1.0, wings-level
+turn, speed held) would say whether the command curve is right. **That is a question, not a defect.**
+
+**GLIMIT-1: 1 sprint. Opened on a suspicion, closed by measuring the right variable. `FF_DEBUG_NZ`
+ships so no future sprint has to derive a load factor from positions again.**
