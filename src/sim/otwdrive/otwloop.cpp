@@ -2267,6 +2267,41 @@ void OTWDriverClass::RenderFrame()
             cockpitFlightData.vt = ac->GetVt();
             cockpitFlightData.gs = ac->GetNz();
 
+            /* GOLDVID-FF-1 S3 (FF_LINUX): the gold's HUD triple satisfies
+               mach == TAS(kias, alt) / a(alt), and atmos.cpp computes mach as
+               vt / (sqrt(ttheta) * AASL) with ttheta a pure function of altitude --
+               no mission weather (unlike MiG Alley, where the same check is INVALID
+               because Ambient() shifts by a per-mission sea-level temperature).
+               FF_TRACE_HUD=<n> prints the three numbers the HUD draws, plus vt, so
+               our own build can be held to the gold's self-check with no gold capture.
+               Default off. */
+            {
+                static int ffTraceHud = -1;
+                static long ffHudN = 0;
+
+                if (ffTraceHud == -1)
+                {
+                    const char *e = getenv("FF_TRACE_HUD");
+                    ffTraceHud = e ? atoi(e) : 0;
+                }
+
+                if (ffTraceHud > 0 and (ffHudN++ % ffTraceHud) == 0)
+                {
+                    Tpoint wposit;
+                    wposit.x = ac->XPos();
+                    wposit.y = ac->YPos();
+                    wposit.z = ac->ZPos();
+                    fprintf(stderr, "[hudsc] wind=%.1f kt hdg=%.0f | alt=%.0f ft kias=%.1f gs=%.1f afvt=%.1f afvcas=%.1f kt mach=%.3f\n",
+                            (double)(((WeatherClass*)realWeather)->WindSpeedInFeetPerSecond(&wposit) * FTPSEC_TO_KNOTS),
+                            (double)(((WeatherClass*)realWeather)->WindHeadingAt(&wposit) * RTD),
+                            (double)(-ac->ZPos()), (double)ac->GetKias(),
+                            (double)(ac->GetVt() * FTPSEC_TO_KNOTS),
+                            (double)(ac->af->vt * FTPSEC_TO_KNOTS),
+                            (double)ac->af->vcas, (double)ac->af->mach);
+                    fflush(stderr);
+                }
+            }
+
             // Correct for wind
             float yaw = cockpitFlightData.yaw;
 

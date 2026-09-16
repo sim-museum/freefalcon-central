@@ -16468,3 +16468,85 @@ reading that fits is mildly circular**, so the conclusion is carried by the othe
 unambiguous. Drop t=210 entirely and the worst Δ is still 0.008.
 
 **GOLDVID-FF-1: 2 sprints. The join profile (S1) and now a self-check that transfers to our build.**
+
+## GOLDVID-FF-1 S3 (Opus 5, 2026-09-16) — ⭐⭐ **S2's self-check run on OUR build: it passes to 0.0007 Mach — but only once you use the airframe's own TAS.** Every HUD "airspeed" mode in FreeFalcon is derived from **ground** velocity, and the gap is the wind, measured at 5.0 kt
+
+S2 said the gold's HUD triple gives a check our port can be held to *"with no gold at all"*. This
+sprint runs it, and — following tonight's MiG Alley sprint, which retracted an identical-looking
+invariant — checks the atmosphere the relation assumes **before** trusting the result.
+
+⭐ **First, the FF atmosphere is safe where MiG Alley's was not.** `atmos.cpp:83` computes
+`mach = vt / (sqrt(ttheta) * AASL)`, and `CalcPressureRatio` (`atmos.cpp:227`) gives
+`ttheta = 1 - 0.000006875 * alt` — the ISA lapse fraction per foot (0.0019812/288.15 = 6.876e-6), a
+**pure function of altitude with no weather term**. MiG Alley's `Ambient()` shifts the whole profile
+by a per-mission sea-level temperature drawn from a seasonal table plus a random walk, which is what
+broke the same check there. **FF has no such term, so an ISA-based Mach check is valid here.** That
+difference is the real cross-port lesson, and it is worth more than the invariant itself.
+
+⭐ **Second, the measurement — our own build, autopilot proven off (`[AP-1] samples: 0`).** A new
+default-off trace `FF_TRACE_HUD=<n>` (`otwloop.cpp`, at the cockpit-feed site) prints what the HUD is
+fed, plus the airframe's own numbers and the weather's wind:
+
+```
+[hudsc] wind=5.0 kt hdg=159 | alt=2011 ft kias=316.7 gs=325.6 afvt=330.6 afvcas=321.8 kt mach=0.503
+[hudsc] wind=5.0 kt hdg=159 | alt= 167 ft kias=213.0 gs=213.7 afvt=218.7 afvcas=218.0 kt mach=0.329
+```
+
+| `Mach` checked against | worst \|Δ\| over 15 samples |
+|---|---|
+| **`af->vt` — the airframe's true airspeed** | **0.0007** ✅ |
+| `GetVt()` — what the HUD is fed | 0.0077 ⛔ |
+
+**Our port satisfies the relation exactly.** The 0.0077 is not error; it is a physical quantity.
+
+⭐⭐ **And here is what the run actually found.** `SimMoverClass::GetVt()` (`simmover.cpp:1382`) is
+`sqrt(dx²+dy²+dz²)` of the **world-frame** delta — ground velocity — and `GetKias()` right above it is
+`get_air_speed(GetVt() * FTPSEC_TO_KNOTS, alt)`. So FF's KIAS is the calibrated airspeed **of the
+ground speed**. `DrawAirspeed()` (`navhud.cpp:43`) offers three modes and **all three come from that
+same world-frame velocity**:
+
+| HUD mode | source | what it really is |
+|---|---|---|
+| `CAS` ("C") | `cockpitFlightData.kias` = `GetKias()` | CAS computed from **ground** speed |
+| `TAS` ("T") | `cockpitFlightData.vt` = `GetVt()` | **ground** speed, uncorrected |
+| `GND_SPD` ("G") | `sqrt(xDot²+yDot²)` | horizontal ground speed |
+
+Meanwhile the Mach readout comes from `af->mach`, i.e. from `af->vt`, the **true airspeed**. The two
+halves of the HUD are fed from different velocities, and **the difference is exactly the wind**:
+`afvt - gs = 5.0 kt` at every one of the 15 samples, against a weather field reporting **wind = 5.0 kt,
+heading 159**. Measured, not inferred — the wind is printed from `WeatherClass` in the same line.
+[[probe-with-the-sims-own-loader]]
+
+⚠️ **This is UPSTREAM behaviour, not a port defect.** `simmover.cpp` and `navhud.cpp` are original
+FreeFalcon code; we have not touched the velocity plumbing. A real pitot measures airspeed, so the
+game's HUD is physically wrong in wind — but changing it would move every speed-gated behaviour in
+the sim (stall cues, gear/flap limits, the AP's captures, `cbmachasi`), so it is a **PO decision**,
+not a fix to make quietly. Filed below.
+
+⚠️ **What it does to S2, precisely.** S2's invariant `Mach == TAS(kias, alt) / a(alt)` is exact **only
+at zero wind**; with wind it is off by the along-track component, which for our 5 kt is 0.0077 Mach.
+S2's gold samples came in at Δ ≤ 0.008 — **the same size**. So S2's numbers stand, but they carry a
+bound nobody stated: **the gold's refuel flight had a wind component of at most ~5 kt.** The check
+transfers to our build only in the corrected form, `Mach == af->vt / a(alt)`, which is what this
+sprint ran.
+
+⚠️ **Harness note, stated rather than hidden:** `ff_fm_stick.sh` exited 4 ("FF_STICK2 never wrote")
+because no stick input was requested — this was a hands-off descent, which is all an atmosphere check
+needs. Its **autopilot gate passed** (`[AP-1] samples: 0`), which is the gate that makes the state
+data admissible. No flight-model number is claimed from this tape.
+
+**Shipped:** `FF_TRACE_HUD=<n>` — default-off, prints `wind / alt / kias / gs / af->vt / af->vcas / mach`
+at the cockpit-data feed.
+
+## HUDSPD-1 — PO decision: FreeFalcon's HUD airspeed is computed from GROUND velocity (found by GOLDVID-FF-1 S3)
+
+All three HUD speed modes (CAS/TAS/GND_SPD) read the world-frame delta, so in any wind the "C" and
+"T" readings are wrong by the along-track wind component while the Mach readout — fed from the
+airframe's true airspeed — is right. Measured at 5 kt of wind: 5 kt of airspeed, 0.008 of Mach.
+
+**Upstream behaviour, low magnitude, wide blast radius.** Not proposed as a fix; raised so the PO can
+say whether faithfulness to FreeFalcon or to the aeroplane wins. **Do not change it without that
+decision** — every speed-gated cue in the sim reads `GetKias()`.
+
+**GOLDVID-FF-1: 3 sprints. The self-check is run and passed; the discrepancy it exposed is real,
+measured, and upstream.**
