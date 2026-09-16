@@ -621,6 +621,56 @@ CampEntity GetEntityByCampID(int id)
     return NULL;
 }
 
+/* GOLDVID-FF-2 S9 (2026-09-16): dump every campaign entity's NAME, CLASS TUPLE, CLASS-TABLE NAME
+   and MAP POSITION once, after the TE has loaded.
+   S7 narrowed the gold's 3-o'clock contact to "the SA-8 or the SA-13" and said the RWR's own type
+   number would settle it; S8 went to read that number and found no RWR in the t=450 view at all,
+   after four crops. S8's own recommendation was to stop reading pixels: the threats' positions are
+   in "28 Missile Threat.trn", which is on disk. This is that -- read through the GAME'S OWN loader,
+   because the .trn is compressed and a scratch re-parse of this project's files has invented
+   numbers before.
+   The class-table name is looked up the DOCUMENTED way: GetClassID(domain,class,type,stype,sptype,
+   owner,c6,c7) -> GetClassName(id). A first cut called GetClassName(e->Type()) directly and the
+   dump exposed it as nonsense -- 'Fighter' for an air-defence battalion, 'Oil Platform 2' for
+   another, 'Mk-20D' (a cluster bomb) for an AWACS squadron. Type() is the VU type BYTE, not an
+   index into Falcon4ClassTable.
+   FF_DUMP_UNITS=1. Default-off, and one shot. */
+extern "C" void ff_dump_campaign_units(void)
+{
+    if (!getenv("FF_DUMP_UNITS")) return;
+    static int done = 0;
+    if (done) return;
+    done = 1;
+
+    extern int   GetClassID(uchar, uchar, uchar, uchar, uchar, uchar, uchar, uchar);
+    extern char* GetClassName(int);
+
+    VuListIterator myit(AllCampList);
+    CampEntity e = (CampEntity) myit.GetFirst();
+    int n = 0;
+
+    fprintf(stderr, "[units] === campaign entity dump (name | class-table name | domain/class/type/stype/sptype | grid | team) ===\n");
+    while (e)
+    {
+        GridIndex x = 0, y = 0;
+        e->GetLocation(&x, &y);
+        _TCHAR nbuf[128]; nbuf[0] = 0;
+        const char* nm = e->GetName(nbuf, (int)sizeof(nbuf), 0);
+        const uchar* ci = (e->EntityType())->classInfo_;
+        const char* cn = "(none)";
+        int cid = GetClassID(ci[0], ci[1], ci[2], ci[3], ci[4], ci[5], ci[6], ci[7]);
+        if (cid > 0) { char* c = GetClassName(cid); if (c && *c) cn = c; }
+        fprintf(stderr, "[units] %3d  campid=%-5d  '%s'  class='%s'  cls=%d/%d/%d/%d/%d  grid=(%d,%d)  team=%d\n",
+                n, (int)e->GetCampID(), nm ? nm : "(null)", cn,
+                (int)ci[0], (int)ci[1], (int)ci[2], (int)ci[3], (int)ci[4],
+                (int)x, (int)y, (int)e->GetTeam());
+        n++;
+        e = (CampEntity) myit.GetNext();
+    }
+    fprintf(stderr, "[units] === %d entities ===\n", n);
+    fflush(stderr);
+}
+
 // Finds nearest supply source
 Objective FindNearestSupplySource(Objective o)
 {

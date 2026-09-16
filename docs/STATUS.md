@@ -17491,3 +17491,80 @@ that is worth a fifth sprint with the original binary's own behaviour as the ora
 statement. The 2-second Training takeoff difference from S1 is still open and untouched.
 
 **TEPKG-1: 4 sprints — at cap, and blocked on the PO rather than on the code.**
+
+## GOLDVID-FF-2 S9 (Opus 5, 2026-09-16) — ⭐⭐ **the threats are out of the file**: three enemy Air Defense Battalions in TE 28, named, located and distinguished — read through the game's own loader, exactly as S8 recommended — ⛔ **and a first version of the instrument was caught lying by its own output**
+
+S8 found no RWR in the t=450 cockpit after four crops and recommended the alternative itself:
+*"stop reading pixels and read the data. The threats' map positions are in `28 Missile Threat.trn`,
+which is on disk."* This is that.
+
+### ⭐ Shipped: `FF_DUMP_UNITS=1`
+
+A one-shot walk of `AllCampList` after `LoadCampaign()` returns (`camplib/find.cpp`), printing each
+entity's name, class-table name, full class tuple and **grid position**. Read through the **game's own
+loader** — the `.trn` is compressed (TEPKG-1 S3 threw out a raw scan for exactly that reason) and this
+project has been burned before by a scratch re-parse inventing numbers. [[probe-with-the-sims-own-loader]]
+
+### ⭐⭐ TE 28's threats
+
+```
+campid=189   '189th Air Defense Battalion'  class='Air Defense'  cls=3/6/1/1/31  grid=(421,502)  team=2
+campid=97    '97th Air Defense Battalion'   class='Air Defense'  cls=3/6/1/1/21  grid=(379,540)  team=2
+campid=4032  '4032nd Air Defense Battalion' class='Air Defense'  cls=3/6/1/1/4   grid=(363,493)  team=2
+```
+
+**Three enemy SAM battalions**, domain 3 (ground), identical but for the **sptype: 31, 21 and 4** —
+which is the field that separates one missile system from another. Their map positions are now known
+numbers rather than a briefing's cardinal directions.
+
+⭐ **Sanity check that the dump reads real content:** TE 27 — the refuelling mission — contains **no
+Air Defense Battalion at all**, only fighter, tanker and AWACS units. A threat-free TE reports no
+threats.
+
+⭐ **A by-catch for TEPKG-1:** TE 28's `97` is an *Air Defense Battalion*; TE 27's `97` is a *Null
+Package*. The same camp_id names entirely different things in the two files — further confirmation
+that these ids come out of the file per TE rather than from any allocator.
+
+### ⛔ The instrument's first version was wrong, and the dump exposed it
+
+The first cut called `GetClassName(e->Type())` and printed:
+
+| entity | claimed class |
+|---|---|
+| 189th **Air Defense** Battalion | `Fighter` |
+| 97th **Air Defense** Battalion | **`Oil Platform 2`** |
+| 4032nd **Air Defense** Battalion | `122mm RKT` |
+| 4039th **AWACS** Squadron | **`Mk-20D`** (a cluster bomb) |
+
+`Type()` is the VU **type byte**, not an index into `Falcon4ClassTable`. The documented path is
+`GetClassID(domain,class,type,stype,sptype,owner,c6,c7)` → `GetClassName(id)`, and with that the
+names come out coherent (`Air Defense`, `Fighter`, `AWACS`, `Null`).
+⚠️ **The only reason this was caught is that the wrong answers were absurd.** A lookup that had
+returned plausible-but-wrong SAM names would have gone straight into a bearing calculation.
+
+### ⛔⛔ And a self-inflicted one worth recording
+
+Mid-sprint I wrote the file with `io.open(p,'wb').write(s.encode('latin-1'))` where `s` contained a
+non-Latin-1 character. **`open(p,'wb')` truncates before `.encode()` can raise**, so `find.cpp` went
+to **0 bytes** — and the symptom was a *link* error (`undefined reference to FindObjective`), not an
+edit error. Restored from git and re-applied with the encode done into a variable first.
+⚠️ This is a standing rule in this session's own constraints and I broke it anyway.
+[[shell-edit-commit-traps]]
+
+### ⚠️ What this sprint deliberately does NOT do: the bearing
+
+S7's question — is the 041° contact the SA-8 or the SA-13? — needs three things this sprint has only
+one of:
+
+1. ✅ **the threats' grid positions** — here;
+2. ⛔ **sptype → missile system.** `GetClassName` returns the *unit* class (`Air Defense`) for all
+   three; the actual model lives in the battalion's vehicle composition, one level down;
+3. ⛔ **the player's position at t=450, and the campaign grid's axis convention.** Neither is
+   established, and a bearing computed on a guessed axis order is exactly the kind of confident wrong
+   answer this item has already produced twice (S1's "that 8", S4's withdrawn radar claim).
+
+**S10:** (2) then (3). Walk each battalion's vehicle list for the missile model, then take the
+player's TE start position from this same dump and the heading already read from three instruments,
+and only then compute a bearing.
+
+**GOLDVID-FF-2: new pass, sprint 1 of 4.** The pixels are out of the loop; the data is in it.

@@ -2,6 +2,9 @@
 // Creates SDL2 window, OpenGL context, and initializes the game
 
 #include <cstdio>
+
+/* GOLDVID-FF-2 S9: campaign entity dump (camplib/find.cpp), FF_DUMP_UNITS=1. */
+extern "C" void ff_dump_campaign_units(void);
 #include <cstdlib>
 #include <cstring>
 #include <unistd.h>
@@ -2677,6 +2680,10 @@ bool ProcessGameMessages() {
                     retval = 0;
                 }
                 fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: LoadCampaign() returned %d\n", retval);
+                /* GOLDVID-FF-2 S9: with the TE loaded, dump every entity's name and map position
+                   (FF_DUMP_UNITS=1, default-off) so a cockpit contact can be matched against the
+                   real SAM coordinates instead of against a briefing's cardinal direction. */
+                if (retval) ff_dump_campaign_units();
                 if (retval) {
                     fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_SUCCEEDED\n");
                     QueuePendingMessage(FM_JOIN_SUCCEEDED, 0, 0);
