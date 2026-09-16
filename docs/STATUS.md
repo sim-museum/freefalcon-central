@@ -17039,3 +17039,64 @@ could initialise differently — and check the same two values against the *othe
 
 **TEPKG-1: 1 sprint. A confound eliminated, a drift hypothesis eliminated, and the divergence pinned
 to one of two package-creation paths.**
+
+## GOLDVID-FF-2 S5 (Opus 5, 2026-09-16) — ⛔ **the item's own threat inventory is WRONG, and the gold says so in its own briefing text**: it is **SA-2 to the WEST**, not SA-6 to the east, and the SA-13 is **east**, not west
+
+S5's census of the missile-threat video listed a **TE selection screen** as one of the front-end
+screens no sprint had read. Read it. It carries the mission's **SITREP**, in the game's own words, and
+it contradicts this item's filing.
+
+⭐ **The gold, at full resolution** (`docs/reference/260915_gold_te28_sitrep.png`):
+
+```
+28 MISSILE THREAT
+   Teams    : 2
+   F-16s    : 0
+   Aircraft : 22
+   Players  : 0
+
+SitRep
+   To the North is an SA-8, east
+   is an SA-13, the south is
+   blocked by an Alamo carrying
+   Mig-29, and west is the
+   venerable SA-2.
+```
+
+⛔ **Against what GOLDVID-FF-2's filing recorded:**
+
+| | the item's filing | the gold's SITREP | |
+|---|---|---|---|
+| north | SA-8 | **SA-8** | ✅ |
+| south | MiG-29 / AA-10 (Alamo) | **Alamo-carrying MiG-29** | ✅ |
+| east | **SA-6** | **SA-13** | ⛔ |
+| west | **SA-13** | **SA-2** | ⛔ |
+
+**Two of the four threats are wrong: the SA-13 is on the opposite side, and there is no SA-6 in this
+TE at all — the fourth threat is an SA-2.** The briefing even editorialises about it ("the venerable
+SA-2"), which is the kind of detail that makes a misreading unlikely to be the gold's fault.
+
+⚠️ **This matters beyond bookkeeping.** SA-2 and SA-6 are not interchangeable: the SA-2 is an older
+command-guided system with a Fan Song radar; the SA-6 is the semi-active straight-through one whose
+guidance behaviour GOLDVID-FF-2 S3 spent a sprint reasoning about. **Any conclusion in this item that
+depended on an SA-6 being present needs re-reading against an SA-2.** ⚠️ I have not re-audited S1–S4
+for that dependency here, and I am flagging it rather than quietly assuming it does not matter.
+
+⭐ **And four more values the screen gives free**, useful because they describe the TE rather than any
+one flight: `Teams 2`, `F-16s 0`, `Aircraft 22`, `Players 0`. The screen also carries the whole
+**34-entry TE list** (`01 Basic Handling` … `34 F-18 Carrier Landing`) with `28 Missile Threat`
+highlighted — a ready-made parity target for our own TE list, saved as
+`docs/reference/260915_gold_te_selection.png`.
+
+⚠️ **How the filing came to be wrong is worth a line.** GOLDVID-FF-2 was filed from the TE's *contents*
+— reading what units the mission places — not from the mission's own briefing text. Those should
+agree, and the briefing is the authority on what the mission *intends*. **The `.trn` may well contain
+an SA-6 somewhere; what it does not contain is the SA-6 the filing put east of the player.** Settling
+which is a separate check, and the SITREP is the better starting point because it is what the pilot is
+told.
+
+**S6:** capture our own TE selection screen (the `FF_UI_SHOT_DIR` path from GOLDVID-FF-1 S7 reaches it
+— it is two clicks before the planning screen) and diff the TE list and the SITREP text against this
+gold.
+
+**GOLDVID-FF-2: 5 sprints (1 in this pass). The video's front end corrected the item's own premise.**
