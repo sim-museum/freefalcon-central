@@ -16915,3 +16915,57 @@ directly comparable (the gold's shows three rows: Training, Tanker, AWACS) and i
 
 **GOLDVID-FF-1: 7 sprints. A capability I declared missing turned out to exist, needed two fixes, and
 then answered the question on the first run.**
+
+## GOLDVID-FF-1 S8 (Opus 5, 2026-09-16) — ⭐⭐ **the first VALUE-level comparison of a FreeFalcon UI screen against the real game: 6 of 9 package-table fields exact** — three differences, with the confound that produces two of them named
+
+S7 matched the TE planning screen's *structure* but could not compare values, because our harness
+loaded `09 Landing Final Approach` and the gold is `27 Refueling`. `FF_TE_FILE` fixes that
+(`[FF_LINUX] FF_TE_FILE: '09 Landing Final Approach' -> '27 Refueling'`, twice, as its own comment
+says it must be).
+
+⭐ **The package tables, side by side:**
+
+| | gold | ours | |
+|---|---|---|---|
+| rows | 3 | 3 | ✅ |
+| roles | Training / Tanker / AWACS | Training / Tanker / AWACS | ✅ |
+| Training takeoff | 08:58:**38** | 08:58:**36** | ⚠️ 2 s |
+| Tanker takeoff | **08:58:44** | **08:58:44** | ✅ exact |
+| AWACS takeoff | **09:00:00** | **09:00:00** | ✅ exact |
+| Training package | **87** | **97** | ⚠️ |
+| Tanker package | **87** | **97** | ⚠️ |
+| AWACS package | **110** | **110** | ✅ exact |
+| statuses | Ingress ×3 | Ingress ×3 | ✅ |
+| player row | first, green | first, green | ✅ |
+
+**Six of nine values are exact, including both non-player takeoff times to the second and the AWACS
+package number.** This is the first time any FreeFalcon UI value has been checked against the real
+game rather than eyeballed for layout.
+
+⚠️ **A confound that plausibly produces two of the three differences, stated before any defect is
+filed.** The harness reaches the TE by clicking, so it loads `09 Landing Final Approach` **first** and
+`FF_TE_FILE` substitutes `27 Refueling` on the subsequent reads. Two things point at that being the
+cause of the package numbers:
+* the title bar still reads **`09 Landing Final Approach`** over a table that is unmistakably TE 27's
+  — the caption comes from the clicked list row, not from the substituted file, so **the run really
+  did load two TEs**;
+* `87 → 97` is a shift of exactly **+10** on both rows that changed.
+
+⚠️ **But the confound does NOT cleanly explain it either**, and I am not going to pretend it does:
+**AWACS is 110 in both**. A package-id counter advanced by a previous load should have moved that row
+too. So either the AWACS package is numbered from a different pool, or something else is going on.
+**Unresolved, and not filed as a defect.**
+
+⚠️ **The 2-second Training takeoff (08:58:36 vs 08:58:38) is a third, separate difference** — it is on
+the **player's own flight**, where the other two rows are exact. Also unresolved.
+
+⭐ **How to settle all three in one run, and it needs no gold:** reach TE 27 **without** loading
+another TE first — either by clicking its own list row, or by giving `FF_TE_FILE` the TE to open from
+the start. If the package numbers become 87/87 and the title reads `27 Refueling`, the difference was
+the double load and there is nothing to fix. If they stay at 97, there is.
+
+**Shipped in S7 and used here:** `FF_UI_SHOT_DIR` (23 numbered captures from this run).
+Ours saved as `docs/reference/260916_ours_te27_planning.png`.
+
+**GOLDVID-FF-1: 8 sprints — 4 in this pass, at cap, rotating off.** The item has gone from a HUD
+strip to the first value-level UI parity check the project has.
