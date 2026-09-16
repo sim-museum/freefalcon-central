@@ -17926,3 +17926,83 @@ narrowing read as progress toward an answer.
 precedes frame 1, a one-shot in `OTWDriver::Enter()` itself.
 
 **GOLDVID-FF-1: new pass, sprint 3 of 4.**
+
+## GOLDVID-FF-1 S12 (Opus 5, 2026-09-16) — ⭐⭐⭐ **the load screen is captured and it matches the gold at 0.9861** — ⛔⛔ **and the question two sprints spent narrowing was answered in this repository a month ago, by a sprint that fixed a defect IN the answer**
+
+**Story:** GOLDVID-FF-1 (the 2026-09-15 gold video census). **New pass, sprint 4 of 4 — at cap.**
+
+### ⛔ First, the uncomfortable half
+
+S10 ended: *"Whether our sim entry shows `leave*.gif` is untested — and the test is a run that clicks
+TAKEOFF."* S11 ran that and found the instrument could not see the sim at all. Both sprints were
+spent learning how to ask a question **this repository had already answered**:
+
+* `src/sim/otwdrive/splash.cpp` has implemented it since the port's early days;
+* commit **`cc4e2517` (2026-06-09)** is titled *"Linux port: show the animated loading-plane progress
+  during 3D setup (not black/white)"*;
+* commit **`47f43701` (2026-08-16, SPLASH-1)** opens with a **PO report of watching it in our port**
+  — *"the aircraft icons light up halfway, then start again. If 1 is the bottom icon, they go 1-2-3
+  then 1-2-3 again then 4-5 then 3D start"* — and makes the bar monotonic.
+
+A sprint fixed a defect in the animation of a screen I then spent two sprints asking whether we draw.
+[[blocked-on-po-may-be-in-the-repo]] — and this is the second time in one rotation (MiG Alley's
+refused captions were settled by a gold PNG already in `port/ref/`).
+
+### ⭐ Second, the measurement — which is now a PARITY result, not an existence one
+
+`FF_SHOT_FRAMES=1,2,3,5,10,20,40` + `FF_SHOT_DIR`, on a run that takes off. All four clicks fired
+and the log puts the capture exactly where it belongs:
+
+```
+[OTWDriver.Enter] SplashScreenUpdate...
+[shot] frame 1 -> shot_1.bmp (1024x768)
+```
+
+| frame | non-black | mean RGB | what it is |
+|---|---|---|---|
+| 1, 2, 3 | 79.8 % | (5, 18, 124) | the load splash |
+| 5, 10 | 79.8 % | (5, 18, 125) | the load splash, **advanced** |
+| 20, 40 | 88.6 % | (66, 85, 101) | the sim |
+
+**Against the gold** (`260915_gold_loading_splash.png`, client area cropped to 1024×738 — the
+bottom 30 px are off the PO's screen):
+
+| | mean RGB |
+|---|---|
+| gold | (5.4, 17.0, 124.3) |
+| ours | (5.6, 19.0, 129.9) |
+
+**Pixel correlation 0.9861.** Same blue backdrop, same blueprint overlays, same helmet photo, same
+five aircraft icons down the right edge. Saved as
+`docs/reference/260916_ours_loading_splash.png` beside the gold's cropped client.
+
+⭐ **And the animation is visible in the capture.** Frames 1–3 are **byte-identical**; frames 5 and
+10 differ from frame 1 in **13,375 px confined to x[862,993] y[96,752]** — the icon column and
+nothing else. That is SPLASH-1's progress bar advancing, measured rather than asserted.
+
+⚠️ Ours reads ~4.5 % brighter in blue (129.9 vs 124.3). Not called a defect: the gold is a
+screenshot of a Wine window on this desktop and carries that path's colour handling. Worth one
+sprint only if something else points at gamma.
+
+### ⭐ The instrument's reach was checked BEFORE the run this time
+
+Three sprints in a row proposed a next step that could not work. This one was verified in the
+source first:
+
+* `FF_SwapBuffers` is called from `DDS7_Flip` and `imagebuf.cpp` **only under `if (!doUI)`**, and
+  `doUI` goes false in `EndUI()` before sim entry — so `swapCount` counts **sim** frames from 1;
+* `SplashScreenUpdate` presents via `OTWImage->SwapBuffers(NULL)`, which is that same path — so the
+  splash frames **are** frames 1..N;
+* `FF_LoadingClear` swaps `SDL_GL_SwapWindow` directly and does **not** advance the counter.
+
+So `1,2,3,5,10` had to land on the splash rather than on the menu. It did.
+
+### By-catch, not investigated
+
+The run ends with `[Failed: slotNumber < instance.ParentObject->nSlots]` (`drawbsp.cpp:219`),
+repeatedly. Pre-existing — nothing in this port was changed this sprint — and non-fatal. Recorded
+so it is not rediscovered as new.
+
+**GOLDVID-FF-1: new pass, sprint 4 of 4 — AT CAP.** The load screen was the last open census item
+and it lands at 0.9861. Next pass should start from the census's own remaining entries, not from
+this one.
