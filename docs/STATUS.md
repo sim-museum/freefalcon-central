@@ -16264,3 +16264,60 @@ all), chaff bundles needed against `RadarDataTable[].ChaffChance`, and launch-to
 three need a *launch event* located in the gold's 8 minutes, which this sprint did not do.
 
 **GOLDVID-FF-2: 2 sprints. The RWR is compared and correct; one of my own S1 claims is withdrawn.**
+
+## GOLDVID-FF-2 S3 (Opus 5, 2026-09-15) — ⭐ **the IR-vs-radar launch-warning asymmetry is STRUCTURALLY GUARANTEED in our port**, by three independent gates — the manual's promise is not incidental behaviour we might have lost
+
+TE 28's point is that three of its four threats announce themselves and one does not. The manual:
+*"If it is a radar missile, you will get a launch light and a launch tone from your TWS… **You will
+not get a missile launch tone or light from the TWS for an IR missile.**"* The **SA-13 to the west**
+is the silent one. Does our port reproduce that?
+
+⭐ **Yes, and by construction rather than by luck.** `RwrClass::CanDetectObject` (`rwr/detect.cpp:124`)
+gates every contact on an emitter strength expressed as a range:
+
+```c
+if (rwrObj->BaseData()->IsSim())
+    radarRange = ((SimBaseClass*)rwrObj->BaseData())->RdrRng();   // 0 when the radar is off
+else
+    radarRange = rwrObj->BaseData()->IsEmitting()
+               ? RadarDataTable[...GetRadarType()].NominalRange : 0.0f;
+
+if ((rwrObj->localData->range < radarRange * typeData->nominalRange) and platform->CheckLOS(rwrObj))
+    return TRUE;
+```
+
+**With `radarRange == 0` the test becomes `range < 0`, which is false for every object at every
+distance.** A non-emitting threat is not merely faint on the scope — it is *unreachable*.
+
+**Three gates, each independently sufficient:**
+
+| gate | where | effect |
+|---|---|---|
+| `SetRdrRng(0.0F)` when a radar is off | `radardoppler.cpp:921`, `radardigi.cpp:22/75/452` | sim emitters vanish from the RWR |
+| `IsEmitting()` false ⇒ `radarRange = 0.0f` | `rwr/detect.cpp:135` | campaign emitters vanish |
+| a battery emits only if its class data names a **`RadarVehicle`** *and* that vehicle is **alive** | `gndunit.cpp:402` | an IR-only battery has no radar vehicle to name |
+
+**An IR SAM has nothing to emit, so it cannot reach the scope, so it cannot raise a launch light or
+tone.** The asymmetry the manual promises is a consequence of the detection model, not a behaviour
+that could quietly have been lost in the port.
+
+⭐ **Corroborated by our own capture.** S2's RWR frame from this very TE shows **`29`** (the MiG-29,
+diamonded as the priority) and a plain **`2`** — radar contacts. No IR threat is drawn, which is what
+the model predicts.
+
+⚠️ **What I did NOT verify, and it is the part that could still bite.** Whether **TE 28's specific
+SA-13** is modelled without a `RadarVehicle` is a **data** question — `sim/ACDATA` and the class
+tables — and I did not open it. **The structural guarantee holds for any non-emitting unit; it says
+nothing about whether this unit is non-emitting.** If the data gives the SA-13 a radar vehicle it
+*would* appear on the scope, and the manual's promise would be broken by the data rather than the
+code. That is a cheap next check and it is the one that matters.
+
+⭐ **A coherence result worth keeping.** `gndunit.cpp:402` requires the radar vehicle to be **alive**.
+Kill it and the battery stops emitting — which removes it from the RWR **and**, by the SARH support
+check found earlier in `beamrider.cpp` (`radarPlatform->IsDead()` / `IsExploding()`), **drops its
+missiles in flight**. Suppression therefore works through one consistent mechanism in both displays
+and guidance. Nothing to fix; worth knowing before anyone "improves" either half.
+
+**GOLDVID-FF-2: 3 sprints. Of the item's four uses, three are delivered (RWR symbology captured,
+ours compared, IR asymmetry verified); chaff-bundle counts and launch-to-impact timing remain and
+both need a launch event located in the gold's eight minutes.**
