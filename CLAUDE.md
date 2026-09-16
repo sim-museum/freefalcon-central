@@ -247,7 +247,55 @@ Related: build with `cmake -DFF_WARN=ON` to get diagnostics — the build otherw
 passes `-w` and the compiler says nothing at all.
 
 ### Diagnostic Code
-Several debug fprintf statements were added during investigation. These should be removed or wrapped in `#ifdef DEBUG` for release builds.
+
+Several debug fprintf statements were added during investigation. These should be removed or
+wrapped in `#ifdef DEBUG` for release builds.
+
+**2026-09-04 - the `[Deaggregate]` set is now gated (19 call sites, `src/campaign/camplib/unit.cpp`).**
+A shipped-build session log measured **2761 lines, ~470 of them `[Deaggregate]`**, and that output
+scales with how many units deaggregate, so it grows with campaign size, unbounded. A log flood is
+not cosmetic in these ports: the PO reported exactly that in the BoB port and experienced it as a
+**hang** (51,842 lines at ~101/sec). Gated behind `FF_TRACE_DEAG=1` rather than deleted, since the
+tracing earned its keep once.
+
+**VERIFIED 2026-09-04 by a real A/B.** The earlier attempt was inconclusive and is worth recording
+as a lesson: a 120 s UI-only session produced 278 lines and zero `[Deaggregate]` in BOTH arms, i.e.
+it never reaches the path at all, so it could not tell "gated" from "never called". A control arm
+is what separates a fix from a coincidence.
+
+The session that DOES exercise it is Instant Action (`./run-freefalcon.sh -test-ia`):
+
+| arm | lines | `[Deaggregate]` | `[AddVehicleToSim]` |
+|---|---|---|---|
+| `FF_TRACE_DEAG=1` | 3241 | 985 | 232 |
+| gated (default) | **1548** | 0 | 0 |
+
+A second set was gated behind the same switch after the first measurement showed it was the
+largest remaining group: `[AddVehicleToSim]` (7 sites, `src/sim/simlib/simobj.cpp`), which fires
+once per vehicle added and so also scales with mission size. One env for both halves of the same
+flow. Net: **3241 -> 1548 lines, a 52% reduction**, with no loss of diagnostics when wanted.
+
+**2026-09-04, third pass:** `[SimCampMsg]` (4 sites, `src/falclib/msgsrc/simcampmsg.cpp`) gated
+behind a separate `FF_TRACE_CAMP=1` -- separate from `FF_TRACE_DEAG` because it is campaign
+messaging rather than the deaggregation flow, and the two are useful independently.
+
+Running total on an Instant Action session: **3241 lines traced -> 1548 (deaggregate +
+addvehicle) -> 1443 (simcampmsg)**, a 56% reduction with no diagnostics lost when asked for.
+
+**The audit stops here, deliberately.** What remains is small and BOUNDED, not scaling with
+mission size: `ATCBrain ctor` 22 lines, `LoadBaseObjectives` 10, `NewObjective` 9+9 -- roughly 50
+lines total, emitted once at load rather than per vehicle or per message. The earlier sets were
+worth gating because they grew with the campaign; these do not, and gating them would be churn.
+
+Note for anyone extending this: place the `ff_trace_*` helper at FILE SCOPE. A first attempt
+inserted it by searching backwards for a blank line, which landed mid-function and did not
+compile (`a function-definition is not allowed here`).
+
+WRITING TO THIS FILE: it contains non-UTF-8 bytes, so it must be read AND written as latin-1 - and
+the replacement text must itself be latin-1-encodable. An em dash or a curly quote will throw at
+encode time, and if the file was already opened in "w" mode it is TRUNCATED TO ZERO before the
+exception fires. That happened on 2026-09-04 and cost a `git checkout` to recover. Build the new
+text first, encode it, and only then open for writing - as this edit now does.
 
 ## Architecture Notes
 

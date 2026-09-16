@@ -29,3 +29,7 @@ build-relg/
 # FF_WARN=ON diagnostics tree (see CMakeLists FF_WARN option):
 #   cmake -DFF_WARN=ON -B build-warn && ninja -C build-warn 2>&1 | tee /tmp/warn.log
 build-warn/
+
+# ThreadSanitizer tree and its logs (634 MB when built; same class as build-asan/)
+build-tsan/
+artifacts/
