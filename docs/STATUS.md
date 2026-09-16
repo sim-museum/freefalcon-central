@@ -16213,3 +16213,54 @@ against `RadarDataTable[].ChaffChance`, and launch-to-impact timing.
 
 **GOLDVID-FF-2: 1 sprint. The oracle exists and is captured; the comparisons against our own RWR are
 the next three sprints.**
+
+## GOLDVID-FF-2 S2 (Opus 5, 2026-09-15) — ⭐⭐ **our RWR is structurally CORRECT against the gold** — and ⛔ **S1's "bright yellow" priority symbol was my eye, not a measurement: both are green**
+
+S1 captured the real game's RWR. This sprint captured **ours, in the same TE**, and compared them.
+
+**A harness gap had to be closed first.** The port's frame capture was hardwired to `swapCount == 200
+|| swapCount == 600` and wrote to **`/tmp/screenshot_sim.bmp`**. Two faults: a fixed frame cannot
+reach a state 2,000 frames in, and **a frame dump is game data going into a 7.6 GB tmpfs** — filling
+which has previously killed every shell in a session. Added **`FF_SHOT_FRAMES=200,600,1200,2000`**
+and **`FF_SHOT_DIR=<dir>`**, each shot announced on stderr (`[shot] frame 2000 -> …  (1024x768)`).
+Defaults unchanged so existing gates still pass. [[heavy-jobs-oom-kill-the-session]]
+
+⭐ **Our cockpit renders in full** — HUD, both MFDs, DED, instruments, and the RWR on the left
+glareshield — so the comparison is possible at all.
+
+⭐⭐ **Structure: ours matches the gold item for item.**
+
+| feature | gold | ours |
+|---|---|---|
+| two concentric rings | ✅ | ✅ |
+| crosshairs at 12/3/6/9 | ✅ | ✅ |
+| tick marks round the rim | ✅ | ✅ |
+| priority threat in a **diamond** outline | ✅ | ✅ |
+| secondary threat **plain**, no diamond | ✅ | ✅ |
+
+**And our symbols are the right ones for this mission:** a diamonded **`29`** at ~6 o'clock — the
+**MiG-29**, TE 28's southern threat — and a plain **`2`** at ~9 o'clock. The diamond is on the
+aircraft, which is the threat actually engaging.
+
+⛔ **Correction to S1.** I wrote there that the gold's priority symbol is *"a bright yellow
+alphanumeric inside a diamond"*. **Measured, it is green.** Isolating strongly-chromatic bright
+pixels (saturation > 60, max > 120) rather than merely bright ones — my first attempt returned
+near-white for both because it caught the bezel highlights:
+
+| | R | G | B | hue |
+|---|---|---|---|---|
+| gold | 110.0 | 188.0 | 86.4 | **106°** |
+| ours | 12.4 | 199.5 | 12.4 | **120°** |
+
+**Both green, 14° apart.** "Yellow" was an impression from a low-resolution zoom and is withdrawn.
+
+⚠️ **And I am NOT claiming our tint is wrong.** The gold's green is warmer and less saturated
+(R 110 vs our R 12), but it comes from a **compressed, windowed, rescaled** desktop recording — that
+pipeline shifts colour on its own. **A 14° hue difference is inside what the capture could invent**,
+so this video cannot adjudicate fine colour. Structure it can and does.
+
+**What remains on this item:** the IR-vs-radar launch-warning asymmetry (the SA-13 should warn not at
+all), chaff bundles needed against `RadarDataTable[].ChaffChance`, and launch-to-impact timing. All
+three need a *launch event* located in the gold's 8 minutes, which this sprint did not do.
+
+**GOLDVID-FF-2: 2 sprints. The RWR is compared and correct; one of my own S1 claims is withdrawn.**

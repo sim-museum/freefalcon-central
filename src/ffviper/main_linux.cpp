@@ -387,8 +387,27 @@ void FF_SwapBuffers() {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Capture screenshot of the GL framebuffer
-        // Wait until frame 200 to ensure lighting/sky is fully initialized
-        if (swapCount == 200 || swapCount == 600) {
+        /* GOLDVID-FF-2 S2 (2026-09-15): this capture was hardwired to frames 200 and 600 and
+           wrote into /tmp. Two problems. A frame dump is GAME DATA and /tmp here is a 7.6 GB
+           tmpfs -- filling it has previously killed every shell in a session -- so captures
+           belong under /home. And a fixed frame number cannot reach a state that takes 400
+           frames to arrive at, which is exactly what comparing the RWR against the gold needs.
+             FF_SHOT_FRAMES=200,600,1500   which swaps to capture (default "200,600")
+             FF_SHOT_DIR=/home/...         destination; unset keeps the old /tmp path so
+                                           existing gates are not broken.
+           Each shot is written as <dir>/shot_<frame>.bmp and announced on stderr. */
+        bool wantShot = false;
+        {
+            static const char* framesEnv = getenv("FF_SHOT_FRAMES");
+            const char* fl = framesEnv ? framesEnv : "200,600";
+            for (const char* p2 = fl; p2 && *p2; ) {
+                long v = strtol(p2, (char**)&p2, 10);
+                if (v == (long)swapCount) { wantShot = true; break; }
+                while (*p2 == ',' || *p2 == ' ') p2++;
+                if (!*p2) break;
+            }
+        }
+        if (wantShot) {
             int w = 0, h = 0;
             SDL_GL_GetDrawableSize(g_SDLWindow, &w, &h);
             if (w > 0 && h > 0) {
@@ -396,8 +415,16 @@ void FF_SwapBuffers() {
                 // Read from back buffer (where rendering goes)
                 glReadBuffer(GL_BACK);
                 glReadPixels(0, 0, w, h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+                char shotPath[512];
+                const char* shotDir = getenv("FF_SHOT_DIR");
+                if (shotDir && *shotDir)
+                    snprintf(shotPath, sizeof shotPath, "%s/shot_%lu.bmp", shotDir, (unsigned long)swapCount);
+                else
+                    snprintf(shotPath, sizeof shotPath, "/tmp/screenshot_sim.bmp");
+                fprintf(stderr, "[shot] frame %lu -> %s (%dx%d)\n", (unsigned long)swapCount, shotPath, w, h);
+                fflush(stderr);
                 // Save as BMP
-                FILE* f = fopen("/tmp/screenshot_sim.bmp", "wb");
+                FILE* f = fopen(shotPath, "wb");
                 if (f) {
                     int rowSize = (w * 3 + 3) & ~3;
                     int imageSize = rowSize * h;
