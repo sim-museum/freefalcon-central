@@ -18533,3 +18533,87 @@ tracked, launched — against which that reconstruction can be tested.
 **S17 (next pass):** the 6 o'clock cluster, and flight 2 with a crop that tracks the panel.
 
 **GOLDVID-FF-1: new pass, sprint 4 of 4 — AT CAP.**
+
+## BSPSLOT-2 S5 (Opus 5, 2026-09-16) — ⛔⛔ **RETRACTION of S4's framing: there is no "aircraft bound to the wrong model". Model 1288 is a COMPILE-TIME CONSTANT — `VIS_CF16A` — that reaches the object file unremapped, because `visid.map` does not exist and `LoadVisIdMap` silently degrades to an identity map for all 76 `MapVisId()` call sites**
+
+**Story:** BSPSLOT-2. **New pass, sprint 1.** (Cap is rotation, not retirement — PO, 2026-09-16.)
+
+S4 closed with: *"An aircraft the sim flags `isF16` is bound to a one-slot record while seven-slot
+records sit in the same file,"* and set S5 to print the exploding aircraft's name to find *whose*
+binding was wrong. **That question has no answer, because the premise is wrong.** Following the id
+instead of the aeroplane resolves the whole chain statically, in five hops:
+
+### The chain, end to end
+
+```c
+// damage.cpp:639
+#define DAMAGEF16_ID  VIS_CF16A                   // classtbl.h:4001 →  VIS_CF16A = 1288
+
+// damage.cpp:651  (SetDamageF16PieceType)
+piece -> damage = MapVisId(DAMAGEF16_ID);
+
+// entity.cpp:1836
+DWORD MapVisId(DWORD visId)
+{ if (visId >= 0 and visId < MAXMAPID) return idmap[visId]; return visId; }
+
+// entity.cpp:1811  (LoadVisIdMap)
+for (int i = 0; i < MAXMAPID; i++) idmap[i] = i;            // identity map
+if ((fp = OpenCampFile("visid", "map", "rt")) == NULL) return;   // ← SILENT
+```
+
+**`visid.map` does not exist anywhere on this filesystem** (searched `/`). So `LoadVisIdMap` takes
+the silent early return, `idmap` stays the identity map, and `MapVisId(VIS_CF16A)` returns **1288 —
+its own enum value** — which is then used directly as an **object-record index**.
+
+Record 1288 in this install's `.DXH` has **`nSlots=1`**. The damage code asks it for slots **1..6**
+(`FRONT`, `BACK`, `RWING`, `LWING`, `LSTAB`, `RSTAB`; `damage.cpp:604-610`). Three OOB per run.
+
+### ⛔ What this retracts
+
+* **"The aircraft is bound to a one-slot record."** No aircraft is bound to anything here.
+  `piece->damage` is a `#define` — the debris model id is a **compile-time constant**, identical for
+  every exploding F-16. S4's S5 ("print the exploding aircraft's class name") would have printed a
+  different aeroplane each run and named nothing, because the aeroplane is not an input.
+* **"1288 is an index and nothing more"** (S4). It is more: it is `VIS_CF16A`, a *named* visual
+  constant, and the name is what makes the rest legible — a **crashed F-16**, which is exactly the
+  model that ought to carry seven break-off slots.
+
+### ✅ What S4 got right and still stands
+
+**"The data is NOT missing"** — 335 of 3961 records carry ≥7 slots. That survives, and now means
+something sharper: what is missing is not the slot data but the **translation table** that would
+point `VIS_CF16A` at the right record.
+
+### ⭐⭐ The real finding: a silent no-op across 76 call sites
+
+`MapVisId` has **76 call sites**. With `visid.map` absent, **every one of them returns its argument
+unchanged**, with no error, no warning and no log line. The entire visual-id indirection layer — the
+thing whose job is to map class-table enums onto *this install's* object records — is inert, and
+nothing says so.
+
+That is the same failure shape this project keeps paying for: an instrument that cannot speak, and a
+default that looks like an answer. So the silence is now breakable:
+
+```
+FF_DEBUG_VISMAP=1  →  [VISMAP] visid.map not found -- idmap stays IDENTITY for all 1400 ids;
+                                every MapVisId() returns its argument unchanged
+```
+
+Default off, changes no behaviour, compiles clean (`entity.cpp.o`).
+
+### ⚠️ NOT claimed — and this is the open question
+
+**That identity is wrong.** `LoadVisIdMap`'s fallback *is* the identity map by design, which suggests
+`visid.map` may be an optional override (for mods or theatres that renumber models) rather than a
+required file. So there are still two live possibilities, and this sprint does not choose between
+them:
+
+1. `visid.map` is required and absent → 1288 is the wrong record, and 76 call sites are mis-resolving;
+2. identity is correct → record 1288 *is* meant to be the crashed F-16, and its `nSlots=1` is bad
+   model data.
+
+**S6:** read record 1288's other fields out of the `.DXH` (`nLODs`, `nTextureSets`, extents) and
+compare against a known seven-slot record. An F-16-sized airframe with one slot points at (2); a
+record that is plainly not an aircraft points at (1). That distinguishes them without a run.
+
+**BSPSLOT-2: new pass, sprint 1. FF rotation: sprint 1 of 4.**

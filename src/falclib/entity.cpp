@@ -1818,7 +1818,23 @@ void LoadVisIdMap()
         idmap[i] = i; // identity map
 
     if ((fp = OpenCampFile("visid", "map", "rt")) == NULL)
+    {
+        /* BSPSLOT-2 S5 (2026-09-16): this early return is SILENT, and it leaves idmap as the
+           identity map for all 76 MapVisId() call sites -- every visual id is then used as a raw
+           object-record index. That is how DAMAGEF16_ID (= VIS_CF16A = 1288) reaches drawbsp as
+           record 1288, which carries nSlots=1 while the damage code asks it for slots 1..6.
+           visid.map is absent from this install (searched the whole filesystem), so the
+           indirection layer that exists to remap ids onto THIS install's object file never runs.
+           Whether identity is correct here is still open -- the file may be an optional override.
+           Either way a silent no-op across 76 call sites should be observable: FF_DEBUG_VISMAP=1
+           says so. Default off; changes no behaviour. */
+        static int ffDbgVisMap = -1;
+        if (ffDbgVisMap < 0) ffDbgVisMap = getenv("FF_DEBUG_VISMAP") ? 1 : 0;
+        if (ffDbgVisMap)
+            fprintf(stderr, "[VISMAP] visid.map not found -- idmap stays IDENTITY for all %d ids; "
+                            "every MapVisId() returns its argument unchanged\n", MAXMAPID);
         return;
+    }
 
     while (fgets(buffer, sizeof buffer, fp))
     {
