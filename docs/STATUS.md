@@ -18770,3 +18770,71 @@ whether any *other* call site in the tree uses the 1233–1238 piece models. If 
 are the unused half of a feature and `DAMAGEF16_ID` is pointing at the wrong one.
 
 **BSPSLOT-2: new pass, sprint 3 of 4. FF rotation: sprint 3 of 4.**
+
+## BSPSLOT-2 S8 (Opus 5, 2026-09-16) — ⭐⭐⭐ **the six crashed-F-16 piece models are referenced NOWHERE in the game — the unused half of a feature** — and `VIS_CF16A` is a wholly **static** mesh (1 LOD, 0 switches, 0 DOFs, 1 slot) being asked for seven slots and five switches — ⛔ **plus a correction: S7 cited `nSwitch=0`, and that field is 0 for the flyable F-16 too, so the argument was invalid even though the conclusion holds**
+
+**Story:** BSPSLOT-2. **New pass, sprint 4 of 4 — rotation complete.**
+
+S7 asked whether anything uses the 1233–1238 piece models. One grep answers it.
+
+### ⭐⭐⭐ Nothing uses them
+
+```
+VIS_CF16FRN  1        VIS_CF16MID  1
+VIS_CF16LST  1        VIS_CF16NOS  1
+VIS_CF16LWG  1        VIS_CF16RST  1      (classtbl.h enum excluded)
+```
+
+**Every one of those single references is a line I added to my own instrument this sprint.** In the
+shipped game code the six crashed-F-16 piece models are referenced **zero times**. They are loaded by
+no one, drawn by no one, named by nothing but the enum. The assets for a seven-piece break-up exist
+and are **entirely unused**.
+
+`VIS_CF16A`, by contrast, has two live uses: `damage.cpp:639` (`DAMAGEF16_ID`) and
+`otwdrive.cpp:355` (`vrCockpitModel[3]`, `LockAndLoad`ed beside `VIS_F16C` for the virtual cockpit,
+and overridable from the `vcock` config). So CF16A is a real, used wreck model — it is simply being
+asked for more than it is.
+
+### ⛔ A correction to S7, which was mine
+
+S7 wrote: *"`nSwitch=0` — a model with zero switches cannot honour any of them."* **That field proves
+nothing.** `ParentFileRecord` carries *two* switch counts — a legacy `unsigned char nSwitch` and the
+real `short nSwitches` (the header's own commented-out line says *"need 2 bytes for Switches"*), and I
+read the legacy one:
+
+```
+                     nSwitch(uchar,legacy)   nSwitches(short,REAL)   nDOFs   nDynCoords   nLODs   nSlots
+VIS_CF16A  (1288)              0                      0                0          0          1       1
+VIS_F16C   (1052)              0                     20               28          6          8       9
+```
+
+**`nSwitch` is 0 for the flyable F-16 as well** — it is a dead field. So S7's evidence was worthless.
+
+⭐ **The conclusion survives on the correct field, and more strongly than before.** `VIS_CF16A` is a
+completely **static** mesh: one LOD, **zero** switches, zero DOFs, zero dynamic coords, one slot —
+against the flyable F-16's 8 / 20 / 28 / 6 / 9. `SetupDamageF16Effects` asks it for **seven slots and
+five `SetSwitchMask` calls**. It can satisfy none of them, and that is now measured on the field that
+actually carries the count.
+
+### Where the item stands
+
+Established across four sprints: the code is innocent of the OOB (it asks for what the format
+supports); the data is consistent across every object file on the box; the model it asks is static and
+cannot answer; and the models that *could* answer are shipped, complete, and dead.
+
+That is a coherent picture of **a feature that was never finished** — the per-piece break-up art
+exists, the damage code was written against a switched/slotted wreck model, and the model in this data
+lineage is a plain static mesh. It is not a port defect.
+
+### ⚠️ Not claimed
+
+Which half is "right". Whether the original intent was per-piece models or a switched CF16A is not
+established, and I am not going to infer it from the art alone.
+
+**⚖️ Grooming — this item should now STOP at diagnosis.** BSPSLOT-1's guard already makes the OOB
+harmless (a zero offset instead of negated stack garbage), so the live defect is **fixed**; what
+remains is a cosmetic gap — F-16 wrecks do not break into seven pieces — in an upstream feature that
+never shipped complete. That is not worth further sprints against the PO's gold-video priorities.
+**Recommend: close as diagnosed, reopen only if a gold video shows the break-up.**
+
+**BSPSLOT-2: 4 sprints this pass — recommended CLOSED as diagnosed. FF rotation complete (4/4).**
