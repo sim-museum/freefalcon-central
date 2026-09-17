@@ -19051,3 +19051,75 @@ colour-mask guess that has cost this project several sprints. [[instrument-bookk
 work rather than at t=240.
 
 **GOLDVID-FF-1: new pass, sprint 3 of 4. The camera is solved; the crop is next.**
+
+## GOLDVID-FF-1 S20 (Opus 5, 2026-09-17) — ⭐⭐ **our 2D pit's displays RENDER — two bordered MFDs with OSB labels, read out of the TE-28 capture** — ⛔ **but the RWR is NOT among them, and two of my own assumptions were wrong: the config rect does not scale by a simple ratio, and the RWR is not green**
+
+**Story:** GOLDVID-FF-1. **New pass, sprint 4 of 4 — rotation complete.**
+
+S19 delivered a 2D pit capture under the gold's own TE. S20's job was to crop the RWR out of it using
+the rect the game's own config declares, rather than hunting by colour.
+
+### ⛔ Assumption 1: the declared rect does not scale by a simple ratio
+
+`art/ckptart/16_ckpit.dat` `#0 PANEL` declares `rwr = 1033 393 1177 539` (`top left bottom right`)
+alongside `mousebounds = 0 0 1199 1599`, i.e. a **1600×1200** panel space. Scaling to our 1024×768 by
+`1024/1600 = 0.64` gives `x[251..344] y[661..753]`.
+
+**What is actually there is green text with an underline** — not an instrument. So the naive ratio is
+wrong: `ConvertRecttoVBounds` takes `mHScale`/`mVScale` **in addition to** `DispWidth/Height`
+(`cpmanager.cpp:1080`), and those were not resolved. **A rect derived from the config is only a
+measurement once its scaling is derived too** — otherwise it is the same guess in better clothing.
+
+### ⭐⭐ What mapping the symbology actually found
+
+Rendering every green pixel in the frame as a coarse map shows **two closed bordered boxes**:
+
+```
+ y=576  |    ########                                 |
+ y=592  |   ########o#                    ##### ##    |
+ y=608  |   ##      .#                    #           |
+ y=656  |   ##       #                                |
+ y=704  |   o########o                    o#######    |
+         x≈198…342                        x≈678…790
+```
+
+Cropping the left one at `x[196..346] y[574..724]` (150×150) renders clearly: **a full border, a row
+of labels along the top, another along the bottom, and a ladder of tick marks down the left edge.**
+That is an **MFD with OSB labels**, and it means our 2D pit is drawing its multi-function displays
+with real content — worth knowing on its own, and never previously shown in this project.
+
+⭐ Note the size coincidence that misled me: the box is **~144×144** and the declared rwr rect is
+**146×144**. Same size, different object. A size match is not an identity.
+
+### ⛔ Assumption 2: the RWR is not green — which is why the search missed it
+
+The RWR is **not** either of those boxes. And searching for green was the wrong criterion from the
+start: **S15's own gold crop has bright pixels at `(105,124,132)` — pale grey-blue, not green.** I
+carried a colour assumption into the search without checking it against the oracle I was searching
+for. [[instrument-bookkeeping-lies]]
+
+### ⚠️ Not claimed
+
+* **That our RWR is missing.** It has not been found, which is not the same thing — the search used
+  the wrong colour and an unresolved rect. **No conclusion about the RWR is available from this
+  sprint**, and none should be drawn from these four.
+* That the two boxes are definitely MFDs — the border, edge labels and tick ladder are what the
+  picture shows; the identification is inference from layout, not from the config.
+
+### ⚖️ Grooming — where this item stands after four sprints
+
+Real ground was taken: the gold's own mission flies under capture (S18), the 2D pit is reached and
+verified by signature (S19), and the pit's displays are shown to render (S20). The item moved from
+*reading a video* to *driving the port*, which is what S17 groomed it toward.
+
+But **three of the four sprints ended in a correction of my own previous step** — S18's "hook is
+broken" (wrong, S19), S19's implied "just crop it" (wrong, the scale), S20's green search (wrong
+colour). The remaining work is small and specific, and should be done in **one** sprint, not four:
+
+> Resolve `mHScale`/`mVScale` for 1024×768, take the rect `ConvertRecttoVBounds` actually produces,
+> and search it for the gold's own RWR colour `(105,124,132)` rather than for green.
+
+And the standing blocker is unchanged since S17: **the gold RWR crop has no recorded source frame or
+scale**, so even a correct crop of ours has nothing rigorous to be compared against yet.
+
+**GOLDVID-FF-1: 4 sprints this pass. FF rotation complete.**
