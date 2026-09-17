@@ -20328,3 +20328,69 @@ and control `21805` by name. One pass, and it decides whether this is a flight l
 full or a screen the joiner should not be on.
 
 **MPTEST-FF: the joiner's list is empty and constant, and S3's plan is blocked upstream of where it looked. Sprint 2 of 4.**
+
+## MPTEST-FF S5 (Opus 5, 2026-09-17) — ⭐⭐⭐ **the joiner was never on the campaign screen: the harness's "go to CAMPAIGN" click presses `DF_HOST_CTRL` — it makes the joiner HOST A DOGFIGHT.** S4's empty list is correct behaviour, and S3's failure has the same cause
+
+**Story:** MPTEST-FF. FF rotation: sprint 3 of 4. S4 found the joiner's list empty and constant and
+asked for a screenshot to identify the screen. **A screenshot was not needed — two grep lookups in
+`userids.h` settled it**, and the answer invalidates both S3's and S4's framing.
+
+### ⭐⭐⭐ Every window the joiner had up is a DOGFIGHT window
+
+```
+   5000   UI_MAIN_SCREEN        20050  DF_LOAD_WIN        <- S4's "left panel"
+   5004   INFO_WIN              21050  DF_TOOLBAR_WIN
+   20004  DF_HEADER_WIN         21805  DOGFIGHT_TREE      <- S4's "flight list", rect 0x40
+   20006  DF_SUA_WIN            20320/20310/20323/21930  DF_LOAD/JOIN/HOST/OFFLINE_CTRL
+```
+
+**`21805` is `DOGFIGHT_TREE`.** It is empty because the joiner is on the dogfight screen and the host
+is running a **campaign**. ⛔ **So S4's headline — "the joiner's flight list is EMPTY" — is describing
+correct behaviour.** S4 hedged that *"it may legitimately have nothing to list"*; that hedge was the
+right one and this is why.
+
+### ⭐⭐⭐ And the cause is in the harness, in one click
+
+`PEER_B_SCREEN` defaulted to `both`, which clicks DOGFIGHT at 34 s and CAMPAIGN at 50 s. **Both
+coordinates were taken from the main menu bar — and by 50 s the joiner is inside the dogfight
+screen.** From peer B's own log:
+
+```
+   [LBUTTONDOWN] at (874,748) -> window ID=5000  ... GrabItem found control ID=20003    <- main menu, ok
+   [LBUTTONDOWN] at (924,745) -> window ID=21050 ... GrabItem found control ID=20323    <- !!
+```
+
+`21050` is `DF_TOOLBAR_WIN`; **`20323` is `DF_HOST_CTRL`**. The "go to campaign" click presses
+**HOST A DOGFIGHT** on the joiner, which is why it then sits on `DF_LOAD_WIN` for 80 seconds with
+nothing to show.
+
+⭐ **This also explains S3.** That sprint clicked `972,748` to press FLY and reported *"on the joiner
+it lands on nothing"*. It was on the dogfight screen too — the same default — so its FLY coordinate
+was never going to work either. **Two sprints were spent on a joiner that had been sent to the wrong
+screen by its own harness.**
+
+### ⚖️ Fixed
+
+`PEER_B_SCREEN` now defaults to **`campaign`** — which is what `PEER_B_JOIN=1` already required
+(S6y's own comment says so). `both` is kept but documented as broken, with the log lines above, so
+nobody re-derives this.
+
+**A coordinate is only valid for the screen it was measured on.** The harness had two clicks 16
+seconds apart, both in main-menu coordinates, with a screen change in between —
+[[harness-reachable-state]].
+
+### ⚠️ Not claimed
+
+* **That `PEER_B_SCREEN=campaign` gets the joiner to a flight list.** It gets it to the campaign
+  screen; whether the list populates there is the next run's question, and S6q–S6t's commit failure
+  is still open and still upstream of it.
+* **That S4's run was wasted.** It produced the dump that identified the screen, and the join
+  evidence (`walked 1 F4GameType entity`, the host's game by name) is real and came from the same
+  log. **The navigation was wrong; the instrumentation was not.**
+* That the dogfight screen's own behaviour is correct beyond the empty tree — nothing else on it was
+  examined.
+
+**S6:** re-run with `PEER_B_SCREEN=campaign` (now the default) plus `PEER_B_DUMP` at 60/100/140 and
+`FF_DEBUG_STARTCAMP=1`, and read the campaign screen's list for the first time.
+
+**MPTEST-FF: two sprints of joiner findings re-attributed to one wrong click, and the harness fixed. Sprint 3 of 4.**

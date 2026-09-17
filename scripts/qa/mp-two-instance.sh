@@ -75,8 +75,21 @@ echo "=== peer B (client) starting on port 2936 ==="
     # and CAMPAIGN (924,745). dogfight.cpp rebuilds the game tree on entry when
     # online; cpselect.cpp does not. If the hypothesis holds, [GAMETREE] shows an
     # add under DOGFIGHT and none under CAMPAIGN.
-    # PEER_B_SCREEN=dogfight|campaign|both (default both)
-    case "${PEER_B_SCREEN:-both}" in
+    # PEER_B_SCREEN=dogfight|campaign|both
+    #
+    # ⛔ `both` IS BROKEN AND IS NO LONGER THE DEFAULT (MPTEST-FF S5, measured).
+    # It fires the DOGFIGHT button at 34 s and the CAMPAIGN button at 50 s -- but both coordinates
+    # were taken from the MAIN MENU bar, and by 50 s the joiner is INSIDE the dogfight screen. The
+    # second click therefore lands on the dogfight toolbar, where (924,745) is a different control
+    # entirely. From peer B's own log:
+    #     [LBUTTONDOWN] at (874,748) -> window ID=5000  ... GrabItem found control ID=20003   <- ok
+    #     [LBUTTONDOWN] at (924,745) -> window ID=21050 ... GrabItem found control ID=20323   <- !!
+    # 21050 is DF_TOOLBAR_WIN and 20323 is DF_HOST_CTRL: the "go to campaign" click presses
+    # HOST A DOGFIGHT on the joiner. It then sits on DF_LOAD_WIN with an empty DOGFIGHT_TREE for
+    # the rest of the run -- which is CORRECT behaviour for a dogfight screen when the host is
+    # running a campaign, and which S4 nearly recorded as a defect.
+    # Default is now `campaign`, which is what PEER_B_JOIN needs anyway (see S6y below).
+    case "${PEER_B_SCREEN:-campaign}" in
         dogfight) nav="874,748@34" ;;
         campaign) nav="924,745@34" ;;
         *)        nav="874,748@34;924,745@50" ;;
