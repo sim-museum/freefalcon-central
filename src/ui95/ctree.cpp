@@ -1026,6 +1026,23 @@ long C_TreeList::CheckHotSpots(long relX, long relY)
 
 void C_TreeList::Activate()
 {
+#ifdef FF_LINUX
+    /* MPTEST-FF S14: THE field selection actually lives in. S10-S13 measured `type` (the control's
+       class tag, 0 for every C_TreeList) and `state_` (the node's open/closed bit) -- neither can
+       show selection, and the tree that WORKS reads both the same as the tree under suspicion.
+       LastActive_ is what this class uses, and nothing in this port has ever printed it. Printed
+       BEFORE the early-return, so "Activate ran and declined" is separable from "Activate never
+       ran" -- the same distinction the STARTCAMP arm line drew for the takeoff code in S9. */
+    {
+        static int s_dbga = -1;
+        if (s_dbga < 0) s_dbga = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+        if (s_dbga and ff_treehit_wanted(GetID()))
+            fprintf(stderr, "[TREEACT] tree %ld active=%p found=%p %s\n",
+                    GetID(), (void*)LastActive_, (void*)LastFound_,
+                    (LastActive_ == LastFound_) ? "-> early return (already active)" : "-> will activate");
+    }
+#endif
+
     if (LastActive_ == LastFound_)
         return;
 
@@ -1036,6 +1053,14 @@ void C_TreeList::Activate()
     {
         LastActive_ = LastFound_;
         LastFound_->Item_->Activate();
+#ifdef FF_LINUX
+        {
+            static int s_dbgb = -1;
+            if (s_dbgb < 0) s_dbgb = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+            if (s_dbgb and ff_treehit_wanted(GetID()))
+                fprintf(stderr, "[TREEACT] tree %ld ACTIVATED item id=%ld\n", GetID(), LastActive_->ID_);
+        }
+#endif
     }
 }
 

@@ -21017,3 +21017,69 @@ disproved.**
 each. With a tree that works in the same dump, one run settles whether `6130` selects.
 
 **MPTEST-FF: the symptom was expand/collapse. FF sprint 3 of 4.**
+
+## MPTEST-FF S14 (Opus 5, 2026-09-17) — ⭐⭐⭐ **THE ROW SELECTS. `[TREEACT] tree 6130 ACTIVATED item id=5571`, exactly as the working tree activates its own.** "No row selects" — four sprints of it — is **false**, and the blocker is somewhere else entirely
+
+**Story:** FF rotation: sprint 4 of 4. S13 identified the field selection actually lives in —
+`C_TreeList::LastActive_` — and noted **nothing in this port had ever printed it**. S14 printed it.
+
+### ⭐⭐⭐ Measured
+
+```
+[TREEACT] tree 40211 active=(nil) found=0x624910dc8c50 -> will activate
+[TREEACT] tree 40211 ACTIVATED item id=1
+[TREEACT] tree 6130  active=(nil) found=0x624912462410 -> will activate
+[TREEACT] tree 6130  ACTIVATED item id=5571
+```
+
+**Both trees behave identically, and the mission tree selects a row.** The probe prints *before* the
+early-return, so **"ran and declined" is separable from "never ran"** — neither happened; it ran and
+**activated**.
+
+### ⛔ So the item's headline for four sprints was wrong
+
+| sprint | the evidence | what it actually was |
+|---|---|---|
+| S10 | `GrabItem … type=0` | the `C_TreeList` **class tag** — the working tree reports 0 too (S12) |
+| S10–S13 | all rows `state=0` | the node's **open/closed** bit — the working tree reads 0 too (S13) |
+| **S14** | **`LastActive_`** | ⭐ **the real field — and it is SET** |
+
+⚠️ **Three of four evidence items in this line of investigation were instrument artefacts**, and the
+fourth — the one nobody printed — says the opposite of the conclusion drawn from the other three.
+
+### ⚖️ Where the blocker actually is
+
+This sprint also eliminated, **by reading the code rather than guessing**, every gate between the
+click and the callback:
+
+* `C_BIT_SELECTABLE` (`cwindow.cpp:2708`) — **set on both trees**: flags are byte-identical
+  `0x14080800` on `40211` and `6130`, and `0x14080800 bitand 0x00080000` is non-zero.
+* the handler's `MouseCallback_` veto (`chandler.cpp:2312`) — if it returns FALSE, `SetControl`,
+  `WindowToFront` **and** `Process` are all skipped. ⭐ **It is never installed**: the only
+  `gMainHandler->SetCallback(...)` in the tree is **commented out** (`ui_main.cpp:1680`), so
+  `ret` is always TRUE.
+* `MouseOver` / `Item_` / hit resolution — all confirmed good in S12.
+
+**Every step from click to activation is now measured or eliminated, and all of them pass.**
+
+⛔ **And the PO-level symptom is unchanged: the joiner still does not reach a flight.**
+`STARTCAMP armed: 0` again — **the takeoff code is still never reached** (S9's arm line, doing its
+job for the third time). So the failure lies **after** selection: the commit control, or what the
+selection is expected to trigger.
+
+### ⚠️ Not claimed
+
+* **That selecting row `5571` selected the *intended* flight.** It activated **a** row — the one
+  under `(128,84)`. **Nothing here checks which flight that is**, or that it matches the host's.
+* **That a commit control appeared.** The final dump shows `6103`/`6105`/`6107`/`6111`–`6117`/`6126`
+  on the mission screen; **none has been identified as the commit**, and this sprint did not click one.
+* That the remaining failure is one step. **It is simply not row selection** — that is the whole
+  claim.
+* That the join regressed — **`FM_JOIN_SUCCEEDED`, seven consecutive runs.**
+
+**S15:** with selection proven, identify the commit control on `CB_MISSION_SCREEN` and click it —
+then see whether `STARTCAMP` finally arms. ⭐ **The arm line already distinguishes "not reached" from
+"reached and declined", so that run cannot come back ambiguous.**
+
+**MPTEST-FF: the row selects; four sprints of evidence were instrument artefacts. FF rotation
+complete (4 sprints) → MiG Alley.**
