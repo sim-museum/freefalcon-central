@@ -250,6 +250,33 @@ void DrawableBSP::GetChildOffset(int slotNumber, Tpoint *offset)
             void* fr[24];
             int nf = backtrace(fr, 24);
             backtrace_symbols_fd(fr, nf, 2);
+            /* BSPSLOT-2 S4: is SEVEN slots normal in this install, or is 1288 odd?
+               The .DXH carries no model NAMES (ParentFileRecord is all counts and extents), so
+               1288 cannot be resolved to a file -- but the question that actually decides the
+               fix is answerable from the same table: how many parent records carry enough slots
+               for the F-16 damage code's seven named pieces? If essentially none do, this
+               install's object data lacks them and the aircraft binding is innocent; if many do,
+               1288 is the wrong record for this aeroplane. One census, once. */
+            {
+                static int censused = 0;
+                if (!censused) {
+                    censused = 1;
+                    int hist[9]; for (int k = 0; k < 9; k++) hist[k] = 0;
+                    int n7 = 0, tot = 0;
+                    if (TheObjectList) {
+                        for (int k = 0; k < TheObjectListLength; k++) {
+                            int ns = TheObjectList[k].nSlots;
+                            tot++;
+                            if (ns >= 7) n7++;
+                            hist[ns < 8 ? ns : 8]++;
+                        }
+                    }
+                    fprintf(stderr, "[SLOT] census: %d parent records, %d with nSlots>=7; "
+                            "nSlots 0:%d 1:%d 2:%d 3:%d 4:%d 5:%d 6:%d 7:%d 8+:%d\n",
+                            tot, n7, hist[0], hist[1], hist[2], hist[3], hist[4],
+                            hist[5], hist[6], hist[7], hist[8]);
+                }
+            }
             fflush(stderr);
         }
         return;

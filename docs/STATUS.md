@@ -18227,3 +18227,65 @@ answers it — and tells us whether a *different* F-16 record in the same instal
 which decides between "bad data" and "wrong id" in one step.
 
 **BSPSLOT-2: 3 sprints.**
+
+## BSPSLOT-2 S4 (Opus 5, 2026-09-16) — ⭐⭐⭐ **the census settles it: 335 of this install's 3961 object records DO carry seven or more slots, so the data is NOT missing** — the aircraft is bound to a one-slot record while seven-slot records sit in the same file — ⛔ **and "partial staging" was my leading hypothesis and is wrong**
+
+**Story:** BSPSLOT-2. **Sprint 4 — at cap.**
+
+### The name cannot be looked up, and the loader says why
+
+S3 asked to resolve model id 1288 to a file. It cannot be: the master object file is
+`<basename>.DXH`, records are read sequentially by `ObjectParent::ReadParentList`, and
+`ParentFileRecord` is **entirely counts and extents** —
+
+```c
+float minZ, maxZ;  float RadarSign, IRSign;
+short nTextureSets, nDynamicCoords;
+unsigned char nLODs, nSwitch, nDOF, nSlots;
+short nSwitches, nDOFs;
+```
+
+**No name field.** `1288` is an index and nothing more.
+
+### ⭐⭐⭐ But the deciding question is answerable from the same table
+
+S3 left two candidates: *"either this install's F-16 model lacks its damage slots … or the aircraft
+is bound to the wrong model id."* One census over `TheObjectList` separates them:
+
+```
+[SLOT] census: 3961 parent records, 335 with nSlots>=7;
+       nSlots 0:3117 1:194 2:64 3:71 4:62 5:62 6:56 7:71 8+:264
+```
+
+**335 records carry seven or more slots** — 71 with exactly seven, 264 with more. The attachment
+data the F-16 damage code needs **is present in this install**.
+
+⛔ So the partial-staging explanation — the one I flagged as likely, on a box where two earlier
+failures both turned out to be data still inside a `.zip` — is **wrong**. Nothing is missing. An
+aircraft the sim flags `isF16` is bound to a **one-slot** record while seven-slot records sit in the
+same file.
+
+### Worth knowing about the shape of the data
+
+**3117 of 3961 records (79 %) have zero slots.** Slots are the exception, not the rule — they exist
+for models with attachments. So `nSlots=1` is not a stub or a placeholder; it is a model that
+genuinely has exactly one attachment point, and is the wrong model to break into seven named pieces.
+
+### The pieces vary per explosion, as expected
+
+This run's out-of-bounds requests were slots **4, 5, 1** (`LWING`, `LSTAB`, `FRONT`); the previous
+run's were **1, 3, 6** (`FRONT`, `RWING`, `RSTAB`). Different explosions create different pieces —
+**three OOB per run in both**, which is the rate S2 established and is stable across runs.
+
+### ⚠️ Not claimed
+
+Which aircraft it is. The census says the binding is wrong; it does not say *whose*. The OOB fires
+inside `drawbsp.cpp`, which has no view of the entity — but `SetupDamageF16Effects` does, and it has
+`this`, so naming the exploding aircraft is a one-line addition at the call site rather than a
+guess.
+
+**S5 (next pass):** print the exploding aircraft's class name beside `ptr->id` in
+`SetupDamageF16Effects`. That names the aeroplane, and the pair (aircraft, model id) is what a data
+or binding fix needs.
+
+**BSPSLOT-2: 4 sprints — AT CAP.**
