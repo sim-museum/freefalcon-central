@@ -20536,3 +20536,80 @@ flight.**
   **But both would have been shorter had I read the `S6*` series first.**
 
 **MPTEST-FF: two of my own claims retracted, the join shown to be already solved, and the open stage narrowed to takeoff. Sprint 1 of 4.**
+
+## MPTEST-FF S8 (Opus 5, 2026-09-17) — ⭐⭐ **the join is GREEN today — `FM_JOIN_SUCCEEDED` on the corrected navigation — and the joiner's post-join screen is mapped at last.** ⛔ **`(972,748)` is `HISTORY_WIN`, not FLY: S3 was clicking the HOST's coordinate on the joiner's toolbar**
+
+**Story:** MPTEST-FF. FF rotation: sprint 2 of 4. S7 corrected the record (the commit was fixed on
+2026-09-06) and left one caveat: *"S6y is from 2026-09-06 and many rebuilds ago; `fixed in dev is not
+fixed now`."* Ran `PEER_B_JOIN=1` with `FF_DEBUG_STARTCAMP=1` on S5's corrected navigation.
+
+### ⭐ The join still works
+
+```
+   FM_JOIN_SUCCEEDED in peer B's log : 1
+```
+
+**Eleven days and many rebuilds after S6y, the client still joins the host's campaign.** The caveat is
+discharged.
+
+### ⚠️ `STARTCAMP: 0` again — and again it is EXPECTED, not a result
+
+`PEER_B_JOIN=1` drives the *join* chain (JOIN tab → game node → commit → comply). **It never presses
+FLY.** So the takeoff guard is not reached and the trace is empty **by construction**. *(S3 read an
+empty `[STARTCAMP]` and said honestly that it proved nothing; S6 hit the same thing. This is the
+third time — the trace cannot speak until something drives the takeoff, and that should be written
+on the instrument, not rediscovered.)*
+
+### ⭐⭐⭐ The joiner's post-join screen, named
+
+```
+   6000  CB_MAIN_SCREEN        6100  CB_MISSION_SCREEN  (0,33 270x500)
+   6013  CP_TOOLBAR            6012  CP_SUA             6500  CP_PUA_MAP
+
+   in 6100:   6130  MISSION_LIST_TREE   rect 0,0 247x186   click 128,169
+              1600013 CB_MISS_TITLE
+
+   in 6013:   6122 ATO_BUTTON          click 585,748
+              6123 FLIGHT_PLAN_BUTTON  click 672,748
+              6121 BRIEF_BUTTON        click 772,748
+              6124 MUNITIONS_BUTTON    click 872,748
+              6202 HISTORY_WIN         click 972,748     <-- !!
+```
+
+⛔ **`(972,748)` is `HISTORY_WIN`.** S3 took that coordinate from the harness's own comment —
+*"its FLY at 972,748 once the client is in"* — which describes **the HOST's** toolbar. On the joiner
+the same point is the history window. **S3's click was not landing "on nothing"; it was landing on
+the wrong button, on the wrong screen, from the wrong peer's recipe.**
+
+**There is no FLY or COMMIT control anywhere in the joiner's campaign toolbar** — it carries ATO,
+Flight Plan, Brief, Munitions and History. Whatever commits the joiner to a flight is not there yet.
+
+### ⚠️ And the mission list — what I will NOT conclude
+
+```
+   ctrl id=6130 rect=0,0 247x33    (one dump)
+   ctrl id=6130 rect=0,0 247x186   (two dumps)
+   'item' rows in any post-join dump: 0
+```
+
+**The rect GROWS from 33 to 186**, which is 5–6 rows' worth, so something is populating it. But the
+dump reports **zero `item` rows**. ⚠️ **Those two facts disagree, and I am not picking the one that
+suits a story** — `UIDUMP` enumerates items for the tree class it knows (it printed them happily for
+`CAMPAIGN_TREE` in S6), so either `MISSION_LIST_TREE` is a different class the dump does not walk, or
+the list really is empty and something else sizes it. **S4 called an unenumerated control "EMPTY" and
+S5 had to retract it. Not again.**
+
+### ⚖️ Where the item stands
+
+| stage | state |
+|---|---|
+| connect → game list → commit → `FM_JOIN_SUCCEEDED` | ✅ **green today** |
+| joiner's campaign screen + mission list | ✅ reached, list sized 247x186 |
+| selecting a flight and committing to it | ⛔ **open — no FLY control found on the joiner's toolbar** |
+| `FM_START_CAMPAIGN` / takeoff | ⛔ open, and unreachable until the above |
+
+**S9:** click inside `MISSION_LIST_TREE` (it spans `y 33..219`, so rows sit near `click=128,169`) and
+dump immediately after — **does a commit control appear**, as `SINGLE_COMMIT` did on the
+campaign-select screen once a game was chosen? And settle the `6130` class question while there.
+
+**MPTEST-FF: the join re-verified, the joiner's screen mapped, and S3's FLY coordinate shown to be the host's. Sprint 2 of 4.**
