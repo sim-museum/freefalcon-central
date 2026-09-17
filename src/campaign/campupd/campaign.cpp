@@ -2628,6 +2628,22 @@ void DoCompressionLoop(void)
                                FF_DEBUG_STARTCAMP=1. */
                             if (getenv("FF_DEBUG_STARTCAMP"))
                             {
+                                /* S9: ARM-LINE. An empty [STARTCAMP] trace has now been read three
+                                   times (S3, S6, S8) as if it said something, and each time it said
+                                   only that nothing drove the takeoff -- no run had pressed FLY.
+                                   Silence from a probe that was never reached is not evidence, so
+                                   the probe announces itself the first time this function runs:
+                                   after that, absence of the trace means the DECISION was not
+                                   reached, and absence of the arm line means this code was not
+                                   reached at all. Two different failures, now distinguishable. */
+                                static int armed = 0;
+                                if (!armed++)
+                                {
+                                    fprintf(stderr, "[STARTCAMP] armed -- this fires only when the "
+                                                    "takeoff decision is evaluated; an empty trace "
+                                                    "means nothing drove FLY\n");
+                                    fflush(stderr);
+                                }
                                 static int n = 0;
                                 if (n++ < 8)
                                 {

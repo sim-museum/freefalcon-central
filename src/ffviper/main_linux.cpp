@@ -3672,7 +3672,14 @@ static void render_frame(void) {
                                known tree ids, C-cast. FF_DUMP_TREE_IDS="id,id,..." extends the list. */
                             C_TreeList* tl = NULL;
                             {
-                                static const char* ids = getenv("FF_DUMP_TREE_IDS") ? getenv("FF_DUMP_TREE_IDS") : "40211";
+                                /* MPTEST-FF S9: 6130 (MISSION_LIST_TREE) added to the DEFAULT. It is a C_TreeList exactly as
+                                   40211 is, but it was not in this allowlist -- so every dump of the joiner's
+                                   post-join screen reported ZERO item rows for a list that actually holds twelve
+                                   flights. S4 read that silence as "the list is EMPTY" and S5 had to retract it;
+                                   S8 declined to repeat the inference and was right. A hardcoded allowlist that
+                                   makes a populated control look empty is a trap, so the ids we know are trees
+                                   belong in the default, not in an env var someone has to remember. */
+                                static const char* ids = getenv("FF_DUMP_TREE_IDS") ? getenv("FF_DUMP_TREE_IDS") : "40211,6130";
                                 char buf[128]; strncpy(buf, ids, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
                                 for (char* t = strtok(buf, ","); t; t = strtok(NULL, ","))
                                     if (atol(t) == c->GetID()) { tl = (C_TreeList*)c; break; }

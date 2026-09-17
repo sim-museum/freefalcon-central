@@ -20613,3 +20613,79 @@ dump immediately after — **does a commit control appear**, as `SINGLE_COMMIT` 
 campaign-select screen once a game was chosen? And settle the `6130` class question while there.
 
 **MPTEST-FF: the join re-verified, the joiner's screen mapped, and S3's FLY coordinate shown to be the host's. Sprint 2 of 4.**
+
+## MPTEST-FF S9 (Opus 5, 2026-09-17) — ⭐⭐⭐ **the joiner's mission list holds TWELVE flights. The "0 item rows" S8 refused to call empty was a hardcoded allowlist in the dump — the instrument, not the data**
+
+**Story:** MPTEST-FF. FF rotation: sprint 3 of 4. S8 found `MISSION_LIST_TREE` (6130) sized `247x186`
+with **zero** `item` rows, noted the two facts disagreed, and declined to conclude — *"S4 called an
+unenumerated control 'EMPTY' and S5 had to retract it. Not again."* **That caution was correct.**
+
+### ⭐ The cause, found by reading the dump rather than running anything
+
+`main_linux.cpp`, inside the `[UIDUMP]` tree walk:
+
+```c
+   static const char* ids = getenv("FF_DUMP_TREE_IDS") ? getenv("FF_DUMP_TREE_IDS") : "40211";
+```
+
+**The walk only enumerates ids on an allowlist, defaulting to `40211` alone.** `MISSION_LIST_TREE` is
+a `C_TreeList` exactly as `CAMPAIGN_TREE` is (`campaign.cpp:1079` C-casts it as one) — it simply was
+not on the list. **The dump could never have printed its items, whatever they were.**
+
+### ⭐⭐⭐ With `FF_DUMP_TREE_IDS="40211,6130"`
+
+```
+   item id=5924  at 0,0    247x17   click=128, 84
+   item id=5551  at 0,17   247x17   click=128,101
+   item id=5348  at 0,34   247x17   click=128,118
+   item id=5333  at 0,51   247x17   click=128,135
+   item id=5327  at 0,68   247x17   click=128,152
+   item id=5311  at 0,85   247x17   click=128,169
+   item id=5318  at 0,102  247x17   click=128,186
+   item id=5316  at 0,119  247x17   click=128,203
+   item id=5315  at 0,136  247x17   click=128,220
+   item id=5421  at 0,153  247x17   click=128,237
+   item id=5366  at 0,170  247x17   click=128,254
+   item id=5351  at 0,187  247x17   click=128,271
+```
+
+**Twelve flights**, contiguous at 17 px, and the control's rect grows `247x33 → 247x220` as they
+arrive — `12 × 17 = 204` plus the header, which is exactly consistent. **The joiner has flights to
+choose from, and their click points are now known.**
+
+⭐ `FM_JOIN_SUCCEEDED: 1` again — **the join is green on two consecutive runs.**
+
+### ⚖️ Two instrument fixes, so this class of silence stops recurring
+
+1. **`6130` added to the dump's DEFAULT allowlist.** A list that makes a populated control look empty
+   is a trap; the ids known to be trees belong in the default, not in an env var someone must
+   remember. *(This single omission produced a wrong claim in S4, a retraction in S5, and a
+   deliberate non-claim in S8 — three sprints of drag from one hardcoded string.)*
+2. **`[STARTCAMP]` now prints an ARM LINE** the first time the function runs. An empty trace has been
+   read as meaningful three times (S3, S6, S8) when it only meant *nothing drove FLY*. Now: no trace
+   = the decision was not reached; no arm line = the code was not reached at all.
+
+### ⚖️ Where the item stands
+
+| stage | state |
+|---|---|
+| connect → commit → `FM_JOIN_SUCCEEDED` | ✅ green, two runs running |
+| joiner's campaign screen + mission list | ✅ **12 flights, click points known** |
+| selecting a flight → a commit control appearing | ⛔ **open, and now directly testable** |
+| `FM_START_CAMPAIGN` / takeoff | ⛔ open, downstream of the above |
+
+### ⚠️ Not claimed
+
+* **That clicking a row selects a flight.** The rows are `type=50` (`C_TYPE_ITEM`) with `state=0`;
+  nothing here has clicked one. **The campaign-select tree needed a specific point and its own
+  callback** (S6q–S6t), and this list may too.
+* **That a commit control will appear.** On the campaign-select screen `SINGLE_COMMIT` existed but
+  was *disabled* until a preload completed (S6v). **The joiner's toolbar has no commit control at all
+  right now** (S8) — it may appear, or it may need the same kind of enable path.
+* That 12 is the right number of flights. It is what the joiner shows; **nobody has compared it to
+  the host's list.**
+
+**S10:** click a flight row — `(128,84)` is the first — and dump immediately after. Does a commit
+control appear in `CP_TOOLBAR`, and does the row's `state_` change?
+
+**MPTEST-FF: the list is full, the silence was the instrument, and two traps closed for good. Sprint 3 of 4.**
