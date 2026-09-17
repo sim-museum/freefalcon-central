@@ -20394,3 +20394,72 @@ seconds apart, both in main-menu coordinates, with a screen change in between �
 `FF_DEBUG_STARTCAMP=1`, and read the campaign screen's list for the first time.
 
 **MPTEST-FF: two sprints of joiner findings re-attributed to one wrong click, and the harness fixed. Sprint 3 of 4.**
+
+## MPTEST-FF S6 (Opus 5, 2026-09-17) — ⭐⭐⭐ **with S5's harness fix the joiner reaches the campaign screen and its tree HOLDS THE HOST'S GAME: `CAMPAIGN_TREE` is `102x57` with 2 items, against `0x40` and none.** ⭐⭐ And the commit button has a TWIN on the identical rect — `SINGLE_COMMIT_CTRL` and `COMMS_COMMIT_CTRL` share `(150,0 100x40)`
+
+**Story:** MPTEST-FF. FF rotation: sprint 4 of 4 — rotation complete. S5 found the harness was
+pressing `DF_HOST_CTRL` on the joiner and changed `PEER_B_SCREEN` to default to `campaign`. This is
+the first run with the joiner actually where the item has always assumed it was.
+
+### ⭐⭐⭐ The harness fix is confirmed, and the difference is total
+
+```
+                          S4 (dogfight, wrong screen)     S6 (campaign)
+   windows                20004/20050/20006/21050         40100/40102/40200/40300/40400/40500
+                          all DF_*                        START_AT_LIST, TIME_LIMIT, CS_SELECT_WIN,
+                                                          CS_PUA_WIN, CS_MAP_WIN, CS_TOOLBAR_WIN
+   tree                   21805 DOGFIGHT_TREE  rect 0x40  40211 CAMPAIGN_TREE  rect 102x57
+   item rows in dumps     0                               6
+```
+
+```
+   [GAMETREE] add game to tree 0x5a62fd8612a0 (branch 4) -- CAMPAIGN
+   [GAMETREE] walked 1 F4GameType entity in the VU database
+```
+
+**The host's game is in the joiner's campaign tree**, and the tree is 102 px wide instead of zero.
+⛔ **S4's "the joiner's flight list is EMPTY" is now fully retired** — it was the dogfight tree, on the
+wrong screen, and it was empty correctly.
+
+### ⭐ The tree's real click points, from the dump rather than arithmetic
+
+```
+   ctrl id=40211 rect=6,23 102x57 click=135,142
+     item id=1        type=49  at 6,23 75x16  click=127,145     <- the GAME (C_TYPE_MENU)
+     item id=5812196  type=50  at 0,0  56x14  click=112,121     <- the player child (C_TYPE_ITEM)
+```
+
+S6t computed the game node's point by hand as **(121,122)**. The dump says the game is at
+**(127,145)** and that **(112,121)** is the *player child*. ⭐ That fits S6q–S6t's own traces, which
+reported `flag=50` — **type 50 is the child, not the game** — and is why those sprints spent three
+clicks establishing what the tree contained. **The dump supersedes the arithmetic.**
+
+### ⭐⭐ And the commit button is two buttons
+
+```
+   window 40500 CS_TOOLBAR_WIN at 692,728 332x40
+     ctrl id=2000002 rect=150,0 100x40 click=892,748     SINGLE_COMMIT_CTRL
+     ctrl id=2000003 rect=150,0 100x40 click=892,748     COMMS_COMMIT_CTRL
+```
+
+**Two commit controls on the identical rect**, and S6q–S6t's open failure is exactly there: the click
+reaches window 40500 and then `GrabItem found NO control`, three times. **A hit-test that resolves to
+whichever of the two it walks first will find nothing if that one is invisible or disabled** — and in
+a multiplayer join it is presumably `COMMS_COMMIT_CTRL` that should take it. That is a concrete,
+checkable hypothesis where the item previously had none.
+
+### ⚠️ Not claimed
+
+* **`[STARTCAMP]` printed nothing — 0 lines — and that is expected, not a result.** No flight was
+  selected and FLY was never pressed; this pass was navigation and identification only. Reading
+  anything into the empty trace would repeat S3's error exactly.
+* **That the stacked commit controls are the cause.** It is a hypothesis fitted to S6t's symptom.
+  The `[GETCTRL]` per-control gate S6v asked for is the instrument that would settle it, and it has
+  not been run on window 40500.
+* That `ctrl id=506 rect=6,23 0x40` — a *second* empty tree, on the campaign screen — is benign. It
+  is noted and unexamined.
+
+**S7:** run `[GETCTRL]` on window 40500 and read whether `2000002` or `2000003` is the visible,
+enabled one; then click the game at **(127,145)** and commit with whichever it says.
+
+**MPTEST-FF: the joiner is on the right screen with the host's game in its tree, and the commit failure has a named suspect. FF rotation complete (4 sprints) → MiG Alley.**
