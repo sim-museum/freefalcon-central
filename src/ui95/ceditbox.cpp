@@ -186,8 +186,36 @@ long C_EditBox::CheckHotSpots(long relX, long relY)
 
 BOOL C_EditBox::CheckKeyboard(unsigned char DKScanCode, unsigned char Ascii, unsigned char ShiftStates, long)
 {
+    /* MP-1 S10: the last unproven link in the PO's "cannot type anywhere" chain. S9 fixed the
+       decode and proved it at chandler.cpp -- Key, Ascii and ShiftStates all arrive correctly --
+       but nothing showed that a FOCUSED edit box then STORES the character. This prints the box's
+       own text after CheckChar, so the claim is about the field's contents rather than about a
+       keystroke reaching a handler. FF_DEBUG_EDIT=1. */
+    static int s_edbg = -1;
+
+    if (s_edbg < 0) s_edbg = getenv("FF_DEBUG_EDIT") ? 1 : 0;
+
     if (Ascii)
-        return(CheckChar(Ascii));
+    {
+        BOOL r = CheckChar(Ascii);
+
+        if (s_edbg)
+        {
+            const _TCHAR *after = (Text_ != NULL) ? Text_->GetText() : NULL;
+            fprintf(stderr, "[edit] ascii=%d('%c') accepted=%d cursor=%d maxlen=%d text=\"%s\"\n",
+                    (int)Ascii, (Ascii >= 32 and Ascii < 127) ? Ascii : '.',
+                    (int)r, (int)Cursor_, (int)MaxLen_, after ? after : "(null)");
+            fflush(stderr);
+        }
+
+        return(r);
+    }
+
+    if (s_edbg)
+    {
+        fprintf(stderr, "[edit] non-ascii scancode=%d shift=%d\n", (int)DKScanCode, (int)ShiftStates);
+        fflush(stderr);
+    }
 
     return(CheckKeyDown(DKScanCode, ShiftStates));
 }

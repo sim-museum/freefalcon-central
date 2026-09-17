@@ -19876,3 +19876,80 @@ what cost sprints 5–8 their verification.
 
 **MP-1: 9 sprints. Typing works end-to-end and is provable on this machine. FF sprint 4 of 4 —
 rotating to MiG Alley.**
+
+## MP-1 S10 (Opus 5, 2026-09-17) — ✅ **MP-1 IS DONE: a focused edit box stores what is typed, proven at three levels — the decode, the field's own contents, and the pixels.** `Joe Pilot` → `ZQ7x`, capitals and all
+
+**Story:** MP-1 — the PO's standing multiplayer priority. FF rotation: sprint 1 of 4. S9 fixed the
+character path and proved the *decode*, and said plainly what it had not shown:
+
+> *"No edit box was actually filled this sprint… it does not prove that a focused `C_EditBox` stores
+> what it receives. **That is S10:** navigate to the logbook callsign, type, and read the field back."*
+
+Artefact: `docs/reference/260917_mp1_logbook_typing.png`.
+
+### ⭐ The read-back instrument
+
+`C_EditBox::CheckKeyboard` (`src/ui95/ceditbox.cpp:187`) is two lines — `CheckChar(Ascii)` or
+`CheckKeyDown`. `FF_DEBUG_EDIT=1` now prints, **after** `CheckChar`, the box's own text. So the claim
+is about **the field's contents**, not about a keystroke reaching a handler — which is the difference
+S9 could not close. *(The same lesson as this session's `[RWR]` probe: ask the object what it holds,
+do not infer it.)*
+
+### ⭐⭐⭐ Driven headlessly, end to end
+
+```
+FF_UI_CLICK='150,750@8;75,97@14'      LOGBOOK, then the PILOT field
+FF_UI_TYPE='ZQ7x@20'                  two capitals, a digit, a lowercase
+```
+
+```
+[keys] wParam=44 -> Key=44 Ascii=90('Z') Shift=1 win=0x55c8327298e0
+[edit] ascii=90('Z')  accepted=1 cursor=1 maxlen=15 text="Z"
+[edit] ascii=81('Q')  accepted=1 cursor=2 maxlen=15 text="ZQ"
+[edit] ascii=55('7')  accepted=1 cursor=3 maxlen=15 text="ZQ7"
+[edit] ascii=120('x') accepted=1 cursor=4 maxlen=15 text="ZQ7x"
+```
+
+**`win` is non-null — a window has focus — every character is `accepted=1`, the cursor advances, and
+the field's text accumulates exactly.** Both capitals arrive as capitals, which is S9's `0x8080` mask
+fix and its carried-modifier fix working on a real control rather than on a trace line.
+
+### ⭐⭐ And the pixels agree
+
+The PILOT field reads **`Joe Pilot`** before and **`ZQ7x`** with a caret after — in the game's own
+face, in the field, on screen. Three independent levels — decode, storage, render — and they agree.
+
+### ⚖️ What this closes
+
+**MP-1's typing defect is finished.** The PO's report was *"text cannot be typed into the UI at all"*
+and *"cannot type a URL anywhere"*. Across S5–S10 that resolved into **four** defects:
+
+| | defect | found | state |
+|---|---|---|---|
+| 1 | scancode posted in `wParam`, decoder reads `lParam` | S5–8 | fixed, verified |
+| 2 | `GetKeyState` stub | S5–8 | fixed **twice** — the stub (S5–8) and the `0x80` mask (S9) |
+| 3 | `BuildAscii()` corrupts the ascii table on Linux | S5–8 | fixed, verified |
+| 4 | modifier re-read at handle time, not carried with the message | S9 | fixed, verified |
+
+**and one missing instrument** (`FF_UI_TYPE`, S9) without which none of it could be shown on this box.
+
+### ⚖️ MP-1's remaining half — grooming note
+
+Part (a), *how to run FF multiplayer*, is **untouched and now genuinely unblocked**: the address
+field accepts input, and there is a scripted way to drive it. That is the next MP-1 sprint, and it is
+a different kind of work (running two instances) from the last six sprints of input plumbing.
+⚠️ `HARNESS-PEER-LIFETIMES` applies — the two-instance harness staggers B by 95 s and `A_SECS` must
+cover `B_DELAY + B_SECS`, or an "empty list" is a dead host, not a defect.
+
+### ⚠️ Not claimed
+
+* **That the typed value persists.** The field holds `ZQ7x`; nothing here follows it through `OK` to
+  `SaveControlValues` (`ui/src/logbook/ui_lgbk.cpp:2042`) and onto disk. **A different question, and
+  worth one sprint** before anyone types a callsign they care about.
+* **That clicking the field is what cleared `Joe Pilot`.** The first character replaced the whole
+  contents (`text="Z"`, not `"Joe PilotZ"`), which is ordinary select-all-on-focus behaviour — but it
+  was not tested, and it is not what the gold was checked against.
+* That `maxlen=15` is right, or that the password field behaves the same. Only the PILOT field was
+  driven.
+
+**MP-1: 10 sprints. Typing works, proven at the decode, the field and the pixels. FF sprint 1 of 4.**
