@@ -19713,3 +19713,77 @@ the rows without reconstructing the frames. *(Same shape as the `[ds]` probe, th
   candidate is not supported, but it was not the question once the AAA vanished.
 
 **GOLDVID-FF-1: the difference that drove S22–S27 does not exist. Sprint 2 of 4.**
+
+## GOLDVID-FF-1 S29 (Opus 5, 2026-09-17) — ⭐⭐⭐ **both emitters identified against an INDEPENDENT gold source: the south contact is an AIRPLANE — the SITREP's Alamo-carrying MiG-29 — and the west pair is the SA-2. The gold's own briefing text confirms our RWR, direction by direction**
+
+**Story:** GOLDVID-FF-1. FF rotation: sprint 3 of 4. One TE-28 run, 26,165 contact lines. S28 named
+the symbols; S29 asks what the entities *are*, and checks the answer against a gold artefact that
+was written by the game, not measured by us.
+
+### ⭐ The bearing is a compass bearing
+
+`vehrwr.cpp:315` — `bearing = atan2(theObject->YPos() − platform->YPos(), theObject->XPos() −
+platform->XPos())`. Falcon's world frame is X‑north / Y‑east, so this is **0 = north, +90 = east,
+±180 = south, −90 = west**. The probe has been printing compass bearings all along; nothing before
+S29 read them as directions.
+
+### ⭐ Adding `IsAirplane()` / `IsGroundVehicle()` / `GetRadarType()`
+
+```
+sym=7   air=0 gnd=1  radarType=39   x17102     2 entities
+sym=46  air=1 gnd=0  radarType=48   x 9063     1 entity
+```
+
+```
+sym=7   bearing -115.7 .. -85.0   (SW..W)   locked=0 in 17102/17102 lines
+sym=46  bearing  177.6 .. 179.9   (S ..S)   locked=1 in  5700/ 9063 lines
+```
+
+### ⭐⭐⭐ Against the gold's SITREP, which no sprint had used as an oracle
+
+GOLDVID-FF-2 S5 transcribed TE 28's briefing from the gold video
+(`docs/reference/260915_gold_te28_sitrep.png`) — **the game's own words, in the gold's own pixels:**
+
+> *"To the North is an SA-8, east is an SA-13, the south is blocked by an Alamo carrying Mig-29, and
+> west is the venerable SA-2."*
+
+| direction | the gold's SITREP | our RWR | |
+|---|---|---|---|
+| **west** | "the venerable **SA-2**" | 2 × **ground vehicle**, `RWRSYM_SA2`, bearing −85…−116 | ✅ |
+| **south** | "Alamo carrying **MiG-29**" | 1 × **AIRPLANE**, `RWRSYM_V29` → `DrawHat()` + `"29"`, bearing 178…180, **locking us 63% of the time** | ✅ |
+| north | SA-8 | absent | ✅ (gold shows no north contact either) |
+| east | SA-13 | absent | ✅ (gold shows no east contact either) |
+
+**Four threats in the briefing, two of them radiating, two of them shown — on both builds, in the
+same two directions.** The RWR agrees with the gold on *which* threats, *where*, and *how many*.
+
+### ⛔ S27's "SA-8" is dead by construction
+
+An SA-8 Gecko is a **ground vehicle**. Our south contact reports `IsAirplane() = 1`,
+`IsGroundVehicle() = 0`. It cannot be an SA-8 whatever else it is — and `"29"` drawn with a hat,
+airborne, south, locking us, in a TE whose briefing puts a **MiG-29** to the south, is a MiG-29.
+The hat is not a priority caret; **it is how this RWR marks an airborne emitter**.
+
+### ⚖️ What this closes
+
+* **GOLDVID-FF-1's RWR line of inquiry is finished.** S22–S25 chased pixels and failed three ways;
+  S26 read state and found a difference in the wrong units; S27 explained the phantom by
+  elimination; S28 dissolved it; S29 corroborates the whole display against an independent gold
+  artefact. **The RWR is at parity on this TE and there is no defect to file.**
+* **The SITREP is a reusable oracle.** It is the game's own natural-language ground truth for a
+  mission's threat layout, it is already captured at full resolution, and it cost nothing. Any
+  future threat-display question on a TE should start there. *(Cross-port: MA and BoB have briefing
+  text too, and neither port has ever used it as a check.)*
+
+### ⚠️ Not claimed / parked
+
+* **Why two SA-2 ground vehicles share one radar record** (`radarType=39`, distinct entities) —
+  unchanged from S28, still parked: they draw 0.45 px apart, so there is no display consequence.
+  **Deliberate stop, not an oversight.**
+* **The gold's glyph shapes were still not re-read.** The agreement demonstrated is count,
+  direction and class. Comparing the drawn `2` and `29` to the gold's pixels is a separate job and,
+  after S25's finding that glyph size is fixed by the shared screen font, a low-value one.
+* **`radarType` 39/48 are indices into the radar data file**, not names. They are printed for
+  reproducibility, not interpreted.
+
+**GOLDVID-FF-1: the RWR question is answered and closed. Sprint 3 of 4.**

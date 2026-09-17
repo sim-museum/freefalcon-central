@@ -521,8 +521,14 @@ void PlayerRwrClass::Display(VirtualDisplay *activeDisplay)
                        replaces that with the game's own answer. NominalRange is printed too
                        because "the gold could not see it" is one of S27's three candidates. */
                     const RadarDataType *rd = detectionList[i].radarData;
+                    /* S29: is the emitter airborne? The gold's own SITREP (GOLDVID-FF-2 S5) names
+                       four threats -- SA-8 north, SA-13 east, an Alamo-carrying MiG-29 south, SA-2
+                       west. Our V29 contact sits at bearing ~179 (south) and locks us; if it is an
+                       AIRPLANE that identifies it as the MiG-29 against an independent gold source,
+                       and settles what S27 called the SA-8. */
+                    FalconEntity *e = detectionList[i].entity;
                     fprintf(stderr, "[RWR] contact %d/%d bearing=%7.1f deg lethality=%.2f "
-                                    "locked=%d launch=%d selected=%d  RWRsymbol=%d nominalRange=%.0f ent=%p rd=%p\n",
+                                    "locked=%d launch=%d selected=%d  RWRsymbol=%d nominalRange=%.0f ent=%p rd=%p air=%d gnd=%d radarType=%d\n",
                             drawn, numContacts,
                             detectionList[i].bearing * 57.29578F,
                             detectionList[i].lethality,
@@ -531,7 +537,10 @@ void PlayerRwrClass::Display(VirtualDisplay *activeDisplay)
                             (int)detectionList[i].selected,
                             rd ? (int)rd->RWRsymbol : -1,
                             rd ? rd->NominalRange : -1.0F,
-                            (void *)detectionList[i].entity, (void *)rd);
+                            (void *)detectionList[i].entity, (void *)rd,
+                            e ? e->IsAirplane() : -1,
+                            e ? e->IsGroundVehicle() : -1,
+                            e ? e->GetRadarType() : -1);
                     fflush(stderr);
                 }
             }
