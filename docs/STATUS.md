@@ -18906,3 +18906,75 @@ That our RWR works. Nothing here displayed a single contact — only that the co
 wired into both pits, and that the mission flown could not have produced one.
 
 **GOLDVID-FF-1: new pass, sprint 1. Video reading closed; the item is now a comparison.**
+
+## GOLDVID-FF-1 S18 (Opus 5, 2026-09-17) — ⭐⭐ **the gold's OWN mission now flies under capture — `28 Missile Threat`, 9 waypoints, sim-thread screenshot attached** — ⛔ **but `FF_VIEW_SCRIPT` LOGS a view change it does not make: four steps fired, the last 4 s before the shot, and the frame is unchanged**
+
+**Story:** GOLDVID-FF-1. **New pass, sprint 2 of 4.**
+
+S17 said the item stops being video-reading and becomes a comparison, and named the job: fly the
+gold's TE instead of Instant Action, with a sim-thread capture. Half of that now works.
+
+### ⭐⭐ The gold's mission flies — and the recipe was already in the repo
+
+Nothing here needed inventing. A prior sprint had found the click sequence that reaches a TE and
+presses **TAKEOFF**, and S11's only failure with it was the *capture* method
+(`FF_UI_SCREENSHOT` cannot see the sim) — which S17 established `FF_SIM_SCREENSHOT` can:
+
+```
+FF_TE_FILE='28 Missile Threat'
+FF_UI_CLICK='624,745@8;210,247@14;825,750@18;976,750@30'      <- last one is TAKEOFF
+FF_SIM_KEY='0x1e@5'   FF_SIM_SCREENSHOT='240:<out>.bmp'
+```
+
+⭐ **The TE is the right one by name and by content.** `28 Missile Threat` is the gold video's own
+subject (an SA-8 launch), and the run confirms it end to end:
+
+```
+[FF_LINUX] FF_TE_FILE: '09 Landing Final Approach' -> '28 Missile Threat'      (x3)
+[FF_LINUX] StartReadCampFile: Opening path='…/campaign/save/28 Missile Threat.trn'
+[AircraftClass::Init] Waypoints: numWaypoints=9
+```
+
+**Nine waypoints** — independently consistent with GOLDVID-FF-2 S12's reading *from the campaign
+files* that this flight plan is a tour of the threats. Two different routes to the same mission.
+
+### ⛔ And a real defect in the harness hook
+
+The capture is the **HUD view**, not the 2D pit, so the RWR is not on screen. That is not a
+mis-configuration — `FF_VIEW_SCRIPT` **says it is switching and does not**:
+
+```
+[FF_VIEW_SCRIPT] parsed 4 steps
+[FF_VIEW_SCRIPT] view mode 1 at  40009ms
+[FF_VIEW_SCRIPT] view mode 1 at 120000ms
+[FF_VIEW_SCRIPT] view mode 1 at 200005ms
+[FF_VIEW_SCRIPT] view mode 1 at 236008ms      <- 4 s before the shot
+```
+
+| run | view steps | frame top colour | distinct | green symbology extent |
+|---|---|---|---|---|
+| A | `1@60` (1 step) | `(51,99,157)` sky | 8,079 | **x[473..549] y[45..401]** |
+| B | 4 steps, last at 236 s | `(51,99,157)` sky | 12,222 | **x[473..549] y[45..401]** |
+
+**Identical extents.** Four forced switches, one of them four seconds before the capture, changed
+nothing about what was rendered. The hook sets a value that never reaches the renderer on this path.
+[[gate-frame-must-match-the-eye]] — a capture that is technically valid and answers nothing because
+the instrument was not pointed at the subject.
+
+### ⚠️ Not claimed
+
+* **Nothing about our RWR.** No contact has been displayed or looked for; the pit has not been seen.
+  A frame with no RWR in it is not evidence that the RWR is empty.
+* **That view mode 1 is definitely the 2D pit.** `ff_validate.sh`'s own help says `1=2D pit`, and an
+  Instant Action `-v 1` capture looked different (106,351 colours, black-dominant) — but "looked
+  different" is not proof, and that run is not a control for this one.
+* The gold RWR crop `260915_gold_rwr_t240.png` (450×360) **still has no recorded source frame or
+  scale** (S17). That must be fixed before any pixel comparison, or it repeats what cost MiG Alley
+  three sprints today.
+
+**S19 — one job:** change the view with the **key the game actually uses**, via `FF_SIM_KEY`, rather
+than `FF_VIEW_SCRIPT`, and confirm the pit is on screen by its colour signature **before** reading
+anything off it. If the key works and the hook does not, `FF_VIEW_SCRIPT` is broken for this path and
+should be fixed or retired rather than left logging a change it does not make.
+
+**GOLDVID-FF-1: new pass, sprint 2 of 4. The mission is solved; the camera is not.**
