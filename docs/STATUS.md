@@ -19375,3 +19375,63 @@ block a categorical comparison**, which is worth knowing before anyone treats 2.
   inspection, not by experiment.
 
 **PARITYFLOOR-FF-1: rule 7's table is complete for all four ports. Sprint 1 of 4.**
+
+## GOLDVID-FF-1 S24 (Opus 5, 2026-09-17) — ⭐ **a PARTIAL categorical comparison is possible after all: our RWR shows a BOXED symbol, and the gold's oracle says its `SA-8` carries the priority caret — one categorical agreement** — ⛔ **but a contact COUNT is not reliable at 5-px glyphs, so the park stands**
+
+**Story:** GOLDVID-FF-1 (parked at S23). FF rotation: sprint 2 of 4. **No new run.**
+
+PARITYFLOOR-FF-1 observed that the RWR verdict is **categorical** — *which* symbols appear — not a
+pixel delta, and therefore not blocked by FF's 2.115 noise floor. That reopened a narrow question the
+park had not considered: **how much of S15's oracle can be checked without reading digits?**
+
+### The crop, separated into structure and ink
+
+```
+RWR crop 94x93, 240 green px
+structural rows (>50 % of width): [55]          <- the baseline rule
+
+glyph groups, structure excluded:
+   x[ 1..11] w=11  h=11  ink=34
+   x[27..27] w= 1  h= 6  ink= 6     <- one pixel wide: an azimuth TICK, not a symbol
+   x[43..55] w=13  h=11  ink=70     <- heaviest by far, and BOXED
+   x[65..79] w=15  h= 5  ink=31
+```
+
+### ⭐ What that does support
+
+**A boxed symbol is present, and it is the heaviest cluster in the crop** (ink 70 against 34 and 31 —
+consistent with a glyph *plus* its surrounding box). `rwr.cpp:182–208` draws contacts as
+`TextCenter(…, "<digit>", boxed)`, and **the box is how this RWR marks the priority threat.**
+
+S15's oracle, read off the gold: *"an `SA-2` on the left beam and an `SA-8` ahead **with the priority
+caret**."* So **both sides show exactly one prioritised contact.** That is a real categorical
+agreement, obtained without resolving a single digit, and it is the first time anything in this item
+has been compared against the gold rather than merely located.
+
+### ⛔ What it does NOT support — and this is why the park holds
+
+**A contact count.** Of the four clusters, one is plainly a tick (1 px wide) and one is plainly the
+boxed contact. The other two — `h=11 ink=34` and `h=5 ink=31` — **cannot be classified at this
+resolution**: either could be a contact glyph, an azimuth tick pair, or a display label. Counting
+them would be exactly the over-reading that cost this item S20 twice (a scope that does not exist, a
+colour belonging to the other side).
+
+⚠️ And the count is where the interesting question lives: **GOLDVID-FF-2 found three Air Defense
+Battalions in TE 28's file, while S15 reads only two on the gold's RWR.** Whether ours shows two or
+three is precisely the comparison worth making — and precisely the one 5-px glyphs cannot settle.
+
+### ⚖️ The park stands, with its reopening condition narrowed
+
+S23 parked pending `FF_RWR_ZOOM` — *"one env hook, one call site"* at `otwloop.cpp:3252`, multiplying
+only the RWR viewport, with no UI risk because nothing else reads it. **That is still the unblock**,
+and this sprint sharpens what it buys: not "read the digits" but **count the contacts and compare
+against two**.
+
+### ⚠️ Not claimed
+
+* That our RWR is correct. One categorical property agrees; the count — the property that would
+  actually distinguish two emitters from three — is unmeasured.
+* That the four clusters are four objects. They are four ink groups after removing one structural
+  row; their identities are unresolved and deliberately left so.
+
+**GOLDVID-FF-1: still parked, one categorical agreement recorded. Sprint 2 of 4.**
