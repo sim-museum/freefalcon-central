@@ -20202,3 +20202,49 @@ they named rather than on the logbook stand-in S9–S12 used.
 where the port is configured, since the screen does not offer it.
 
 **MP-1: 13 sprints. The PO's sentence is answered in both halves; making a connection is the next item. FF rotation complete (4 sprints) → MiG Alley.**
+
+## GROOMING (Opus 5, 2026-09-17) — ⛔ **MP-1 S13's "S14: press CONNECT with two instances" would have duplicated `MPTEST-FF`, which is six sprints further into exactly that flow**
+
+**Story:** FF rotation, sprint 1 of 4. MP-1 S13 closed the PO's *"cannot type URL anywhere"* and named
+its own next step: *"press `CONNECT` with two instances… and find where the port is configured."*
+Before starting it, checked whether anything already does that. **Something does.**
+
+### ⭐ `MPTEST-FF` is already there, and much further in
+
+`scripts/qa/mp-two-instance.sh` runs two peers on this machine, and `MPTEST-FF` has taken the join
+apart across S1–S6v and S2–S3:
+
+* **S2** — *"the join is GREEN on one machine."*
+* **S6p** — with `A_SECS=200` the host's game reaches the client's list within seconds
+  (`walk game #1 type=4 name="Viper's Game"`), and the campaign tree holds it.
+* **S6q–S6t** — the game node takes its click and `CampSelectGameCB` fires
+  (`hittype=51` then `52`), posting `FM_JOIN_CAMPAIGN JOIN_PRELOAD_ONLY`.
+* **Open** — the `SINGLE_COMMIT_CTRL` click reaches window 40500 but `GrabItem found NO control`;
+  and **S3** found the joiner never reaches the takeoff guard at all.
+
+**So "press CONNECT with two instances" is not a new sprint — it is `MPTEST-FF`'s S4**, which already
+has an armed instrument (`FF_DEBUG_STARTCAMP`) waiting in the binary.
+
+### ⚖️ The division of labour, recorded so it is not re-derived
+
+| item | owns |
+|---|---|
+| **MP-1** | the **input** path — typing, the COMMS screen, the route. **Closed** (S9–S13), gated (`tools/ff_typing_gate.sh`) |
+| **MPTEST-FF** | the **join** path — two peers, the game list, the campaign tree, commit, takeoff |
+
+MP-1's part (a) is *documentation* of the route, and S13 delivered it from the COMMS screen. **The
+question "does CONNECT then work" belongs to MPTEST-FF and always did.** MP-1 should not grow a
+fourteenth sprint to re-enter it.
+
+⚠️ **What MP-1 does still own and has not answered:** *"which port"*. S13 recorded that the COMMS
+screen does not offer one. That is a small, separate question and it is still open.
+
+### ⚠️ Not claimed
+
+* That MPTEST-FF's harness needs no work. S3's own sprint was defeated by clicking the **host's**
+  FLY coordinate on the **joiner**; the harness drives peer B with coordinates that were derived for
+  peer A.
+* That the two items never touch. If typing had still been broken, MPTEST-FF could not have entered
+  an address either — **MP-1 was a prerequisite**, which is why it ran first.
+
+**Grooming: one duplicated sprint avoided, and the boundary between two MP items written down.**
