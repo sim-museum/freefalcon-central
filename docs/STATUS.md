@@ -18838,3 +18838,71 @@ never shipped complete. That is not worth further sprints against the PO's gold-
 **Recommend: close as diagnosed, reopen only if a gold video shows the break-up.**
 
 **BSPSLOT-2: 4 sprints this pass — recommended CLOSED as diagnosed. FF rotation complete (4/4).**
+
+## GOLDVID-FF-1 S17 (Opus 5, 2026-09-17) — ⚖️ **grooming: stop READING the video and start USING the oracle** — ⭐ our RWR is implemented and wired in **both** pits, and our 2D pit renders real content — ⛔ **but the comparison cannot be made from Instant Action, which has no SAM battalions for the RWR to show**
+
+**Story:** GOLDVID-FF-1. **New pass, sprint 1.** FF rotation: sprint 1 of 4.
+
+S16's stated next step was *"the 6 o'clock cluster, and flight 2 with a crop that tracks the panel"* —
+a **seventeenth** sprint of reading the gold video. S15 had already said what the video work is *for*:
+its RWR read is *"a pixel oracle for work GOLDVID-FF-2 could only check against itself."* An oracle
+that is never used against the port is just more video analysis, so this sprint tried to use it.
+
+### ⭐ The port side is in better shape than expected
+
+* **The symbol mapping is identical to what the gold displays.** `src/sim/rwr/rwr.cpp:178–208`:
+  `RWRSYM_SA2 → "2"`, `RWRSYM_SA8 → "8"`, and the rest — the same glyphs S15 read off the gold.
+* **The RWR is wired in BOTH cockpits**, not one: `vcock.cpp:3111` (`rwr->Display(vRWRrenderer)`) for
+  the virtual pit, and `cpmanager.cpp:1080` (`BOUNDS_RWR`, positioned from the cockpit config) for the
+  2D pit. GOLDVID-FF-1 S11's finding that `FF_UI_SCREENSHOT` cannot see the sim does not apply here —
+  `ff_validate.sh -m sim` captures on the sim thread and works.
+* **Our 2D pit renders**: `-m sim -v 1`, 1024×768, **94.4 % non-black, 106,351 distinct colours,
+  VERDICT REAL CONTENT**.
+
+### ⛔ And then the blocker, which is about the MISSION, not the renderer
+
+```
+[TEST] Auto-launch Instant Action enabled (3 second delay)
+  Loading: RwrData...
+```
+
+**The capture flew Instant Action.** The gold is a TE flight whose threat picture GOLDVID-FF-2 S9/S10
+pulled out of the campaign files — **three enemy Air Defense Battalions**, of which the RWR shows two.
+Instant Action has no such battalions, so our RWR has **nothing to display**, and a frame of it is not
+a negative result about the port — it is a frame of the wrong mission. [[harness-reachable-state]]
+
+Comparing the two therefore needs our sim in **TE 28**, which `FF_TE_FILE` already reaches (TEPKG-1
+used it) — not the `-test-ia` path `ff_validate.sh` defaults to.
+
+### ⚠️ A second gap, and it is the one that bit MiG Alley this morning
+
+`docs/reference/260915_gold_rwr_t240.png` is **450×360** and **no sprint records what frame it was
+cropped from or at what scale**. Its bright pixels are grey-blue `(105,124,132)` spread over the whole
+crop, so it is not a tight instrument face either. Today MiG Alley lost three sprints to exactly this
+— PREFSLAYOUT-1 S7 parked an item over a gold whose resolution was never written down, and S8 had to
+retract that. **The same discipline applies here before any pixel comparison:** record the source
+frame and scale of the RWR crop, or the comparison will produce numbers nobody can reproduce.
+
+### Housekeeping
+
+`/home/admin/ff-rwr/our_rwr.png` (840×880, dated **09-15**) is an **untracked scratch artefact** — no
+sprint in `STATUS.md` references it. It is not prior recorded work and nothing here relies on it;
+noted so the next reader does not mistake it for an oracle.
+
+### ⚖️ Grooming verdict on this item
+
+GOLDVID-FF-1 is at **17 sprints**, most of them reading one video. The reading has produced real
+results (the RWR/HSD oracle, the SA-8 launch timestamped at t≈275–300), but **the next increment of
+value is not in the video** — it is in one TE-flown capture. **Recommend: no further video-reading
+sprints.** The item continues only as the comparison.
+
+**S18 — one job, specified:** `ff_validate.sh -m sim -v 1` with `FF_TE_FILE` set to the gold's TE
+instead of Instant Action, plus the RWR crop's source frame and scale recorded, then read our RWR
+against S15/S16's oracle.
+
+### ⚠️ Not claimed
+
+That our RWR works. Nothing here displayed a single contact — only that the code path exists, is
+wired into both pits, and that the mission flown could not have produced one.
+
+**GOLDVID-FF-1: new pass, sprint 1. Video reading closed; the item is now a comparison.**
