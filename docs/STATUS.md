@@ -18692,3 +18692,81 @@ crashed-F-16 model for the seven slots that model's own siblings demonstrate the
 and the repair is a data swap, not a code change.
 
 **BSPSLOT-2: new pass, sprint 2 of 4. FF rotation: sprint 2 of 4.**
+
+## BSPSLOT-2 S7 (Opus 5, 2026-09-16) — ⛔ **the data-swap repair is dead: ALL THREE distinct object files on this box give `VIS_CF16A` `nSlots=1`, the larger Israel one included** — ⭐⭐ and the same dump shows the model has **`nSwitch=0`**, so the damage code's *switch* calls are no-ops too, which moves the suspicion from the data to **which model the code chose**
+
+**Story:** BSPSLOT-2. **New pass, sprint 3 of 4.**
+
+S6 concluded record 1288's `nSlots=1` was bad model data and set S7 to check another install's object
+file — *"if another copy has `nSlots=7`, this is a stale/partial data file and the repair is a data
+swap."* It isn't, and it isn't.
+
+### Method — and two parses that were refused before they could mislead
+
+There are **three distinct `KoreaObj.Dxh`** on this box by hash (the loaded Korea one, a CampaignDB
+variant, and the **Israel theater's, 174 KB larger**). Reading a record out of them needs the file
+layout, and I got it wrong twice:
+
+1. assumed the parent list ran to EOF → the parse disagreed with the game's own numbers → **refused
+   to report**;
+2. derived a 44-byte stride from a single record → matched 1288, failed on 1052 → **refused again**.
+
+Measuring the true distance between two located records gave **48 bytes**, but rather than rely on
+that, the final read **locates each record by its own extents** and needs no base or stride at all.
+Every file is validated by an anchor first: `VIS_F16C` must read `nSlots=9`, which is what the
+**running game** printed in S6.
+
+### The answer
+
+```
+                                    anchor VIS_F16C     VIS_CF16A (1288)
+Korea terrdata (the file loaded)    nSlots=9  ✓         nSlots=1   nTex=6  nLOD=1
+Israel theater  (174 KB larger)     nSlots=9  ✓         nSlots=1   nTex=6  nLOD=1
+CampaignDB copy                     nSlots=9  ✓         nSlots=1   nTex=6  nLOD=1
+```
+
+**Every copy agrees.** This is not a stale file, a partial extract or a bad staging — the crashed-F-16
+whole model has exactly one attachment point in every object file on this machine. **The data-swap
+repair S6 pointed at does not exist.**
+
+⚠️ Consistency is not correctness — all three could descend from one upstream source with the same
+limitation. But it does close the specific question S7 asked.
+
+### ⭐⭐ And the S6 dump already contained the thing that matters
+
+```
+1288 VIS_CF16A ... nLODs=1 nTexSets=6 nSlots=1 nDOF=0 nSwitch=0
+```
+
+**`nSwitch=0`.** `SetupDamageF16Effects` does not only ask this model for slots — it makes **seven
+`SetSwitchMask` calls** on it (`DAMAGEF16_SWITCH`, `NOSEBREAK`, `FRONTBREAK`, `RWINGBREAK`,
+`LWINGBREAK`, …). A model with **zero switches** cannot honour any of them.
+
+So the code needs, from this one model, **seven slots and at least five switches**; the model has
+**one slot and no switches**. Two independent capabilities, both absent. A single missing field can
+be bad data; **both missing, consistently, in every copy** points instead at the code addressing a
+model that was never meant to answer these calls.
+
+⭐ And the alternative is sitting right next to it in the id table: **`VIS_CF16FRN/LST/LWG/MID/NOS/RST`
+(1233–1238)** — a dedicated model per crashed piece, carrying **2, 6, 5, 3, 1 and 7 slots**. The
+assets for a seven-piece break-up exist; `DAMAGEF16_ID` just does not point at them.
+
+### ⚠️ Not claimed
+
+**That switching to the per-piece models is the fix.** `SetSwitchMask` on one model is a coherent
+design — one wreck mesh whose parts are switched off as they detach — and that design would need a
+CF16A *with* switches, which may simply never have shipped in this data lineage. Which of the two the
+original intended is not established here.
+
+### ⚖️ Grooming
+
+Three sprints, three overturned explanations — each overturned **by evidence, cheaply, before
+anything was built on it** (the aircraft binding → the missing `visid.map` → bad model data). The
+item is now at a genuine decision point rather than a narrowing one, and the next step is a **reading
+task, not a measuring one**.
+
+**S8:** read `SetupDamageF16Effects`'s switch usage against what `VIS_CF16A` can support, and check
+whether any *other* call site in the tree uses the 1233–1238 piece models. If nothing uses them, they
+are the unused half of a feature and `DAMAGEF16_ID` is pointing at the wrong one.
+
+**BSPSLOT-2: new pass, sprint 3 of 4. FF rotation: sprint 3 of 4.**
