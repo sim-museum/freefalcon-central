@@ -19618,3 +19618,98 @@ tested here:
 pointer, so naming the emitter directly replaces this whole elimination with a fact.
 
 **GOLDVID-FF-1: the extra contact has a name, held loosely. Sprint 1 of 4.**
+
+## GOLDVID-FF-1 S28 (Opus 5, 2026-09-17) — ⭐⭐⭐ **the three-vs-two difference is not a difference.** Two of our three contacts are two *distinct* SA-2 emitters that draw **0.45 px apart at most** — one visible glyph. Our RWR shows **two** symbols, exactly like the gold. ⛔ And S27's identification was wrong in both halves
+
+**Story:** GOLDVID-FF-1. FF rotation: sprint 2 of 4. Two runs of the TE-28 recipe, 42,589 contact
+lines. S27 named the third contact by elimination and said so; S28 did what S27 prescribed — print
+the emitter's own type — and the fact overturned the elimination.
+
+### ⭐ The probe change S27 asked for
+
+`DetectListElement` has no `symbolID`, but it holds `RadarDataType *radarData`, and
+`RadarDataType::RWRsymbol` is *"which symbol shows up on the RWR"* — **the same value
+`rwr.cpp:142` switches on to choose the glyph**. So the emitter names itself. Added to
+`src/sim/rwr/playerrwr.cpp` alongside `NominalRange` (S27's range candidate) and, in the second
+run, the `entity`/`radarData` pointers:
+
+```
+[RWR] contact 1/3 bearing=  179.8 lethality=0.34 ... RWRsymbol=46 ent=0x7ff9a001f490 rd=0x5c4a2d4e4250
+[RWR] contact 2/3 bearing=  -99.8 lethality=0.30 ... RWRsymbol=7  ent=0x7ff9a00154f0 rd=0x5c4a2d4e4046
+[RWR] contact 3/3 bearing=  -99.8 lethality=0.30 ... RWRsymbol=7  ent=0x7ff9a0014bd0 rd=0x5c4a2d4e4046
+```
+
+**Exactly three entities exist for the whole flight, and only two symbols:**
+
+| symbol | `Rwr_Symbols` | draws (`rwr.cpp`) | entities | position |
+|---|---|---|---|---|
+| 7  | `RWRSYM_SA2` | `"2"` | **two, distinct pointers** | beam, −85°…−116° |
+| 46 | `RWRSYM_V29` | `DrawHat()` + `"29"` | one | ahead, 177.6°…179.9° |
+
+### ⭐⭐⭐ Why three list entries are two glyphs
+
+`PlayerRwrClass::DrawContact` (`playerrwr.cpp:545`) places a contact from **bearing and lethality
+only** — `radius = (1−lethality)·0.95`, `xPos = radius·sin`, `yPos = radius·cos`. Nothing else
+enters. The two SA-2s share a bearing (identical to print precision in 89.3% of frames, 0.9° worst
+case) and a lethality (0.30, worst-case spread 0.01), so they land on the same spot:
+
+```
+SA-2 pairs measured: 6591
+drawn <1 px apart:   6591  (100.0%)
+maximum separation:  0.45 px      (over the ~94 px RWR rect)
+```
+
+**Two "2" glyphs printed at the same pixel are one "2".** Our display carries a `2` on the beam and
+a hatted `29` ahead — **two symbols**, which is what S15 read on the gold. S26's "ours 3, gold 2"
+compared *list entries* against *drawn glyphs*: different units, and the mismatch was in the units.
+
+### ⛔ S27 retracted — both halves
+
+1. **The third contact is not the AAA battalion.** `RWRSYM_AAA` is 16. Across **42,589 contact
+   lines in two independent runs, symbol 16 appears zero times**, as does `RWRSYM_SEARCH` (17).
+   No Gun Dish ever reaches this RWR. S27's three candidate explanations for "why doesn't the gold
+   show the AAA?" were answers to a question that has no subject.
+2. **The ahead contact is not the SA-8.** It is `RWRSYM_V29`, drawn as `DrawHat()` + `"29"`.
+   S27 read the gold's caret as a *priority* marker and matched it to `selected=1`; the caret is
+   simply **part of the V29 symbol**. Two readings agreeing on the wrong cause is still wrong.
+
+### ⛔ And S27's own table never occurred in any frame
+
+S27 tabulated `−85.0 / 178.0 / 179.0` as one instant. **S26's log is still on disk** — re-parsed
+into frames, it says:
+
+```
+three-contact frames:                              6242
+with a near-coincident PAIR (<0.5 deg):            6242   (100%)
+with two contacts AHEAD (|bearing| > 150 deg):        0
+```
+
+The coincident pair is always **on the beam**, never ahead. S27's row 3 (179.0, lethality 0.33) is
+the *same V29 contact* as row 2 sampled at a different time — its lethality swings 1.37 ↔ 0.33
+through the run. The evidence that settles this sprint was in S26's output the whole time; S27 read
+the rows without reconstructing the frames. *(Same shape as the `[ds]` probe, the MP gate and the
+`JM_SHOTS` flag: the instrument spoke, and nobody checked what it was speaking about.)*
+
+### ⚖️ What this changes
+
+* **The item's question is answered, and the answer is parity.** There is no three-versus-two
+  defect. The RWR contact count is not evidence of a port problem.
+* **No duplicate-insertion bug either** — `IsTracked` (`tracklst.cpp:12`) keys on the entity
+  pointer, and measured directly: **0 of 6743 frames contain the same entity twice.** The two
+  SA-2 records are two real emitters.
+* **A count is only a defect when it is a count of the same thing.** S26 was right that a count
+  needs no pixels — but it still needs the *rendering rule*, and the rule here collapses two
+  entries into one glyph.
+
+### ⚠️ Not claimed / parked
+
+* **Why two SA-2-class emitters?** GOLDVID-FF-2 S10's roster gives the battery one Fan Song B.
+  Two entities radiate with the SA-2 radar record (`rd` identical, `ent` distinct). That is a real
+  open question — **and it is invisible on screen** (0.45 px). **Parked deliberately**: chasing it
+  would be a rabbit hole with no display consequence.
+* **The gold's glyph shapes were not re-read this sprint.** The match claimed is *count and
+  position*. Confirming the gold draws `2` and a hatted `29` needs a fresh look at the frame.
+* `NominalRange` is 213,265 / 213,812 ft for both types — S27's "out of range in the gold"
+  candidate is not supported, but it was not the question once the AAA vanished.
+
+**GOLDVID-FF-1: the difference that drove S22–S27 does not exist. Sprint 2 of 4.**

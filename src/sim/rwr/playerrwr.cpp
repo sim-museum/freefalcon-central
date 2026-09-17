@@ -514,15 +514,24 @@ void PlayerRwrClass::Display(VirtualDisplay *activeDisplay)
 
                 if (s_dbgRwr)
                 {
+                    /* S28: name the emitter instead of inferring it. RadarDataType::RWRsymbol is
+                       the RWR symbol id -- the same value rwr.cpp:142 switches on to choose the
+                       glyph -- so it identifies the threat TYPE directly. S27 had to reach the
+                       third contact by elimination against the .trn's vehicle rosters; this
+                       replaces that with the game's own answer. NominalRange is printed too
+                       because "the gold could not see it" is one of S27's three candidates. */
+                    const RadarDataType *rd = detectionList[i].radarData;
                     fprintf(stderr, "[RWR] contact %d/%d bearing=%7.1f deg lethality=%.2f "
-                                    "locked=%d launch=%d selected=%d radarMode=%d\n",
+                                    "locked=%d launch=%d selected=%d  RWRsymbol=%d nominalRange=%.0f ent=%p rd=%p\n",
                             drawn, numContacts,
                             detectionList[i].bearing * 57.29578F,
                             detectionList[i].lethality,
                             (int)detectionList[i].isLocked,
                             (int)detectionList[i].missileLaunch,
                             (int)detectionList[i].selected,
-                            detectionList[i].radarMode);
+                            rd ? (int)rd->RWRsymbol : -1,
+                            rd ? rd->NominalRange : -1.0F,
+                            (void *)detectionList[i].entity, (void *)rd);
                     fflush(stderr);
                 }
             }
