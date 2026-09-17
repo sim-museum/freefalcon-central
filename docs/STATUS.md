@@ -18475,3 +18475,61 @@ timeline. That is the direct check of GOLDVID-FF-2's route-and-threats reconstru
 day's worth of its conclusions against pixels rather than against the file they came from.
 
 **GOLDVID-FF-1: new pass, sprint 3 of 4.**
+
+## GOLDVID-FF-1 S16 (Opus 5, 2026-09-16) — ⭐⭐⭐ **the video's titular event, found and timestamped: the SA-8 LAUNCHES at t≈275–300 — the `8` goes circled and `MISSILE LAUNCH` lights RED** — and the RWR timeline shows the threat picture changing across the flight
+
+**Story:** GOLDVID-FF-1. **New pass, sprint 4 of 4 — at cap.**
+
+S15 read one frame and found an SA-2 abeam and an SA-8 ahead. S16 samples the RWR every 10 s across
+both flights — 24 crops — and the single frame turns out to have been taken mid-story.
+
+### ⭐⭐⭐ The launch
+
+```
+docs/reference/260915_gold_rwr_missile_launch_t275_295.png
+```
+
+At **t = 275, 285 and 295** the RWR shows, unmistakably at full crop:
+
+* the **`8` symbol CIRCLED** at 12 o'clock — the launch indication, not merely tracked;
+* **`MISSILE LAUNCH` in RED** on the left-hand legend panel;
+* the `2` still on the left beam.
+
+**`260915_missile_threat.mp4` is named for this, and it happens at t≈275–300.** Nothing in this
+project had located it.
+
+### The timeline across flight 1
+
+| t (s) | RWR |
+|---|---|
+| 70 | cockpit not yet in this layout — the fixed crop lands on an MFD page |
+| 80–180 | `2` on the **left beam**, plus an unresolved **cluster at ~6 o'clock** |
+| 200 | `2` at 9 o'clock; **no `8`** |
+| 220–260 | **`8` at 12 o'clock under the priority caret**, `2` at 9 — *S15's frame* |
+| **275–300** | **`8` CIRCLED, `MISSILE LAUNCH` RED** |
+| 360–380 (flight 2) | `2` at 9 and the bottom cluster; **no `8`** |
+
+⭐ So the SA-8 is **acquired around t≈210–220**, tracks for about a minute, and **launches at
+t≈275**. S15's "an SA-8 ahead under the caret" was a snapshot of the tracking phase — correct, and
+now placed in a sequence.
+
+### ⚠️ What this does not establish
+
+* **10 s sampling.** The launch may begin before t=275 and may end after 300; these are the frames
+  that show it, not its bounds.
+* The **6 o'clock cluster** in t=80–180 is not resolved into glyphs at this crop size — it is
+  multiple overlapping symbols behind the aircraft, and reading them needs a tighter crop.
+* **After t≈400 the fixed crop stops working** — the cockpit content in that rectangle changes, so
+  flight 2's later half is unsampled. The crop must follow the panel, not assume it.
+* Nothing here identifies *which unit* the SA-8 is. GOLDVID-FF-2 named three battalions from the
+  campaign files; matching one to this emitter is still open.
+
+### Why it matters
+
+GOLDVID-FF-2 spent S9–S12 deriving this mission's threats from `FALCON4` data with no way to check
+them. There is now a **timestamped, visual account of the threat that actually engaged** — acquired,
+tracked, launched — against which that reconstruction can be tested.
+
+**S17 (next pass):** the 6 o'clock cluster, and flight 2 with a crop that tracks the panel.
+
+**GOLDVID-FF-1: new pass, sprint 4 of 4 — AT CAP.**
