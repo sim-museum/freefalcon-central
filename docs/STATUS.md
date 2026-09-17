@@ -20689,3 +20689,81 @@ choose from, and their click points are now known.**
 control appear in `CP_TOOLBAR`, and does the row's `state_` change?
 
 **MPTEST-FF: the list is full, the silence was the instrument, and two traps closed for good. Sprint 3 of 4.**
+
+## MPTEST-FF S10 (Opus 5, 2026-09-17) — ⭐⭐ **the click REACHES the mission tree — `GrabItem found control ID=6130` — but no row selects: all thirteen stay `state=0`.** ⭐ And the arm line added in S9 paid off on its first use
+
+**Story:** MPTEST-FF. FF rotation: sprint 4 of 4 — rotation complete. S9 asked: click a flight row and
+dump — does a commit control appear, and does the row's `state_` change?
+
+### ⭐ The click lands, and that is not nothing
+
+```
+   [FF_UI_CLICK] firing (128,84) at 75003ms
+   [LBUTTONDOWN] at (128,84) -> window=0x5a794f1172f0 ID=6100
+   [LBUTTONDOWN] GrabItem found control ID=6130 type=0
+```
+
+**The coordinate is right.** It reaches `CB_MISSION_SCREEN` and resolves to `MISSION_LIST_TREE` —
+unlike S3's `(972,748)`, which was the host's FLY landing on `HISTORY_WIN`. **The UIDUMP click points
+are usable**, which was the open question from S9.
+
+### ⛔ But the selection does not take
+
+All thirteen rows remain `state=0` after the click:
+
+```
+   item id=5579 at 0,0   247x17 state=0     item id=5318 at 0,102 247x17 state=0
+   item id=5593 at 0,17  247x17 state=0     …
+   item id=5348 at 0,34  247x17 state=0     item id=5307 at 0,204 247x17 state=0
+```
+
+⚠️ `GrabItem` reports **`type=0`**. On the campaign-select tree the equivalent clicks reported
+`flag=50` and `hittype=51`/`52` and drove `CampSelectGameCB` (S6q–S6t). **A control hit that resolves
+to no item type is the shape of a hit that reached the control but not a row** — stated as the
+observation it is, not as a mechanism.
+
+⭐ **The rows are live data**: their ids differ from S9's run (`5924 → 5579`, `5551 → 5593`), so the
+list is rebuilt per session from campaign state, not a fixed table. **Any future recipe must click by
+the dump's coordinates, never by remembered ids.**
+
+### ⭐ The arm line earned itself immediately
+
+```
+   STARTCAMP armed lines : 0
+   STARTCAMP trace lines : 0
+```
+
+**Both zero — which S9's change makes meaningful.** No arm line means the takeoff-decision code was
+**never reached at all**, as distinct from "reached and went the other way". Before S9 these two were
+indistinguishable and were conflated three times (S3, S6, S8). **First use, and it converted an
+ambiguous silence into a fact.**
+
+`FM_JOIN_SUCCEEDED: 1` — **the join is green on three consecutive runs.**
+
+### ⚖️ Where the rotation leaves MPTEST-FF
+
+| stage | state |
+|---|---|
+| connect → commit → `FM_JOIN_SUCCEEDED` | ✅ green ×3 |
+| joiner's mission list | ✅ 13 flights, live, click points known |
+| **clicking a row** | ✅ reaches `6130` — ⛔ **no selection** |
+| commit control appearing | ⛔ untested — nothing to commit without a selection |
+| `FM_START_CAMPAIGN` / takeoff | ⛔ code not even reached (arm line proves it) |
+
+**The item is one link from a driveable multiplayer flight**, and the link is *row selection*.
+
+### ⚠️ Not claimed
+
+* **That `type=0` means the item was missed.** It is consistent with that and with several other
+  things. **The next step is to trace `C_TreeList`'s hit path for `6130` the way `[TREEHIT]` was added
+  for `40211`** — that instrument exists for one tree and would answer this for the other.
+* **That the row should select on a plain click.** The campaign-select tree needed `C_TYPE_LMOUSEUP`
+  through its own callback; this list may need a different message, or a callback the Linux path does
+  not deliver — **`main_linux.cpp` is still missing 27 of `winmain.cpp`'s `FM_` cases** (S6x), and
+  nobody has checked whether one of them matters here.
+* That 13 flights is correct — still uncompared to the host's list (unchanged from S9).
+
+**S11:** extend `[TREEHIT]` to `6130` and re-run the same click. That says in one pass whether the
+hit reaches a row at all.
+
+**MPTEST-FF: the click lands, the selection does not, and the takeoff code is proven unreached. FF rotation complete (4 sprints) → MiG Alley.**
