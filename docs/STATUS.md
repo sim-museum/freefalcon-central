@@ -20248,3 +20248,83 @@ screen does not offer one. That is a small, separate question and it is still op
   an address either — **MP-1 was a prerequisite**, which is why it ran first.
 
 **Grooming: one duplicated sprint avoided, and the boundary between two MP items written down.**
+
+## MPTEST-FF S4 (Opus 5, 2026-09-17) — ⭐⭐⭐ **the joiner's flight list is EMPTY and stays empty: control `21805` is `rect=6,23 0x40` — ZERO pixels wide — in all three dumps across 80 seconds, with no `item` rows anywhere.** S3's "select a flight slot first" cannot be done because there is no slot
+
+**Story:** MPTEST-FF. FF rotation: sprint 2 of 4. S3 armed `FF_DEBUG_STARTCAMP` and was defeated by
+clicking the **host's** FLY coordinate on the **joiner**, where it lands on nothing. Its next step:
+*"dump the joiner's UI at ~140 s to find its actual flight list and FLY control, select a flight slot
+first, then press FLY."* Ran it — `A_SECS=320 PEER_B_DUMP="60;100;140"` — and the first half of that
+plan answers the second half.
+
+Logs preserved at `/home/admin/ff-mp4/` (the harness hardcodes `/tmp/mp-peer{A,B}.log`).
+
+### ⭐ Two checks before spending the run
+
+Both are failure modes this session has booked repeatedly, so they were made first:
+
+* **`FF_DEBUG_STARTCAMP` is still in the binary** — 3 strings present, despite many rebuilds since S3
+  armed it. *(An instrument that quietly vanished in a rebuild would have wasted the pass.)*
+* **The harness does NOT export it** — S3 passed it by hand. Correct for a dump-only pass; it matters
+  on the next run.
+
+### ⭐⭐ The join itself is healthy
+
+```
+   [GAMETREE] walked 1 F4GameType entity in the VU database
+   [GAMETREE] walk game #1 type=4 name="Viper's Game" id=5909874.28007
+```
+
+**The joiner has the host's game**, repeatedly, from the timer rebuild S6o fixed. Peer A lived the
+whole run (`A_SECS=320` against `B_DELAY=95`), so `harness-peer-lifetimes` is satisfied and an empty
+list here is **not** a dead host — which is exactly the trap S6l–S6o fell into.
+
+### ⭐⭐⭐ And the joiner's screen never changes
+
+Three dumps, at 60 s, 100 s and 140 s. **All three are identical** — the same six windows at the same
+positions:
+
+```
+   5000   0,0    1024x768        20004  0,0    1024x768
+   5004   0,0    1024x768        20050  0,0     581x700
+   20006  696,0   310x229        21050  692,0   332x768
+```
+
+The joiner reaches a screen and sits on it for **80 seconds**. And in the left panel:
+
+```
+   [UIDUMP]   ctrl id=21805 rect=6,23 0x40 click=84,134     <- x3, identical in every dump
+   'item' rows in any dump:  0
+```
+
+**`0x40` is zero pixels wide by forty tall.** That is the same signature S6m recorded for the empty
+campaign tree — *"the tree had NO items (`rect=6,23 0x40`, no `item` rows in any dump)"* — and it is
+**constant across all three samples**, so nothing is arriving late.
+
+### ⚖️ What this changes for the item
+
+**S3's plan cannot be executed as written.** *"Select a flight slot first, then press FLY"* presumes a
+populated list; the joiner has an empty one. **The blocker is upstream of the FLY click**, which is
+why S3's click produced nothing and why reading `[STARTCAMP]` after it was always going to be empty.
+
+⭐ **And the two empty lists are different lists.** S6's was the **game** tree (40211, window 40500) and
+S6o fixed it — proven here by `walked 1 F4GameType entity`. This one is `21805` in window `20050`, on a
+screen whose windows are `20xxx/21xxx`, not `40xxx`. **The joiner is not on the screen S6
+instrumented**, and the fix that populated the game list does not populate this one.
+
+### ⚠️ Not claimed
+
+* **That `21805` is the flight list.** It is *a* list control, empty, on the screen the joiner lands
+  on, in the left panel where a flight list would sit. **Nobody has read its label or its class.**
+  The next step should identify it before instrumenting it.
+* **That it should be populated at this point.** The joiner may legitimately have nothing to list
+  until it commits to the game — in which case the empty list is a symptom of the commit failure
+  S6q–S6t left open, not a separate defect.
+* That the screen is wrong. It was not identified — **no screenshot was taken**, only a control dump,
+  and this session has repeatedly found that a picture settles in one look what ids do not.
+
+**S5:** capture a SCREENSHOT of the joiner at 140 s alongside the dump, and identify window `20050`
+and control `21805` by name. One pass, and it decides whether this is a flight list that should be
+full or a screen the joiner should not be on.
+
+**MPTEST-FF: the joiner's list is empty and constant, and S3's plan is blocked upstream of where it looked. Sprint 2 of 4.**
