@@ -18416,3 +18416,62 @@ visible on the gold's MFD and RWR — that is a direct check of work that has so
 against itself.
 
 **GOLDVID-FF-1: new pass, sprint 2 of 4.**
+
+## GOLDVID-FF-1 S15 (Opus 5, 2026-09-16) — ⭐⭐⭐ **the gold's instruments read: the RWR shows an `SA-2` on the left beam and an `SA-8` ahead with the priority caret, and the HSD carries that same `8` as a threat ring** — a pixel oracle for work GOLDVID-FF-2 could only check against itself
+
+**Story:** GOLDVID-FF-1. **New pass, sprint 3 of 4.**
+
+S14 found 368 s of legible 2-D-pit flight in the missile video and noted that GOLDVID-FF-2 had
+reconstructed the mission's threats **out of the campaign files** (S9–S12) for want of pixels. This
+reads the pixels.
+
+### ⭐ The RWR (`IP-1310/ALR`), one frame at t=240
+
+* a **`2`** at roughly **9 o'clock**, outer ring — left beam;
+* an **`8`** at **12 o'clock**, with the **caret above it** that marks the priority/nearest threat;
+* `INT` mode; `HANDOFF`, `LAUNCH`, `MODE OPEN`, `SYS TEST` legends all readable.
+
+And the glyphs are **not** ambiguous — this port's own `rwr.cpp:182–208` maps symbol to character
+directly:
+
+```c
+case RWRSYM_SA2:  display->TextCenter(..., "2", boxed); break;
+case RWRSYM_SA8:  display->TextCenter(..., "8", boxed); break;
+```
+
+So the gold is showing an **SA-2** and an **SA-8**, with the SA-8 flagged as the threat of record.
+
+### ⭐ The HSD agrees with it
+
+The right MFD is an HSD in `NORM`, range **15**:
+
+* a **yellow threat ring labelled `8`** — the same emitter the RWR has under its caret;
+* white range rings and the ownship arrowhead;
+* the **cyan steerpoint legs** of the flight plan — the "tour of the threats" GOLDVID-FF-2 S12
+  derived from the file, drawn;
+* a **red curve** down the right side (the FEBA);
+* `328 25`, `FRZ`, mode line `DEP DCPL NORM … CNTL`, bottom row `SWAP FLCS GM S HSD DCLT`.
+
+Saved: `docs/reference/260915_gold_rwr_t240.png`, `docs/reference/260915_gold_hsd_t240.png`.
+
+### Why this matters more than one frame
+
+GOLDVID-FF-2 S9–S12 named three enemy Air Defense Battalions, placed them on a grid, worked out the
+compass convention and concluded the flight plan toured them — **entirely from `FALCON4` campaign
+data, checked only against itself.** The gold has been showing the same mission's threats on two
+instruments for 368 seconds. Any of those four sprints' conclusions can now be checked against a
+picture.
+
+### ⚠️ What this frame does NOT settle
+
+* **Two emitters, not three.** GOLDVID-FF-2 found three battalions in the file; the RWR shows two at
+  this instant. That is expected — line of sight and radar state change along the route — and is a
+  **reason to read more frames**, not a contradiction of either side.
+* It does not identify *which* battalion is the SA-8. The RWR gives a type, not a unit.
+* One frame of 368 s. The emitter set at t=240 is not the mission's threat list.
+
+**S16:** sample the RWR across both flights — every 10 s is 37 frames — and build the emitter
+timeline. That is the direct check of GOLDVID-FF-2's route-and-threats reconstruction, and it is a
+day's worth of its conclusions against pixels rather than against the file they came from.
+
+**GOLDVID-FF-1: new pass, sprint 3 of 4.**
