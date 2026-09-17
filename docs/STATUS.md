@@ -20854,3 +20854,92 @@ rebuilds rather than selects. **Ruled out by their handlers, not by their names.
 
 **MPTEST-FF: the hit resolves, the instrument lied by silence, and the failure is isolated to
 `MouseFound_`. FF sprint 1 of 4.**
+
+## MPTEST-FF S12 (Opus 5, 2026-09-17) — ⛔⛔⛔ **`type=0` is NORMAL for a `C_TreeList`: the tree that WORKS reports it too. S10's headline observation is a non-finding, and it has aimed two sprints.** ⛔ And `state=0` has never once been observed non-zero — **the symptom has no positive control**
+
+**Story:** FF rotation: sprint 2 of 4. S11 left two candidates for `type=0` and a one-line probe to
+separate them: *"print `found->Item_` in `[TREEHIT]` and add the same probe to `MouseOver`."* Done —
+and **both candidates are refuted, along with the question they belonged to.**
+
+### ✅ Both S11 candidates die in one pass
+
+```
+[TREEOVER] tree 6130 rel=(123,8) found=0x598dfbae31e0 item=0x598dfac19df0 flag=50
+[TREEHIT]  tree 6130 rel=(123,8) ... found=0x598dfbae31e0 item=0x598dfac19df0 flag=50
+```
+
+* **"hover never reached this tree"** — ⛔ refuted: `[TREEOVER]` prints, so `MouseOver` ran and
+  `MouseFound_` was assigned.
+* **"the row carries no `Item_`"** — ⛔ refuted: `item=0x598dfac19df0`, **non-NULL**.
+
+And the working tree is **identical in shape**: `40211 … found=0x598dfa44b920 item=0x598dfa44b210
+flag=50`. ⚠️ **So my own S11 mechanism — "`type=0` means `MouseFound_` was NULL" — is wrong and is
+withdrawn.**
+
+### ⛔⛔⛔ Because `type` was never a hit result
+
+`chandler.cpp:2311`:
+
+```cpp
+fprintf(stderr, "[LBUTTONDOWN] GrabItem found control ID=%ld type=%d\n",
+        Grab_.ID_, Grab_.Control_ ? Grab_.Control_->GetType() : -1);
+```
+
+**`type` is the grabbed control's own `GetType()`** — a class tag. It is not a hit type, not a
+selection result, and it cannot report a click outcome. Every `GrabItem` line in the run:
+
+| control | type |
+|---|---|
+| 5006, 19502, 40003, 60003, 60012, 2000003 (buttons) | 25 |
+| 40205 | 27 |
+| **40211 — the campaign tree that WORKS** | **0** |
+| **6130 — the mission tree** | **0** |
+
+⭐⭐ **`type=0` is simply what a `C_TreeList` reports.** S10 read it as *"the shape of a hit that
+reached the control but not a row"* and contrasted it with the campaign tree's *"`hittype=51`/`52`"*
+— but **those come from a different trace** (a callback's `hittype` argument), so the comparison put
+two unrelated numbers side by side. **S10's central observation, and the two sprints aimed at it,
+were chasing a constant.**
+
+### ⛔ And the symptom itself has never been positively demonstrated
+
+Every `state=` value in the whole run — **22 of 22, across every tree, before and after the click** —
+is **`0`**:
+
+```
+item id=5306 type=50 at 0,51  247x17 state=0 click=128,135
+item id=5387 type=50 at 0,102 247x17 state=0 click=128,186   … all of them
+```
+
+⚠️ **Nobody has ever seen a non-zero `state` in this dump** — not on the mission tree, and not on the
+campaign tree that demonstrably selects and fires `CampSelectGameCB`. So *"all thirteen rows stay
+`state=0`"* is **not evidence that selection failed**: the field has no demonstrated non-zero value,
+and a zero from an instrument never seen to print anything else is exactly the case the port's own
+rule covers — **prove the instrument can speak before believing a zero.** (Third time in this port:
+S9's allowlist, S11's hardcoded probe, now this.)
+
+### ⚖️ Grooming — this is where the rabbit hole was
+
+Three sprints have now been spent on *"the row does not select"*, and **neither of its two pieces of
+evidence survives inspection**: `type=0` is a constant, and `state=0` is unvalidated. ⭐ **The next
+step is not another mechanism hunt.** It is to establish, on the campaign tree that **works**, what a
+selected row looks like — `state`, or something else entirely. That is one run, and until it exists
+there is nothing to compare the mission tree against.
+
+⛔ **What has NOT changed:** the joiner still does not get into a flight. **The symptom is real at
+the level the PO would see it.** What S12 removes is the false trail, not the item.
+
+### ⚠️ Not claimed
+
+* **That the rows DO select.** Nothing here shows that either. **Both directions are now unevidenced**
+  — that is the finding.
+* That `gGps` is the mechanism. ⭐ Noted while reading: the mission tree is wired via
+  `SetupGPS`/`GlobalPositioningSystem` (`campaign.cpp:858`) rather than a direct control callback
+  like the campaign tree's, and the callbacks in that file all open `if (hittype not_eq
+  C_TYPE_LMOUSEUP) return;`. **Suggestive, untested, and explicitly not this sprint's claim.**
+* That the join regressed — **`FM_JOIN_SUCCEEDED`, five consecutive runs.**
+
+**S13:** click a row on tree `40211` — which works — and dump it. **Find out what "selected" looks
+like before measuring its absence anywhere else.**
+
+**MPTEST-FF: a constant mistaken for a symptom, and a symptom with no positive control. FF sprint 2 of 4.**

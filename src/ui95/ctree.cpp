@@ -998,9 +998,13 @@ long C_TreeList::CheckHotSpots(long relX, long relY)
         static int s_dbg = -1;
         if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
         if (s_dbg && ff_treehit_wanted(GetID()))
-            fprintf(stderr, "[TREEHIT] tree %ld rel=(%ld,%ld) xy=(%ld,%ld) root=%p rootxy=(%ld,%ld) found=%p flag=%d\n",
+            /* MPTEST-FF S12: `found` alone cannot explain type=0. GrabItem reports GetMe(), which
+               returns MouseFound_->Item_ -- a DIFFERENT member, set only in MouseOver. Print the
+               found node's Item_ so "the row carries no control" is separable from "hover never
+               ran for this tree"; S11 left exactly those two candidates and measured neither. */
+            fprintf(stderr, "[TREEHIT] tree %ld rel=(%ld,%ld) xy=(%ld,%ld) root=%p rootxy=(%ld,%ld) found=%p item=%p flag=%d\n",
                     GetID(), relX, relY, GetX(), GetY(), (void*)Root_, Root_ ? Root_->x_ : -1L, Root_ ? Root_->y_ : -1L,
-                    (void*)cur, (int)CheckFlag_);
+                    (void*)cur, cur ? (void*)cur->Item_ : (void*)0, (int)CheckFlag_);
     }
 #endif
 
@@ -1271,6 +1275,21 @@ BOOL C_TreeList::MouseOver(long relx, long rely, C_Base *me)
 
     CheckFlag_ = C_BIT_NOTHING; // (0)
     MouseFound_ = CheckBranch(Root_, relx, rely);
+
+#ifdef FF_LINUX
+    /* MPTEST-FF S12: this is the ONLY place MouseFound_ is assigned, and GetMe() -- hence
+       GrabItem's `type` -- reads it. If this line never prints for a tree, hover never reached it;
+       if it prints with item=0, the row carries no control and the fall-through below nulls
+       MouseFound_ again, which is indistinguishable downstream from never having run. */
+    {
+        static int s_dbgm = -1;
+        if (s_dbgm < 0) s_dbgm = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+        if (s_dbgm and ff_treehit_wanted(GetID()))
+            fprintf(stderr, "[TREEOVER] tree %ld rel=(%ld,%ld) found=%p item=%p flag=%d\n",
+                    GetID(), relx, rely, (void*)MouseFound_,
+                    MouseFound_ ? (void*)MouseFound_->Item_ : (void*)0, (int)CheckFlag_);
+    }
+#endif
 
     if (MouseFound_)
     {
