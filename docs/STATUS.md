@@ -19558,3 +19558,63 @@ lethality against the three battalions GOLDVID-FF-2 S10 named, and look for the 
 applies and we do not.
 
 **GOLDVID-FF-1: UNPARKED by its own result. FF rotation complete (4 sprints) → MiG Alley.**
+
+## GOLDVID-FF-1 S27 (Opus 5, 2026-09-17) — ⭐⭐ **the extra contact identified by elimination: it is the AAA battalion. The gold's RWR shows the two SAMs and NOT the ZSU-23-4's Gun Dish; ours shows all three** — so the question is no longer "why three?" but "does a Gun Dish belong on this RWR?"
+
+**Story:** GOLDVID-FF-1. FF rotation: sprint 1 of 4. **No new run** — S26's probe output plus
+GOLDVID-FF-2 S10's file-side identification.
+
+S26 established the difference (**ours 3, gold 2**) and named the join. GOLDVID-FF-2 S10 had already
+named the three emitters **from the game's own vehicle rosters**:
+
+```
+camp 4032  sptype 4   grid (363,493)   4x SA-2 + 1x Fan Song B    -> SA-2 Guideline battery
+camp   97  sptype 21  grid (379,540)   3x SA-8 + 1x Thin Skin     -> SA-8 Gecko battery
+camp  ...  sptype 31  grid  421...     ZSU-23-4 + Gun Dish        -> AAA battalion
+```
+
+### ⭐ Our three contacts, sorted onto them
+
+```
+   bearing   lethality  locked  selected   ->  identification
+     -85.0        0.30       0         0       SA-2   (gold: "SA-2 on the left beam")
+    ~178.0        1.37       1         1       SA-8   (gold: "SA-8 ahead with the priority caret")
+     179.0        0.33       0         1       the THIRD -- no counterpart in the gold
+```
+
+* The **left-beam** contact matches the gold's SA-2 in position.
+* The **locked, high-lethality** contact matches the gold's SA-8 — and `locked=1 selected=1` is what
+  draws the boxed symbol S22 found, so two independent readings agree on it.
+* **By elimination the third is the AAA battalion**, the only remaining emitter in the file. Its
+  **Gun Dish** radar would paint an RWR, which S10 had already flagged as the alternative candidate.
+
+⭐ **Lethality supports it rather than contradicting it.** 0.33 against the SA-8's 1.37 — a four-fold
+difference is what two *different* emitter types should look like, and it argues against the simpler
+explanation that we simply draw the SA-8 twice.
+
+### ⚖️ What this changes about the question
+
+**"Why do we show three?" was the wrong question — we show three because the file has three.** The
+real question is the gold's: **why does the real game not show the Gun Dish?** Three candidates, none
+tested here:
+
+1. **The real game filters AAA/gun radars off the RWR** by class — plausible for a threat display
+   built around missile lethality.
+2. **The AAA is out of detection range** in the gold's run and in ours it is not — a range or
+   propagation difference.
+3. **The AAA is not radiating** at that moment in the gold — a state difference, and the least
+   satisfying because it would make the gold's two-contact reading a coincidence of timing.
+
+### ⚠️ Not claimed
+
+* **That the third contact IS the AAA.** This is elimination, not identification: the probe prints
+  bearing and lethality, **not type**. S10's grid for the ZSU is `421`-ish against the SAMs' 363/379,
+  and I have **not** computed the player's position to check that a bearing of 179° is consistent with
+  it. **That check is the honest next step**, and it could overturn this.
+* That showing it is wrong. **If the real game filters it, we have a defect; if the real game simply
+  could not see it, we may be more correct than the gold.** Nothing here distinguishes those.
+
+**S28:** print the contact's `entity`/`radarData` type alongside bearing — the probe already has the
+pointer, so naming the emitter directly replaces this whole elimination with a fact.
+
+**GOLDVID-FF-1: the extra contact has a name, held loosely. Sprint 1 of 4.**
