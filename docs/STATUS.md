@@ -19435,3 +19435,61 @@ against two**.
   row; their identities are unresolved and deliberately left so.
 
 **GOLDVID-FF-1: still parked, one categorical agreement recorded. Sprint 2 of 4.**
+
+## GOLDVID-FF-1 S25 (Opus 5, 2026-09-17) — ⛔⛔ **I implemented my own proposed unblock and it does NOT work: `FF_RWR_ZOOM`/`FF_RWR_FULL` enlarge the RWR's VIEWPORT but not its GLYPHS — stroke runs stay median 1, p90 3 in both arms.** S23's reopening condition is withdrawn
+
+**Story:** GOLDVID-FF-1 (parked). FF rotation: sprint 3 of 4.
+
+S23 parked this item and named the cheap unblock: *"not a bigger window — a bigger RWR…
+an `FF_RWR_ZOOM` that multiplies that one viewport would give legible glyphs with no UI risk at
+all."* S24 sharpened what it would buy: **count the contacts and compare against the gold's two.**
+This sprint built it. **The premise was wrong.**
+
+### What was built (and it is sound, just insufficient)
+
+`otwloop.cpp:3256`, the **only** consumer of `BOUNDS_RWR` (verified by grep before touching it):
+
+* **`FF_RWR_ZOOM=<factor>`** — scales the viewport about its own centre.
+* **`FF_RWR_FULL=1`** — gives the RWR the whole viewport.
+
+Both default-off, both announce themselves, neither can disturb the HUD, MFDs or pit art.
+
+⛔ **`FF_RWR_ZOOM` alone was already geometrically doomed**, which the first run measured: the rect's
+centre sits at **y≈707 of a 768-tall frame**, so any factor runs off the bottom edge. At ×4 the ink
+rose 240 → 1778 px but **scattered across 620×395 and clipped.** Hence `FF_RWR_FULL`.
+
+### ⛔⛔ And the full viewport settles it — the glyphs do not scale
+
+```
+                              ink    vertical stroke run
+default rect (94x93)          240    median 1   p90 3   max 7
+FF_RWR_FULL (whole frame)    2191    median 1   p90 3   max 116
+```
+
+**Nine times the ink, identical stroke size.** (The 116 is a long border line, not a glyph.) Giving
+the RWR the entire screen revealed **more** of its content — the default rect was clipping it — but
+every symbol is drawn at the same fixed pixel size.
+
+⭐ **So the RWR's text scale is not a function of its viewport.** `theRwr->Display(renderer)` renders
+at a size set somewhere else — the display's own font/scale — and the viewport only positions and
+clips. **A bigger viewport cannot produce legible digits**, which is precisely what S23 promised it
+would.
+
+### ⚖️ What this changes
+
+* **S23's reopening condition is withdrawn.** "Reopen with `FF_RWR_ZOOM`" was my recommendation, it
+  was wrong, and anyone acting on it would have spent a sprint reaching this same wall.
+* **The knobs stay.** They are correct, harmless and default-off, and `FF_RWR_FULL` earned its place
+  by showing the default rect **clips** the RWR — which nothing had established and which matters for
+  anyone reading that display.
+* **The real unblock is the text scale**, wherever `RwrClass::Display` sets it. That is a different
+  piece of code from the one S23 pointed at, and it is not obviously a one-liner.
+
+### ⚠️ Not claimed
+
+* That the RWR is clipped *in the shipping configuration to a degree that matters*. More ink appeared
+  at full viewport; **what** that extra ink is has not been identified, and it may be off-scope
+  symbology the pit is right to hide.
+* Any contact count. Still unmeasured, still the question, still blocked.
+
+**GOLDVID-FF-1: stays parked, with a corrected — and harder — reopening condition. Sprint 3 of 4.**

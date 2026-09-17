@@ -3254,6 +3254,60 @@ void OTWDriverClass::RenderFrame()
                         pCockpitManager->GetViewportBounds(&viewportBounds, BOUNDS_RWR);
                         // COBRA - RED- Pit Vibrations
                         pCockpitManager->AddTurbulenceVp(&viewportBounds);
+                        /* FF_LINUX (GOLDVID-FF-1 S25): FF_RWR_ZOOM=<factor> enlarges ONLY this
+                           viewport, about its own centre. The RWR draws its contacts as text --
+                           rwr.cpp:182-208 does TextCenter(..., "<digit>", boxed) -- and at a
+                           1024x768 display the pit art is the 1600x1200 set scaled by 0.6399
+                           (FF_DEBUG_PITSEL), which leaves those glyphs ~5 px tall. S22 could
+                           resolve the STRUCTURE (an azimuth tick row, a baseline, one boxed
+                           cluster) but not the glyph identities, and S24 showed the open question
+                           -- does our RWR show the gold's TWO contacts or the file's THREE
+                           battalions? -- needs a COUNT, which 5 px cannot give.
+                           Nothing else reads BOUNDS_RWR (grep: this is its only consumer), so
+                           scaling it here cannot disturb the HUD, the MFDs or the pit art.
+                           Default 1.0 = off, unchanged behaviour. Values <1 are clamped away. */
+                        {
+                            static float s_rwrZoom = -1.0F;
+
+                            if (s_rwrZoom < 0.0F)
+                            {
+                                const char *z = getenv("FF_RWR_ZOOM");
+                                s_rwrZoom = z ? (float)atof(z) : 1.0F;
+
+                                if (s_rwrZoom < 1.0F) s_rwrZoom = 1.0F;
+
+                                if (s_rwrZoom > 1.0F)
+                                {
+                                    fprintf(stderr, "[RWRZOOM] enlarging the RWR viewport x%.2f\n", s_rwrZoom);
+                                    fflush(stderr);
+                                }
+                            }
+
+                            /* S25b: zooming IN PLACE is not enough. This rect's centre sits at
+                               y~707 of a 768-tall frame, so any factor pushes it off the bottom
+                               edge and the symbols scatter (measured at x4: ink rose 240 -> 1778
+                               but spread across 620x395 and clipped). FF_RWR_FULL=1 instead gives
+                               the RWR the WHOLE viewport -- the largest unambiguous read available,
+                               and still touching only BOUNDS_RWR's single consumer. */
+                            static int s_rwrFull = -1;
+
+                            if (s_rwrFull < 0) s_rwrFull = getenv("FF_RWR_FULL") ? 1 : 0;
+
+                            if (s_rwrFull)
+                            {
+                                viewportBounds.left = -1.0F; viewportBounds.right  =  1.0F;
+                                viewportBounds.top  =  1.0F; viewportBounds.bottom = -1.0F;
+                            }
+                            else if (s_rwrZoom > 1.0F)
+                            {
+                                float cx = (viewportBounds.left + viewportBounds.right) * 0.5F;
+                                float cy = (viewportBounds.top  + viewportBounds.bottom) * 0.5F;
+                                viewportBounds.left   = cx + (viewportBounds.left   - cx) * s_rwrZoom;
+                                viewportBounds.right  = cx + (viewportBounds.right  - cx) * s_rwrZoom;
+                                viewportBounds.top    = cy + (viewportBounds.top    - cy) * s_rwrZoom;
+                                viewportBounds.bottom = cy + (viewportBounds.bottom - cy) * s_rwrZoom;
+                            }
+                        }
                         renderer->SetColor(0xFF00FF00);
                         renderer->SetViewport(
                             viewportBounds.left, viewportBounds.top, viewportBounds.right, viewportBounds.bottom
