@@ -19123,3 +19123,70 @@ And the standing blocker is unchanged since S17: **the gold RWR crop has no reco
 scale**, so even a correct crop of ours has nothing rigorous to be compared against yet.
 
 **GOLDVID-FF-1: 4 sprints this pass. FF rotation complete.**
+
+## GOLDVID-FF-1 S21 (Opus 5, 2026-09-17) — ⛔ **RETRACTION of S20's "the config rect does not scale by a simple ratio": it does. `FF_DEBUG_PITSEL` gives `hScale=vScale=0.6399` — exactly the 1024/1600 S20 used** — ⭐⭐ and the real finding is that at 1024×768 the game loads the **1600×1200** art set and scales it down
+
+**Story:** GOLDVID-FF-1. **New pass, sprint 1 of 4.**
+
+S20 left one job: resolve `mHScale`/`mVScale` instead of guessing, take the rect
+`ConvertRecttoVBounds` actually produces, and search it for the gold's own colour. Doing it retracts
+S20's diagnosis.
+
+### ⭐ The authoritative answer, from an instrument that already existed
+
+```
+[OTWDriver.Enter] Creating CockpitManager (resX=0, resY=0, DispWidth=1024, DispHeight=768, FindBest=1024)
+[PITSEL] requested='16_ckpit.dat' resolved='…/art/ckptart/16_ckpit.dat' main=1
+         hScale=0.6399 vScale=0.6399 visType=1746 cpName='F-16CJ' nctr='F16CJ'
+[PITSEL] open '…/art/ckptart/16_ckpit.dat' -> OK
+```
+
+`FF_DEBUG_PITSEL` exists precisely for this — its own comment says *"a missing per-aircraft file
+silently falls back to a different pit — which reads as a 'brightness'/'layout' deviation rather than
+as a selection bug."* I should have reached for it in S20 instead of deriving.
+
+### ⛔ What it retracts
+
+* **"The declared rect does not scale by a simple ratio"** — **wrong.** `ConvertRecttoVBounds` is
+  `pixel = rect × scale`, and the scale is **0.6399**, i.e. exactly the `1024/1600 = 0.64` S20 used.
+  S20's arithmetic was right and its conclusion about the arithmetic was not.
+* **"Maybe the wrong file"** — also wrong, and I raised it this sprint before the trace landed:
+  `otwdrive.cpp:2316` does construct from `ws_ckpit.dat`, and per-aircraft `ws_ckpit.dat` files exist
+  with *different* RWR rects (`597 520 736 653`). **But that branch needs `resX>0`, and this run has
+  `resX=0`**, so the `FindCockpitResolution` path runs and `16_ckpit.dat` wins. The suspicion was
+  reasonable and is **disproved**.
+
+### ⭐⭐ The finding worth keeping
+
+**At a 1024×768 display the game selects the 1600×1200 art set** (`16_ckpit.dat`, `mousebounds
+0 0 1199 1599`) and scales it by 0.64 — **not** the 1024×768 set (`COCKPIT_FILE_10x7`) that exists
+for exactly this resolution. Whether that is intended or a selection bug is **not established here**,
+but it is a concrete, checkable question that no sprint had asked, and it bears on every 2D-pit
+measurement this project makes.
+
+### What the five rects actually contain, scaled by 0.6399
+
+| rect in `16_ckpit.dat` | screen px | contents |
+|---|---|---|
+| panel 0 `1033 393 1177 539` | x[251..344] y[661..753] | black + green text and a rule — **not a scope** |
+| `155 378 296 525` | x[241..335] y[99..189] | **sky** — 8460/8460 px pale blue |
+| `696 1383 841 1530` | x[884..979] y[445..538] | terrain greens |
+| `730 430 864 564` | x[275..360] y[467..552] | dark greens |
+| `1043 1418 1189 1566` | x[907..1002] y[667..760] | near-black |
+
+⭐ And an important correction to how I was searching: FF's RWR draws **characters**, not a graphic —
+`rwr.cpp` calls `display->TextCenter(…, "2", boxed)`. So "green text" is **not** disqualifying, and
+S20's dismissal of that rect on those grounds was too quick.
+
+### ⚠️ Not claimed, and the honest state
+
+**The RWR has still not been located in one of our frames.** Five sprints in, what is established is
+the file, the scale, the aircraft, and that the search criterion I used twice (green / not-green) was
+the wrong axis. The remaining unknown is **which panel is active**, since `16_ckpit.dat` carries five
+`rwr` rects for five panel views and only one applies at a time.
+
+**S22 — one job, and it is a code read, not a capture:** find what selects the active panel
+(`mNumPanels`, `PROP_NUMPANELS_STR`, `cpmanager.cpp:2680`'s second `PROP_RWR_STR` site) and which
+index is live in the forward view. Then one crop settles it.
+
+**GOLDVID-FF-1: new pass, sprint 1 of 4.**
