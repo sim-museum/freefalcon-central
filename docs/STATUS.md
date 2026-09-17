@@ -20047,3 +20047,78 @@ restored afterwards — verified byte-identical (`878b4ef8…`) with its origina
 be the only collision in a 256-value namespace overlaid on another.
 
 **MP-1: 11 sprints. A fifth defect, same root as the first, and the callsign now saves. FF sprint 2 of 4.**
+
+## MP-1 S12 (Opus 5, 2026-09-17) — ⭐⭐ **the `wParam`-as-virtual-key class is BOUNDED: exactly one live site, and it is the one S11 fixed** — and MP-1's five defects now have a gate, with a **negative control that has been seen to go red**
+
+**Story:** MP-1. FF rotation: sprint 3 of 4. S11 said `DIK_Z`/`VK_SNAPSHOT` was *"unlikely to be the
+only collision in a 256-value namespace overlaid on another"* and named the sweep. It was the only
+one — and a negative sweep is worth having stated rather than left as a worry.
+
+### ⭐ The sweep
+
+Every comparison of `wParam` against a `VK_*` constant, whole tree:
+
+```
+   src/ui95/chandler.cpp:2935   VK_SNAPSHOT   <- S11's, fixed
+   src/movie/test.cpp:29        VK_ESCAPE     <- NOT COMPILED
+```
+
+`src/movie/test.cpp` has **0 entries in `ninja -C build -t deps`** and there is no `CMakeLists.txt`
+in `src/movie/` — it is not in the build. *(Asked ninja rather than grep, which is the rule the MiG
+Alley port had to learn the expensive way.)* Every other `WM_KEYDOWN`/`WM_KEYUP` handler in the tree
+belongs to a build tool — camptool, bspview, genascii, txt2bin, missvis — not to the game.
+
+**So the class is closed: one live site, fixed.** Worth saying plainly because S11 left it open as a
+suspicion, and an unstated suspicion is a thing that gets rediscovered.
+
+### ⭐⭐ `tools/ff_typing_gate.sh` — five defects, one run
+
+MP-1 has produced **five** defects in one path and, until now, **no automated check that any of them
+stayed fixed**. The gate asserts the chain at S10's three levels:
+
+```
+  decode: Z arrives shifted                      OK     <- masks, modifiers, ascii table
+  storage: field reads "ZQ7x"                    OK     <- C_EditBox actually keeps it
+  no screenshot triggered by typing              OK     <- the DIK/VK collision
+```
+
+The test string is chosen, not arbitrary: **`Z`** is `DIK 0x2C` (the collision) *and* needs shift;
+**`Q`** needs shift; **`7`** is a digit; **`x`** is lowercase. One pass covers all five defects.
+
+It is also **hermetic** — it types into the logbook PILOT field and **never clicks OK**, so nothing
+reaches the player's install. (S11 had to write, and backed up and restored to do it.)
+And it distinguishes **`CANNOT MEASURE`** from `FAIL`: if `FF_UI_TYPE` never fires, or no edit box
+ever receives anything, it says so and exits 2 rather than reporting a colour.
+
+### ⭐⭐⭐ And it has been seen to FAIL
+
+`FF_NO_SNAPFIX=1` restores the pre-S11 comparison. Both arms run:
+
+```
+   normal                  PASS   exit 0
+   FF_NO_SNAPFIX=1         FAIL   exit 1
+       no screenshot triggered by typing              FAIL
+       [keys] SNAPSHOT trigger fired, wParam=44
+```
+
+**`wParam=44` is `DIK_Z`.** The control reproduces the exact defect, names it in the output, and the
+gate goes red. *(This project has repeatedly booked gates that were green because they could not go
+red — BoB's MP gate asserting on a click scheduled at its own timeout, `netai_smoke` counted as
+covered for eleven days while never running. A control that has never been observed failing is not
+evidence.)*
+
+### ⚠️ Not claimed
+
+* **That the gate covers MP-1's other half.** It covers typing. *How to run FF multiplayer* — part
+  (a) — is untouched, and remains the item's open work.
+* **That `FF_NO_SNAPFIX` proves the fix is right**, only that the gate detects its absence. Print
+  Screen itself is still untested on this box; the removal is verified, the replacement is not
+  (unchanged from S11).
+* That the sweep covers VK constants used **without** the `VK_` spelling. A literal `0x2C` compared
+  against `wParam` would not have matched the search.
+
+**S13:** MP-1 part (a) — the multiplayer how-to, with typing now proven and gated.
+⚠️ `HARNESS-PEER-LIFETIMES` applies: the two-instance harness staggers B by 95 s and `A_SECS` must
+cover `B_DELAY + B_SECS`, or an empty peer list is a dead host, not a defect.
+
+**MP-1: 12 sprints. The defect class is bounded and the fixes are gated. FF sprint 3 of 4.**

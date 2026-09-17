@@ -2930,11 +2930,31 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
                over the logbook, which then swallowed the OK click. Compare against the scancode the
                port actually posts. */
 #if FF_LINUX
-            if (wParam == DIK_SYSRQ) // fall through to KEYDOWN also
+            /* FF_NO_SNAPFIX=1 restores the pre-S11 comparison. It exists so the typing gate has a
+               NEGATIVE CONTROL: a gate that has never been seen to go red is not evidence. */
+            static int s_snapfix = -1;
+
+            if (s_snapfix < 0) s_snapfix = getenv("FF_NO_SNAPFIX") ? 0 : 1;
+
+            if (wParam == (s_snapfix ? DIK_SYSRQ : VK_SNAPSHOT)) // fall through to KEYDOWN also
 #else
             if (wParam == VK_SNAPSHOT) // fall through to KEYDOWN also
 #endif
             {
+                /* MP-1 S12: make the trigger observable so a gate can assert it does NOT fire while
+                   typing. Before S11 this fired on every letter Z. */
+                {
+                    static int s_snapdbg = -1;
+
+                    if (s_snapdbg < 0) s_snapdbg = getenv("FF_DEBUG_KEYS") ? 1 : 0;
+
+                    if (s_snapdbg)
+                    {
+                        fprintf(stderr, "[keys] SNAPSHOT trigger fired, wParam=%ld\n", (long)wParam);
+                        fflush(stderr);
+                    }
+                }
+
                 if (gScreenShotEnabled)
                     gUI_TakeScreenShot = 1; // Set to take screen shot after screen is refreshed (2=Save to file)...
 
