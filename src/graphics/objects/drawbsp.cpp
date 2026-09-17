@@ -240,6 +240,16 @@ void DrawableBSP::GetChildOffset(int slotNumber, Tpoint *offset)
         {
             fprintf(stderr, "[SLOT] GetChildOffset OOB: parent id=%d slot=%d nSlots=%d -> zero offset\n",
                     id, slotNumber, instance.ParentObject->nSlots);
+            /* BSPSLOT-2 S2: WHICH caller. The verification run reported three OOB requests on one
+               model (id 1288, nSlots=1, slots 1/3/6) and there is no name table on ObjectLOD to
+               turn 1288 into a model, so the caller is the identifying fact available. slots
+               1/3/6 LOOK like hardpoint indices (wpnstatn.cpp passes hpId-1) but that is an
+               inference, and the backtrace settles it. Same instrument BSPSLOT-1 put on
+               AttachChild's sibling branch, and the same one GOLDVID-BOB-3 S2 needed on the
+               other port to turn "h=22" into a call site. */
+            void* fr[24];
+            int nf = backtrace(fr, 24);
+            backtrace_symbols_fd(fr, nf, 2);
             fflush(stderr);
         }
         return;

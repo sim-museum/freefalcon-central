@@ -1154,7 +1154,13 @@ int AircraftClass::CreateDamageF16Piece(DamageF16PieceStructure *piece, int *mas
 
 void AircraftClass::SetupDamageF16Effects(DamageF16PieceStructure *piece)
 {
-    Tpoint slot;
+    /* BSPSLOT-2 S2 (2026-09-16): `slot` was uninitialised and is the SFX OFFSET. Line ~1213 does
+       GetChildOffset(piece->index, &slot), negates it, and hands &slot to `new SfxClass(...)` as
+       the damage effect's position offset. Measured with FF_DEBUG_SLOT + a backtrace: this caller
+       asks model id 1288 -- which has ONE slot -- for slots 1, 3 and 6, three times in one TE run,
+       so before GetChildOffset was made to write a zero on that path the effect was placed at
+       negated stack garbage. piececenter below is assigned immediately and is safe. */
+    Tpoint slot = {0, 0, 0};
     Tpoint piececenter;
     piececenter.x = XPos();
     piececenter.y = YPos();

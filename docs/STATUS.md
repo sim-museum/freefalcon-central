@@ -18095,3 +18095,69 @@ BSPSLOT-1's TE-26 HARM case reaching the offset path as well as the attach path;
 the `tankbrn` constructor read above is the same object and the two findings are one.
 
 **BSPSLOT-2: 1 sprint.**
+
+## BSPSLOT-2 S2 (Opus 5, 2026-09-16) — ⭐⭐⭐ **the caller, from its own backtrace: it is an aircraft EXPLODING, and the out-parameter it left uninitialised is a special effect's POSITION** — ⛔ **and my "these look like hardpoint indices" guess was wrong, which is why it was labelled a guess**
+
+**Story:** BSPSLOT-2 (`DrawableBSP` slot-index safety). **Sprint 2.**
+
+S1 left: *"identify model 1288 and its caller."* `ObjectLOD` has no name table, so the model cannot
+be named in-process — but the **caller** is the identifying fact, and a backtrace on the OOB branch
+gets it. Same instrument BSPSLOT-1 put on `AttachChild`, and the same one GOLDVID-BOB-3 S2 needed on
+the other port to turn "h=22" into a call site.
+
+```
+AircraftClass::SetupDamageF16Effects   damage.cpp:1213
+AircraftClass::CreateDamageF16Effects  damage.cpp:1243
+AircraftClass::RunExplosion            damage.cpp:1277
+AircraftClass::Exec                    aircraft.cpp:1860
+SimVuDriver::ExecModel                 simvudrv.cpp:101
+SimulationDriver::Cycle                simdrive.cpp:762
+```
+
+**An aircraft is blowing up.** `RunExplosion` breaks the airframe into damage pieces and asks the
+model where each piece attaches, so it can hang smoke, fire and debris off it.
+
+### ⛔ Two guesses disposed of, both mine
+
+* S1 wrote *"slots 1/3/6 look like hardpoint indices (`wpnstatn.cpp` passes `hpId - 1`), but that
+  is an inference."* **Wrong** — it is `piece->index`, a damage-piece index, and nothing to do with
+  weapons.
+* S1's next-step also said *"if it is a tanker, the `tankbrn` constructor read is the same object
+  and the two findings are one."* **Not a tanker.** They are two separate instances of the same
+  class of bug, not one.
+
+Both were labelled as inferences when written, which is the only reason they cost a paragraph
+rather than a sprint.
+
+### ⭐ What the uninitialised out-parameter actually was
+
+```c
+Tpoint slot;                                   // damage.cpp:1157 -- uninitialised
+...
+ptr -> GetChildOffset(piece->index, &slot);    // 1213 -- wrote NOTHING on the OOB path
+slot.x = -slot.x;  slot.y = -slot.y;  slot.z = -slot.z;
+OTWDriver.AddSfxRequest(new SfxClass(..., &slot, ...));   // the effect's POSITION OFFSET
+```
+
+So on each of the three OOB requests — model 1288 has **one** slot and is asked for **1, 3 and 6** —
+the damage effect was placed at **negated stack garbage** relative to the aircraft. That is not an
+assertion that "reports a known-tolerated case", which is what GOLDVID-FF-1 S12 filed it as; it is
+an explosion drawn in the wrong place, and it happens every time an aircraft with this model dies.
+
+S1's fix (write a zero offset on the tolerance path) already turns that into "at the aircraft's
+origin". This sprint also initialises the caller, matching `wpnstatn.cpp`'s own
+`Tpoint hpPos = {0,0,0};` and the `tankbrn` fix from S1 — belt and braces, because the tolerance
+path is not the only way a future caller reaches that read.
+
+### ⚠️ Not claimed
+
+That the *right* answer is a zero offset. The model has one slot and the code wants six; the real
+question is whether model 1288 is the wrong LOD for this aircraft, or whether the damage-piece table
+and the model have simply drifted apart. Zero is the safe answer, not the correct one, and this
+entry does not pretend otherwise.
+
+**S3:** find what decides `piece->index` and whether the damage-piece table is supposed to match the
+model's slot count. If it is, a model with `nSlots=1` being used for an F-16 damage model is the
+real defect and the guard is hiding it.
+
+**BSPSLOT-2: 2 sprints.**
