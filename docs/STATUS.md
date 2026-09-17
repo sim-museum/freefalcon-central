@@ -18071,11 +18071,27 @@ class. [[rowan-port-uninit-and-stub-traps]]
 
 ### Verification
 
-Builds clean. A run with `FF_DEBUG_SLOT=1` on S12's recipe is queued behind the display lock to
-report which parent asks. **Whether it fires, and for which model, is not claimed here** — the
-assertion fired once in S12's run, and once is not a reproduction rate.
+Builds clean. A run with `FF_DEBUG_SLOT=1` on S12's recipe was queued behind the display lock to
+report which parent asks; **it has now run, and it fires.**
 
-**S2:** read that report. If the parent is a tanker, the `tankbrn` ctor read above is the same
-object and the two findings are one.
+```
+[SLOT] GetChildOffset OOB: parent id=1288 slot=1 nSlots=1 -> zero offset
+[SLOT] GetChildOffset OOB: parent id=1288 slot=3 nSlots=1 -> zero offset
+[SLOT] GetChildOffset OOB: parent id=1288 slot=6 nSlots=1 -> zero offset
+```
+
+⭐ **Three OOB requests in one run, all against the same model** — parent **id 1288**, which has
+exactly **one** slot, asked for slots **1, 3 and 6**. Before this sprint each of those three
+returned leaving `*offset` untouched.
+
+⚠️ Note the arithmetic that S12 got wrong in the other direction: the ShiAssert still prints
+**once** while the guard reports **three** OOB calls. The assertion is not a count of the event —
+so "it fired once" was never evidence that it happens once, and the instrument is what makes the
+rate visible. Neither the assert nor the guard says *which* caller asked; `wpnstatn.cpp` passes
+`hpId - 1`, and slots 1/3/6 look like hardpoint indices, but that is an inference.
+
+**S2:** identify model 1288 and its caller. If it is an aircraft being given weapons, this is
+BSPSLOT-1's TE-26 HARM case reaching the offset path as well as the attach path; if it is a tanker,
+the `tankbrn` constructor read above is the same object and the two findings are one.
 
 **BSPSLOT-2: 1 sprint.**
