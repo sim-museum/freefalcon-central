@@ -499,6 +499,33 @@ void PlayerRwrClass::Display(VirtualDisplay *activeDisplay)
         {
             drawn++;
             DrawContact(&detectionList[i]);
+            /* FF_LINUX (GOLDVID-FF-1 S26): read the RWR's contacts as STATE, not pixels.
+               S22-S25 tried to count them off a screenshot and failed three ways: the symbols are
+               text not a scope, our port draws them pure green where the gold's are pale, and the
+               glyph size comes from the renderer's shared screen font -- so no viewport change can
+               enlarge them (S25 measured stroke runs median 1 / p90 3 in BOTH a 94x93 rect and a
+               full-screen viewport). The question S24 isolated is a COUNT, and a count does not
+               need pixels at all: GOLDVID-FF-2 found THREE Air Defense Battalions in TE 28's file
+               while S15 reads TWO on the gold's RWR. FF_DEBUG_RWR=1 prints what we actually draw. */
+            {
+                static int s_dbgRwr = -1;
+
+                if (s_dbgRwr < 0) s_dbgRwr = getenv("FF_DEBUG_RWR") ? 1 : 0;
+
+                if (s_dbgRwr)
+                {
+                    fprintf(stderr, "[RWR] contact %d/%d bearing=%7.1f deg lethality=%.2f "
+                                    "locked=%d launch=%d selected=%d radarMode=%d\n",
+                            drawn, numContacts,
+                            detectionList[i].bearing * 57.29578F,
+                            detectionList[i].lethality,
+                            (int)detectionList[i].isLocked,
+                            (int)detectionList[i].missileLaunch,
+                            (int)detectionList[i].selected,
+                            detectionList[i].radarMode);
+                    fflush(stderr);
+                }
+            }
         }
     }
 

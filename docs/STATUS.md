@@ -19493,3 +19493,68 @@ would.
 * Any contact count. Still unmeasured, still the question, still blocked.
 
 **GOLDVID-FF-1: stays parked, with a corrected — and harder — reopening condition. Sprint 3 of 4.**
+
+## GOLDVID-FF-1 S26 (Opus 5, 2026-09-17) — ⭐⭐⭐ **THE COMPARISON IS MADE AT LAST, and it is a real difference: our RWR displays THREE contacts where the gold displays TWO — and the extra one is AHEAD, matching GOLDVID-FF-2's third battalion in the file** — read as STATE, not pixels
+
+**Story:** GOLDVID-FF-1 (parked since S23). FF rotation: sprint 4 of 4 — rotation complete.
+
+### ⛔ Why the pixel route was abandoned — three failures, three different causes
+
+| sprint | attempt | why it failed |
+|---|---|---|
+| S20 | hunt a circular scope | there is none — `SetGridVisible(FALSE)`, rings never drawn |
+| S22 | search by the gold's colour | our port draws `0xFF00FF00`; the pale grey-blue was the **gold's** |
+| S25 | enlarge the viewport | glyph size comes from the renderer's **shared screen font** — stroke runs stayed median 1 / p90 3 at both 94×93 and full screen |
+
+**S24 had already isolated the real question, and it was never a pixel question:** *a count.*
+GOLDVID-FF-2 found **three** Air Defense Battalions in TE 28's file; S15 read **two** on the gold's
+RWR. The port holds that list in `detectionList` — so read it.
+
+`FF_DEBUG_RWR=1` (`playerrwr.cpp`, one `fprintf` in the draw loop, default-off, no render path
+touched) prints every contact as it is drawn.
+
+### ⭐⭐⭐ The result — 18,958 contact lines over one TE-28 flight
+
+```
+contacts displayed per frame:   3 -> 18,866 frames      2 -> 52      1 -> 40
+```
+
+**Our RWR draws three.** And the bearings line up with the gold's own geometry:
+
+```
+bearing  -85 deg   lethality 0.30   locked=0            <- LEFT BEAM   (gold: SA-2 abeam)
+bearing  179 deg   lethality 0.33   locked=0            <- AHEAD
+bearing ~178 deg   lethality 1.37   locked=1 selected=1 <- AHEAD, LOCKED  (gold: SA-8 with caret)
+```
+
+* **The left-beam contact matches** the gold's `SA-2`.
+* **The locked, high-lethality contact ahead matches** the gold's `SA-8` with the priority caret —
+  and independently confirms S24's boxed-symbol finding from the other side, since `locked=1
+  selected=1` is what draws boxed.
+* **The third — a second, unlocked contact also dead ahead at 179° — has no counterpart in the
+  gold.**
+
+⭐ **That is exactly the shape GOLDVID-FF-2 predicted from the campaign files:** three battalions
+exist in TE 28, the real game shows two, and **we show all three.** Two independent routes — reading
+the `.trn` and reading our own display state — now agree on the number, and disagree with the gold.
+
+### ⚠️ Observed in passing, not diagnosed
+
+`radarMode` reads **318828560** and **2050319254** on the unlocked contacts and **0** on the locked
+one. Those are not plausible mode enums. This tree has a documented history of uninitialised reads
+fed by stubs [[rowan-port-uninit-and-stub-traps]], and this smells like one — but it is **an
+observation from a debug print, not an investigation**, and it is not this item's question.
+
+### ⚠️ Not claimed
+
+* **That the extra contact is a defect.** The real game may suppress an emitter our port does not —
+  by range, by radar state, by lethality threshold. **What is established is the difference**, which
+  is what 25 sprints were trying to reach.
+* Which emitter is which. The probe gives bearing and lethality, not type; matching contact→battalion
+  needs GOLDVID-FF-2's file-side identification joined to these bearings.
+
+**S27 — a real question at last:** why does the gold show two? Compare the third contact's bearing and
+lethality against the three battalions GOLDVID-FF-2 S10 named, and look for the filter the real game
+applies and we do not.
+
+**GOLDVID-FF-1: UNPARKED by its own result. FF rotation complete (4 sprints) → MiG Alley.**
