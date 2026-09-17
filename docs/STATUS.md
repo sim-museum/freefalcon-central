@@ -20767,3 +20767,90 @@ ambiguous silence into a fact.**
 hit reaches a row at all.
 
 **MPTEST-FF: the click lands, the selection does not, and the takeoff code is proven unreached. FF rotation complete (4 sprints) → MiG Alley.**
+
+## MPTEST-FF S11 (Opus 5, 2026-09-17) — ⭐⭐⭐ **the click DOES resolve to a row: `found=` non-NULL, `flag=50` — the identical flag the working tree reports. S10's "the hit reached the control but not a row" is corrected.** The two halves of one click disagree, and they read **different members**
+
+**Story:** FF rotation: sprint 1 of 4. S10 ended with a named next step — *"extend `[TREEHIT]` to
+`6130` and re-run the same click. That says in one pass whether the hit reaches a row at all."* It
+did, and the answer inverts the working assumption.
+
+### ⛔ The probe was hardcoded to one tree — the SECOND instance of that class here
+
+`[TREEHIT0]`/`[TREEHIT]` were gated on `GetID() == 40211`. On the joiner's mission tree — `6130` —
+they were **silent**, and ⚠️ **a silent probe reads exactly like a click that never arrived.**
+
+⭐ S9 already caught this class in this port: the tree **dump** was gated on a hardcoded allowlist
+defaulting to the single id `40211`, and reported *"0 item rows"* for a list holding twelve — *"the
+instrument, not the data."* **Same class, same tree id, second site.** So the fix is a **list**, not
+a second constant: `ff_treehit_wanted()`, default `"40211,6130"`, overridable with
+**`FF_TREEHIT_IDS`**.
+
+### ⭐⭐⭐ And with it speaking, the click resolves
+
+```
+[TREEHIT0] tree 6130 rel=(123,8) flags=0x14080800 invisible=0 enabled=1 rect=0,0 247x67
+[TREEHIT]  tree 6130 rel=(123,8) xy=(0,0) root=0x55ae749bfee0 rootxy=(0,0) found=0x55ae749bfee0 flag=50
+[LBUTTONDOWN] GrabItem found control ID=6130 type=0
+[LBUTTONUP]   Grab_.Control_ found: ID=6130 type=0
+```
+
+Against the working campaign tree in the same run:
+
+```
+[TREEHIT]  tree 40211 rel=(43,31) ... found=0x55ae73325ac0 flag=50
+```
+
+| | tree 40211 (works) | tree 6130 (does not) |
+|---|---|---|
+| visible / enabled | 0 / 1 | **0 / 1 — same** |
+| `CheckBranch` result | `found` non-NULL | **`found` non-NULL — same** |
+| `CheckFlag_` | `flag=50` | **`flag=50` — same** |
+| `GrabItem` type | 51 / 52 (S6q–S6t) | **0** |
+
+⭐⭐ **`CheckHotSpots` succeeds on 6130 exactly as it does on the tree that works.** S10's *"a control
+hit that resolves to no item type is the shape of a hit that reached the control but not a row"* is
+now **contradicted by the tree's own trace** — it reached a row.
+
+### ⭐⭐⭐ The two halves read different members
+
+`CheckHotSpots` sets **`LastFound_`**. `GetMe()` — which is what `GrabItem` reports the type from —
+returns `MouseFound_->Item_`. And `MouseFound_` is assigned in **exactly one place** in the whole
+file: `C_TreeList::MouseOver` (`ctree.cpp:1273`). **Nothing in the click path ever sets it.**
+
+So `type=0` means one of: `MouseOver` never ran for this tree, or it ran and **nulled** `MouseFound_`
+on its own fall-through — which it does when the found node's `Item_` is NULL:
+
+```cpp
+MouseFound_ = CheckBranch(Root_, relx, rely);
+if (MouseFound_) { if (CheckFlag_ == C_TYPE_MENU) return TRUE;
+                   else if (MouseFound_->Item_) return MouseFound_->Item_->MouseOver(...); }
+MouseFound_ = NULL;   // <- a row with no Item_ lands here
+```
+
+⛔ **A hypothesis of mine was refuted before it could be recorded as a finding.** I expected the
+harness to post only a button-down, leaving no hover to set `MouseFound_`. **It does not:**
+`main_linux.cpp:3539` posts `WM_MOUSEMOVE` **before** every `WM_LBUTTONDOWN`. **The hover is sent.**
+
+### ✅ And S10's other open sub-question, answered negatively
+
+S10: *"`main_linux.cpp` is still missing 27 of `winmain.cpp`'s `FM_` cases, and nobody has checked
+whether one of them matters here."* Diffed: **25 distinct `FM_` names** present in
+`src/ui/src/winmain.cpp` and absent from `main_linux.cpp`. **None handles list or tree selection** —
+they are campaign events, MP session state, movies and display. ⭐ The two that could not be
+dismissed by name were read in the body: `FM_GIVE_FOCUS` is `SetActiveWindow`/`SetFocus` on the **OS
+window**, and `FM_REBUILD_WP_LIST` calls `RebuildCurrentWPList()` — a **different list**, and it
+rebuilds rather than selects. **Ruled out by their handlers, not by their names.**
+
+### ⚠️ Not claimed
+
+* **That `Item_ == NULL` is the cause.** It is the leading candidate and **nothing here measured
+  it** — the probe prints `found`, not `found->Item_`. **S12 adds that one field.**
+* **That `MouseOver` ran for 6130 at all.** Also unmeasured; the same one-line probe separates the
+  two remaining cases.
+* That the join regressed — it did not: **`FM_JOIN_SUCCEEDED: 1`, four consecutive runs.**
+
+**S12:** print `found->Item_` in `[TREEHIT]` and add the same probe to `MouseOver`. That distinguishes
+*"hover never reached this tree"* from *"the row has no Item_"* in one pass.
+
+**MPTEST-FF: the hit resolves, the instrument lied by silence, and the failure is isolated to
+`MouseFound_`. FF sprint 1 of 4.**

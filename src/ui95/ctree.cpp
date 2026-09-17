@@ -930,6 +930,46 @@ void C_TreeList::RecalcSize()
     }
 }
 
+#ifdef FF_LINUX
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+/* MPTEST-FF S11: these two probes were hardcoded to tree id 40211, so on the JOINER's mission tree
+   -- id 6130 -- they were silent, and a silent probe reads exactly like a click that never reached
+   the control. S10 ended needing precisely this: "extend [TREEHIT] to 6130 and re-run the same
+   click."
+   SECOND instance of the same class in this port: S9 found the tree DUMP gated on a hardcoded
+   allowlist defaulting to the single id 40211, and it reported "0 item rows" for a list holding
+   twelve -- the instrument, not the data. So this one is a LIST, both ids in the default,
+   overridable with FF_TREEHIT_IDS, rather than a second hardcoded constant. */
+static int ff_treehit_wanted(long id)
+{
+    static char s_buf[128];
+    static int  s_init = 0;
+    if (!s_init)
+    {
+        const char *e = getenv("FF_TREEHIT_IDS");
+        if (!e || !*e) e = "40211,6130";
+        strncpy(s_buf, e, sizeof(s_buf) - 1);
+        s_buf[sizeof(s_buf) - 1] = 0;
+        s_init = 1;
+    }
+
+    char idbuf[24];
+    snprintf(idbuf, sizeof(idbuf), "%ld", id);
+    size_t n = strlen(idbuf);
+
+    for (const char *p = s_buf; *p; )
+    {
+        while (*p == ',' || *p == ' ') p++;
+        if (!*p) break;
+        if (strncmp(p, idbuf, n) == 0 && (p[n] == 0 || p[n] == ',' || p[n] == ' ')) return 1;
+        while (*p && *p != ',') p++;
+    }
+    return 0;
+}
+#endif
+
 long C_TreeList::CheckHotSpots(long relX, long relY)
 {
     TREELIST *cur;
@@ -939,7 +979,7 @@ long C_TreeList::CheckHotSpots(long relX, long relY)
     {
         static int s_dbg0 = -1;
         if (s_dbg0 < 0) s_dbg0 = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
-        if (s_dbg0 && GetID() == 40211)
+        if (s_dbg0 && ff_treehit_wanted(GetID()))
             fprintf(stderr, "[TREEHIT0] tree %ld rel=(%ld,%ld) flags=0x%lx invisible=%d enabled=%d rect=%ld,%ld %ldx%ld\n",
                     GetID(), relX, relY, (long)GetFlags(), (GetFlags() & C_BIT_INVISIBLE) ? 1 : 0,
                     (GetFlags() & C_BIT_ENABLED) ? 1 : 0, GetX(), GetY(), GetW(), GetH());
@@ -957,7 +997,7 @@ long C_TreeList::CheckHotSpots(long relX, long relY)
     {
         static int s_dbg = -1;
         if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
-        if (s_dbg && GetID() == 40211)
+        if (s_dbg && ff_treehit_wanted(GetID()))
             fprintf(stderr, "[TREEHIT] tree %ld rel=(%ld,%ld) xy=(%ld,%ld) root=%p rootxy=(%ld,%ld) found=%p flag=%d\n",
                     GetID(), relX, relY, GetX(), GetY(), (void*)Root_, Root_ ? Root_->x_ : -1L, Root_ ? Root_->y_ : -1L,
                     (void*)cur, (int)CheckFlag_);
