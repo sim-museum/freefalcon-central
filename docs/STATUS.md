@@ -18161,3 +18161,69 @@ model's slot count. If it is, a model with `nSlots=1` being used for an F-16 dam
 real defect and the guard is hiding it.
 
 **BSPSLOT-2: 2 sprints.**
+
+## BSPSLOT-2 S3 (Opus 5, 2026-09-16) — ⭐⭐⭐ **the damage code names SEVEN slots and the model declares ONE — and the path is F-16-only, so model 1288 is an F-16's** — the guard is hiding a model/data mismatch, exactly as S2 suspected
+
+**Story:** BSPSLOT-2 (`DrawableBSP` slot-index safety). **Sprint 3.**
+
+S2 asked: *"find what decides `piece->index` and whether the damage-piece table is supposed to match
+the model's slot count."* It is not a table that drifts — it is a **fixed contract with named
+parts**.
+
+```c
+#define DAMAGEF16_NOSE_SLOTINDEX  0      // damage.cpp:604-610
+#define DAMAGEF16_FRONT_SLOTINDEX 1
+#define DAMAGEF16_BACK_SLOTINDEX  2
+#define DAMAGEF16_RWING_SLOTINDEX 3
+#define DAMAGEF16_LWING_SLOTINDEX 4
+#define DAMAGEF16_LSTAB_SLOTINDEX 5
+#define DAMAGEF16_RSTAB_SLOTINDEX 6
+...
+DamageF16PieceStructure piece[7];        // damage.cpp:1243
+```
+
+**Seven pieces, seven named attachment points, indices 0–6.** The three OOB requests S1 measured
+were slots **1, 3 and 6** — `FRONT`, `RWING` and `RSTAB` — i.e. three of those seven, the ones that
+particular explosion happened to create.
+
+### ⭐ And the aircraft really is an F-16
+
+```c
+int AircraftClass::CreateDamageF16Effects()
+{
+    if ( not IsF16()) return 0;          // damage.cpp:1237
+```
+
+The whole path is gated on the `isF16` flag, so this is **not** the F-16 breakup being applied to
+some other aeroplane — which was the obvious hypothesis and is wrong. **Model 1288 belongs to an
+aircraft the sim considers an F-16, and that model declares `nSlots = 1`.**
+
+### ⭐ Not a level-of-detail artefact either
+
+`nSlots` is a field of the **ParentObject record**, sitting beside `nLODs`
+(`objectparent.h:36-40`) — one value per model, not per LOD. So "the explosion ran while a
+low-detail LOD was loaded" does not explain it: there is no detail level at which this model has
+more slots.
+
+### What that leaves
+
+An aircraft flagged `isF16` is drawing a model whose record declares **one** slot where the damage
+code names **seven**. Every F-16 that explodes with this model will go out of bounds on six of its
+seven pieces — before S1's fix, each of those placed a special effect at negated stack garbage; now
+each places it at the aircraft's origin.
+
+So the guard is **hiding a model/data mismatch**, which is what S2 declined to rule out ("zero is
+the safe answer, not the correct one"). The fix is not in `drawbsp.cpp` at all.
+
+### ⚠️ Not claimed
+
+Which of the two it is. Either this install's F-16 model lacks its damage slots (the staging on this
+box is known-partial — see the CLAUDE.md note on `Zips/` and `texture.zip`), or the aircraft is
+bound to the wrong model id. Nothing measured here distinguishes them.
+
+**S4:** resolve model id 1288 to a file. `ObjectLOD` carries no name, but the parent records are
+indexed out of the object database (`terrdata/objects/FALCON4.*`), so a small reader over that index
+answers it — and tells us whether a *different* F-16 record in the same install has `nSlots = 7`,
+which decides between "bad data" and "wrong id" in one step.
+
+**BSPSLOT-2: 3 sprints.**
