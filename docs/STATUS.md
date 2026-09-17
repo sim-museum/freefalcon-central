@@ -19787,3 +19787,92 @@ The hat is not a priority caret; **it is how this RWR marks an airborne emitter*
   reproducibility, not interpreted.
 
 **GOLDVID-FF-1: the RWR question is answered and closed. Sprint 3 of 4.**
+
+## MP-1 S9 (Opus 5, 2026-09-17) — ⭐⭐⭐ **Defect 2 is VERIFIED at last, and it had a second cause nobody had looked for: every caller in the tree masks `0x80` while our `GetKeyState` returned `0x8000`.** Capitals now reach the UI, proven without xdotool
+
+**Story:** MP-1 — the PO's standing multiplayer priority. FF rotation: sprint 4 of 4. Sprints 5–8
+left one defect implemented-but-unverified and said why: *"the one keystroke run that captured
+capitals reported `Shift=0`"*, with a design concern (GetKeyState is read at HANDLE time, the
+message is queued at POST time) offered as the suspect. Both halves are now settled — the suspect
+was real, **and it was not the whole story**.
+
+### ⛔ First, the instrument did not exist
+
+Sprints 5–8 recorded that xdotool cannot type into this SDL window (XSendEvent is discarded; three
+runs produced zero `[keys]` lines and read exactly like a broken fix). The obvious substitute does
+not work either: **`FF_SIM_KEY` calls `FF_PushKeyEvent`** — the DirectInput buffer the *sim* reads —
+**and never calls `PostGameMessage`**. Nothing in the tree could exercise the UI character path at
+all. *(The same shape as julia's `[ds]` probe, BoB's MP gate and `JM_SHOTS`: work blocked on an
+instrument that cannot speak.)*
+
+**`FF_UI_TYPE="text@sec;…"`** (`main_linux.cpp`) posts the **same `WM_KEYDOWN`/`WM_KEYUP` pair,
+built by the same `FF_KeyLParam`**, that `handle_sdl_events` posts for a real keystroke. The
+ASCII→DIK map is not invented — it **reverse-scans the game's own `Key_Chart`**, the very table
+`AsciiChar()` reads back, so the character asked for is the character the UI must decode.
+
+### ⛔⛔ The cause sprints 5–8 did not suspect — a mask, not a race
+
+`chandler.cpp:2948`:
+
+```c
+if (GetKeyState(VK_SHIFT) bitand 0x80)      // bit 7
+    ShiftStates or_eq _SHIFT_DOWN_;
+```
+
+Our `FF_GetKeyState` returned `0x8000` — the true Win32 "key is down" high-order bit.
+**`0x8000 bitand 0x80 == 0`.** Shift could never register. And this is not one site: surveyed across
+the tree, **every** down-state caller masks `0x80` (VK_SHIFT ×3, VK_CONTROL ×2, VK_MENU ×2), while
+the toggle callers mask `0x01` and were already correct. So no capitals, no symbols, no modified
+hotkeys, anywhere. Fixed by returning **`0x8080`**, which satisfies the `0x80` callers and any
+correct `0x8000` one.
+
+### ⭐ And the ordering concern was real too — reproduced, then fixed
+
+With the mask fixed, the first `FF_UI_TYPE` run still printed:
+
+```
+[keys] wParam=44 ... -> Key=44 Ascii=122('z') Shift=0        <- 'Z' typed, 'z' decoded
+```
+
+**That is sprints 5–8's hypothesis reproduced on demand**, not merely suspected: the shift latch was
+raised at post time and gone by the time the queued message was handled. Fixed the way that entry
+named — `GameMessage` now carries the modifier state it was **posted** with, and
+`ProcessGameMessages` restores it before dispatching each message.
+
+### ⭐⭐⭐ Verified, deterministically
+
+```
+[FF_UI_TYPE] typing "aZ9x" at 12003ms
+[keys] wParam=30 -> Key=30 Ascii= 97('a') Shift=0
+[keys] wParam=42 -> Key=42 Ascii=  0      Shift=1      <- LSHIFT down
+[keys] wParam=44 -> Key=44 Ascii= 90('Z') Shift=1      <- CAPITAL
+[keys] wParam=10 -> Key=10 Ascii= 57('9') Shift=0
+[keys] wParam=45 -> Key=45 Ascii=120('x') Shift=0      <- shift correctly dropped
+```
+
+Lowercase, uppercase, digit, and the release — all correct, **and the check cannot be silently
+empty**: a missing `[FF_UI_TYPE] typing` line is distinguishable from a missing `[keys]` line, so
+"the harness failed" and "the fix failed" can never again be confused. That distinction is precisely
+what cost sprints 5–8 their verification.
+
+### ⚖️ What this unblocks
+
+* **Defect 2 is closed** — MP-1's three defects are now all fixed *and* verified.
+* **MP-1 part (a), the multiplayer HOW-TO, is genuinely reachable.** The address field the PO could
+  not type into now receives characters, and there is a scripted way to drive it.
+* **A reusable UI instrument.** Any future "the PO cannot type / a hotkey does nothing" report is
+  now testable headlessly, on this box, without a display-injection tool.
+
+### ⚠️ Not claimed
+
+* **No edit box was actually filled this sprint.** The run typed at the front end with no field
+  focused (`win=(nil)`), which is what proves the *decode*; it does not prove that a focused
+  `C_EditBox` stores what it receives. **That is S10:** navigate to the logbook callsign, type, and
+  read the field back.
+* **`0x8080` is a compatibility shim, not a faithful `GetKeyState`.** The faithful fix is for the
+  callers to mask `0x8000`; that edits game code in seven places for no behavioural gain, so the
+  shim is the deliberate choice and is commented as such at the definition.
+* The `FF_UI_TYPE` parser takes at most 8 strings of 63 chars — a test hook, not a keyboard.
+
+**MP-1: 9 sprints. Typing works end-to-end and is provable on this machine. FF sprint 4 of 4 —
+rotating to MiG Alley.**

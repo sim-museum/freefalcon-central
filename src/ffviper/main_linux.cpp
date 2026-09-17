@@ -526,15 +526,22 @@ struct GameMessage {
     UINT message;
     WPARAM wParam;
     LPARAM lParam;
+    /* MP-1 S9: the modifier state AT POST TIME. GetKeyState is queried when a message is HANDLED,
+       but PostGameMessage only queues it, so anything that re-reads the live keyboard later sees
+       whatever is true then -- which for scripted input is nothing at all. Sprints 5-8 suspected
+       this and could not test it; S9's first FF_UI_TYPE run reproduced it exactly (shift posted,
+       'Z' decoded as 'z'). Carrying the state with the message is the fix that entry named. */
+    int mods;
 };
 
 static std::queue<GameMessage> g_messageQueue;
 static std::mutex g_messageMutex;
 
 // Post a message to the queue (like Windows PostMessage)
+extern int g_ffSynthMods;
 void PostGameMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
     std::lock_guard<std::mutex> lock(g_messageMutex);
-    g_messageQueue.push({msg, wParam, lParam});
+    g_messageQueue.push({msg, wParam, lParam, g_ffSynthMods});
 }
 
 // Process messages in the queue
@@ -2138,15 +2145,32 @@ static void cleanup(void) {
 /* MP-1: the live modifier state, for the compat GetKeyState (see compat_winuser.h). ui95 asks
    for VK_SHIFT / VK_MENU / VK_CONTROL with the 0x80 "down" test, and for VK_CAPITAL / VK_NUMLOCK
    with the 0x01 "toggled" test, so both bits have to be answered correctly. */
+/* MP-1 S9: modifiers asserted by the scripted UI typist (FF_UI_TYPE). SDL_GetModState() reports
+   only PHYSICAL keys, so a posted WM_KEYDOWN carrying a shifted character would be read back here
+   as unshifted -- which is exactly the ordering concern sprints 5-8 recorded against Defect 2 and
+   could not test. The latch is raised before the character is posted and dropped after it is
+   handled, so GetKeyState answers the same thing a real shift press would. Zero unless FF_UI_TYPE
+   is in use, so nothing about normal play changes. */
+int g_ffSynthMods = 0;   /* KMOD_* bits */
+
 extern "C" SHORT FF_GetKeyState(int nVirtKey)
 {
-    const SDL_Keymod m = SDL_GetModState();
+    const SDL_Keymod m = (SDL_Keymod)(SDL_GetModState() | g_ffSynthMods);
     SHORT r = 0;
 
+    /* MP-1 S9: the DOWN bit must be reported as 0x8080, not 0x8000. Win32 puts "key is down" in
+       the high-order bit, but EVERY caller in this tree masks 0x80 instead -- chandler.cpp:2948
+       `GetKeyState(VK_SHIFT) bitand 0x80`, and likewise for VK_CONTROL and VK_MENU in ui95 and the
+       sim. 0x8000 bitand 0x80 is 0, so returning only the true Win32 bit made shift, control and
+       alt read as UP at every one of those sites: no capitals, no symbols, no modified hotkeys.
+       That is the "one keystroke run that captured capitals reported Shift=0" recorded against
+       Defect 2 in sprints 5-8 -- the cause is this mask, not the message-queue ordering that entry
+       suspected. Setting both bits satisfies the 0x80 callers and any correct 0x8000 one.
+       Toggle keys already agree: callers mask 0x01, which is what is returned. */
     switch (nVirtKey) {
-        case VK_SHIFT:   if (m & KMOD_SHIFT) r |= (SHORT)0x8000; break;
-        case VK_CONTROL: if (m & KMOD_CTRL)  r |= (SHORT)0x8000; break;
-        case VK_MENU:    if (m & KMOD_ALT)   r |= (SHORT)0x8000; break;
+        case VK_SHIFT:   if (m & KMOD_SHIFT) r |= (SHORT)0x8080; break;
+        case VK_CONTROL: if (m & KMOD_CTRL)  r |= (SHORT)0x8080; break;
+        case VK_MENU:    if (m & KMOD_ALT)   r |= (SHORT)0x8080; break;
         case VK_CAPITAL: if (m & KMOD_CAPS)  r |= (SHORT)0x0001; break;
         case VK_NUMLOCK: if (m & KMOD_NUM)   r |= (SHORT)0x0001; break;
         default: break;
@@ -2174,6 +2198,21 @@ extern "C" SHORT FF_GetAsyncKeyState(int vKey)
     }
     return FF_GetKeyState(vKey);
 }
+/* MP-1 S9: reverse the game's OWN ascii table rather than inventing a keyboard map.
+   Key_Chart[dik].Ascii[shiftState] is what AsciiChar() reads back, so scanning it guarantees the
+   character the typist asks for is the character the UI will decode -- and it stays correct if the
+   table is ever re-generated. Index 0 is unshifted, index 1 is _SHIFT_DOWN_. */
+extern "C" void FF_AsciiToDIK(char c, int *dik, int *shift)
+{
+    *dik = 0; *shift = 0;
+    for (int i = 1; i < 256; i++) {
+        if (Key_Chart[i].Ascii[0] == (uchar)c) { *dik = i; *shift = 0; return; }
+    }
+    for (int i = 1; i < 256; i++) {
+        if (Key_Chart[i].Ascii[1] == (uchar)c) { *dik = i; *shift = 1; return; }
+    }
+}
+
 /* MP-1: build the Win32 lParam a WM_KEYDOWN/WM_KEYUP carries, in the layout ui95's handler
    decodes: bits 0-15 repeat count, bits 16-23 scancode, bit 24 extended. Written once here so the
    down and up paths cannot drift apart. */
@@ -2544,6 +2583,10 @@ bool ProcessGameMessages() {
 
     // Process messages without holding the lock
     for (const auto& msg : messagesToProcess) {
+        /* MP-1 S9: restore the modifier state this message was POSTED with, so a GetKeyState
+           during its handling answers about the keystroke rather than about right now. */
+        g_ffSynthMods = msg.mods;
+
         // Handle game-specific messages
         switch (msg.message) {
             case WM_QUIT:
@@ -3345,6 +3388,72 @@ static void render_frame(void) {
                         fflush(stderr);
                         ffPhase = 3;
                     }
+                }
+            }
+        }
+
+        /* MP-1 S9: scripted UI TYPING via FF_UI_TYPE="text@sec;text@sec...".
+           Why this exists: MP-1 sprints 5-8 fixed three defects in the character path and could
+           verify only two, because the one instrument that can type -- xdotool -- does not reach an
+           SDL window on this box (XSendEvent is discarded; three consecutive runs produced ZERO
+           [keys] lines and read exactly like a broken fix). FF_SIM_KEY is no substitute: it calls
+           FF_PushKeyEvent, the DirectInput buffered path the SIM reads, and never touches
+           PostGameMessage -- so nothing in the tree could exercise the UI character path at all.
+           This posts the SAME WM_KEYDOWN/WM_KEYUP pair, built by the SAME FF_KeyLParam, that
+           handle_sdl_events posts for a real keystroke. Shifted characters raise g_ffSynthMods so
+           GetKeyState answers as it would for a physical shift. */
+        {
+            static int s_typeInit = 0;
+            static struct { char text[64]; Uint32 atMs; int fired; } s_types[8];
+            static int s_nTypes = 0;
+            static Uint32 s_typeStart = 0;
+            if (!s_typeInit) {
+                s_typeInit = 1;
+                const char* e = getenv("FF_UI_TYPE");
+                if (e) {
+                    char buf[512];
+                    strncpy(buf, e, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
+                    for (char* tok = strtok(buf, ";"); tok && s_nTypes < 8; tok = strtok(NULL, ";")) {
+                        char* at = strrchr(tok, '@');
+                        if (!at) continue;
+                        *at = 0;
+                        strncpy(s_types[s_nTypes].text, tok, sizeof(s_types[0].text) - 1);
+                        s_types[s_nTypes].text[sizeof(s_types[0].text) - 1] = 0;
+                        s_types[s_nTypes].atMs = (Uint32)(atof(at + 1) * 1000.0);
+                        s_types[s_nTypes].fired = 0;
+                        s_nTypes++;
+                    }
+                    fprintf(stderr, "[FF_UI_TYPE] parsed %d string(s)\n", s_nTypes);
+                }
+            }
+            if (s_nTypes) {
+                if (!s_typeStart) s_typeStart = SDL_GetTicks();
+                Uint32 el = SDL_GetTicks() - s_typeStart;
+                for (int ti = 0; ti < s_nTypes; ti++) {
+                    if (s_types[ti].fired || el < s_types[ti].atMs) continue;
+                    s_types[ti].fired = 1;
+                    fprintf(stderr, "[FF_UI_TYPE] typing \"%s\" at %ums\n", s_types[ti].text, el);
+                    for (const char* c = s_types[ti].text; *c; c++) {
+                        int dik = 0, shift = 0;
+                        FF_AsciiToDIK(*c, &dik, &shift);
+                        if (!dik) {
+                            fprintf(stderr, "[FF_UI_TYPE]   no DIK for '%c' -- skipped\n", *c);
+                            continue;
+                        }
+                        if (shift) {
+                            g_ffSynthMods |= KMOD_LSHIFT;
+                            PostGameMessage(WM_KEYDOWN, DIK_LSHIFT, FF_KeyLParam(DIK_LSHIFT));
+                        }
+                        PostGameMessage(WM_KEYDOWN, dik, FF_KeyLParam(dik));
+                        PostGameMessage(WM_KEYUP,   dik, FF_KeyLParam(dik) | (1L << 31));
+                        if (shift) {
+                            PostGameMessage(WM_KEYUP, DIK_LSHIFT, FF_KeyLParam(DIK_LSHIFT) | (1L << 31));
+                        }
+                        /* The latch only needs to be right at POST time now -- ProcessGameMessages
+                           restores it per message from GameMessage::mods. */
+                        g_ffSynthMods &= ~KMOD_LSHIFT;
+                    }
+                    g_ffSynthMods = 0;
                 }
             }
         }
