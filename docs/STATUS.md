@@ -19251,3 +19251,68 @@ one more: S23 re-captures at a resolution where the glyphs are readable and read
 an investigation.
 
 **GOLDVID-FF-1: new pass, sprint 2 of 4. The instrument is found; the reading is next.**
+
+## GOLDVID-FF-1 S23 (Opus 5, 2026-09-17) — ⚖️ **PARKED, on the condition set in S22: a legible capture needs a render-resolution change that is not sprint-safe** — the item ends having found and photographed the RWR, one reading short of the comparison
+
+**Story:** GOLDVID-FF-1. **New pass, sprint 3 of 4 — item parked.**
+
+S22 located the RWR and earned the item exactly one more sprint, with the condition stated in
+advance: *"S23 re-captures at a resolution where the glyphs are readable… If S23 does not produce
+legible digits, park it."* It does not, and here is why in full.
+
+### ⛔ The render resolution is hardcoded, and not in one place
+
+```c
+// main_linux.cpp:129
+// Window settings - must match UI resolution (1024x768 for HiRes UI)
+#define WINDOW_WIDTH 1024
+#define WINDOW_HEIGHT 768
+int g_nWindowWidth  = WINDOW_WIDTH;    // <- declared at :132 and USED NOWHERE ELSE
+int g_nWindowHeight = WINDOW_HEIGHT;   // <- same
+
+// :1192
+glOrtho(0, WINDOW_WIDTH, WINDOW_HEIGHT, 0, -1, 1);   // <- takes the DEFINE, not the global
+```
+
+* there is **no command-line or env option** for window size (`-d -f -w -nosound -port -test-ia -h`);
+* the globals that look like a runtime override are **dead**;
+* `glOrtho` bypasses them anyway;
+* and the source comment says the size **must match the UI resolution**.
+
+**Raising it is a multi-site change against an explicit warning, to read two digits.** That is not a
+sprint, and the payoff does not justify the risk to a working UI.
+
+### ⭐ What the item achieved, and it is not nothing
+
+| | |
+|---|---|
+| S17 | the RWR is wired in both pits; Instant Action has no threats, so the gold's TE is required |
+| S18 | the gold's own mission flies under capture — TE 28, 9 waypoints, sim-thread shot |
+| S19 | the 2-D pit is reached and verified by signature (108,374 colours vs 8,079 for HUD) |
+| S21 | `FF_DEBUG_PITSEL`: `16_ckpit.dat`, `hScale=0.6399`, F-16CJ — and a 1024×768 display loads the **1600×1200** art set |
+| **S22** | **the RWR located, rendering, showing a BOXED priority contact** in the gold's own mission |
+
+`docs/reference/260917_ours_rwr_te28_t110.png` (8×) is the artefact.
+
+### ⚖️ The honest accounting
+
+**23 sprints. Seven since S15 built the oracle, and the oracle has still never been used.** The work
+was real — but three of those seven ended in retracting the previous one (S18's "hook is broken",
+S20's "wrong scale", S20's "not green"), each caused by **reasoning about the port from a property of
+the gold, or vice versa.** That is the specific error this item kept making, and it is worth carrying
+out of here more than the RWR rect is.
+
+### What would unblock it cheaply, for whoever returns
+
+Not a bigger window — **a bigger RWR**. `otwloop.cpp:3252` sets the viewport from
+`GetViewportBounds(BOUNDS_RWR)`; an `FF_RWR_ZOOM` that multiplies that one viewport would give legible
+glyphs with **no UI risk at all**, because nothing else reads it. One env hook, one call site.
+
+### ⚠️ Not claimed
+
+That our RWR is correct, or that it matches the gold. **It has been found and photographed; it has
+never been compared.** S15's oracle (gold: `SA-2` abeam, `SA-8` ahead with the priority caret) remains
+unused.
+
+**GOLDVID-FF-1: PARKED at 23 sprints. Reopen only with `FF_RWR_ZOOM` or an equivalent — the remaining
+work is one comparison, and it should cost one sprint, not another seven.**
