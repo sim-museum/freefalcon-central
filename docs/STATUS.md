@@ -20122,3 +20122,83 @@ evidence.)*
 cover `B_DELAY + B_SECS`, or an empty peer list is a dead host, not a defect.
 
 **MP-1: 12 sprints. The defect class is bounded and the fixes are gated. FF sprint 3 of 4.**
+
+## MP-1 S13 (Opus 5, 2026-09-17) — ⭐⭐⭐ **the PO's exact sentence is answered on the PO's exact screen: the COMMS URL/IP field now takes `192.168.1.50`, dots and all** — and part (a), the route, is read straight off the screen: URL/IP → Server or Client → CONNECT
+
+**Story:** MP-1 — the PO's standing multiplayer priority. FF rotation: sprint 4 of 4 — rotation
+complete. The report, 2026-09-04, was one sentence: ***"how to run ff multiplayer - cannot type URL
+anywhere"***. Nine sprints went into the second half. This sprint returns to the first — and tests
+the second **where the PO reported it**, which nothing had done.
+
+Artefacts: `docs/reference/260917_mp1_comms_screen.png`,
+`docs/reference/260917_mp1_comms_url_typed.png`.
+
+### ⭐ Part (a): the route, read off the screen
+
+`COMMS` from the main menu (main-menu button row, `488,750`) opens a screen that answers the
+question directly:
+
+```
+   URL / IP           edit box, prefilled 127.0.0.1        (640, 217)
+   Connection List    saved entries, 127.0.0.1             (640, 250-440)
+   Connect as Server  [ ]  radio                           (732, 477)
+   Connect as Client  [x]  radio  -- the default           (732, 525)
+   DELETE   CONNECT   SAVE        footer                   (y = 750)
+```
+
+**So the route is: type the host's address into URL/IP, choose *Connect as Server* on the machine
+that hosts and *Connect as Client* on the one that joins, press CONNECT.** `SAVE` adds the address
+to the Connection List so it need not be retyped. **The backlog entry's open questions — *"Which
+instance hosts, what the joiner enters"* — are answered by the screen itself**; there was never a
+documentation gap so much as an unreachable screen.
+
+### ⭐⭐⭐ And the field accepts an address
+
+```
+FF_UI_CLICK='488,750@8;640,217@14'    COMMS, then the URL/IP box
+FF_UI_TYPE='192.168.1.50@20'
+```
+
+```
+[edit] ascii=56('8') accepted=1 cursor= 7 maxlen=54 text="192.168"
+[edit] ascii=46('.') accepted=1 cursor= 8 maxlen=54 text="192.168."
+[edit] ascii=49('1') accepted=1 cursor= 9 maxlen=54 text="192.168.1"
+[edit] ascii=46('.') accepted=1 cursor=10 maxlen=54 text="192.168.1."
+[edit] ascii=53('5') accepted=1 cursor=11 maxlen=54 text="192.168.1.5"
+[edit] ascii=48('0') accepted=1 cursor=12 maxlen=54 text="192.168.1.50"
+```
+
+**Twelve characters, digits and dots, accumulated exactly**, `maxlen=54`, and **zero `SNAPSHOT
+trigger` lines**. The field reads `127.0.0.1` before and `192.168.1.50` with a caret after.
+
+**The PO's sentence is now false in both halves**, and the second half is demonstrated on the field
+they named rather than on the logbook stand-in S9–S12 used.
+
+### ⚖️ What MP-1 has cost and closed
+
+| | |
+|---|---|
+| sprints | 13 |
+| defects found | **5**, all in the character path, all shipped broken |
+| instruments built | `FF_UI_TYPE`, `FF_DEBUG_EDIT`, `FF_DEBUG_KEYS`' `SNAPSHOT` line |
+| gate | `tools/ff_typing_gate.sh`, with a negative control seen to go red |
+| part (b) typing | **closed** |
+| part (a) route | **documented** — and the screen is reachable and usable |
+
+### ⚠️ Not claimed — and this is the honest edge of it
+
+* **No connection has been made.** Nothing here presses `CONNECT`, starts two instances, or
+  exchanges a packet. **What is shown is that the screen is reachable, legible, and accepts an
+  address** — the thing that blocked the PO. Whether `CONNECT` then works is **untested and is the
+  next item**, not a claim of this one.
+* **The port number is not on this screen.** The backlog asks *"which port"* and the COMMS screen
+  does not say. That is still open, and it is a real gap in the answer to (a).
+* `SAVE` was deliberately **not** pressed — it writes to the player's Connection List. The typed
+  address exists only in the field.
+* That the AppImage exposes what is needed — the backlog's packaging question — is untouched.
+
+**S14:** press `CONNECT` with two instances, honouring `HARNESS-PEER-LIFETIMES` (B staggered 95 s;
+`A_SECS` must cover `B_DELAY + B_SECS`, or an empty peer list is a dead host, not a defect). And find
+where the port is configured, since the screen does not offer it.
+
+**MP-1: 13 sprints. The PO's sentence is answered in both halves; making a connection is the next item. FF rotation complete (4 sprints) → MiG Alley.**
