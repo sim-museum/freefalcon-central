@@ -18352,3 +18352,67 @@ ahead of them.
 sprint has read — the missile video is 496 s and only its first 30 have been looked at.
 
 **GOLDVID-FF-1: new pass, sprint 1 of 4.**
+
+## GOLDVID-FF-1 S14 (Opus 5, 2026-09-16) — ⭐⭐ **a mechanical scene map of the 496 s missile video: 368 s of it is FLIGHT, all of it the 2-D pit, all of it legible** — the census that S5 did from thumbnails, done from cuts instead
+
+**Story:** GOLDVID-FF-1. **New pass, sprint 2 of 4.**
+
+S13 retired the old census as a source of screen names — three of its five entries were
+mis-identified — and said the gold videos *"still hold behaviour no sprint has read"*. This produces
+the list properly: 1 fps thumbnails, a per-frame signature, and scene boundaries from the frame-to-
+frame difference rather than from my reading of a thumbnail.
+
+### ⭐ `260915_missile_threat.mp4` — 496 s, 17 scenes
+
+| t (s) | content |
+|---|---|
+| 0–14 | the recording terminal |
+| 15–39 | startup, then the main menu |
+| 40–58 | front-end screens (TE selection / planning) |
+| **59–64** | **loading splash** |
+| **65–316** | **FLIGHT 1 — 252 s** |
+| 317–341 | back in the front end |
+| **342–347** | **loading splash** |
+| **348–463** | **FLIGHT 2 — 116 s** |
+| 464–495 | exit |
+
+⭐ **368 of the 496 seconds are in-cockpit flight**, and S13 noted only the first 30 s of this video
+had ever been looked at.
+
+✅ It also **corroborates S10 independently**: S10 placed the sim-entry splash at *"t=60 and t=348"*
+from inspection; the cut detector puts the two splash scenes at **59–64** and **342–347** without
+being told to look.
+
+### ⭐ The flight footage is 2-D pit throughout, and it is readable
+
+Eight frames sampled across both flights are all the **2-D cockpit**. That is not just the samples:
+the cut detector finds **no frame-to-frame difference above 12.4 (flight 1) or 13.6 (flight 2)**
+against a scene threshold of 14.0 — so there is no view change anywhere in either flight.
+
+At full resolution (`docs/reference/260915_gold_flight_2dpit_t240.png`) a single frame carries:
+
+* the **HUD** — airspeed and altitude tapes, heading, pitch ladder, steerpoint data;
+* the **UFC** — `UHF PRESAGE1 TGT 0 / VHF GUARD DB 54 / M1 3 C 1234 MAN T`;
+* the **left MFD**, the **right MFD** with range rings and contacts;
+* the **RWR**, and the analogue ADI / altimeter (`07000`).
+
+⚠️ **This matters for how this port has been reading the gold.** GOLDVID-FF-2 reconstructed the
+mission's threats **out of the campaign files** (S9–S12) because it did not have pixels to read them
+from. Six minutes of legible instrument panel have been in the same video the whole time.
+
+⚠️ And it bears on the view work: **the gold never leaves the 2-D pit in this recording.** Any
+comparison of ours against "the gold" for the 3-D pit, chase or padlock views is not comparing
+against *this* video.
+
+### ⚠️ Not claimed
+
+That the other gold video (`260915_refuel.mp4`, 38 MB) has the same shape — it has not been
+censused. Nor that 12.4 < 14.0 *proves* no view change: it is a threshold argument, and a view
+change that preserved the frame's coarse colour layout could hide under it. It is strong evidence,
+not a proof.
+
+**S15:** read the instruments. The threats GOLDVID-FF-2 reconstructed from the campaign files are
+visible on the gold's MFD and RWR — that is a direct check of work that has so far only been checked
+against itself.
+
+**GOLDVID-FF-1: new pass, sprint 2 of 4.**
