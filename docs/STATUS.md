@@ -20463,3 +20463,76 @@ checkable hypothesis where the item previously had none.
 enabled one; then click the game at **(127,145)** and commit with whichever it says.
 
 **MPTEST-FF: the joiner is on the right screen with the host's game in its tree, and the commit failure has a named suspect. FF rotation complete (4 sprints) → MiG Alley.**
+
+## MPTEST-FF S7 (Opus 5, 2026-09-17) — ⛔⛔ **correcting my own S6: the commit failure it named a suspect for was FOUND AND FIXED on 2026-09-06, and `FM_JOIN_SUCCEEDED` has been recorded since. The join works.** The open question is one stage later, and S5's harness fix is what unblocks it
+
+**Story:** MPTEST-FF. FF rotation: sprint 1 of 4. S6 ended: *"run `[GETCTRL]` on window 40500 and read
+whether `2000002` or `2000003` is the visible, enabled one"* and offered the stacked-control twin as
+*"a concrete, checkable hypothesis where the item previously had none."* **Before running it I checked
+whether it had already been run. It had — eleven days ago — and the item had a cause, a fix and a
+green result the whole time.**
+
+### ⛔ What was already on the record
+
+`docs/STATUS.md:12401`, **MPTEST-FF S6v (2026-09-06)**:
+
+```
+   [GETCTRL] win 40500 ... ctrl 2000002 ... flags=0x14080400
+```
+
+**`C_BIT_ENABLED` (0x800) is CLEAR — the commit button was DISABLED**, which is why `CheckHotSpots`
+refused it. Not the stacked twin; **an enable bit.** And S6u–S6x then found and fixed the cause — two
+missing links in the Linux message loop:
+
+1. `main_linux.cpp` had **no `case FM_JOIN_CAMPAIGN` at all**, so the preload request was dropped
+2. its `FM_GOT_CAMPAIGN_DATA` handler called `CampaignPreloadSuccess` but **not `RecieveScenarioInfo`**
+
+With both added, flags became `0x14080c00` and the `(892,748)` click was taken. **S6y then recorded
+`[FM] FM_JOIN_SUCCEEDED received` — the client joins the host's campaign.**
+
+### ⛔ So two of my claims were wrong
+
+* **"the commit failure S6q–S6t left open"** — it was closed on 2026-09-06 by S6x.
+* **"a concrete hypothesis where the item previously had none"** — the item had the answer, measured,
+  with the fix shipped.
+
+⭐ **Why I missed it:** MPTEST-FF carries **two numbering schemes** — an `S6a…S6y` series from
+2026-09-06 and a fresh `S1…S3` from 2026-09-13 — so `grep 'MPTEST-FF S[0-9]'` shows `S1, S2, S3`
+and my `S4, S5, S6`, and the entire `S6*` series is invisible to it. **The same shape as BoB's
+ASPECT-1 yesterday**, where I read the backlog row instead of the sprint log. *(There the lesson was
+"read the sprint log"; here the sprint log itself is discontinuous.)*
+
+### ⭐ What my sprints did contribute, and where the item really stands
+
+**S5's harness fix stands and matters**: `PEER_B_SCREEN` defaulted to `both`, whose second click
+pressed `DF_HOST_CTRL` on the joiner. That is a genuine defect and it is exactly what defeated
+**S3 (2026-09-13)** — the one sprint in the 09-13 thread that is still open:
+
+> *"the joiner never receives `FM_START_CAMPAIGN` … the click fired but the joiner shows **zero**
+> `FM_START_CAMPAIGN`, `TakeOff` or `Commit` activity … `972,748` is the HOST's FLY coordinate; on
+> the joiner it lands on nothing."*
+
+**S3 was on the dogfight screen** (S5's finding), so its FLY click could never have worked. With the
+navigation fixed, S3's run is worth repeating — **and that is the actual next step**, not the commit.
+
+### ⚖️ Corrected state of MPTEST-FF
+
+| stage | state |
+|---|---|
+| connect, game list, campaign tree | ✅ working (S6p, and my S6 re-confirmed it) |
+| commit / `FM_JOIN_SUCCEEDED` | ✅ **working since 2026-09-06** (S6x, S6y) |
+| joiner reaches `FM_START_CAMPAIGN` / takeoff | ⛔ **open** — S3, defeated by the harness bug S5 fixed |
+
+**A run driving `PEER_B_JOIN=1` with `FF_DEBUG_STARTCAMP=1` on the corrected navigation is in
+flight.**
+
+### ⚠️ Not claimed
+
+* **That the join is green today.** S6y is from 2026-09-06 and many rebuilds ago; **`fixed in dev is
+  not fixed now`** is this project's own rule. The running pass will say.
+* That the stacked `SINGLE_COMMIT_CTRL`/`COMMS_COMMIT_CTRL` pair is harmless — it is still an odd
+  thing to find on one rect, **but it is not the cause of anything observed.**
+* That S4/S6 were wasted: S4's dump identified the wrong screen and S6 confirmed the tree populates.
+  **But both would have been shorter had I read the `S6*` series first.**
+
+**MPTEST-FF: two of my own claims retracted, the join shown to be already solved, and the open stage narrowed to takeoff. Sprint 1 of 4.**
