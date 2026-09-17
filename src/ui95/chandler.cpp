@@ -2920,7 +2920,20 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
             case WM_KEYUP:
                     Transmit(0);// voice stuff me123
 
+            /* MP-1 S11 (FF_LINUX): this tested wParam against a Win32 VIRTUAL-KEY code, but on this
+               port wParam carries the DirectInput SCANCODE -- main_linux.cpp posts the DIK there and
+               puts the scancode in lParam's Win32 layout for the decoder below (S9). The two
+               namespaces collide exactly here: VK_SNAPSHOT is 0x2C and so is DIK_Z. So typing a
+               letter Z anywhere in the UI took a screenshot AND, because the branch deliberately
+               falls through to WM_KEYDOWN, ran the key-up through the key-down path as well.
+               Observed: typing "ZQ7x" into the logbook PILOT field opened the SAVE SCREENSHOT modal
+               over the logbook, which then swallowed the OK click. Compare against the scancode the
+               port actually posts. */
+#if FF_LINUX
+            if (wParam == DIK_SYSRQ) // fall through to KEYDOWN also
+#else
             if (wParam == VK_SNAPSHOT) // fall through to KEYDOWN also
+#endif
             {
                 if (gScreenShotEnabled)
                     gUI_TakeScreenShot = 1; // Set to take screen shot after screen is refreshed (2=Save to file)...

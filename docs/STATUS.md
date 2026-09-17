@@ -19953,3 +19953,97 @@ cover `B_DELAY + B_SECS`, or an "empty list" is a dead host, not a defect.
   driven.
 
 **MP-1: 10 sprints. Typing works, proven at the decode, the field and the pixels. FF sprint 1 of 4.**
+
+## MP-1 S11 (Opus 5, 2026-09-17) — ⭐⭐⭐ **typing a letter `Z` anywhere in the UI took a SCREENSHOT: `VK_SNAPSHOT` is `0x2C` and so is `DIK_Z`, and this port posts the SCANCODE in `wParam`.** A fifth defect in the same family — and with it fixed, the typed callsign reaches disk
+
+**Story:** MP-1. FF rotation: sprint 2 of 4. S10 closed asking whether the typed value persists
+through `OK` to disk. Testing that found something else first.
+
+Artefact: `docs/reference/260917_mp1_snapshot_collision.png`.
+
+### ⛔ The OK click did nothing — and the reason was on screen all along
+
+Typed `ZQ7x` into the logbook PILOT field, clicked `OK`, and `config/Viper.lbk` was **byte-identical**
+(`878b4ef8…`, mtime unchanged). Before concluding "OK does not save", checked that the click landed.
+It had not: a **`SAVE SCREENSHOT` modal** was open over the logbook, swallowing it.
+
+Three runs separate the cause cleanly — **all three had `FF_UI_SCREENSHOT=2`; only the two that
+TYPED have the dialog:**
+
+```
+   lb       (click LOGBOOK only)      no modal
+   type     (S10: + FF_UI_TYPE)       MODAL
+   persist  (+ FF_UI_TYPE + OK)       MODAL
+```
+
+⚠️ **S10 had this dialog and I did not see it** — S10's "the pixels agree" crop was the top-left
+corner, where the field is, and the modal is centred. The typing result stands (the `[edit]` lines
+and the visible `ZQ7x` are real), but a side effect was firing unseen. **Crop for the claim, look at
+the whole frame for everything else.**
+
+### ⭐⭐⭐ The cause, by definition rather than by inference
+
+`chandler.cpp:2923`, in `WM_KEYUP`:
+
+```c
+if (wParam == VK_SNAPSHOT)   // fall through to KEYDOWN also
+{
+    if (gScreenShotEnabled) gUI_TakeScreenShot = 1;
+    lParam = (lParam bitand 0xff00ffff) bitor DIK_SYSRQ;
+}
+```
+
+```
+   compat_winuser.h:244   #define VK_SNAPSHOT  0x2C
+   dinput.h:79            #define DIK_Z        0x2C
+```
+
+**Two namespaces, one number.** `main_linux.cpp` posts the **DirectInput scancode** in `wParam` —
+S9's own comment says *"wParam keeps the raw DIK code: other consumers already read it there"* — and
+this site reads it as a **Win32 virtual key**. So `DIK_Z` is indistinguishable from Print Screen.
+
+⭐ **And the branch deliberately falls through to `WM_KEYDOWN`**, so a Z key-*up* was also run through
+the key-*down* path. Visible in S10's own trace, unremarked at the time:
+
+```
+[keys] wParam=44 lParam=0x2c0001   -> Key=44 Ascii=90('Z')      <- the keydown
+[keys] wParam=44 lParam=0x800000b7 -> Key=0  Ascii=0            <- the keyUP, in the keydown case
+```
+
+**This is the fifth defect in MP-1's family and the same root as the first**: S5–8's defect 1 was the
+scancode posted in `wParam` where the decoder reads `lParam`. The port put DIK in `wParam` and every
+site that expects a VK there is now suspect.
+
+### ⭐⭐ Fixed, and the persistence question answers itself
+
+`#if FF_LINUX` the test compares against `DIK_SYSRQ` (`0xB7`) — the scancode the port actually posts,
+and the same constant the branch already writes into `lParam` two lines later. Re-ran the identical
+recipe:
+
+```
+   before fix   Viper.lbk  878b4ef858068a90956d02c8aaf00c70   UNCHANGED
+   after  fix   Viper.lbk  06cae7b7185e916888788b967f1c4e0f   WRITTEN
+```
+
+and the capture shows **no modal, the logbook closed, and the main menu back**. **So `OK` does save,
+and S10's open question is answered: the typed value reaches disk.** The obstacle was never the save
+path.
+
+⚖️ **The player's install was protected**: `config/Viper.lbk` was backed up before the runs and
+restored afterwards — verified byte-identical (`878b4ef8…`) with its original mtime.
+[[gates-must-not-read-the-player-tree]]
+
+### ⚠️ Not claimed
+
+* **That `DIK_SYSRQ` is reachable here.** The fix makes Print Screen the trigger *by scancode*; no
+  run has pressed it. What is demonstrated is that **`Z` no longer triggers it** — the removal is
+  verified, the replacement is not.
+* **That no other `wParam`-as-VK site remains.** This one was found by a symptom. A sweep of
+  `wParam ==` against `VK_` in the UI is the obvious follow-up and has not been done.
+* **That the written `.lbk` contains `ZQ7x`.** The file is obfuscated and was not decoded; what is
+  shown is that `OK` writes when the modal is gone and does not when it is there.
+
+**S12:** sweep every `wParam == VK_*` comparison in `src/ui95/` — `DIK_Z`/`VK_SNAPSHOT` is unlikely to
+be the only collision in a 256-value namespace overlaid on another.
+
+**MP-1: 11 sprints. A fifth defect, same root as the first, and the callsign now saves. FF sprint 2 of 4.**
