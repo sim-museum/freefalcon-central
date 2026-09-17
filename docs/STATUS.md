@@ -18617,3 +18617,78 @@ compare against a known seven-slot record. An F-16-sized airframe with one slot 
 record that is plainly not an aircraft points at (1). That distinguishes them without a run.
 
 **BSPSLOT-2: new pass, sprint 1. FF rotation: sprint 1 of 4.**
+
+## BSPSLOT-2 S6 (Opus 5, 2026-09-16) — ⭐⭐⭐ **settled by the F-16 family itself: record 1288 IS the crashed F-16, so `MapVisId`'s identity fallback resolved to the RIGHT object — the defect is that this one record carries `nSlots=1` while every relative carries 2 to 9** — ⛔ **and the missing `visid.map`, which S5 leaned toward, is NOT the cause of this bug**
+
+**Story:** BSPSLOT-2. **New pass, sprint 2 of 4.**
+
+S5 left exactly two live possibilities and refused to choose: either `visid.map` is required and 76
+call sites mis-resolve, or identity is correct and record 1288's data is bad. This distinguishes them.
+
+### ⛔ First, the instrument was sited where it could not speak
+
+The record dump went into `drawbsp.cpp`'s out-of-bounds branch — which needs **an aircraft to
+explode** before it says anything. A 150 s Instant Action run flew clean at 62 FPS and produced
+**zero** `[SLOT]` lines. The question ("what kind of object is record 1288?") is answerable the
+moment the object table is read, so the dump moved to `ObjectParent::SetupTable`, after
+`ReadParentList`. It now answers on every launch, in 25 s, with no explosion required.
+
+*(Same lesson this project keeps buying: an instrument that cannot speak looks exactly like a
+negative result.)*
+
+### ⭐⭐⭐ The answer — the whole F-16 family, side by side
+
+```
+ id  name                          radius   span x   span y   span z  nLODs  nTexSets  nSlots
+1288 VIS_CF16A  (crashed, whole)    29.23    50.39    32.58    15.63     1       6        1   <--
+1052 VIS_F16C   (FLYABLE F-16)      32.00    44.50     4.40     5.19     8       6        9
+1233 VIS_CF16FRN(piece: front)      23.12    20.84     9.31     7.29     1       1        2
+1234 VIS_CF16LST(piece: left stab)  21.73     8.16     6.03      1.47    1       1        6
+1235 VIS_CF16LWG(piece: left wing)  18.14    13.40    12.46     0.65     1       1        5
+1236 VIS_CF16MID(piece: mid)        24.04    28.50     9.31    15.63     1       6        3
+1237 VIS_CF16NOS(piece: nose)       29.23     7.07     2.92     2.76     1       1        1
+1238 VIS_CF16RST(piece: right stab) 21.73     8.16     6.03     1.47     1       1        7
+```
+
+⭐ **The game ships a dedicated model for every crashed F-16 piece** — `FRN`, `LST`, `LWG`, `MID`,
+`NOS`, `RST` at 1233–1238 — which are precisely the parts the seven damage slots name
+(`damage.cpp:604-610`). The damage assets are not missing; they are a documented, contiguous block.
+
+**1288 belongs to this family and is the whole-aircraft member of it:** it is aircraft-scale, it
+carries **6 texture sets — the same as the flyable F-16C** (the pieces carry 1, except `MID`) — and
+it sits at the head of the crashed-F-16 id block. Identity resolution landed on exactly the object
+the constant names.
+
+**And it is the ONLY member with `nSlots=1`.** Its relatives carry 9, 7, 6, 5, 3, 2. A whole-aircraft
+wreck model that is supposed to shed seven named pieces has one attachment point, in a family where
+even a *left stabiliser* has six.
+
+### ✅ So the two possibilities are resolved
+
+1. ~~`visid.map` is required and absent → 1288 is the wrong record~~ — **NO.** 1288 is the right
+   record. The absent `visid.map` (S5, confirmed at runtime by `FF_DEBUG_VISMAP`) is real and worth
+   knowing, but **it is not the cause of this bug**, and S5 leaned the wrong way.
+2. **Identity is correct → record 1288's `nSlots=1` is bad model data.** ✅ This one.
+
+### ⛔ A correction to my own reasoning, made before it hardened
+
+Reading 1288's `50.39 × 32.58` against an F-16's real 49.4 ft length and 32.67 ft span, I concluded
+the units were **feet** and the match was exact to about an inch. **The units oracle refutes that
+reading**: the *flyable* F-16C spans `44.50 × 4.40`, and no unit makes an F-16 4.4 wide. So these
+extents are not a simple wings-included bounding box, the coincidence was a coincidence, and the
+units remain unknown. **It does not matter** — the family comparison (texture sets, id block, slot
+counts) settles the question without needing units at all, which is why the conclusion survives the
+retraction of the argument I first reached for.
+
+### ⚠️ Not claimed
+
+**That the fix is to edit the model.** Where `nSlots` should come from — a `.DXH` this install is
+missing a newer copy of, or a build step that never ran — is not established, and patching object
+data is not obviously the right repair. What IS established is that the code is innocent: it asks a
+crashed-F-16 model for the seven slots that model's own siblings demonstrate the format supports.
+
+**S7:** compare record 1288 against another install's object file (the two AppDir trees under
+`/home/admin/` each carry one) — if another copy has `nSlots=7`, this is a stale/partial data file
+and the repair is a data swap, not a code change.
+
+**BSPSLOT-2: new pass, sprint 2 of 4. FF rotation: sprint 2 of 4.**

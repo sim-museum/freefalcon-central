@@ -120,6 +120,61 @@ void ObjectParent::SetupTable(char *basename)
     // Read the parent object records from the master file
     ReadParentList(file);
 
+    /* BSPSLOT-2 S6 (2026-09-16): the record dump lives HERE, not in drawbsp's out-of-bounds
+       branch, because that branch needs an aircraft to EXPLODE before it says anything -- a
+       90 s Instant Action run produced no explosion and therefore no answer. The question
+       ("is record 1288 an airframe or something else?") is answerable the moment the table is
+       read, so ask it then. 1288 is VIS_CF16A, a crashed F-16: airframe-sized extents mean
+       identity resolved to the right KIND of object and nSlots=1 is bad model data; a small
+       or absurd record means identity resolved to the wrong record and the absent visid.map
+       is the fault. Printed beside real seven-slot records so the comparison is like-for-like
+       rather than against my idea of an F-16. Default off; changes no behaviour. */
+    {
+        static int ffDbgSlot = -1;
+        if (ffDbgSlot < 0) ffDbgSlot = getenv("FF_DEBUG_SLOT") ? 1 : 0;
+        if (ffDbgSlot && TheObjectList && TheObjectListLength > 1288)
+        {
+            /* S6b: the flyable F-16C (1052) is the UNITS ORACLE -- if 1288 and 1052 agree on
+               span, 1288 is an F-16 and the numbers are whatever unit an F-16 measures in.
+               1233-1238 are the individual crashed-F-16 PIECES (FRN/LST/LWG/MID/NOS/RST) --
+               exactly the parts the seven damage slots name, so their presence says the piece
+               models exist and it is the attachment points on 1288 that are missing. */
+            static const struct { int id; const char *nm; } wanted[] = {
+                {1288, "VIS_CF16A  (crashed F-16, whole)"},
+                {1052, "VIS_F16C   (FLYABLE F-16 -- units oracle)"},
+                {1233, "VIS_CF16FRN(piece: front)"},
+                {1234, "VIS_CF16LST(piece: left stab)"},
+                {1235, "VIS_CF16LWG(piece: left wing)"},
+                {1236, "VIS_CF16MID(piece: mid)"},
+                {1237, "VIS_CF16NOS(piece: nose)"},
+                {1238, "VIS_CF16RST(piece: right stab)"},
+            };
+            for (unsigned wi = 0; wi < sizeof wanted / sizeof wanted[0]; wi++)
+            {
+                if (wanted[wi].id >= TheObjectListLength) continue;
+                ObjectParent *r = &TheObjectList[wanted[wi].id];
+                fprintf(stderr, "[SLOT] %4d %-34s radius=%6.2f span x=%6.2f y=%6.2f z=%6.2f "
+                        "nLODs=%d nTexSets=%d nSlots=%d\n",
+                        wanted[wi].id, wanted[wi].nm, r->radius,
+                        r->maxX - r->minX, r->maxY - r->minY, r->maxZ - r->minZ,
+                        (int)r->nLODs, (int)r->nTextureSets, (int)r->nSlots);
+            }
+            ObjectParent *r = &TheObjectList[1288];
+            int shown = 0;
+            for (int k = 0; k < TheObjectListLength && shown < 6; k++)
+            {
+                if (TheObjectList[k].nSlots < 7) continue;
+                ObjectParent *q = &TheObjectList[k];
+                fprintf(stderr, "[SLOT]   cmp %4d (nSlots=%2d): radius=%.2f x[%.2f..%.2f] "
+                        "y[%.2f..%.2f] z[%.2f..%.2f] nLODs=%d\n",
+                        k, (int)q->nSlots, q->radius, q->minX, q->maxX,
+                        q->minY, q->maxY, q->minZ, q->maxZ, (int)q->nLODs);
+                shown++;
+            }
+            fflush(stderr);
+        }
+    }
+
     // Close the master file
     close(file);
 }
