@@ -19190,3 +19190,64 @@ the wrong axis. The remaining unknown is **which panel is active**, since `16_ck
 index is live in the forward view. Then one crop settles it.
 
 **GOLDVID-FF-1: new pass, sprint 1 of 4.**
+
+## GOLDVID-FF-1 S22 (Opus 5, 2026-09-17) — ⭐⭐⭐ **THE RWR IS FOUND, RENDERING, AND SHOWING A BOXED PRIORITY CONTACT** — it was in the rect S20 already cropped and rejected, because **our port draws it in PURE GREEN with the grid OFF**, and I had twice searched on the wrong axis
+
+**Story:** GOLDVID-FF-1. **New pass, sprint 2 of 4.** Seven sprints after S15 built the oracle.
+
+S21 narrowed the unknown to "which panel is active". The answer came from the **draw site** instead,
+and it settles the whole search:
+
+```c
+// otwloop.cpp:3252
+pCockpitManager->GetViewportBounds(&viewportBounds, BOUNDS_RWR);
+renderer->SetColor(0xFF00FF00);          // <- PURE GREEN
+theRwr->SetGridVisible(FALSE);           // <- NO scope rings, ever
+theRwr->Display(renderer);
+```
+
+### ⛔ Two of my own search criteria were wrong, in opposite directions
+
+* **S20** hunted a **circular scope**. There is none — `SetGridVisible(FALSE)` means the rings are
+  never drawn. An RWR here is ticks and glyphs on a bare viewport.
+* **S20 then "corrected" itself**: *"the RWR is not green — S15's gold crop is pale grey-blue
+  (105,124,132)."* **That was the gold's colour, not ours.** Our renderer is hard-coded
+  `0xFF00FF00`. I took a property of the oracle and applied it to the port.
+
+**So S20 cropped the right rectangle, rendered it, looked at it, and rejected it** — twice over,
+on a shape that does not exist and a colour belonging to the other side of the comparison.
+
+### ⭐⭐⭐ What is actually there — panel 0, `x[251..344] y[661..753]`, 240 pure-green px
+
+```
+ y43-45  #.........#........#.......#........#........#.......#     <- azimuth tick row, 7 ticks
+ y47-53                                     #############           <- a BOXED group
+         .###.###.###...............................#...##..#...#.........##...##.#...###
+ y55     ########################################################  <- baseline rule
+```
+
+⭐ **The boxed group is the find.** `rwr.cpp:182–208` draws each contact as
+`display->TextCenter(…, "<digit>", boxed)` — **the box is how this RWR marks the priority threat.**
+So our RWR is not merely present: it is **displaying contacts, with one flagged priority**, in TE 28
+*Missile Threat*, the gold video's own mission.
+
+Saved 8× for reading: `docs/reference/260917_ours_rwr_te28_t110.png`.
+
+### ⚠️ Not claimed
+
+* **Which digits they are.** The glyphs are ~5 px tall in the native frame; I can resolve *structure*
+  (three groups, one boxed, a tick row, a baseline) but **not identity**. Reading `2` vs `8` needs a
+  larger render, not a bigger guess — and S15's oracle says the gold shows `SA-2` abeam and `SA-8`
+  ahead with the caret, so **the comparison is now one legible capture away, not a search.**
+* That the count matches the gold. Not counted, not compared.
+
+### ⚖️ Grooming
+
+This item is at **22 sprints**, and S17–S21 were all infrastructure — TE, view, scale, file, colour.
+That is a long run, and I flagged it as a diminishing-returns risk when opening this sprint, with the
+condition that it would be parked if this one did not locate the RWR. **It did**, so the item earns
+one more: S23 re-captures at a resolution where the glyphs are readable and reads them against S15.
+**If S23 does not produce legible digits, park it** — the remaining value is a single comparison, not
+an investigation.
+
+**GOLDVID-FF-1: new pass, sprint 2 of 4. The instrument is found; the reading is next.**
