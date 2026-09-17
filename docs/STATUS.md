@@ -18978,3 +18978,76 @@ anything off it. If the key works and the hook does not, `FF_VIEW_SCRIPT` is bro
 should be fixed or retired rather than left logging a change it does not make.
 
 **GOLDVID-FF-1: new pass, sprint 2 of 4. The mission is solved; the camera is not.**
+
+## GOLDVID-FF-1 S19 (Opus 5, 2026-09-17) — ⛔⛔ **RETRACTION of my own S18: `FF_VIEW_SCRIPT` is NOT broken. It sets the mode and the trace proves it** — ⭐⭐⭐ **the 2D pit IS captured under the gold's TE**, and the variable S18 missed is the **capture TIME**, not the hook
+
+**Story:** GOLDVID-FF-1. **New pass, sprint 3 of 4.**
+
+S18 concluded `FF_VIEW_SCRIPT` *"logs a view change it does not make"* — four steps fired, the frame
+unchanged. The chain looked complete on paper, so before proposing a fix I ran the instrument that
+already exists for exactly this question.
+
+### ⭐ The instrument existed because this confusion has happened here before
+
+`access.cpp:576` carries `FF_DEBUG_VIEWMODE`, added by **MAVTEX-1** with the note: *"a harness run
+could not be told apart from one where the view key never took effect — **the keypress was logged,
+the mode change was not**."* Same shape as S18's claim. Running it settles it:
+
+```
+[VIEWMODE] SetOTWDisplayMode(2) = 2D COCKPIT     (x5, during startup)
+[VIEWMODE] SetOTWDisplayMode(0)
+[FF_VIEW_SCRIPT] view mode 1 at 40008ms
+[VIEWMODE] SetOTWDisplayMode(2) = 2D COCKPIT     <- the script's request, APPLIED
+```
+
+**The request reaches `SetOTWDisplayMode` and sets the 2D cockpit.** S18's headline is withdrawn.
+
+### ⭐⭐⭐ And the capture proves it — the pit, under the gold's own TE
+
+| capture | distinct colours | top colour | verdict |
+|---|---|---|---|
+| **TE 28, t=110 s** | **108,374** | **(0,0,0)** | **2D PIT** |
+| Instant Action `-v 1` (known pit) | 106,351 | (0,0,0) | 2D pit |
+| TE 28, t=240 s (1 view step) | 8,079 | (51,99,157) sky | HUD |
+| TE 28, t=240 s (4 view steps) | 12,222 | (51,99,157) sky | HUD |
+
+**The pit signature is unmistakable and the TE-28 t=110 frame has it.** Both t=240 frames are HUD
+**regardless of whether the script fired once or four times** — which is precisely why S18's
+four-step run "proved" nothing: it varied the wrong thing. **The variable is the capture time.**
+
+⛔ **Where S18 went wrong, exactly:** it compared a 1-step run against a 4-step run, found them
+identical, and concluded the steps did nothing. Both were at t=240. A 1-step run at t=110 would have
+shown the pit and killed the hypothesis immediately. **Changing the suspected cause while holding a
+second, unexamined variable fixed** is the error — and it is the same one BNDWRECK-1 made twice in
+this rotation.
+
+### ⭐ The pit frame has real instrument content
+
+```
+green symbology   1,680 px  x[200..805] y[338..716]
+amber cluster        10 px  x[318..325] y[358..365]
+red indicators      116 px  x[142..909] y[586..757]
+```
+
+### ⭐ And the RWR can be located exactly, not guessed
+
+`art/ckptart/16_ckpit.dat` declares the RWR viewport per panel variant —
+`rwr = <top> <left> <bottom> <right>`, e.g. `rwr = 1033 393 1177 539` — parsed by
+`cpmanager.cpp:1067` (`PROP_RWR_STR "rwr"`) and scaled by `ConvertRecttoVBounds` against
+`DisplayOptions.DispWidth/Height`. **So the RWR's pixel rectangle is derivable from the game's own
+config rather than hunted by colour** — which is the difference between a measurement and the kind of
+colour-mask guess that has cost this project several sprints. [[instrument-bookkeeping-lies]]
+
+### ⚠️ Still not claimed
+
+* **Nothing about our RWR.** It has still not been located in a frame or compared. The pit is now
+  reachable; that is all.
+* **Why t=240 is HUD.** Unexplained. The flight may have ended, crashed, or switched view on its own —
+  **not investigated, and not guessed at.**
+* The gold RWR crop's **source frame and scale are still unrecorded** (S17, S18).
+
+**S20 — one job:** resolve the RWR rect from `16_ckpit.dat` for 1024×768, crop it out of the working
+**t=110** pit capture, and read it against S15's oracle. Capture inside the window that is known to
+work rather than at t=240.
+
+**GOLDVID-FF-1: new pass, sprint 3 of 4. The camera is solved; the crop is next.**
