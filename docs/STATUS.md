@@ -18289,3 +18289,66 @@ guess.
 or binding fix needs.
 
 **BSPSLOT-2: 4 sprints — AT CAP.**
+
+## GOLDVID-FF-1 S13 (Opus 5, 2026-09-16) — the census's **last unread entry is not a screen**: there is no startup splash and no credits screen — the gold's window opens straight onto the main menu, ~0.4 s before its buttons appear — ⛔ **three of the census's five entries have now been mis-identified from thumbnails**
+
+**Story:** GOLDVID-FF-1 (the 2026-09-15 gold video census). **New pass, sprint 1 of 4.**
+
+S12 said the next pass should start from the census's own remaining entries. Exactly one was left:
+**"FreeFalcon splash / credits"**.
+
+### ⭐ Sampled at the gold's startup
+
+| t | the FreeFalcon window |
+|---|---|
+| 11.0 – 14.6 | **not present** — the desktop shows only the recording terminal |
+| **14.8** | **main-menu art** — the FREE FALCON roundel, the F-16 photo, the `FREEFALCON: 6.0` banner — and **no button row** |
+| 15.2 | the same screen **with** its button row |
+
+The window opens **straight onto the main menu's own background**. What the census saw as a splash,
+from a 320×180 thumbnail, is that screen's first frame — roughly **0.4 s** before its controls are
+hooked up. `docs/reference/260915_gold_startup_first_frame.png`.
+
+And there is no credits screen to reach: the gold's row is
+`LOGBOOK · TACTICAL REF · ACMI · SETUP · COMMS · THEATER · TACTICAL ENG · INSTANT · DOGFIGHT ·
+CAMPAIGN`. **No Credits button.**
+
+### Ours, for comparison
+
+`FF_UI_SCREENSHOT=1 FF_UI_SHOT_DIR=…` — 89 captures. The first is **black**; the second, a second
+later, is the **complete main menu with its button row**, matching the gold element for element
+(roundel, photo, the same ten buttons) apart from the version banner, which reads
+`FFVIPER : 7.0.0 LINUX` against the gold's `FREEFALCON: 6.0` — the release difference TEPKG-1
+already settled.
+
+⚠️ **Our sampling is 1 Hz and the gold's art-without-buttons state lasts ~0.4 s.** So this does
+**not** establish whether our port has that transient too; it establishes that neither shows a
+splash or a credits screen. Saying the first would need a faster sampler.
+
+### ⛔ The census's record, closed out
+
+| S5 called it | what it is |
+|---|---|
+| main menu / hangar | ✅ correct |
+| "TE briefing screen" | the **TE selection** screen (S10) |
+| "theatre map with a data panel" | the **TE planning** screen (S10) |
+| "the load screen" | the **OTW sim-entry splash** (S10) |
+| "FreeFalcon splash / credits" | **the main menu's own first frame** (here) |
+
+**Three of five mis-identified.** S5 flagged its identifications as provisional, from thumbnails, and
+has now been right to three times over. The census was a good instrument for finding *frames worth
+looking at* and a poor one for *naming* them — worth remembering before the next one is read as a
+list of screens.
+
+### By-catch: a wasted run, and why it looked like a bug
+
+The first attempt at the ours-side capture produced an **empty log and zero BMPs**, which reads
+exactly like the screenshot hook failing. It was not: a julia race held `gl-lock`, so FFViper never
+started and spent its whole 60 s timeout queued. **A short timeout on a contended display lock is
+indistinguishable from a silent failure to write.** Give queued runs a timeout longer than the job
+ahead of them.
+
+**S14:** the census is spent as a source of screen names. The gold videos still hold **behaviour** no
+sprint has read — the missile video is 496 s and only its first 30 have been looked at.
+
+**GOLDVID-FF-1: new pass, sprint 1 of 4.**
