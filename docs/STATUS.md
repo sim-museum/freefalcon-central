@@ -20943,3 +20943,77 @@ the level the PO would see it.** What S12 removes is the false trail, not the it
 like before measuring its absence anywhere else.**
 
 **MPTEST-FF: a constant mistaken for a symptom, and a symptom with no positive control. FF sprint 2 of 4.**
+
+## MPTEST-FF S13 (Opus 5, 2026-09-17) — ⛔⛔⛔ **`state_` is the tree node's OPEN/CLOSED flag, not a selection flag. "All thirteen rows stay `state=0`" was never a symptom — and the tree that WORKS reads `state=0` too, after its own click.** Three sprints were measuring expand/collapse
+
+**Story:** FF rotation: sprint 3 of 4. S12 found the symptom had no positive control and set exactly
+one task: *"click a row on tree `40211` — which works — and dump it. Find out what 'selected' looks
+like before measuring its absence anywhere else."* It has an answer, from **both** directions.
+
+### ⭐ The source says it outright
+
+`ctree.cpp:328`, at the point every node is created:
+
+```cpp
+NewItem->state_ = 0; // Menu Open/Closed (Max Value is 1)
+```
+
+and it is masked to one bit wherever it is written (`item->state_ = newstate bitand 1;`, `:709`,
+`:730`) and read in exactly one kind of place — deciding whether to **walk or draw a node's `Child`
+branch** (`:646`, `:861`, `:897`, `:1163`, `:1220`).
+
+⭐⭐ **`state_` is expand/collapse.** A leaf row with no children is `0` **because that is correct**.
+Thirteen mission rows reading `state=0` is thirteen collapsed leaves, not thirteen failed selections.
+
+### ⭐⭐⭐ And the measurement agrees — the positive control finally exists
+
+Dumps were moved to **46 s and 50 s**, bracketing the harness's click on tree `40211` at 48 s. That
+tree had **never been dumped before** — the old dump points (60/85/100 s) fire after the joiner has
+left that screen, which is why three sprints only ever saw `6130`.
+
+```
+[UIDUMP]   ctrl id=40211 rect=6,23 102x57
+[UIDUMP]     item id=1       type=49 at 6,23 75x16 state=0
+[UIDUMP]     item id=5899558 type=50 at 0,0  56x14 state=0
+```
+
+**Identical before the click, after the click, and ten seconds later.** ⭐ This is the tree that
+**works** — it selects, and drives `CampSelectGameCB` — and its rows read `state=0` exactly like the
+"broken" one. Across the whole run, **not one item anywhere reports a non-zero `state`.**
+
+**Source and measurement agree: `state_` cannot indicate selection, and never could.**
+
+### ⚖️ What that does to the item
+
+| sprint | evidence for "the row does not select" | verdict |
+|---|---|---|
+| S10 | `GrabItem … type=0` | ⛔ S12: the class tag of a `C_TreeList`; **the working tree reports 0 too** |
+| S10–S13 | `state=0` on all thirteen rows | ⛔ **this sprint: the expand/collapse bit; the working tree reads 0 too** |
+
+**Both pillars are gone.** ⚠️ Note precisely what that does and does not mean: **it does not show the
+rows select.** It shows that **nobody has measured whether they do** — four sprints of evidence
+turned out to be two constants and a misread field.
+
+⭐ **And the right field is now identified.** Selection lives in `C_TreeList::LastActive_`, set by
+`C_TreeList::Activate()` (`:1027`) — `LastActive_ = LastFound_; LastFound_->Item_->Activate();` —
+which the handler drives at `chandler.cpp:2296` (`overme->Activate()`). **No probe in this port has
+ever printed it.**
+
+### ⛔ Unchanged, and worth repeating
+
+**The joiner still does not reach a flight.** That is the PO-level symptom and it is real. What four
+sprints have removed is the *evidence* that pointed at row selection — **the item is un-measured, not
+disproved.**
+
+### ⚠️ Not claimed
+
+* **That row selection works.** Explicitly unknown. **That is the finding.**
+* That `LastActive_` is the whole story — it is the field the class itself uses, **not yet observed**.
+* That the dump is wrong to print `state_` — it is a real field. ⚠️ **What was wrong was reading it
+  as selection**, and a dump that prints a field nobody has interpreted is how that happens.
+* That the join regressed — **`FM_JOIN_SUCCEEDED`, six consecutive runs.**
+
+**S14:** print `LastActive_` and whether `Activate()` runs, for **both** trees, and click a row in
+each. With a tree that works in the same dump, one run settles whether `6130` selects.
+
+**MPTEST-FF: the symptom was expand/collapse. FF sprint 3 of 4.**
