@@ -19316,3 +19316,62 @@ unused.
 
 **GOLDVID-FF-1: PARKED at 23 sprints. Reopen only with `FF_RWR_ZOOM` or an equivalent — the remaining
 work is one comparison, and it should cost one sprint, not another seven.**
+
+## PARITYFLOOR-FF-1 (Opus 5, 2026-09-17) — ⭐ **FreeFalcon's repeat spread measured at last: `mean|diff| 2.115`, 5.07 % of pixels moving by more than 16 — NOT byte-reproducible, so FF is in julia's class, not MiG Alley's or BoB's**
+
+**Story:** cross-port, completing the table in `QA_METHOD_GOLD_PARITY.md` rule 7. FF rotation: sprint
+1 of 4. **No new run** — measured from two captures already taken today.
+
+Today established repeat spreads for three of four ports and left **FreeFalcon untested**, which
+matters because a port that cannot reproduce a capture cannot act on a small difference — and FF has
+spent 23 sprints on an RWR comparison whose eventual verdict would be a small difference.
+
+### The measurement, from captures already in hand
+
+Two TE-28 flights, **same mission, same view script, same capture tick** (`110 s`), 2.5 hours apart —
+differing only in two `FF_DEBUG_*` variables that add stderr output and touch no render path:
+
+```
+vm.bmp      01:27     FF_TE_FILE='28 Missile Threat'  FF_VIEW_SCRIPT='1@40;1@100'  shot@110
+pit110.bmp  03:57     ... plus FF_DEBUG_PITSEL=1 FF_DEBUG_VIEWMODE=1
+
+cmp            -> differ
+mean|diff|     -> 2.115
+px differing   -> 34.5 %       px differing by >16 -> 5.07 %      max 255
+```
+
+### ⭐ Where that puts FF
+
+```
+MiG Alley  headless 2-D     byte-identical      (0 px of 2,073,600)
+BoB        headless 2-D     byte-identical      (14 screens)
+FreeFalcon TE sim flight    mean|diff| 2.115    5.07 % of px move >16
+julia      3-D chase        mean|diff| 0.58     (cockpit unmeasured)
+```
+
+**FF is in the non-deterministic class**, and noisier than julia's chase view. That is unsurprising —
+this capture is a *flying aircraft* photographed at a wall-clock instant, so the airframe's exact
+position at t=110 varies between runs. It is the same category of measurement as julia's, not the
+same as a static front-end screen.
+
+### ⚖️ What it means for the parked RWR work
+
+GOLDVID-FF-1 S23 parked with the remaining job being *"one comparison"* against S15's oracle. **This
+sets the bar that comparison must clear:** an RWR difference smaller than ~2 units mean, or affecting
+under ~5 % of the crop by more than 16, **is inside this path's noise** and cannot be called.
+
+⭐ Usefully, the RWR verdict is not that kind of difference — S15's oracle is **which glyphs appear**
+(`2` abeam, `8` ahead with the caret), a categorical read, not a pixel delta. **A noisy path does not
+block a categorical comparison**, which is worth knowing before anyone treats 2.115 as a blocker.
+
+### ⚠️ Not claimed
+
+* **That FF's UI path is non-deterministic.** Only the sim path was measured. MiG Alley and BoB are
+  byte-exact on their *front ends*, and FF's UI mode (`ff_validate.sh -m ui`) is untested — it may
+  well be exact, and that would matter for any front-end parity work.
+* That 2.115 is the floor for all sim captures. One pair, one mission, one capture tick. A tolerance
+  for real use needs a wider sample, exactly as rule 7 says.
+* That the two `FF_DEBUG_*` variables are provably render-neutral — they are stderr-only by
+  inspection, not by experiment.
+
+**PARITYFLOOR-FF-1: rule 7's table is complete for all four ports. Sprint 1 of 4.**
