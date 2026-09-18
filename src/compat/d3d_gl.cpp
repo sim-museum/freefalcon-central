@@ -1298,7 +1298,13 @@ static bool FF_LineBegin(GLenum primType, bool isRHW, DWORD fvf, DWORD n) {
     // width applies to every line primitive unless FF_HUD_LINEWIDTH_RHW=1 restricts it.
     static int s_rhwOnly = -1; if (s_rhwOnly < 0) s_rhwOnly = getenv("FF_HUD_LINEWIDTH_RHW") ? 1 : 0;
     if (s_rhwOnly && !isRHW) return false;
-    if (s_ffHudLineW < 0.0f) { const char* e = getenv("FF_HUD_LINEWIDTH"); s_ffHudLineW = e ? (float)atof(e) : 0.0f; }
+    // GOLDMATCH-FF-2 S6 (2026-09-18): DEFAULT 2 px. Measured on the HUD-only view: the gold's horizon
+    // stroke is 2 px thick, 198 px long, at row 548; ours at GL's default is 1 px, 197 px, row 548;
+    // with width 2 it is 2 px, 197 px, row 548 -- identical geometry, raster width the only
+    // difference. The game never calls VirtualDisplay::Line's width overload for the HUD, so the
+    // original's 2 px comes from its D3D7 line rasterisation, which this shim now reproduces.
+    // FF_HUD_LINEWIDTH=1 restores GL's 1 px; any other value tunes.
+    if (s_ffHudLineW < 0.0f) { const char* e = getenv("FF_HUD_LINEWIDTH"); s_ffHudLineW = e ? (float)atof(e) : 2.0f; }
     if (s_ffHudLineW > 0.0f) { glLineWidth(s_ffHudLineW); return true; }
     return false;
 }

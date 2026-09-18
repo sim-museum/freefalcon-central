@@ -21469,3 +21469,34 @@ together). `FF_HUD_LINEWIDTH_RHW=1` restricts the knob to screen-space lines. De
 * The gold frames are 1:1 (S1 measured the 1024×768 window) — resampling is not the explanation.
 
 **GOLDMATCH-FF-2: one claimed rendering difference retracted with the numbers; the instrument now covers the HUD; the real gap named (size), with its test. FF cycle 3: 1 sprint — rotating to MA.**
+
+## GOLDMATCH-FF-2 S6 (Fable 5.1, 2026-09-18) — ⭐⭐⭐ **the HUD's stroke width, measured to the pixel and matched: the gold's horizon stroke is 2 px × 198 px at row 548; ours was 1 px × 197 px at row 548; the shim now defaults HUD line width to 2 px and draws 2 px × 197 px at rows 548–549.** Glyph height is EQUAL (median 6 px both) — the remaining gap is glyph boldness, on the font path
+
+**Story:** FF rotation, cycle 4, sprint 1. S5 retracted "cyan", named coverage as the gap, and left two
+readings (line width vs a lower internal size). Both were measurable.
+
+### ⭐ Glyphs: same size. Connected components of green-dominant pixels, 5–40 px tall
+| | components | glyph-sized | median height | IQR |
+|---|---|---|---|---|
+| gold t=200 | 399 | 99 | **6 px** | 6–10 |
+| ours (1 px) | 565 | 56 | **6 px** | 6–7 |
+**The HUD is at the same scale.** The gold's wider IQR is merged components — bolder strokes joining
+neighbours — not bigger glyphs. The "lower internal size" reading is retired.
+
+### ⭐⭐⭐ Lines: 2 px vs 1 px, same geometry
+Longest horizontal green runs (row, thickness, length): **gold (548, 2, 198), (762, 4, 208)**;
+**ours 1 px (548, 1, 197), (765, 1, 197)**; **ours `FF_HUD_LINEWIDTH=2` (548, 2, 197), (764, 2, 208)**.
+Same row, same length to the pixel; the raster width is the only difference. The game never calls
+`VirtualDisplay::Line`'s width overload for the HUD (`display.cpp:555`, one caller, `navfcc.cpp`), so the
+original's 2 px is its D3D7 line rasterisation. **The shim's default is now 2 px** (`FF_HUD_LINEWIDTH=1`
+restores GL's 1 px). Verified knob-free: `hudonly_ours_s6_default_linewidth2.png` — rows 548–549 carry
+197 green px each; total green-dominant 7,507 (from 6,309).
+
+### ⚠️ What remains, and where
+* The gold's 23,364 green pixels against our 7,507: **glyphs.** Same height, bolder strokes. The font
+  path is `Render2D::ScreenText` (textured quads from the font atlas); the shim filters every texture
+  `GL_LINEAR` (the one `GL_NEAREST` is a debug UV texture), so it is not a filter choice here — it is the
+  atlas/metrics pairing S3 already implicated for the caption glyphs (`CHFSE CFMEFF`). One item, two symptoms.
+* The gold's 4-px stroke at row 762 (a double-width element) is 2 px in ours — noted, not chased.
+
+**GOLDMATCH-FF-2: HUD strokes at parity by measurement; glyph boldness handed to the font path. FF sprint 1 of 4 (cycle 4).**
