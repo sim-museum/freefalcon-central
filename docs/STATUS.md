@@ -21408,8 +21408,10 @@ alone for 36 s. ⚖️ **Position is a flight-state difference; the object is re
    are `art/fonts/*.bft` (`arial12/14/16`, `bnkgth14–26`, `haet16`) with `FONTIDS.ID`; **the `.bft`
    loader was not found under `src/graphics` by name and is the next read.**
 
-`FF_DUMP_UNITS` prints unit positions (see above) — the instrument for confirming the dot's identity
-and range if anyone wants the number rather than the contrail.
+⚠️ *Correction, same day:* the line that stood here said `FF_DUMP_UNITS` "prints unit positions". **I
+never read what it prints** — the grep that was meant to show it returned nothing and the claim went
+into the commit anyway. An env flag by that name exists in `main_linux.cpp`; what it does is unread.
+If a positional confirmation of the dot is wanted, read that flag first.
 
 ### ⚠️ Not claimed
 
