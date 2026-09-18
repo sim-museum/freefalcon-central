@@ -1275,6 +1275,35 @@ static void FF_EndRHWFog(const FFRHWFogState* s)
     }
 }
 
+
+// FF_LINUX GOLDMATCH-FF-2 S5 (2026-09-17): the HUD's 143 Line() calls reach GL through the
+// immediate-mode index loops below (glBegin(GL_LINES) in DrawIndexedPrimitive[VB]), not through
+// DrawVertices -- a width knob and trace placed there changed nothing (6293 vs 6309 green px).
+// FF_HUD_LINEWIDTH=<px> widens 2-D (XYZRHW) line primitives at these two sites; FF_TRACE_LINES=1
+// prints the blend state the first line draws are issued with. Experiment knobs, not defaults.
+static float s_ffHudLineW = -1.0f;
+static int   s_ffTraceLines = -1, s_ffTraceLinesN = 0;
+static bool FF_LineBegin(GLenum primType, bool isRHW, DWORD fvf, DWORD n) {
+    if (primType != GL_LINES && primType != GL_LINE_STRIP) return false;
+    if (s_ffTraceLines < 0) s_ffTraceLines = getenv("FF_TRACE_LINES") ? 1 : 0;
+    if (s_ffTraceLines && s_ffTraceLinesN < 60) {
+        GLint blend = glIsEnabled(GL_BLEND), sb = 0, db = 0, tex2d = glIsEnabled(GL_TEXTURE_2D); GLfloat lw = 0;
+        glGetIntegerv(GL_BLEND_SRC, &sb); glGetIntegerv(GL_BLEND_DST, &db); glGetFloatv(GL_LINE_WIDTH, &lw);
+        fprintf(stderr, "[lines] prim=%d n=%u fvf=0x%x rhw=%d blend=%d src=0x%x dst=0x%x tex2d=%d width=%.1f\n",
+                (int)primType, (unsigned)n, (unsigned)fvf, (int)isRHW, (int)blend, (unsigned)sb, (unsigned)db, (int)tex2d, lw);
+        s_ffTraceLinesN++;
+    }
+    // S5 run: the HUD's strokes are the WORLD-SPACE (rhw=0) line draws -- 51 of the first 60 line
+    // draws, blend OFF, texture on -- not the 9 screen-space ones (rhw=1, SRC_ALPHA/ONE). So the
+    // width applies to every line primitive unless FF_HUD_LINEWIDTH_RHW=1 restricts it.
+    static int s_rhwOnly = -1; if (s_rhwOnly < 0) s_rhwOnly = getenv("FF_HUD_LINEWIDTH_RHW") ? 1 : 0;
+    if (s_rhwOnly && !isRHW) return false;
+    if (s_ffHudLineW < 0.0f) { const char* e = getenv("FF_HUD_LINEWIDTH"); s_ffHudLineW = e ? (float)atof(e) : 0.0f; }
+    if (s_ffHudLineW > 0.0f) { glLineWidth(s_ffHudLineW); return true; }
+    return false;
+}
+static void FF_LineEnd(bool widened) { if (widened) glLineWidth(1.0f); }
+
 static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawPrimitive(IDirect3DDevice7* This, D3DPRIMITIVETYPE dptPrimitiveType, DWORD dwVertexTypeDesc, LPVOID lpvVertices, DWORD dwVertexCount, DWORD dwFlags) {
     D3D7Device* dev = (D3D7Device*)This;
     D3DGL_LOG("DrawPrimitive type=%d fvf=0x%x count=%d", dptPrimitiveType, dwVertexTypeDesc, dwVertexCount);
@@ -1457,6 +1486,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     }
 
+    bool ffWid = FF_LineBegin(primType, (dwVertexTypeDesc & D3DFVF_XYZRHW) != 0, dwVertexTypeDesc, dwIndexCount);
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
         WORD idx = lpwIndices[i];
@@ -1518,6 +1548,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
         }
     }
     glEnd();
+    FF_LineEnd(ffWid);
 
     // PIT-1: the terrain batches come through this (non-VB) path.
     FF_NoteWorldMatrices(dwIndexCount);
@@ -3025,6 +3056,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     }
 
+    bool ffWid = FF_LineBegin(primType, isXYZRHW, fvf, dwIndexCount);
     glBegin(primType);
     for (DWORD i = 0; i < dwIndexCount; i++) {
         WORD idx = lpwIndices[i] + dwStartVertex;
@@ -3084,6 +3116,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
         }
     }
     glEnd();
+    FF_LineEnd(ffWid);
 
     // FF_LINUX: Restore texture env after FF_PIT_TEX_REPLACE experiment
     if (pitReplaceVB) {
@@ -4850,6 +4883,34 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     bool isRHW = (fvf & D3DFVF_XYZRHW) != 0;
     if (isRHW) g_RHWDrawCount_local++; else g_WorldDrawCount_local++;
 
+    // FF_LINUX GOLDMATCH-FF-2 S5 (2026-09-17): FF_TRACE_LINES=1 -- the HUD is 143 Line() calls
+    // that arrive here as line primitives, and the gold's HUD green has R and B BELOW the sky's
+    // (alpha-blended) where ours has R and B EQUAL to the sky's with G saturated (additive).
+    // Print, for the first line draws of each of the first frames after the trace arms, the GL
+    // blend state and the first vertex's diffuse colour -- the two things that decide that.
+    // FF_LINUX GOLDMATCH-FF-2 S5: FF_HUD_LINEWIDTH=<px> -- the gold's HUD strokes cover ~2 px at
+    // 1024x768 (23,364 green-dominant pixels vs our 6,309 for the same symbology) and this shim
+    // never sets a line width, so every 2-D line is GL's 1 px default. An experiment knob, not a
+    // default: the width the original rasterises with is the question the count answers.
+    static float s_hudLineW = -1.0f;
+    if (s_hudLineW < 0.0f) { const char* e = getenv("FF_HUD_LINEWIDTH"); s_hudLineW = e ? (float)atof(e) : 0.0f; }
+    bool widened = false;
+    if (isRHW && s_hudLineW > 0.0f && (glPrimType == GL_LINES || glPrimType == GL_LINE_STRIP)) { glLineWidth(s_hudLineW); widened = true; }
+    if (glPrimType == GL_LINES || glPrimType == GL_LINE_STRIP) {
+        static int s_armed = -1; if (s_armed < 0) s_armed = getenv("FF_TRACE_LINES") ? 1 : 0;
+        static int s_printed = 0;
+        if (s_armed && s_printed < 60) {
+            GLint blend = glIsEnabled(GL_BLEND), sb = 0, db = 0, tex2d = glIsEnabled(GL_TEXTURE_2D);
+            glGetIntegerv(GL_BLEND_SRC, &sb); glGetIntegerv(GL_BLEND_DST, &db);
+            int off = isRHW ? 16 : 12; if (fvf & D3DFVF_NORMAL) off += 12;
+            DWORD dif = (fvf & D3DFVF_DIFFUSE) ? *(const DWORD*)((const char*)vertices + off) : 0;
+            fprintf(stderr, "[lines] prim=%d n=%u fvf=0x%x rhw=%d blend=%d src=0x%x dst=0x%x tex2d=%d diffuse=0x%08x\n",
+                    (int)glPrimType, (unsigned)count, (unsigned)fvf, (int)isRHW, (int)blend, (unsigned)sb, (unsigned)db,
+                    (int)tex2d, (unsigned)dif);
+            s_printed++;
+        }
+    }
+
     // FF_LINUX: XYZRHW vertices are pre-transformed screen coordinates in DirectX.
     // They bypass the transformation pipeline entirely. In OpenGL, we need to:
     // 1. Set up orthographic projection matching the viewport
@@ -5136,6 +5197,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         glEnable(GL_TEXTURE_2D);
     }
 
+    if (widened) glLineWidth(1.0f);
     FF_ProbePixel("DrawVerts", fvf, count, vertices);
     FF_DrawList("DrawVerts", fvf, count, vertices);
     FF_NoteWorldMatrices(count);

@@ -21423,3 +21423,49 @@ If a positional confirmation of the dot is wanted, read that flag first.
 
 **FF rotation complete — 4 sprints (TE 27 reached; two clocks; HUD-only and chase at layout parity;
 tanker rendered; HUD colour and caption glyphs each pinned to one site). ⏭ Rotating to MiG Alley.**
+
+## GOLDMATCH-FF-2 S5 (Fable 5.1, 2026-09-18) — ⛔⛔ **"the HUD is pale cyan where the gold's is green" is RETRACTED for the HUD-only view: same hue, same R/B (42,58 vs 45,58). What differs is COVERAGE — the gold's strokes are ~2 px and its glyphs larger; ours are 1 px.** ⭐ The instrument that could not see the HUD now does: the strokes are the WORLD-SPACE line draws
+
+**Story:** FF rotation, cycle 3, sprint 1 (S5 of this item). S3 handed forward "hook the probe at the
+MPR DrawPrimitive → GL translation". Done — and the first honest measurement changed the question.
+
+### ⭐⭐ The instrument, placed twice before it spoke
+* `[lines]` trace in `DrawVertices` (the path S3 named): **0 lines** on a HUD-only capture that
+  visibly carried the HUD. Wrong path.
+* Placed at the two immediate-mode emission sites (`glBegin` in `DrawIndexedPrimitive[VB]`,
+  `d3d_gl.cpp`, one helper `FF_LineBegin/End`): **60 draws logged — 51 `rhw=0 blend=0 tex2d=1`
+  (world-space lines, no blending), 9 `rhw=1 blend=1 src=SRC_ALPHA dst=ONE` (screen-space,
+  additive).** The HUD's strokes are the 51. `hudonly_lines_trace_s5.txt`.
+
+### ⛔⛔ The retraction, by the numbers (green-dominant pixels, `g>r+40 && g>b+40`)
+| | count | mean | background beside strokes |
+|---|---|---|---|
+| gold t=200 (S2's own frame) | **23,364** | (45,128,58) | (81,125,111) |
+| S2's "ours" half of that comparison | 5,971 | (44,183,59) | — |
+| S5 run, 1 px | 6,309 | (42,177,58) | (73,123,112) |
+
+**R and B are the same in both and BELOW the background — nothing additive, no cyan.** S1's cyan
+numbers were the FULL PIT's HUD (`MPR_SE_CHROMA2`'s additive path, which the original also has); S2
+carried the word "cyan" onto the HUD-only view by eye. The eye saw *thin, low-coverage strokes over
+sky*. **The difference is that the gold's HUD is drawn bigger: ~2 px strokes and visibly larger
+glyphs (by eye ~1.5×; my glyph-box measurement missed and is not claimed).**
+
+### ⭐ Experiment knob, not a fix: `FF_HUD_LINEWIDTH=<px>`
+This shim never called `glLineWidth` (GL default 1). Width 2 on screen-space lines only: 7,445 px;
+on **all** lines: 7,397 px, mean (42,195,59) — ~1.17×, not the gold's 3.7×; the horizon line
+thickens, the glyphs do not. **So width is not the mechanism either.** The lead that fits both
+facts: the gold's HUD is rendered at a lower internal size and scaled up (glyphs AND strokes grow
+together). `FF_HUD_LINEWIDTH_RHW=1` restricts the knob to screen-space lines. Default off.
+
+### ⭐ Housekeeping, fixed
+`main_linux.cpp`'s periodic `[shot]` default wrote `/tmp/screenshot_sim.bmp` on every run that set no
+`FF_SHOT_DIR` — a frame dump on the tmpfs, the standing rule. Now `$HOME/ff-gates/shots/`.
+
+### ⚠️ Not claimed / handed forward
+* The full-pit HUD colour (S1's numbers) is untested by this sprint; its path is CHROMA2 additive in
+  both original and port — the gold's own value there decides, not reasoning.
+* The scale lead needs the HUD glyph height measured properly (a column-profile on one digit) and
+  the HUD's own size setting read (`hud.cpp`'s scale inputs). One sprint, when FF's turn comes.
+* The gold frames are 1:1 (S1 measured the 1024×768 window) — resampling is not the explanation.
+
+**GOLDMATCH-FF-2: one claimed rendering difference retracted with the numbers; the instrument now covers the HUD; the real gap named (size), with its test. FF cycle 3: 1 sprint — rotating to MA.**

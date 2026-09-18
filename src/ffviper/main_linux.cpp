@@ -1,6 +1,7 @@
 // FFViper Linux main entry point
 // Creates SDL2 window, OpenGL context, and initializes the game
 
+#include <sys/stat.h>
 #include <cstdio>
 
 /* GOLDVID-FF-2 S9: campaign entity dump (camplib/find.cpp), FF_DUMP_UNITS=1. */
@@ -422,8 +423,14 @@ void FF_SwapBuffers() {
                 const char* shotDir = getenv("FF_SHOT_DIR");
                 if (shotDir && *shotDir)
                     snprintf(shotPath, sizeof shotPath, "%s/shot_%lu.bmp", shotDir, (unsigned long)swapCount);
-                else
-                    snprintf(shotPath, sizeof shotPath, "/tmp/screenshot_sim.bmp");
+                else {
+                    // GOLDMATCH-FF-2 S5: never /tmp (7.6 GB tmpfs; frame dumps are game data --
+                    // project standing rule). The unset-FF_SHOT_DIR default now lands under $HOME.
+                    const char* home = getenv("HOME"); if (!home || !*home) home = ".";
+                    snprintf(shotPath, sizeof shotPath, "%s/ff-gates/shots/screenshot_sim.bmp", home);
+                    char mk[600]; snprintf(mk, sizeof mk, "%s/ff-gates/shots", home);
+                    char* q = mk; for (char* c = mk + 1; *c; ++c) if (*c == '/') { *c = 0; mkdir(mk, 0755); *c = '/'; } mkdir(mk, 0755); (void)q;
+                }
                 fprintf(stderr, "[shot] frame %lu -> %s (%dx%d)\n", (unsigned long)swapCount, shotPath, w, h);
                 fflush(stderr);
                 // Save as BMP

@@ -1,0 +1,2 @@
+     51 [lines] prim=1  fvf=0x1d2 rhw=0 blend=0 src=0x302 dst=0x303 tex2d=1 width=1.0
+      9 [lines] prim=1  fvf=0x2c4 rhw=1 blend=1 src=0x302 dst=0x1 tex2d=0 width=1.0
