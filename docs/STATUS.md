@@ -21121,3 +21121,90 @@ video as one acceptance test.
 FF-1's cockpit-under-bank whole frame → the TE briefing map → menus and dialogs.
 ⚠️ **Not a re-opening of GOLDVID-FF-1** — its RWR work is at parity and stays closed; it is listed so
 the cockpit frames are not mistaken for ungraded.
+
+## GOLDMATCH-FF-2 S1 (Fable 5.1, 2026-09-17) — ⭐⭐⭐ **TE 27 reached by recipe and verified by the log; the full pit is at PARITY with the gold except two named things — the HUD is drawn pale cyan where the gold's is saturated green, and the gold's haze is heavier.** ⛔ The HUD-only and chase comparisons are BLOCKED: `FF_VIEW_SCRIPT` logged `view mode 0` and the picture did not change
+
+**Story:** FF rotation: sprint 1 of 4. The PO's ask (2026-09-17) set the priority — `260915_refuel.mp4`
+had never been looked at, and its two defining scenes (the HUD-only view the PO flew in, and the
+tanker approach) had no item. This sprint built the recipe, verified the TE, and made the first
+comparison.
+
+### ✅ The recipe, and why each step is by id rather than by remembered pixel
+
+The TE list's tree is **`TRAINLIST_TREE = 30216`** (window `TAC_MISSION_WIN = 30200`). Its 35 rows are
+17 px apart from y=3, and *"02 Takeoff"* at row 2 lands at y=130 — the old recipe clicked 128. So
+*"27 Refueling"* is row 27 → **`(161,555)`**. Then **`TAC_HOST = 30207`** at `(824,748)` and **`OK =
+16027`** at `(974,748)`.
+
+```
+FF_UI_CLICK="677,748@12;161,555@18;824,748@24;974,748@30"
+```
+
+⭐ **Verified from the game's own line, not from row-counting:**
+`StartReadCampFile: type=3 filename='27 Refueling'` — and the pit agrees: the HUD carries **`AR`**
+(air-refuel mode), the DED reads `UHF PACKAGE1 STPT 2 / VHF GUARD 09:03`, and the gold's TE map
+shows the clock at `9:03:02`.
+
+⚠️ **Three instrument traps on the way, all the same class:** the tree dump printed **zero rows**
+for a populated 35-row list because `FF_DUMP_TREE_IDS` defaults to `"40211,6130"` — S9's allowlist,
+third time; `FF_DUMP_UI_ALL` widens to *hidden windows*, not to tree ids; and `FF_SHOT_DIR` /
+`FF_VIEW_SCRIPT`'s `s@` default to **`/tmp`** — frame dumps into the tmpfs, the class MA and BoB
+were swept for this cycle. All three worked around, none fixed here.
+
+### ⭐⭐⭐ Full pit vs gold, measured against a noise floor
+
+`compare.py` (in `docs/reference/260917_refuel/`): mean |diff| on the 1024×768 game window, the gold
+cropped at its exact rect `1024:768:360:198` (found from the frame, not assumed).
+
+| pair | whole | sky | HUD | left MFD | right MFD | terrain |
+|---|---|---|---|---|---|---|
+| **gold t=100 vs gold t=120** (noise floor) | **2.50** | 0.89 | 0.94 | 5.66 | 3.77 | 2.84 |
+| **ours vs gold t=100** | **14.77** | 14.09 | 13.57 | 13.00 | 12.80 | 14.38 |
+| ours 86 s vs ours 106 s (our own floor) | 1.52 | 1.44 | 0.22 | 2.06 | 1.49 | 1.00 |
+
+**~6× the gold's own floor, spread evenly** — not one broken region. And the side-by-side
+(`fullpit_ours_vs_gold_t100.png`) says what the 14.8 is: **cockpit geometry, panel layout, ICP,
+standby instruments, HSD rings and the DED text are identical to the gold.** The difference is two
+things:
+
+1. ⛔ **HUD colour.** Ours is pale cyan; the gold's is saturated green. Measured on green-dominant
+   pixels (`g > r+40 && g > b+40`) in the HUD box: **gold 3084 px, mean (78,216,111); ours 478 px,
+   mean (128,255,202)** — 6.5× fewer, and what we have is cyan-shifted. ⚠️ **`hudcolor` is a game
+   setting** (`OTWStepHudColor`, `PROP_HUDCOLOR_STR`), and both the gold and this run use the **same
+   install directory** — so either the port does not apply the saved value, or renders it
+   differently. **Which one is sprint 2's first question; do not "fix the colour" before it is
+   answered.**
+2. **Haze.** The gold's horizon band is heavier and greyer; ours is bluer and cleaner. Visible, not
+   yet measured separately.
+
+### ⛔⛔ The HUD-only and chase comparisons could not be made
+
+```
+[FF_VIEW_SCRIPT] parsed 2 steps
+[FF_VIEW_SCRIPT] view mode 0 at 80013ms        <- requested
+(no line for the 2@100 step at all)
+```
+
+**`hud0.bmp` at 86 s is the 2-D cockpit. So is `chase2.bmp` at 106 s (1.52 from it).** The request
+was consumed on the sim thread — `otwloop.cpp:243` maps `0 → SetOTWDisplayMode(ModeHud)` — and the
+view did not change. ⭐ **This mechanism has worked before:** PIT-1 captured *"0 — HUD only, no pit
+model … renders"* on TE 02, parked on the runway. It did not here, airborne in AR mode.
+
+⭐ **One candidate eliminated by reading before it could become a theory:** `main_linux.cpp:3919`
+also writes `g_requestedViewMode` (`viewMode=1`, cockpit) — but it is gated on **`-test-ia`** and
+advances its phase, so it never ran in this run. **Not the clobber.**
+
+So the HUD-only "69" in the first comparison is *full pit vs HUD-only* — **two different views, no
+rendering conclusion.** Recorded so nobody reads it as one.
+
+### ⚠️ Not claimed
+
+* **That the HUD colour is a defect.** It is a *difference*; the setting question decides whether
+  it is ours.
+* **That `ModeHud` is broken.** Requested, consumed, not visible — three facts, no mechanism.
+  **A probe printing `mOTWDisplayMode` at consumption and at capture is one line and settles it.**
+* That the tanker is rendered. **Never reached** — mode 2 never fired.
+
+**S2:** probe the display mode on the sim thread; re-run with captures 1 s and 5 s after each
+request; answer the `hudcolor` setting question. **GOLDMATCH-FF-2: full pit at parity bar HUD colour
+and haze; HUD-only and tanker blocked on a view switch that does not take. FF sprint 1 of 4.**
