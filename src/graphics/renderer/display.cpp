@@ -1382,6 +1382,24 @@ void VirtualDisplay::InitializeFonts(void)
     }
 }
 
+/* FF_LINUX GOLDMATCH-FF-2 S7 (2026-09-18): name the font a caption is drawn with. S3 saw the chase
+   caption render "CHFSE CFMEFF" for "CHASE CAMERA" -- some glyph cells right, some wrong -- and S6
+   measured the HUD glyphs at the gold's height but bolder. Both point at which metrics table is
+   paired with which atlas. Print the active index, the set size, and the texel rects the table
+   holds for A F R C: those four numbers identify the .rct file by its own contents. */
+void VirtualDisplay::FF_TraceFont(const char* tag, const char* text)
+{
+    if (!getenv("FF_TRACE_FONT") || !pFontSet) return;
+    static int n = 0; if (n++ >= 12) return;
+    int f = pFontSet->fontNum;
+    fprintf(stderr, "[font] %s: fontNum=%d totalFont=%d text=\"%s\"", tag, f, pFontSet->totalFont, text ? text : "");
+    const char probe[] = "AFRC";
+    for (int i = 0; probe[i]; i++) {
+        const FontDataType& d = pFontSet->fontData[f][(unsigned char)probe[i]];
+        fprintf(stderr, "  %c=(l%.0f t%.0f w%.0f h%.0f pw%.1f)", probe[i], d.left*256.0f, d.top*256.0f, d.width*256.0f, d.height*256.0f, d.pixelWidth);
+    }
+    fprintf(stderr, "\n"); fflush(stderr);
+}
 void VirtualDisplay::SetFont(int newfont)
 {
     ShiAssert(newfont >= 0 and newfont < NUM_FONT_RESOLUTIONS);

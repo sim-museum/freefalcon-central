@@ -134,6 +134,7 @@ public:
     static int ScreenTextWidth(const char *string);
 
     static void SetFont(int newFont);
+    static void FF_TraceFont(const char* tag, const char* text);   // FF_LINUX GOLDMATCH-FF-2 S7: FF_TRACE_FONT=1
     static int CurFont(void); //JAM
 
     virtual void SetLineStyle(int);

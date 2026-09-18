@@ -21500,3 +21500,34 @@ restores GL's 1 px). Verified knob-free: `hudonly_ours_s6_default_linewidth2.png
 * The gold's 4-px stroke at row 762 (a double-width element) is 2 px in ours — noted, not chased.
 
 **GOLDMATCH-FF-2: HUD strokes at parity by measurement; glyph boldness handed to the font path. FF sprint 1 of 4 (cycle 4).**
+
+## GOLDMATCH-FF-2 S7 (Fable 5.1, 2026-09-18) — ⛔ **the caption's `A→F`, `R→F` is NOT a metrics/atlas pairing: all four 3-D fonts render `C H A S E M R F 0 a` correctly from their own `.rct`, and `3dfont/` and `autofont/` are byte-identical.** The substitution lives in the port's lookup or parse. ⚠️ The trace built to name the caption's font never fired at the site that draws it — handed forward with that fact
+
+**Story:** FF rotation, cycle 4, sprint 2. S6 closed the stroke width and left the glyphs to the font
+path, where S3's caption defect (`CHFSE CFMEFF`) already lived. One item, two symptoms.
+
+### ⭐ What is ruled out, by the data itself
+* `font_cells_all_atlases_CHASEMRF0a.png`: each atlas (`6x4`, `8x6`, `10x7`, `warn_font`) cropped by
+  its own `.rct` rows shows the right glyph in every cell, `A` and `R` included; every table carries
+  all 227–228 entries, digits and lowercase too. **No table+atlas pair produces an `F` at `A`.**
+* `art/ckptart/3dfont/*` and `art/ckptart/autofont/*` — GIF and RCT — are **md5-identical**, so the
+  `g_bAutoScaleFonts` branch (default `true`; not overridden in the install) cannot select a
+  different look. The gold's bolder glyphs are not a different atlas.
+* `Load3DFontSet`'s non-widescreen 1024 case pairs index 0/1/2 with 6x4/8x6/10x7 and 3 with
+  `warn_font` — matched pairs.
+
+### ⛔ What is left, and the instrument that did not speak
+The frame (`chase_caption_s7_top_2x.png`) reads **`CHFSE CFMEFF`** again: `A`(65) and `R`(82) draw
+`F`(70)'s cell; `C H S E M` draw their own. With the data clean, that is **`fontData[f][65]` and
+`[82]` holding `F`'s rect at draw time** — the `.rct` parser (`ReadFontMetrics`, `sscanf` per line,
+FF_LINUX-modified) or the lookup (`ScreenText`, `fontData[fontNum][*string]`, a `char` index).
+`VirtualDisplay::FF_TraceFont` (`FF_TRACE_FONT=1`) prints `fontNum`, `totalFont` and the rects for
+`A F R C`; placed at both `TextCenter` calls in `OTWDriverClass::DisplayInfoBar`, **it printed nothing
+in a run whose frame shows the caption** (`[VIEWMODE] … after=7`, binary linked before the run).
+Either the caption is drawn from a site other than those two, or the static `pFontSet` the trace reads
+is not the set the draw uses. **Next: print from inside `ScreenText` itself, per call, the index and the
+rect for each character** — then the parse-vs-lookup question is one line of output.
+
+### ⚠️ Grooming
+Two sprints on FF this cycle; the stroke width landed at parity, the glyph question is narrowed to two
+functions and has its instrument half-built. **Rotating to MA.**

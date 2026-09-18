@@ -1154,10 +1154,12 @@ void OTWDriverClass::DisplayInfoBar(void)
         sprintf(tmp, "%f", blubb);
         renderer->TextCenter(0.0F, (-1.F + 2.F * OTWDriver.renderer->TextHeight()), tmp);
 #endif
+        VirtualDisplay::FF_TraceFont("caption+label", tmpo);
         renderer->TextCenter(0.0F, (-1.F + 1.2F * OTWDriver.renderer->TextHeight()), tmpo);
     }
     else
     {
+        VirtualDisplay::FF_TraceFont("caption", CameraLabel[cameraID]);
         renderer->TextCenter(0.0F, (-1.F + 1.2F * OTWDriver.renderer->TextHeight()), CameraLabel[cameraID]);
     }
 }
