@@ -21208,3 +21208,94 @@ rendering conclusion.** Recorded so nobody reads it as one.
 **S2:** probe the display mode on the sim thread; re-run with captures 1 s and 5 s after each
 request; answer the `hudcolor` setting question. **GOLDMATCH-FF-2: full pit at parity bar HUD colour
 and haze; HUD-only and tanker blocked on a view switch that does not take. FF sprint 1 of 4.**
+
+## GOLDMATCH-FF-2 S2 (Fable 5.1, 2026-09-17) — ⛔⛔⛔ **"ModeHud reverts" was never true: the harness has TWO CLOCKS 25+ s apart, and every capture in four runs was taken before the view switched.** ✅ Clocks aligned, and the first real HUD-only and chase comparisons land: **HUD-only view at layout parity; HUD colour is the one rendering difference; the chase caption's glyphs are wrong**
+
+**Story:** FF rotation: sprint 2 of 4. S1 ended with three facts and no mechanism — *view mode 0
+requested, consumed, not visible* — and asked for a sim-thread probe. The probe answered, and the
+answer was about the harness, not the view.
+
+### ⛔⛔⛔ Two clocks
+
+`FF_VIEW_SCRIPT`'s `N@t` times are **sim-entry-relative** — the AVIONICS-1 latch sets its origin on
+the first non-UI frame. `FF_SIM_SCREENSHOT`'s `t:path` times are **process-relative** — its origin
+is set on its block's first evaluation, which is the pre-UI `!doUI` frame at startup, *the exact bug
+the view script's latch was added to fix.* The gap is the front-end plus load time. run5's new wall
+stamps measure it directly:
+
+```
+[FF_VIEW_SCRIPT] view mode 0 at 20005ms (sim-entry clock; wall 52121ms)     <- offset 32 s
+```
+
+So S1's `"0@80"` + `"86:"` captured **~25 s before** the switch, and read as "the view never
+changed". ⚠️ **run2's own probe had already shown the truth** — `request=0 before=2 after=1`,
+i.e. `Mode2DCockpit → ModeHud`, applied — and I still went looking for a reverter, because the
+picture 5 s later was the pit. **The picture was 5 s after the *screenshot clock*, 20 s before the
+*view clock*.** run3 (100 s budget) fired no step at all: the step was due at wall ~105 s.
+
+Along the way, by reading: the hybrid-pit snap-back (`otwdrive.cpp:1122`) is scoped to
+`Mode3DCockpit` and cannot fire from `ModeHud`; the `-test-ia` view table cannot clobber it; and
+`FF_DEBUG_VIEWMODE` in run3/run4 logged **no `SetOTWDisplayMode(2)` after the `ModeHud` call at
+all.** *There was no revert to find.*
+
+✅ **Fixed, opt-in:** **`FF_SIM_SCREENSHOT_SIMREL=1`** keys the screenshot clock off the same
+sim-entry latch. Opt-in because every existing recipe was tuned — by luck, per TE — to the process
+clock. Both log lines now print the wall clock. `docs/screen-parity.md`'s timing note, which said
+both clocks were process-relative, is corrected — **it was true when written (Sprint 9) and became
+false when the latch landed, and nobody updated it.** `[VIEWMODE] sim thread: request/before/after`
+stays as a permanent probe.
+
+### ⭐⭐⭐ First HUD-only comparison — layout parity
+
+run5 (`0@20`, captures +2/+6/+10 s, both clocks sim-relative). Pit-free is proven by the lower band's
+luma: **138 ours, 113 gold, 37 for the full pit.**
+
+| pair | whole | sky | HUD | left MFD | right MFD | terrain |
+|---|---|---|---|---|---|---|
+| S1's "HUD-only" (was the pit) vs gold | 68.95 | 46.3 | 103.9 | 53.6 | 58.9 | 90.7 |
+| **run5 HUD-only vs gold t=200** | **15.14** | **7.34** | 18.6 | 28.4 | 22.6 | 31.8 |
+| ours +2 s vs +10 s (floor) | 1.52 | 0.34 | | | | |
+
+`hudonly_ours_vs_gold_t200.png`: **sky, haze band and horizon match; both translucent MFD boxes are
+at the same size and position with the same legends; the HUD's ladder, flight-path marker, boxes,
+heading tape and data block are structurally identical.** The residuals are flight state, not
+rendering — the gold has a radar lock box on the tanker, a different attitude and position; ours
+has the tanker's contrail instead. **One rendering difference survives on a clean background: the
+HUD colour** (S1's cyan-vs-green), which the sky can no longer be blamed for.
+
+### ⭐⭐ First chase comparison — two named findings
+
+`chase_ours_vs_gold_t262.png`, run5 `2@40` → `SetOTWDisplayMode(7)` (ModeChase):
+
+1. ⛔ **The caption's glyphs are wrong.** Ours: **`CHFSE CFMEFF`**. Gold: **`CHASE CAMERA: Viper`**.
+   `A→F`, `R→F`, and the `: Viper` suffix absent. A sim-overlay font/string defect, small and exact.
+2. ⚠️ **Our chase camera is far closer** — the F-16 spans ~40 % of the frame (loadout and nozzle
+   visible) against ~4 % in the gold, which shows the KC-10 ahead of it. **The tanker is therefore not
+   in our frame and cannot be judged.** Chase distance is a game control (the PO may have zoomed);
+   **a setting question before it is a defect.**
+
+### ⭐ HUD colour — characterised, not solved
+
+`HUDcolor[0] = 0xff00ff00` (pure green) and `curColorIdx = 0` at init with **no persistence**, so both
+runs started on the same colour; the cockpit `.dat`'s `hudcolor` is parsed and **discarded** upstream.
+Measured green-dominant HUD pixels: **gold 3084 px, mean (78,216,111); ours 478 px, mean
+(128,255,202)**. Ours is lifted in **red and blue** above the horizon (121,255,196) *and* below it over
+the dark panel (151,255,221) — **a pure-green vertex colour alpha-blended over ~(60,60,60) cannot
+reach that; R and B are being added.** Not the setting, not additive-over-sky, not the hybrid pit.
+⚖️ **Naming the mechanism from here would be guessing.** The instrument exists: **`FF_PROBE_PIXEL=x,y`**
+prints, per draw at that pixel, the input colour, the output colour, and `light / l0amb / fog /
+blend / tex` — one run on a HUD-green pixel names it.
+
+### ⚠️ Not claimed
+
+* **That the HUD-only view is at parity.** *Layout* parity — the HUD colour is a live difference,
+  and the terrain/attitude residuals are unmatched flight state, not compared.
+* **That the tanker renders.** **Never in frame.** The chase distance must match the gold's first.
+* **That the caption defect is a font bug.** `CHFSE CFMEFF` is what is on screen; whether it is a
+  glyph table, a string, or an encoding is unmeasured.
+* That S1's three "instrument traps" are fixed — **they are not**; only the clock one is.
+
+**S3:** (a) `FF_PROBE_PIXEL` on a HUD stroke — the colour mechanism in one run; (b) match the gold's
+chase distance and bring the tanker into frame; (c) the caption glyphs. **GOLDMATCH-FF-2: HUD-only at
+layout parity, two new named defects, and a phantom retired with its harness cause fixed. FF sprint 2
+of 4.**

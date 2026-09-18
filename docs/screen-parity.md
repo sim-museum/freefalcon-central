@@ -20,10 +20,20 @@ setup screen, but it cannot serve as a Windows oracle. Shots 1/2/4/5 are titled
 
 Native evidence thumbnails (512×384) are committed alongside this file in
 `docs/screen-parity/`; full 1024×768 frames regenerate with the recipes below.
-NOTE capture timing: `FF_SIM_SCREENSHOT`/`FF_VIEW_SCRIPT` times are
-process-relative and a sim mission load currently takes ~80–100 s, so sim
-captures before ~110 s catch the (white-under-X11) load screen — the recipes
-below are the ones that actually produced healthy frames.
+NOTE capture timing — ⚠️ **TWO CLOCKS (corrected GOLDMATCH-FF-2 S2, 2026-09-17).** This note used
+to say both flags were process-relative. That stopped being true when AVIONICS-1 latched
+`FF_VIEW_SCRIPT` on sim entry: its `N@t` and `s@t` times now count from the **first non-UI frame**
+(sim entry), while `FF_SIM_SCREENSHOT`'s `t:path` times count from **process start** (its clock is
+set on the block's first evaluation, which is the pre-UI `!doUI` frame — the very bug the view
+script's latch was added to fix). The gap is the whole front-end + load time, ~25 s and up. A recipe
+such as `FF_VIEW_SCRIPT="0@80" FF_SIM_SCREENSHOT="86:..."` therefore captures ~25 s **before** the
+view switches and reads as "the view never changed" — it cost three runs and a phantom "ModeHud
+reverts" investigation. **`FF_SIM_SCREENSHOT_SIMREL=1`** keys the screenshot clock off the same
+sim-entry latch so both schedules share an origin; both log lines now also print the wall clock so
+the skew is visible in any log. Sim mission load is ~80–100 s on the process clock, so on that clock
+captures before ~110 s catch the (white-under-X11) load screen — the recipes below are the ones
+that actually produced healthy frames, and they were tuned to the process clock; do not switch them
+to SIMREL without re-timing.
 
 | # | Gold file (2026-…) | Screen / view | Native repro recipe (verified 07-27) | Verdict |
 |---|---|---|---|---|

@@ -4024,6 +4024,14 @@ static void main_loop(void) {
                 if (!s_vsStart) s_vsStart = SDL_GetTicks();
                 Uint32 el = SDL_GetTicks() - s_vsStart;
                 static int s_shotIdx = 0;
+                /* GOLDMATCH-FF-2 S2: S1 parsed 2 steps and only step 1 ever logged. Prove the loop
+                   itself still runs late in the sim -- once every ~10 s after 90 s -- so "step 2
+                   never fired" is separable from "this code stopped being reached". */
+                { static Uint32 s_lastBeat = 0;
+                  if (el >= 90000 && el - s_lastBeat >= 10000) { s_lastBeat = el;
+                      fprintf(stderr, "[FF_VIEW_SCRIPT] alive el=%ums steps=%d fired=", el, s_nVs);
+                      for (int k = 0; k < s_nVs; k++) fprintf(stderr, "%d", s_vs[k].fired);
+                      fprintf(stderr, "\n"); fflush(stderr); } }
                 for (int vi = 0; vi < s_nVs; vi++) {
                     if (!s_vs[vi].fired && el >= s_vs[vi].atMs) {
                         s_vs[vi].fired = 1;
@@ -4034,7 +4042,7 @@ static void main_loop(void) {
                             fprintf(stderr, "[FF_VIEW_SCRIPT] screenshot -> %s at %ums\n", s_shotName, el);
                         } else {
                             g_requestedViewMode = s_vs[vi].mode;
-                            fprintf(stderr, "[FF_VIEW_SCRIPT] view mode %d at %ums\n", s_vs[vi].mode, el);
+                            fprintf(stderr, "[FF_VIEW_SCRIPT] view mode %d at %ums (sim-entry clock; wall %ums)\n", s_vs[vi].mode, el, (unsigned)SDL_GetTicks());
                         }
                     }
                 }
@@ -4129,20 +4137,32 @@ static void main_loop(void) {
                 }
             }
             if (s_nSs) {
-                if (!s_ssStart) s_ssStart = SDL_GetTicks();
-                Uint32 el = SDL_GetTicks() - s_ssStart;
+                /* GOLDMATCH-FF-2 S2: TWO CLOCKS. FF_VIEW_SCRIPT's `el` latches on the first non-UI
+                   frame (sim entry) -- see s_vsLatched above -- while this one started on its own
+                   first evaluation, i.e. process start. The gap is the whole front-end + load time,
+                   so "view 0@80; screenshot 86:" took the screenshot ~25 s BEFORE the view switched,
+                   three runs in a row, and read as "ModeHud reverts". It does not; the capture was
+                   early. FF_SIM_SCREENSHOT_SIMREL=1 keys this clock off the same sim-entry latch so
+                   both schedules share an origin. Opt-in: existing recipes were tuned (by luck, per
+                   TE) to the process clock, and changing them silently is how a green run goes wrong. */
+                { static int s_simRel = -1; if (s_simRel < 0) s_simRel = getenv("FF_SIM_SCREENSHOT_SIMREL") ? 1 : 0;
+                  static bool s_ssLatched = false;
+                  if (s_simRel && !s_ssLatched) { if (!doUI && s_sawUI) { s_ssLatched = true; s_ssStart = SDL_GetTicks(); } else s_ssStart = 0; } }
+                if (!s_ssStart && !getenv("FF_SIM_SCREENSHOT_SIMREL")) s_ssStart = SDL_GetTicks();
+                /* with SIMREL and no latch yet, el stays 0 and the guard below fires nothing */
+                Uint32 el = s_ssStart ? (SDL_GetTicks() - s_ssStart) : 0;
                 for (int si = 0; si < s_nSs; si++) {
                     // Serialise: only arm the next request once the sim thread has
                     // consumed the previous one (g_screenshotRequest back to 0).
-                    if (!s_ss[si].fired && el >= s_ss[si].atMs && !g_screenshotRequest) {
+                    if (s_ssStart && !s_ss[si].fired && el >= s_ss[si].atMs && !g_screenshotRequest) {
                         s_ss[si].fired = 1;
                         g_screenshotFilename = s_ss[si].path;
                         g_screenshotRequest = 1;
-                        fprintf(stderr, "[FF_SIM_SCREENSHOT] requested %s at %ums\n", s_ss[si].path, el);
+                        fprintf(stderr, "[FF_SIM_SCREENSHOT] requested %s at %ums (wall %ums)\n", s_ss[si].path, el, (unsigned)SDL_GetTicks());
                         fflush(stderr);
                     }
                 }
-            }
+}
         }
 
         // FF_LINUX: scripted COCKPIT clicks via FF_SIM_CLICK="x,y@sec[+holdms];..."

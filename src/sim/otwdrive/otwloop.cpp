@@ -243,6 +243,11 @@ void OTWDriverClass::Cycle(void)
         if (g_requestedViewMode >= 0) {
             int mode = g_requestedViewMode;
             g_requestedViewMode = -1;
+            /* GOLDMATCH-FF-2 S2: the main thread logs "view mode N" when it SETS the request; nothing
+               logged what the sim thread did with it. S1 requested mode 0 on TE 27, saw the line,
+               and captured the 2-D cockpit 6 s later. Say what mode we were in and what we are in
+               after the switch, from the thread that actually switches. */
+            fprintf(stderr, "[VIEWMODE] sim thread: request=%d  before=%d", mode, (int)mOTWDisplayMode);
             switch (mode) {
                 case 0: SetOTWDisplayMode(ModeHud); break;
                 case 1: SetOTWDisplayMode(Mode2DCockpit); break;
@@ -252,6 +257,7 @@ void OTWDriverClass::Cycle(void)
                 case 5: SetOTWDisplayMode(ModeWeapon); break;    // missile/weapon view (crash repro)
                 case 6: SetOTWDisplayMode(ModeTargetToWeapon); break;
             }
+            fprintf(stderr, "  after=%d\n", (int)mOTWDisplayMode); fflush(stderr);
         }
     }
 
