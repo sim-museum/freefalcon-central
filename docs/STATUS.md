@@ -21083,3 +21083,41 @@ then see whether `STARTCAMP` finally arms. ⭐ **The arm line already distinguis
 
 **MPTEST-FF: the row selects; four sprints of evidence were instrument artefacts. FF rotation
 complete (4 sprints) → MiG Alley.**
+
+## GOLDMATCH-FF-1/2 — match the two 2026-09-15 gold videos as closely as possible (PO ask, 2026-09-17)
+
+**Ask:** the PO asked (2026-09-17) for backlog items matching every gold video from the last week as
+closely as possible. FF has two, both 1920×1080 @ 60 desktop recordings. Censused at 48 frames each
+in `/home/admin/gold-census/`. ⚠️ **`260915_missile_threat` has 29 sprints of GOLDVID-FF-1 behind it;
+`260915_refuel` has NEVER been censused** (S6x: *"it has not been [looked at]"*). These hold each whole
+video as one acceptance test.
+
+### GOLDMATCH-FF-1 — `260915_missile_threat.mp4` (496 s, TE 28)
+
+| scene | ~t | what is on screen | existing item | status | gap |
+|---|---|---|---|---|---|
+| splash / main menu | 0–60 | F-16 on the ramp, menu | — | — | ⛔ no gold comparison |
+| **TE briefing map** | 60, 330 | `28 MISSILE THREAT`, route, `STRAIGHT SWEEP`, `TASK: Sweep`, `TGT: west of Bergen` | GOLDVID-FF-1 S1 (census only) | — | ⛔ **map/briefing screen parity not itemised** |
+| aircraft select | ~340 | blue screen, F-16 silhouettes | — | — | ⛔ no item |
+| **full-pit flight, ~30 frames** | 150–460 | RWR, HSD, MFDs; **banking with terrain and horizon at many attitudes** | **GOLDVID-FF-1 S26–S29** — RWR at parity, emitters identified vs an independent gold | ✅ RWR/HSD | ⛔ **whole-frame cockpit under bank** (terrain shading, horizon, haze) never compared |
+| mission-end dialog over terrain | ~385 | blue dialog box | — | — | ⛔ no item |
+| exit | ~480 | | — | — | — |
+
+### GOLDMATCH-FF-2 — `260915_refuel.mp4` (293 s, TE 27) — ⛔ **first census**
+
+| scene | ~t | what is on screen | existing item | gap |
+|---|---|---|---|---|
+| PO's task notes | 0–12 | a kanban card `Task #291 · 27 Refueling` with the PO's own steps | — | out of scope (not the game) — **but it is the PO's recipe; read it before flying this TE** |
+| splash / menu / TE select | 12–50 | `27 Refueling` on the TE map | — | ⛔ no item |
+| aircraft select | ~55 | | — | ⛔ no item |
+| full pit, ~14 frames | 60–140 | F-16 pit, RWR quiet | GOLDVID-FF-1 (RWR mechanism) | ✅ mechanism; whole frame ⛔ |
+| **HUD-only wide view, ~20 frames** | 140–260 | HUD symbology, MFD boxes bottom corners, horizon band | — | ⛔ **no item — the view the PO spent most of the video in** |
+| **tanker approach, from below and behind** | ~265 | the tanker's underside and boom filling the frame | — | ⛔ **no item — the refuelling itself: tanker model, boom, closure** |
+| external chase of the F-16 | ~275 | | — | ⛔ no item |
+| debrief map, credits | 280–293 | | — | ⛔ no item |
+
+**Acceptance (each):** every scene row has a passing gold comparison or an explicit PO decision.
+**Priority:** FF-2's tanker approach and HUD-only view (never looked at, and the point of the TE) →
+FF-1's cockpit-under-bank whole frame → the TE briefing map → menus and dialogs.
+⚠️ **Not a re-opening of GOLDVID-FF-1** — its RWR work is at parity and stays closed; it is listed so
+the cockpit frames are not mistaken for ungraded.
