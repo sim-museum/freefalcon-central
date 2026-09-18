@@ -346,6 +346,8 @@ void Render2D::Render2DBitmap(int sX, int sY, int dX, int dY, int w, int h, char
  (The location given is used as the upper left corner of the text in units of pixels)
 \***************************************************************************/
 //JAM 22Dec03 - Don't they teach people how to format code?
+extern "C" int g_ffDumpNextFontTex;   /* FF_LINUX GOLDMATCH-FF-2 S9: arms the caption atlas readback */
+extern "C" int g_ffDumpNextFontVerts; static int g_ffTraceFontVerts = 0;
 void Render2D::ScreenText(float xLeft, float yTop, const char *string, int boxed)
 {
     int color;
@@ -454,7 +456,7 @@ void Render2D::ScreenText(float xLeft, float yTop, const char *string, int boxed
         fprintf(stderr, "\n");
         if (strstr(string, "CAMERA")) for (const char* q = string; *q; q++) { const FontDataType& d = pFontSet->fontData[f][(unsigned char)*q];
             fprintf(stderr, "[font]   '%c'(%d) rect l%.0f t%.0f w%.0f h%.0f pw%.1f\n", *q, (int)(unsigned char)*q, d.left*256.0f, d.top*256.0f, d.width*256.0f, d.height*256.0f, d.pixelWidth); }
-        fflush(stderr); } }
+        fflush(stderr); g_ffDumpNextFontTex = 1; g_ffTraceFontVerts = 1; } }
     context.SelectTexture1(pFontSet->fontTexture[pFontSet->fontNum].TexHandle());
 
     TwoDVertex *pVtx = vert;
@@ -539,6 +541,12 @@ void Render2D::ScreenText(float xLeft, float yTop, const char *string, int boxed
     ShiAssert(n < 256);
 
     if (n)
+        /* GOLDMATCH-FF-2 S9: the caption's vertex stream as the GAME built it (u,v per character's
+           first two verts) and, armed here, as the SHIM receives it (d3d_gl.cpp DrawVertices). */
+        if (getenv("FF_TRACE_FONT") && g_ffTraceFontVerts) { g_ffTraceFontVerts = 0;
+            fprintf(stderr, "[fontv] game: n=%d", n);
+            for (int ci = 0; ci < n && ci < 12; ci++) fprintf(stderr, "  [%d] u%.4f v%.4f | u%.4f v%.4f", ci, vert[ci*6].u, vert[ci*6].v, vert[ci*6+1].u, vert[ci*6+1].v);
+            fprintf(stderr, "\n"); fflush(stderr); g_ffDumpNextFontVerts = 1; }
         context.DrawPrimitive(MPR_PRM_TRIANGLES, MPR_VI_COLOR bitor MPR_VI_TEXTURE, n * 6, vert, sizeof(vert[0]));
 
     if (ForceAlpha) context.RestoreState(STATE_ALPHA_SOLID); // COBRA - RED - Alpha Option
@@ -1209,7 +1217,13 @@ int FontSet::ReadFontMetrics(int index, char*fileName) // JPO return status
             //JAM 22Dec03 - Not anymore, all modern video cards do automatic biasing.
             //TODO: Add global cfg variable for older cards.
             // if(DisplayOptions.bFontTexelAlignment)
-            if (g_bOldFontTexelFix) //Wombat778 4-01-04 complete fix in drawprimitive
+            /* FF_LINUX GOLDMATCH-FF-2 S9 (2026-09-18): the half-texel shift below is D3D7's texel-centre
+               convention. GL samples at texel centres already, so on this port the shift walks every
+               glyph's sampling half a texel right and the LAST column of each cell is never drawn: a
+               5-wide A loses its right leg and reads as F ("CHFSE CFMEFF"), and the whole font reads
+               thinner than the gold. FF_FONT_NO_TEXELFIX=1 skips the shift (experiment; default kept). */
+            static int ffNoTexelFix = -1; if (ffNoTexelFix < 0) ffNoTexelFix = getenv("FF_FONT_NO_TEXELFIX") ? 1 : 0;
+            if (g_bOldFontTexelFix && !ffNoTexelFix) //Wombat778 4-01-04 complete fix in drawprimitive
             {
                 // OW: shift u,v by a half texel. if you dont do that and the card filters it fetches the wrong texels
                 // because if you specify 1.0 you're saying that you want the far-right edge of this texel

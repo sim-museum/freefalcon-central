@@ -239,6 +239,16 @@ void FF_DrainDeferredGLDeletes() {
 // ============================================================
 // D3D7 Surface (texture) implementation
 // ============================================================
+
+// FF_LINUX GOLDMATCH-FF-2 S9 (2026-09-18): read a D3D7 surface's GL texture back to disk. Armed by
+// Render2D::ScreenText's caption trace (g_ffDumpNextFontTex), fired by ContextMPR::SelectTexture1
+// on the next bind: the caption "CHFSE CFMEFF" draws with the right table and the right slot, so
+// the pixels the port uploaded for 10x7font.gif are the last thing left to look at. Never /tmp.
+extern "C" int g_ffDumpNextFontTex = 0;
+extern "C" int g_ffDumpNextFontVerts = 0;
+struct D3D7Surface;
+static int ff_dump_dds_texture_impl(struct D3D7Surface* sf, const char* path);
+extern "C" int ff_dump_dds_texture(void* dds, const char* path) { return ff_dump_dds_texture_impl((struct D3D7Surface*)dds, path); }
 struct D3D7Surface : public IDirectDrawSurface7 {
     GLuint glTexture;
     int width;
@@ -4888,6 +4898,13 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
     g_DrawVerticesCount++;
     bool isRHW = (fvf & D3DFVF_XYZRHW) != 0;
     if (isRHW) g_RHWDrawCount_local++; else g_WorldDrawCount_local++;
+    if (g_ffDumpNextFontVerts && isRHW) { g_ffDumpNextFontVerts = 0;
+        int vs = GetVertexSize(fvf); int uvOff = 16 + ((fvf & D3DFVF_DIFFUSE) ? 4 : 0) + ((fvf & D3DFVF_SPECULAR) ? 4 : 0);
+        fprintf(stderr, "[fontv] shim: fvf=0x%x size=%d uvOff=%d count=%u", (unsigned)fvf, vs, uvOff, (unsigned)count);
+        for (unsigned i = 0; i < count && i < 24; i += 6) { const float* q = (const float*)((const char*)vertices + (size_t)i * vs);
+            const float* q1 = (const float*)((const char*)vertices + (size_t)(i+1) * vs);
+            fprintf(stderr, "  [%u] x%.0f y%.0f u%.4f v%.4f | u%.4f v%.4f", i/6, q[0], q[1], q[uvOff/4], q[uvOff/4+1], q1[uvOff/4], q1[uvOff/4+1]); }
+        fprintf(stderr, "\n"); fflush(stderr); }
 
     // FF_LINUX GOLDMATCH-FF-2 S5 (2026-09-17): FF_TRACE_LINES=1 -- the HUD is 143 Line() calls
     // that arrive here as line primitives, and the gold's HUD green has R and B BELOW the sky's
@@ -7913,3 +7930,34 @@ extern "C" HRESULT D3DXLoadTextureFromMemory(struct IDirect3DDevice7 *pd3dDevice
 } // extern "C"
 
 #endif // FF_LINUX
+
+static int ff_dump_dds_texture_impl(struct D3D7Surface* sf, const char* path)
+{
+    if (!sf || !sf->glTexture) { fprintf(stderr, "[fontdump] no GL texture on surface %p\n", (void*)sf); return 0; }
+    GLint prev = 0; glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev);
+    glBindTexture(GL_TEXTURE_2D, sf->glTexture);
+    GLint w = 0, h = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+    int ok = 0;
+    if (w > 0 && h > 0 && w <= 4096 && h <= 4096) {
+        unsigned char* pa = (unsigned char*)malloc((size_t)w * h * 4);
+        if (pa) {
+            glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pa);
+            FILE* f = fopen(path, "wb");
+            if (f) { fprintf(f, "P6\n%d %d\n255\n", w, h);
+                for (long q = 0; q < (long)w * h; q++) fwrite(pa + q * 4, 1, 3, f);
+                fclose(f); ok = 1; }
+            char ap[1024]; snprintf(ap, sizeof ap, "%s.alpha.pgm", path);
+            f = fopen(ap, "wb");
+            if (f) { fprintf(f, "P5\n%d %d\n255\n", w, h);
+                for (long q = 0; q < (long)w * h; q++) fputc(pa[q * 4 + 3], f);
+                fclose(f); }
+            free(pa);
+        }
+    }
+    fprintf(stderr, "[fontdump] glTex=%u %dx%d surface w=%d h=%d -> %s (%s)\n", (unsigned)sf->glTexture, (int)w, (int)h, sf->width, sf->height, path, ok ? "written" : "FAILED");
+    fflush(stderr);
+    glBindTexture(GL_TEXTURE_2D, (GLuint)prev);
+    return ok;
+}

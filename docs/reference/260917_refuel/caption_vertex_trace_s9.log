@@ -1,0 +1,1008 @@
+[TRACE] About to call init_game_paths
+[TRACE] init_game_paths completed
+[TRACE] About to call init_resource_manager
+[TRACE] init_resource_manager completed
+[TRACE] About to call init_sdl
+[TRACE] SDL_Init completed, setting GL attributes
+[TRACE] About to create window
+[TRACE] init_sdl completed
+[TRACE] About to call init_opengl
+[TRACE] About to call SDL_GL_CreateContext
+[TRACE] init_opengl completed
+[main] Calling init_game_core...
+  [FalconDisplay::Setup] Starting DeviceIndependentGraphicsSetup...
+  [FalconDisplay::Setup] DeviceIndependentGraphicsSetup done
+  [FalconDisplay::Setup] Registering window class...
+  [FalconDisplay::Setup] RegisterClass done, calling MakeWindow...
+  [FalconDisplay::Setup] Calling MakeWindow...
+  [FalconDisplay::Setup] MakeWindow done, calling devmgr.Setup...
+  [EnumD3DDrivers] Starting...
+  [EnumD3DDrivers] DirectDrawCreateEx returned pDD7=0x59af409f1970
+  [EnumD3DDrivers] QueryInterface for D3D7: hr=0x0, pD3D=0x59af409f19a0
+  [EnumD3DDrivers] Calling EnumDevices...
+    [EnumD3DDriversCallback] name=OpenGL, desc=FreeFalcon OpenGL Device
+    [EnumD3DDriversCallback] dwDevCaps=0x90000, required=0x10000
+    [EnumD3DDriversCallback] Adding device to list
+  [EnumD3DDrivers] EnumDevices returned
+  [FalconDisplay::Setup] devmgr.Setup done
+  Setting theater: Korea
+  [SetNewTheater] ReadIndex...
+  [SetNewTheater] LoadPriorityTables...
+  [SetNewTheater] TheaterReload...
+      [ObjectParent::CleanupTable] Starting, TheObjectList=0x59af40969928, TheObjectListLength=3961
+      [ObjectParent::CleanupTable] FlushReferences()...
+      [ObjectParent::CleanupTable] FlushReferences() done
+      [ObjectParent::CleanupTable] ObjectLOD::CleanupTable()...
+        [ObjectLOD::CleanupTable] Starting, TheObjectLODs=0x59af408a7378, TheObjectLODsCount=6801
+        [ObjectLOD::CleanupTable] Iterating 6801 LODs...
+        [ObjectLOD::CleanupTable] LOD iteration done
+        [ObjectLOD::CleanupTable] WaitUpdates()...
+        [ObjectLOD::CleanupTable] WaitUpdates() done
+        [ObjectLOD::CleanupTable] Deleting TheObjectLODs...
+        [ObjectLOD::CleanupTable] TheObjectLODs deleted
+        [ObjectLOD::CleanupTable] Deleting tagListBuffer...
+        [ObjectLOD::CleanupTable] tagListBuffer deleted
+        [ObjectLOD::CleanupTable] ObjectLodMap.Close()...
+        [ObjectLOD::CleanupTable] ObjectLodMap closed
+        [ObjectLOD::CleanupTable] DeleteCriticalSection()...
+        [ObjectLOD::CleanupTable] Critical section deleted
+      [ObjectParent::CleanupTable] ObjectLOD::CleanupTable() done
+      [ObjectParent::CleanupTable] TheTextureBank.Cleanup()...
+      [ObjectParent::CleanupTable] ThePaletteBank.Cleanup()...
+      [ObjectParent::CleanupTable] TheColorBank.Cleanup()...
+      [ObjectParent::CleanupTable] Banks cleanup done
+      [ObjectParent::CleanupTable] Deleting TheObjectList...
+      [ObjectParent::CleanupTable] TheObjectList deleted
+  [SetNewTheater] ResSetDirectory...
+  [SetNewTheater] UnloadClassTable...
+  [SetNewTheater] LoadClassTable...
+========================================
+FreeFalcon 7.0.0
+Open Source Project
+Build: Sep 18 2026 05:14:46
+========================================
+
+Data directory: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
+Setting up game paths...
+  Campaign saves: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save
+  Terrain data: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea
+  Object data: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/objects
+  Sound directory: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/sounds
+Initializing resource manager...
+Initializing SDL2...
+  Window created: 1024x768
+  Keyboard scancode translation initialized.
+Initializing OpenGL...
+  OpenGL Vendor: NVIDIA Corporation
+  OpenGL Renderer: NVIDIA GeForce GTX 1660 SUPER/PCIe/SSE2
+  OpenGL Version: 4.6.0 NVIDIA 595.84
+  OpenGL Stencil Bits: 8
+Initializing OpenAL...
+  OpenAL Vendor: OpenAL Community
+  OpenAL Renderer: OpenAL Soft
+  OpenAL Version: 1.1 ALSOFT 
+
+--- Initializing Game Core Systems ---
+  Initializing communications layer...
+  Communications layer initialized successfully
+  Setting up FalconDisplay for Linux...
+  Loading display options...
+  Initializing DeviceManager...
+[D3DGL] Creating DirectDraw7 interface
+  Initializing simulation memory pools...
+  Loading particle system parameters...
+  Loading theater list...
+  Loading class table (InitClassTableAndData)...
+  Class table loaded. Falcon4ClassTable=0x59af4117cce0
+  Loading: UnitData...
+LoadUnitData: trying to open file Falcon4 with extension UCD
+LoadUnitData: file opened successfully
+LoadUnitData: file size=252002, entries=750, sizeof(UnitClassDataType)=336, expected=252002
+  Loading: FeatureEntryData...
+  Loading: ObjectiveData...
+  Loading: WeaponData...
+  Loading: FeatureData...
+  Loading: VehicleData...
+  Loading: WeaponListData...
+  Loading: PtHeaderData...
+  Loading: PtData...
+  Loading: RadarData...
+  Loading: IRSTData...
+  Loading: RwrData...
+  Loading: VisualData...
+  Loading: SimWeaponData...
+  Loading: ACDefData...
+  Loading: SquadronStoresData...
+  Loading: RocketData...
+  Loading: DirtyData...
+  Loading: MissionData...
+  Loading: VisIdMap...
+  Loading: RackTables...
+  Loading: RDRackData...
+  All data files loaded! Checking Falcon4ClassTable...
+  Falcon4ClassTable = 0x59af4117cce0, NumEntities = 3678
+  [SetNewTheater] ReadCampAIInputs...
+  [SetNewTheater] FreeTactics...
+  [SetNewTheater] LoadTactics...
+  [SetNewTheater] LoadTrails...
+  [SetNewTheater] Freeing SIM data...
+  [SetNewTheater] Reading SIM data...
+  [SetNewTheater] SetCurrentTheater...
+  [SetNewTheater] Complete!
+  [main_linux] SetNewTheater returned, calling InitVU...
+  Initializing VU system...
+  [main_linux] InitVU returned
+  Setting up thread manager...
+  [main_linux] ThreadManager::setup() returned
+  Initializing sound manager...
+[InstallDSound] Starting, gSoundDriver=0x59af4093e780, DSound=(nil)
+[InstallDSound] Calling DirectSoundCreate...
+[InstallDSound] DirectSoundCreate returned 0x0, DSound=0x59af41658e70
+  [main_linux] InitSoundManager() succeeded
+  Starting sound system...
+  [main_linux] F4SoundStart() returned
+  Starting simulation loop...
+  [main_linux] SimulationLoopControl::StartSim() returned
+  Initializing weather system...
+  [main_linux] realWeather created
+  Initializing campaign system...
+[ThreadManager::start_campaign_thread] ENTRY, function=0x59af1805e1d0
+[ThreadManager::start_campaign_thread] Calling CreateThread...
+[StartLoop] Thread started, entering main loop
+[StartLoop] Waiting for wait_for_start_graphics event...
+[ThreadManager::start_campaign_thread] CreateThread returned handle=0x59af462a6cc0
+[ThreadManager::start_campaign_thread] DONE
+[CampaignThread] STARTED - entering function
+[CampaignThread] About to call HandleCampaignThread()
+[HandleCampaignThread] STARTED - entering function
+[HandleCampaignThread] Set CAMP_RUNNING, campaign_active()=1
+[HandleCampaignThread] Got CAMP_SUSPEND_REQUEST, setting CAMP_SUSPENDED
+  [main_linux] Camp_Init() returned
+  Building key mappings...
+  [main_linux] BuildAscii() SKIPPED -- static Key_Chart kept (MP-1)
+  Initializing comms manager...
+  [main_linux] gCommsMgr->Setup() returned
+  Loading logbook...
+[FF_LINUX] WeatherClass::Init entry (instantAction=1)
+[FF_LINUX] WeatherClass::Init: lastCheck=0
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+  [main_linux] logbook loaded for 'Viper'
+  Loading keyboard function tables...
+  [main_linux] LoadFunctionTables() returned
+  Game core initialization complete.
+[main] init_game_core() returned
+[main] Calling init_d3d_graphics...
+[Texture::SetupForDevice] rc=0x59af4151c8c0 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/objects/
+[main] init_d3d_graphics() returned
+
+========================================
+Initialization complete!
+========================================
+[main] Entering main_loop...
+
+========================================
+Entering main loop
+  ESC = quit, Click X to close
+========================================
+
+[Main] Posting FM_START_GAME to initialize game...
+[INPUT] focus gained (doUI=0) -> relative mouse re-enabled
+[FM] FM_START_GAME received
+[FF_VIEW_SCRIPT] parsed 1 steps
+[FF_SIM_SCREENSHOT] parsed 1 capture(s)
+[FM] FM_START_UI received
+[FM] Main thread re-acquired GL context
+[FM] Calling UI_Startup()...
+[UI_Startup] ENTRY, FalconDisplay.currentMode=1
+[UI_Startup] Calling EnterMode(UI)...
+  [DisplayDevice::Setup] Starting 1024x768x16, fullscreen=0
+  [DisplayDevice::Setup] Calling CreateContext...
+  [CreateContext] driverNum=0, devNum=0, resNum=18
+  [CreateContext] GetDriver returned pDDI=0x59af409f2e70
+  [CreateContext] D3D devices count: 1
+  [CreateContext] Display modes count: 46
+  [CreateContext] GetDevice returned pD3DDI=0x59af409f19f0
+  [CreateContext] GetDisplayMode returned pddsd=0x59af409f55f0
+  [DXContext::Init] Starting with hWnd=0x59af3fa3a6a0, 1024x768@16, fullscreen=0
+  [DXContext::Init] Checking thread ID...
+  [DXContext::Init] Thread ID check passed
+  [DXContext::Init] Calling DirectDrawCreateEx...
+  [DXContext::Init] DirectDrawCreateEx returned m_pDD=0x59af46683300
+  [DXContext::Init] Calling GetCaps... m_pcapsDD=0x59af46683730
+  [DXContext::Init] GetCaps done
+  [DXContext::Init] Calling GetDeviceIdentifier... m_pDevID=0x59af46682190
+  [DXContext::Init] GetDeviceIdentifier done
+  [DXContext::Init] DXContext::Init - DriverInfo - "OpenGL" - "FreeFalcon OpenGL Renderer", Vendor: 4318, Device: 4660, SubSys: 0, Rev: 0, Product: 0, Version: 0, SubVersion: 0, Build: 0
+  [DXContext::Init] Calling SetCooperativeLevel with flags=0x1408...
+  [DXContext::Init] SetCooperativeLevel done
+  [DXContext::Init] Complete!
+  [DisplayDevice::Setup] CreateContext returned m_DXCtx=0x59af466836b0
+  [DisplayDevice::Setup] Context created, setting up window...
+  [DisplayDevice::Setup] Calling ShowWindow...
+  [DisplayDevice::Setup] ShowWindow done
+  [DisplayDevice::Setup] Setting up windowed image, IsHardware=1...
+  [DisplayDevice::Setup] image.Setup done
+  [DisplayDevice::Setup] Calling SetRenderTarget, targetSurface=0x59af466839c0...
+[SetRenderTarget] Linux: Creating D3D7 interface directly
+[SetRenderTarget] Linux: m_pD3D=0x59af46681d20
+[AttachDepthBuffer] Linux: Skipping - OpenGL manages depth buffers
+[SetRenderTarget] Linux: Creating D3D device directly, pRenderTarget=0x59af466839c0
+[SetRenderTarget] Linux: m_pD3DD=0x71f78a8ac010
+  [DisplayDevice::Setup] SetRenderTarget done
+  [DisplayDevice::Setup] Calling movieInit...
+  [DisplayDevice::Setup] Complete!
+[UI_Startup] EnterMode done, getting ImageBuffer...
+[GlobalSetup] Creating C_Parser...
+[GlobalSetup] Loading ID lists...
+[LoadIDList] Loading: userids.lst
+[LoadIDList] file size=500 for userids.lst
+[LoadIDList] Loading: fontids.lst
+[LoadIDList] file size=22 for fontids.lst
+[LoadIDList] Loading: imageids.lst
+[LoadIDList] file size=197 for imageids.lst
+[LoadIDList] Loading: soundids.lst
+[LoadIDList] file size=46 for soundids.lst
+[LoadIDList] Loading: textids.lst
+[LoadIDList] file size=21 for textids.lst
+[LoadIDList] Loading: movieids.lst
+[LoadIDList] file size=20 for movieids.lst
+[LoadImageList] Loading: resimgs.lst
+[LoadImageList] Opened: resimgs.lst
+[LoadSoundList] Loading: sounds.lst
+[LoadImageList] Loading: main_res.lst
+[LoadImageList] Opened: main_res.lst
+[LoadSoundList] Loading: main_snd.lst
+[LoadWindowList] Loading: main_scf.lst
+[LoadImageList] Loading: comm_res.lst
+[LoadImageList] Opened: comm_res.lst
+[LoadSoundList] Loading: comm_snd.lst
+[LoadWindowList] Loading: comm_scf.lst
+[LoadImageList] Loading: help_res.lst
+[LoadImageList] FAILED to open: help_res.lst
+[LoadSoundList] Loading: help_snd.lst
+[LoadWindowList] Loading: help_scf.lst
+[LoadImageList] Loading: lb_res.lst
+[LoadImageList] Opened: lb_res.lst
+[LoadSoundList] Loading: lb_snd.lst
+[LoadWindowList] Loading: lb_scf.lst
+[Texture::SetupForDevice] rc=0x59af466836b0 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/misctex/
+[FarTexDB] DDS file: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea/texture/fartiles.dds, headerSize=124, bytesRead=124
+[FarTexDB] DDS header: flags=0x81007, width=32, height=32, linearSize=512, mipMapCount=0
+[FarTexDB] DDS pixfmt: flags=0x0, fourCC=0x31545844, rgbBitCount=4
+[FarTexDB] linearSize=512, texCount=96664, fartexDDSFile.IsReady=1
+[PalLight] light=(0.750 0.829 0.849) gametime=0 pal=0x59af495ca490
+[FM] UI_Startup() complete
+[Joystick] throttle axis=3, yaw axis=2 (override with FF_THROTTLE_AXIS / FF_YAW_AXIS)
+FPS: 59 (avg over 5 sec), doUI=1, gMainHandler=0x59af46ba6b70
+FPS: 60 (avg over 5 sec), doUI=1, gMainHandler=0x59af46ba6b70
+[FF_UI_CLICK] firing (677,748) at 12008ms
+[Mouse] LBUTTONDOWN at (677, 748)
+[LBUTTONDOWN] at (677,748) -> window=0x59af487821e0 ID=5000
+[LBUTTONDOWN] GrabItem found control ID=30003 type=25
+[LBUTTONUP] at (677,748) -> window=0x59af487821e0 Grab_.Control_=0x59af48784260
+[LBUTTONUP] Grab_.Control_ found: ID=30003 type=25
+[LBUTTONUP] Calling Process(ID=30003, type=52)
+[LoadImageList] Loading: pln_res.lst
+[LoadImageList] Opened: pln_res.lst
+[LoadSoundList] Loading: pln_snd.lst
+[LoadWindowList] Loading: pln_scf.lst
+[LoadImageList] Loading: cmn_res.lst
+[LoadImageList] Opened: cmn_res.lst
+[LoadSoundList] Loading: cmn_snd.lst
+[LoadWindowList] Loading: cmn_scf.lst
+[LoadImageList] Loading: ts_res.lst
+[LoadImageList] Opened: ts_res.lst
+[LoadSoundList] Loading: ts_snd.lst
+[LoadWindowList] Loading: ts_scf.lst
+FPS: 59 (avg over 5 sec), doUI=1, gMainHandler=0x59af46ba6b70
+[FF_UI_CLICK] firing (161,555) at 18010ms
+[Mouse] LBUTTONDOWN at (161, 555)
+[LBUTTONDOWN] at (161,555) -> window=0x59af4a55bf00 ID=30200
+[LBUTTONDOWN] GrabItem found control ID=30216 type=0
+[LBUTTONUP] at (161,555) -> window=0x59af4a55bf00 Grab_.Control_=0x59af4a565a00
+[LBUTTONUP] Grab_.Control_ found: ID=30216 type=0
+[LBUTTONUP] Calling Process(ID=30216, type=52)
+[FF_LINUX] StartReadCampFile: type=3 filename='27 Refueling'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/27 Refueling.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[LZSS_Expand] Called: srcSize=2614, size=16919
+[LZSS_Expand] LZSS_Expand: 16919 bytes out in 0.0 ms
+[FM] FM_GOT_CAMPAIGN_DATA received (wParam=16777216)
+[FM] FM_GOT_CAMPAIGN_DATA: RecieveScenarioInfo (S6x)
+[FF_UI_CLICK] firing (824,748) at 24015ms
+[Mouse] LBUTTONDOWN at (824, 748)
+[LBUTTONDOWN] at (824,748) -> window=0x59af4a5731c0 ID=30209
+[LBUTTONDOWN] GrabItem found control ID=2000002 type=25
+[LBUTTONUP] at (824,748) -> window=0x59af4a5731c0 Grab_.Control_=0x59af4a56d1e0
+[LBUTTONUP] Grab_.Control_ found: ID=2000002 type=25
+[LBUTTONUP] Calling Process(ID=2000002, type=52)
+[LoadImageList] Loading: te_res.lst
+[LoadImageList] Opened: te_res.lst
+[LoadSoundList] Loading: te_snd.lst
+[LoadWindowList] Loading: te_scf.lst
+[FM] FM_LOAD_CAMPAIGN received (type=3)
+[FM] FM_LOAD_CAMPAIGN: Calling TheCampaign.LoadCampaign()...
+[FF_LINUX] StartReadCampFile: type=3 filename='27 Refueling'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/27 Refueling.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[VuSession::JoinGame] ENTRY: session=0x59af4093e230 newgame=0x59af46c13370 current_game=(nil)
+[VuSession::JoinGame] Setting game_.reset(newgame=0x59af46c13370)
+[VuSession::JoinGame] Game set, Game()=0x59af46c13370
+[VuSession::JoinGame] EXIT: retval=1 Game()=0x59af46c13370
+[FF_LINUX] WeatherClass::Init entry (instantAction=0)
+[FF_LINUX] WeatherClass::Init: lastCheck=32582000
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling UpdateCondition(1)
+[FF_LINUX] WeatherClass::Init: UpdateCondition returned
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+[FF_LINUX] LoadBaseObjectives ENTRY: scenario='te_new'
+[FF_LINUX] LoadBaseObjectives: Calling ReadCampFile()
+[FF_LINUX] StartReadCampFile: type=3 filename='te_new'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/te_new.tac'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] LoadBaseObjectives: ReadCampFile returned dataSize=148706
+[FF_LINUX] LoadBaseObjectives: num=2629 size=347139 newsize=148695
+[FF_LINUX] LoadBaseObjectives: Calling LZSS_Expand()
+[LZSS_Expand] Called: srcSize=148696, size=347139
+[LZSS_Expand] LZSS_Expand: 347139 bytes out in 1.9 ms
+[FF_LINUX] LoadBaseObjectives: LZSS_Expand done
+[FF_LINUX] LoadBaseObjectives: Creating 2629 objectives...
+[FF_LINUX] LoadBaseObjectives: Creating obj 0/2629
+[FF_LINUX] LoadBaseObjectives: obj 0 type=2092, calling NewObjective
+[FF_LINUX] NewObjective[1]: tid=2092, calling CampEnterCriticalSection
+[FF_LINUX] NewObjective[1]: CampEnterCriticalSection done, creating ObjectiveClass
+[FF_LINUX] CampBaseClass ctor[1] entry
+[FF_LINUX] CampBaseClass ctor[1] entityType=2092
+[FF_LINUX] CampBaseClass ctor[1] calling SetLocation(480,540)
+[FF_LINUX] CampBaseClass ctor[1] SetLocation done
+[FF_LINUX] CampBaseClass ctor[1] complete
+[FF_LINUX] ObjectiveClass ctor[1] entry, entityType=2092
+[FF_LINUX] ObjectiveClass ctor[1] getting class_data for entityType=2092
+[FF_LINUX] ObjectiveClass ctor[1] class_data=0x59af4092051e
+[FF_LINUX] ObjectiveClass ctor[1] calling ResetObjectiveStatus()
+[FF_LINUX] ObjectiveClass ctor[1] ResetObjectiveStatus done, type=10
+[FF_LINUX] ObjectiveClass ctor[1] complete
+[FF_LINUX] NewObjective[1]: ObjectiveClass created 0x59af4a9b5990
+[FF_LINUX] NewObjective[1]: calling CampLeaveCriticalSection
+[FF_LINUX] NewObjective[1]: CampLeaveCriticalSection done, inserting to vuDatabase
+[FF_LINUX] NewObjective[1]: vuDatabase->Insert done
+[FF_LINUX] LoadBaseObjectives: obj 0 NewObjective returned 0x59af4a9b5990
+[FF_LINUX] LoadBaseObjectives: Creating obj 1/2629
+[FF_LINUX] LoadBaseObjectives: obj 1 type=233, calling NewObjective
+[FF_LINUX] NewObjective[2]: tid=233, calling CampEnterCriticalSection
+[FF_LINUX] NewObjective[2]: CampEnterCriticalSection done, creating ObjectiveClass
+[FF_LINUX] CampBaseClass ctor[2] entry
+[FF_LINUX] CampBaseClass ctor[2] entityType=233
+[FF_LINUX] CampBaseClass ctor[2] calling SetLocation(540,565)
+[FF_LINUX] CampBaseClass ctor[2] SetLocation done
+[FF_LINUX] CampBaseClass ctor[2] complete
+[FF_LINUX] ObjectiveClass ctor[2] entry, entityType=233
+[FF_LINUX] ObjectiveClass ctor[2] getting class_data for entityType=233
+[FF_LINUX] ObjectiveClass ctor[2] class_data=0x59af40918fd6
+[FF_LINUX] ObjectiveClass ctor[2] calling ResetObjectiveStatus()
+[FF_LINUX] ObjectiveClass ctor[2] ResetObjectiveStatus done, type=10
+[FF_LINUX] ObjectiveClass ctor[2] complete
+[FF_LINUX] NewObjective[2]: ObjectiveClass created 0x59af4a9b5be0
+[FF_LINUX] NewObjective[2]: calling CampLeaveCriticalSection
+[FF_LINUX] NewObjective[2]: CampLeaveCriticalSection done, inserting to vuDatabase
+[FF_LINUX] NewObjective[2]: vuDatabase->Insert done
+[FF_LINUX] LoadBaseObjectives: obj 1 NewObjective returned 0x59af4a9b5be0
+[FF_LINUX] LoadBaseObjectives: Creating obj 2/2629
+[FF_LINUX] LoadBaseObjectives: obj 2 type=233, calling NewObjective
+[FF_LINUX] NewObjective[3]: tid=233, calling CampEnterCriticalSection
+[FF_LINUX] NewObjective[3]: CampEnterCriticalSection done, creating ObjectiveClass
+[FF_LINUX] CampBaseClass ctor[3] entry
+[FF_LINUX] CampBaseClass ctor[3] entityType=233
+[FF_LINUX] CampBaseClass ctor[3] calling SetLocation(412,503)
+[FF_LINUX] CampBaseClass ctor[3] SetLocation done
+[FF_LINUX] CampBaseClass ctor[3] complete
+[FF_LINUX] ObjectiveClass ctor[3] entry, entityType=233
+[FF_LINUX] ObjectiveClass ctor[3] getting class_data for entityType=233
+[FF_LINUX] ObjectiveClass ctor[3] class_data=0x59af40918fd6
+[FF_LINUX] ObjectiveClass ctor[3] calling ResetObjectiveStatus()
+[FF_LINUX] ObjectiveClass ctor[3] ResetObjectiveStatus done, type=10
+[FF_LINUX] ObjectiveClass ctor[3] complete
+[FF_LINUX] NewObjective[3]: ObjectiveClass created 0x59af4a9b5e00
+[FF_LINUX] NewObjective[3]: calling CampLeaveCriticalSection
+[FF_LINUX] NewObjective[3]: CampLeaveCriticalSection done, inserting to vuDatabase
+[FF_LINUX] NewObjective[3]: vuDatabase->Insert done
+[FF_LINUX] LoadBaseObjectives: obj 2 NewObjective returned 0x59af4a9b5e00
+[FF_LINUX] LoadBaseObjectives: Creating obj 3/2629
+[FF_LINUX] LoadBaseObjectives: obj 3 type=2100, calling NewObjective
+[FF_LINUX] NewObjective[4]: tid=2100, calling CampEnterCriticalSection
+[FF_LINUX] NewObjective[4]: CampEnterCriticalSection done, creating ObjectiveClass
+[FF_LINUX] CampBaseClass ctor[4] entry
+[FF_LINUX] CampBaseClass ctor[4] entityType=2100
+[FF_LINUX] CampBaseClass ctor[4] calling SetLocation(397,468)
+[FF_LINUX] CampBaseClass ctor[4] SetLocation done
+[FF_LINUX] CampBaseClass ctor[4] complete
+[FF_LINUX] ObjectiveClass ctor[4] entry, entityType=2100
+[FF_LINUX] ObjectiveClass ctor[4] getting class_data for entityType=2100
+[FF_LINUX] ObjectiveClass ctor[4] class_data=0x59af409206ce
+[FF_LINUX] ObjectiveClass ctor[4] calling ResetObjectiveStatus()
+[FF_LINUX] ObjectiveClass ctor[4] ResetObjectiveStatus done, type=10
+[FF_LINUX] ObjectiveClass ctor[4] complete
+[FF_LINUX] NewObjective[4]: ObjectiveClass created 0x59af4a9b6060
+[FF_LINUX] NewObjective[4]: calling CampLeaveCriticalSection
+[FF_LINUX] NewObjective[4]: CampLeaveCriticalSection done, inserting to vuDatabase
+[FF_LINUX] NewObjective[4]: vuDatabase->Insert done
+[FF_LINUX] LoadBaseObjectives: obj 3 NewObjective returned 0x59af4a9b6060
+[FF_LINUX] LoadBaseObjectives: Creating obj 4/2629
+[FF_LINUX] LoadBaseObjectives: obj 4 type=2109, calling NewObjective
+[FF_LINUX] NewObjective[5]: tid=2109, calling CampEnterCriticalSection
+[FF_LINUX] NewObjective[5]: CampEnterCriticalSection done, creating ObjectiveClass
+[FF_LINUX] CampBaseClass ctor[5] entry
+[FF_LINUX] CampBaseClass ctor[5] entityType=2109
+[FF_LINUX] CampBaseClass ctor[5] calling SetLocation(304,537)
+[FF_LINUX] CampBaseClass ctor[5] SetLocation done
+[FF_LINUX] CampBaseClass ctor[5] complete
+[FF_LINUX] ObjectiveClass ctor[5] entry, entityType=2109
+[FF_LINUX] ObjectiveClass ctor[5] getting class_data for entityType=2109
+[FF_LINUX] ObjectiveClass ctor[5] class_data=0x59af409208b4
+[FF_LINUX] ObjectiveClass ctor[5] calling ResetObjectiveStatus()
+[FF_LINUX] ObjectiveClass ctor[5] ResetObjectiveStatus done, type=10
+[FF_LINUX] ObjectiveClass ctor[5] complete
+[FF_LINUX] NewObjective[5]: ObjectiveClass created 0x59af4a9b62b0
+[FF_LINUX] NewObjective[5]: calling CampLeaveCriticalSection
+[FF_LINUX] NewObjective[5]: CampLeaveCriticalSection done, inserting to vuDatabase
+[FF_LINUX] NewObjective[5]: vuDatabase->Insert done
+[FF_LINUX] LoadBaseObjectives: obj 4 NewObjective returned 0x59af4a9b62b0
+[FF_LINUX] NewObjective[6]: tid=233, calling CampEnterCriticalSection
+[FF_LINUX] NewObjective[6]: CampEnterCriticalSection done, creating ObjectiveClass
+[FF_LINUX] NewObjective[6]: ObjectiveClass created 0x59af4a9b6500
+[FF_LINUX] NewObjective[6]: calling CampLeaveCriticalSection
+[FF_LINUX] NewObjective[6]: CampLeaveCriticalSection done, inserting to vuDatabase
+[FF_LINUX] NewObjective[6]: vuDatabase->Insert done
+[FF_LINUX] NewObjective[7]: tid=233, calling CampEnterCriticalSection
+[FF_LINUX] NewObjective[7]: CampEnterCriticalSection done, creating ObjectiveClass
+[FF_LINUX] NewObjective[7]: ObjectiveClass created 0x59af4a9b6750
+[FF_LINUX] NewObjective[7]: calling CampLeaveCriticalSection
+[FF_LINUX] NewObjective[7]: CampLeaveCriticalSection done, inserting to vuDatabase
+[FF_LINUX] NewObjective[7]: vuDatabase->Insert done
+[FF_LINUX] NewObjective[8]: tid=2103, calling CampEnterCriticalSection
+[FF_LINUX] NewObjective[8]: CampEnterCriticalSection done, creating ObjectiveClass
+[FF_LINUX] NewObjective[8]: ObjectiveClass created 0x59af4a9b69a0
+[FF_LINUX] NewObjective[8]: calling CampLeaveCriticalSection
+[FF_LINUX] NewObjective[8]: CampLeaveCriticalSection done, inserting to vuDatabase
+[FF_LINUX] NewObjective[8]: vuDatabase->Insert done
+[FF_LINUX] NewObjective[9]: tid=233, calling CampEnterCriticalSection
+[FF_LINUX] NewObjective[9]: CampEnterCriticalSection done, creating ObjectiveClass
+[FF_LINUX] NewObjective[9]: ObjectiveClass created 0x59af4a9b6bf0
+[FF_LINUX] NewObjective[9]: calling CampLeaveCriticalSection
+[FF_LINUX] NewObjective[9]: CampLeaveCriticalSection done, inserting to vuDatabase
+[FF_LINUX] NewObjective[9]: vuDatabase->Insert done
+[FF_LINUX] ATCBrain ctor[1] entry
+[FF_LINUX] ATCBrain ctor[1] numRwys=2
+[FF_LINUX] ATCBrain ctor[1] entering rwindex loop, initial rwindex=54
+[FF_LINUX] ATCBrain ctor[1] rwindex loop iter 1, rwindex=54
+[FF_LINUX] ATCBrain ctor[1] rwindex loop iter 2, rwindex=55
+[FF_LINUX] ATCBrain ctor[1] rwindex loop iter 3, rwindex=56
+[FF_LINUX] ATCBrain ctor[1] rwindex loop iter 4, rwindex=57
+[FF_LINUX] ATCBrain ctor[1] rwindex loop iter 5, rwindex=58
+[FF_LINUX] ATCBrain ctor[1] rwindex loop iter 6, rwindex=59
+[FF_LINUX] ATCBrain ctor[1] rwindex loop iter 7, rwindex=60
+[FF_LINUX] ATCBrain ctor[1] rwindex loop iter 8, rwindex=61
+[FF_LINUX] ATCBrain ctor[2] entry
+[FF_LINUX] ATCBrain ctor[2] numRwys=1
+[FF_LINUX] ATCBrain ctor[2] entering rwindex loop, initial rwindex=9
+[FF_LINUX] ATCBrain ctor[2] rwindex loop iter 1, rwindex=9
+[FF_LINUX] ATCBrain ctor[2] rwindex loop iter 2, rwindex=10
+[FF_LINUX] ATCBrain ctor[2] rwindex loop iter 3, rwindex=11
+[FF_LINUX] ATCBrain ctor[2] rwindex loop iter 4, rwindex=12
+[FF_LINUX] ATCBrain ctor[2] rwindex loop iter 5, rwindex=13
+[FF_LINUX] ATCBrain ctor[3] entry
+[FF_LINUX] ATCBrain ctor[3] numRwys=1
+[FF_LINUX] ATCBrain ctor[3] entering rwindex loop, initial rwindex=253
+[FF_LINUX] ATCBrain ctor[3] rwindex loop iter 1, rwindex=253
+[FF_LINUX] ATCBrain ctor[3] rwindex loop iter 2, rwindex=254
+[FF_LINUX] ATCBrain ctor[3] rwindex loop iter 3, rwindex=255
+[FF_LINUX] ATCBrain ctor[3] rwindex loop iter 4, rwindex=256
+[FF_LINUX] LoadBaseObjectives: Creating obj 500/2629
+[FF_LINUX] LoadBaseObjectives: Creating obj 1000/2629
+[FF_LINUX] LoadBaseObjectives: Creating obj 1500/2629
+[FF_LINUX] LoadBaseObjectives: Creating obj 2000/2629
+[FF_LINUX] LoadBaseObjectives: Creating obj 2500/2629
+[FF_LINUX] LoadBaseObjectives: All 2629 objectives created
+[FF_LINUX] LoadBaseObjectives: SUCCESS - returning 1
+[FF_LINUX] StartReadCampFile: type=3 filename='27 Refueling'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/27 Refueling.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[LZSS_Expand] Called: srcSize=22, size=42
+[LZSS_Expand] LZSS_Expand: 42 bytes out in 0.0 ms
+[FF_LINUX] DecodeUnitData: count=9 size=6546 rem=1950 gCampDataVersion=73
+[LZSS_Expand] Called: srcSize=1950, size=6546
+[LZSS_Expand] LZSS_Expand: 6546 bytes out in 0.0 ms
+[FF_LINUX] DecodeUnitData: LZSS_Expand returned 1949
+[FF_LINUX] DecodeUnitData: first 20 bytes after expand: d8 01 b9 0f 00 00 00 00 00 00 d8 01 9f 01 a0 01 00 00 00 00 
+[FF_LINUX] DecodeUnitData: bytes 80-99: 28 78 00 28 50 50 00 00 00 00 00 78 00 00 00 00 00 28 28 28 
+[FF_LINUX] DecodeUnitData: Unit 0 - buf before read: d8 01, rem=6546
+[FF_LINUX] DecodeUnitData: Unit 0 - type read: 472 (0x01d8)
+[FF_LINUX] UnitClass ctor[1] entry after CampBase: rem=6515
+[FF_LINUX] UnitClass ctor[1] after DecodeWaypoints: rem=6472
+[FF_LINUX] SquadronClass ctor[1] entry: rem=6472 gCampDataVersion=73
+[FF_LINUX] SquadronClass ctor[1] after fuel+specialty: rem=6467
+[FF_LINUX] SquadronClass ctor[1] after stores: rem=5867
+[FF_LINUX] SquadronClass ctor[1] after pilot_data: rem=5387
+[FF_LINUX] DecodeUnitData: Unit 0 - after NewUnit, rem=5276, next bytes: 12 02
+[FF_LINUX] DecodeUnitData: Unit 1 - buf before read: 12 02, rem=5276
+[FF_LINUX] DecodeUnitData: Unit 1 - type read: 530 (0x0212)
+[FF_LINUX] UnitClass ctor[2] entry after CampBase: rem=5245
+[FF_LINUX] UnitClass ctor[2] after DecodeWaypoints: rem=5202
+[FF_LINUX] DecodeUnitData: Unit 1 - after NewUnit, rem=5113, next bytes: f3 01
+[FF_LINUX] DecodeUnitData: Unit 2 - buf before read: f3 01, rem=5113
+[FF_LINUX] DecodeUnitData: Unit 2 - type read: 499 (0x01f3)
+[FF_LINUX] UnitClass ctor[3] entry after CampBase: rem=5082
+[FF_LINUX] UnitClass ctor[3] after DecodeWaypoints: rem=5039
+[FF_LINUX] SquadronClass ctor[2] entry: rem=5039 gCampDataVersion=73
+[FF_LINUX] SquadronClass ctor[2] after fuel+specialty: rem=5034
+[FF_LINUX] SquadronClass ctor[2] after stores: rem=4434
+[FF_LINUX] SquadronClass ctor[2] after pilot_data: rem=3954
+[FF_LINUX] DecodeUnitData: Unit 2 - after NewUnit, rem=3843, next bytes: a7 01
+[FF_LINUX] SquadronClass ctor[3] entry: rem=3382 gCampDataVersion=73
+[FF_LINUX] SquadronClass ctor[3] after fuel+specialty: rem=3377
+[FF_LINUX] SquadronClass ctor[3] after stores: rem=2777
+[FF_LINUX] SquadronClass ctor[3] after pilot_data: rem=2297
+[FF_LINUX] StartReadCampFile: type=3 filename='te_new'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/te_new.tac'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] StartReadCampFile: type=3 filename='27 Refueling'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/27 Refueling.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] WeatherClass::Init entry (instantAction=0)
+[FF_LINUX] WeatherClass::Init: lastCheck=32582000
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling UpdateCondition(1)
+[FF_LINUX] WeatherClass::Init: UpdateCondition returned
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+[FM] FM_LOAD_CAMPAIGN: LoadCampaign() returned 1
+[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_SUCCEEDED
+[FM] FM_JOIN_SUCCEEDED received
+[FF_UI_CLICK] firing (974,748) at 30009ms
+[Mouse] LBUTTONDOWN at (974, 748)
+[LBUTTONDOWN] at (974,748) -> window=0x59af4a8acef0 ID=30402
+[LBUTTONDOWN] GrabItem found control ID=2000000 type=25
+[LBUTTONUP] at (974,748) -> window=0x59af4a8acef0 Grab_.Control_=0x59af4a8af840
+[LBUTTONUP] Grab_.Control_ found: ID=2000000 type=25
+[LBUTTONUP] Calling Process(ID=2000000, type=52)
+[FM] FM_START_TACTICAL received
+[EndUI] ENTRY
+[EndUI] Calling TheCampaign.Suspend()...
+[HandleCampaignThread] Got CAMP_SUSPEND_REQUEST, setting CAMP_SUSPENDED
+[StartLoop] Event received! Proceeding.
+[GL] FF_SimThreadAcquireGL() ENTER
+[EndUI] Suspend() returned, calling UI_Cleanup()...
+[UI_Cleanup] ENTRY
+[UI_Cleanup] SetCursor done, cleaning UI_VuThread...
+[UI_Cleanup] UI_VuThread done, cleaning gCommsMgr callbacks...
+[UI_Cleanup] gCommsMgr callbacks done, sleeping 10ms...
+[UI_Cleanup] Sleep done, cleaning gMapMgr...
+[UI_Cleanup] gMapMgr done, cleaning gMainHandler...
+[GL] Sim thread acquired GL context, g_simOwnsGLContext=true
+[StartLoop] GL context acquired
+[OTWDriver.Enter] this=0x59af18ac76e0, &OTWDriver=0x59af18ac76e0
+[OTWDriver.Enter] Calling FalconDisplay.EnterMode(Sim)...
+  [DisplayDevice::Setup] Starting 1024x768x32, fullscreen=0
+  [DisplayDevice::Setup] Calling CreateContext...
+  [CreateContext] driverNum=0, devNum=0, resNum=19
+  [CreateContext] GetDriver returned pDDI=0x59af409f2e70
+  [CreateContext] D3D devices count: 1
+  [CreateContext] Display modes count: 46
+  [CreateContext] GetDevice returned pD3DDI=0x59af409f19f0
+  [CreateContext] GetDisplayMode returned pddsd=0x59af409f5678
+  [DXContext::Init] Starting with hWnd=0x59af3fa3a6a0, 1024x768@32, fullscreen=0
+  [DXContext::Init] Checking thread ID...
+  [DXContext::Init] Thread ID check passed
+  [DXContext::Init] Calling DirectDrawCreateEx...
+  [DXContext::Init] DirectDrawCreateEx returned m_pDD=0x59af46682bb0
+  [DXContext::Init] Calling GetCaps... m_pcapsDD=0x59af46683730
+  [DXContext::Init] GetCaps done
+  [DXContext::Init] Calling GetDeviceIdentifier... m_pDevID=0x71f7741ab730
+  [DXContext::Init] GetDeviceIdentifier done
+  [DXContext::Init] DXContext::Init - DriverInfo - "OpenGL" - "FreeFalcon OpenGL Renderer", Vendor: 4318, Device: 4660, SubSys: 0, Rev: 0, Product: 0, Version: 0, SubVersion: 0, Build: 0
+  [DXContext::Init] Calling SetCooperativeLevel with flags=0x1408...
+  [DXContext::Init] SetCooperativeLevel done
+  [DXContext::Init] Complete!
+  [DisplayDevice::Setup] CreateContext returned m_DXCtx=0x59af466836b0
+  [DisplayDevice::Setup] Context created, setting up window...
+  [DisplayDevice::Setup] Calling ShowWindow...
+  [DisplayDevice::Setup] ShowWindow done
+  [DisplayDevice::Setup] Setting up windowed image, IsHardware=1...
+  [DisplayDevice::Setup] image.Setup done
+  [DisplayDevice::Setup] Calling SetRenderTarget, targetSurface=0x59af466839c0...
+[SetRenderTarget] Linux: Creating D3D7 interface directly
+[SetRenderTarget] Linux: m_pD3D=0x71f7741b0b60
+[AttachDepthBuffer] Linux: Skipping - OpenGL manages depth buffers
+[SetRenderTarget] Linux: Creating D3D device directly, pRenderTarget=0x59af466839c0
+[SetRenderTarget] Linux: m_pD3DD=0x71f7744ca980
+  [DisplayDevice::Setup] SetRenderTarget done
+  [DisplayDevice::Setup] Calling movieInit...
+  [DisplayDevice::Setup] Complete!
+[OTWDriver.Enter] EnterMode done
+[OTWDriver.Enter] OTWImage=0x59af1855e478, targetSurface=0x59af466839c0
+[Texture::CleanupForDevice] Setting rc=NULL (was 0x59af466836b0)
+[Texture::SetupForDevice] rc=0x59af466836b0 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/misctex/
+[FarTexDB] DDS file: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea/texture/fartiles.dds, headerSize=124, bytesRead=124
+[FarTexDB] DDS header: flags=0x81007, width=32, height=32, linearSize=512, mipMapCount=0
+[FarTexDB] DDS pixfmt: flags=0x0, fourCC=0x31545844, rgbBitCount=4
+[FarTexDB] linearSize=512, texCount=96664, fartexDDSFile.IsReady=1
+[PalLight] light=(0.750 0.829 0.849) gametime=32582000 pal=0x71f775ca1440
+[OTWDriver.Enter] Creating viewPoint...
+[OTWDriver.Enter] viewPoint created: 0x71f77622be60
+[OTWDriver.Enter] viewPoint->Setup done
+[OTWDriver.Enter] Creating renderer, OTWImage=0x59af1855e478, targetSurface=0x59af466839c0
+[OTWDriver.Enter] Calling renderer->Setup...
+[OTW.Setup] LastNearTexLOD=2 LastFarTexLOD=4 NumLevels=6
+[OTWDriver.Enter] renderer->Setup done
+[OTWDriver.Enter] VbManager.Setup...
+[OTWDriver.Enter] VbManager.Setup done
+[OTWDriver.Enter] SetupSplashScreen...
+[UI_Cleanup] gMainHandler done, cleaning gUIViewer...
+[UI_Cleanup] gUIViewer done, checking CleanViewpoint (mode=5)...
+[UI_Cleanup] Skipping CleanViewpoint() - in Sim mode
+[UI_Cleanup] Skipping DeviceDependentGraphicsCleanup() - in Sim mode
+[UI_Cleanup] sound/music done, cleaning popup/image/anim managers...
+[EndUI] UI_Cleanup() returned, calling Resume()...
+[EndUI] Resume() returned, calling SetFocus()...
+[EndUI] EXIT
+[OTWDriver.Enter] SplashScreenUpdate...
+[OTWDriver.Enter] RegisterTimeUpdateCB...
+[OTWDriver.Enter] VCock_Init...
+[SetupRttTarget] Created: 512x512 bpp=32 renderTexture=0x71f76437a190 m_pDDS=0x71f76437a200
+[OTWDriver.Enter] VCock_Init done
+[OTWDriver.Enter] Button3D_Init...
+[OTWDriver.Enter] Button3D_Init done
+[OTWDriver.Enter] Initializing view state...
+[OTWDriver.Enter] View state initialized
+[OTWDriver.Enter] FindCockpit ckpit_res.dat...
+[OTWDriver.Enter] Creating CockpitManager (resX=0, resY=0, DispWidth=1024, DispHeight=768, FindBest=1024)...
+[OTWDriver.Enter] CockpitManager created=0x71f766aef930 PadlockCPManager=0x71f74c313400, creating MenuManager...
+[OTWDriver.Enter] MFD CreateDrawables...
+[OTWDriver.Enter] CreateCockpitGeometry...
+[OTWDriver.Enter] CreateCockpitGeometry done
+[OTWDriver.Enter] F4SoundFXInit...
+[OTWDriver.Enter] F4SoundFXInit done
+[OTWDriver.Enter] SetupDIMouseAndKeyboard...
+[CreateSimCursors] Trying to open: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/art/ckptart/6_cursor.dat
+[CreateSimCursors] Loaded 12 cursors from /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/art/ckptart/6_turn.gif
+[OTWDriver.Enter] SetupDIMouseAndKeyboard done
+[OTWDriver.Enter] SetActive(TRUE)...
+[OTWDriver.Enter] Complete!
+[AircraftClass::Init] ENTER
+[AircraftClass::Init] SimVehicleClass::Init done
+[AircraftClass::Init] classPtr=0x59af411aff00, initData=0x71f7919fda60
+[AircraftClass::Init] Checking SType/SPType...
+[AircraftClass::Init] Creating AirframeClass...
+[AircraftClass::Init] AirframeClass created: 0x71f77c0077b0
+[AircraftClass::Init] SetFlag done, mFaults=(nil)
+[AircraftClass::Init] FackClass created, isDigital=1
+[AircraftClass::Init] Checking RunningInstantAction...
+[AircraftClass::Init] RunningInstantAction check done
+[AircraftClass::Init] Initial pos set: x=1484190.6 y=1427656.6 z=-25387.2
+[AircraftClass::Init] Waypoints: numWaypoints=8 waypoint=0x71f77c000ee0
+[AircraftClass::Init] Waypoint loop done
+[AircraftClass::Init] st=32316078 SimLibElapsedTime=32582000
+[AircraftClass::Init] SetStartTime done, currentWaypoint=2
+[AircraftClass::Init] Waypoint index loop done, curWaypoint=0x71f77c005800
+[AircraftClass::Init] Inside curWaypoint check, getting WPAction...
+[AircraftClass::Init] Getting UnitAirbase from campBase=0x59af4a9414b0
+[AircraftClass::Init] UnitAirbase ent=0x59af4ab6e870
+[AircraftClass::Init] WPAction=0 (WP_TAKEOFF=1) allowGroundInit=1
+[AircraftClass::Init] Else branch (not WP_TAKEOFF)
+[AircraftClass::Init] Calling AddTakeOff, waypoint=0x71f77c000ee0
+[AircraftClass::Init] AddTakeOff done
+[AircraftClass::Init] Got atWaypoint location: 1336591.6, 1343151.6, -25000.0
+[AircraftClass::Init] RunningInstantAction=0 isDigital=1
+[AircraftClass::Init] Getting wp2 location from curWaypoint=0x71f77c005800
+[AircraftClass::Init] wp2 location: 1484190.7, 1428431.1, -25000.0
+[AircraftClass::Init] initialPsi=0.523, getting arrival times
+[AircraftClass::Init] dt=220111 SEC_TO_MSEC=1000
+[AircraftClass::Init] initialMach=774.837
+[AircraftClass::Init] After waypoint if block, initialMach=774.837
+[AircraftClass::Init] Mach clamped, afIdx lookup from vehicleDataIndex=129
+[AircraftClass::Init] afIdx=71 NumACDefEntries=266
+[AircraftClass::Init] Calling af->InitData(71)...
+[AircraftClass::Init] af->InitData done
+[AircraftClass::Init] Checking auxaeroData=0x59af45d594f0
+[AircraftClass::Init] F16 flag check done
+[AircraftClass::Init] Engine flag check done, creating SMS...
+[AircraftClass::Init] SMS created: 0x71f77c0081d0
+[AircraftClass::Init] Creating FCC, NumHardpoints=10
+[AircraftClass::Init] FCC created: 0x71f77c00bfc0
+[AircraftClass::Init] FCC->SetSms done
+[AircraftClass::Init] Getting gun from hardPoint[0]=0x71f77c008370
+[AircraftClass::Init] Guns=0x71f77c008460
+[AircraftClass::Init] Gun TrailID set
+[AircraftClass::Init] Checking ground level...
+[AircraftClass::Init] Ground level check done
+[AircraftClass::Init] Calling af->Init(71)...
+[AircraftClass::Init] af->Init done
+[AircraftClass::Init] Checking hasSwingWing...
+[AircraftClass::Init] hasSwingWing check done
+[AircraftClass::Init] Checking isComplex=1
+[AircraftClass::Init] Calling MakeComplex()...
+[AircraftClass::Init] MakeComplex done
+[AircraftClass::Init] isComplex check done
+[AircraftClass::Init] Calling SetSwitch(COMP_CANOPY)...
+[AircraftClass::Init] SetSwitch done
+[AircraftClass::Init] Checking ACMI recording...
+[AircraftClass::Init] ACMI check done
+[AircraftClass::Init] Checking IsComplex for laser/harm pods...
+[AircraftClass::Init] IsComplex check done
+[AircraftClass::Init] Checking Guns=0x71f77c008460
+[AircraftClass::Init] Guns check done
+[AircraftClass::Init] Starting sensor setup...
+[AircraftClass::Init] Sensor setup done, numSensors=3
+[AircraftClass::Init] Creating brain, GetCampaignObject=0x59af4a9414b0
+[AircraftClass::Init] Creating DigitalBrain...
+[AircraftClass::Init] DigitalBrain created: 0x71f77c00c720
+[AircraftClass::Init] Brain created, calling DBrain()->SetTaxiPoint...
+[AircraftClass::Init] Creating PilotInputs...
+[AircraftClass::Init] PilotInputs created: 0x71f77c00cc90
+[AircraftClass::Init] Checking PreFlight...
+[AircraftClass::Init] Calling PreFlight()...
+[AircraftClass::Init] PreFlight done
+[AircraftClass::Init] End of initData block
+[AircraftClass::Init] EXIT - Init complete
+[StartLoop] Starting deagg wait: flight=0x59af4a9414b0 IsAggregate=0 IsDead=0
+[StartLoop] Deagg wait done: flight=0x59af4a9414b0 IsAggregate=0 IsDead=0 delayCounter=120
+[StartLoop] Waiting for SimDriver.GetPlayerEntity()...
+[AircraftClass::Init] ENTER
+[AircraftClass::Init] SimVehicleClass::Init done
+[AircraftClass::Init] classPtr=0x59af41181047, initData=0x71f7919fda60
+[AircraftClass::Init] Checking SType/SPType...
+[AircraftClass::Init] Creating AirframeClass...
+[AircraftClass::Init] AirframeClass created: 0x71f77c1defd0
+[AircraftClass::Init] SetFlag done, mFaults=(nil)
+[AircraftClass::Init] FackClass created, isDigital=1
+[AircraftClass::Init] Checking RunningInstantAction...
+[AircraftClass::Init] RunningInstantAction check done
+[AircraftClass::Init] Initial pos set: x=1507697.5 y=1445159.1 z=-33181.1
+[AircraftClass::Init] Waypoints: numWaypoints=8 waypoint=0x71f77c011890
+[AircraftClass::Init] Waypoint loop done
+[AircraftClass::Init] st=32324321 SimLibElapsedTime=32582000
+[AircraftClass::Init] SetStartTime done, currentWaypoint=2
+[AircraftClass::Init] Waypoint index loop done, curWaypoint=0x71f77c1ddc00
+[AircraftClass::Init] Inside curWaypoint check, getting WPAction...
+[AircraftClass::Init] Getting UnitAirbase from campBase=0x59af4a940720
+[AircraftClass::Init] UnitAirbase ent=0x59af4ab6e870
+[AircraftClass::Init] WPAction=24 (WP_TAKEOFF=1) allowGroundInit=1
+[AircraftClass::Init] Else branch (not WP_TAKEOFF)
+[AircraftClass::Init] Calling AddTakeOff, waypoint=0x71f77c011890
+[AircraftClass::Init] AddTakeOff done
+[AircraftClass::Init] Got atWaypoint location: 1507150.6, 1444831.0, -25000.0
+[AircraftClass::Init] RunningInstantAction=0 isDigital=1
+[AircraftClass::Init] Getting wp2 location from curWaypoint=0x71f77c1ddc00
+[AircraftClass::Init] wp2 location: 1671149.6, 1543230.3, -25000.0
+[AircraftClass::Init] initialPsi=0.540, getting arrival times
+[AircraftClass::Init] dt=299877 SEC_TO_MSEC=1000
+[AircraftClass::Init] initialMach=639.645
+[AircraftClass::Init] After waypoint if block, initialMach=639.645
+[AircraftClass::Init] Mach clamped, afIdx lookup from vehicleDataIndex=39
+[AircraftClass::Init] afIdx=34 NumACDefEntries=266
+[AircraftClass::Init] Calling af->InitData(34)...
+[AircraftClass::Init] af->InitData done
+[AircraftClass::Init] Checking auxaeroData=0x59af45613210
+[AircraftClass::Init] F16 flag check done
+[AircraftClass::Init] Engine flag check done, creating SMS...
+[AircraftClass::Init] SMS created: 0x71f77c1df9f0
+[AircraftClass::Init] Creating FCC, NumHardpoints=0
+[AircraftClass::Init] FCC created: 0x71f77c1dfb30
+[AircraftClass::Init] FCC->SetSms done
+[AircraftClass::Init] Checking ground level...
+[AircraftClass::Init] Ground level check done
+[AircraftClass::Init] Calling af->Init(34)...
+[AircraftClass::Init] af->Init done
+[AircraftClass::Init] Checking hasSwingWing...
+[AircraftClass::Init] hasSwingWing check done
+[AircraftClass::Init] Checking isComplex=1
+[AircraftClass::Init] Calling MakeComplex()...
+[AircraftClass::Init] MakeComplex done
+[AircraftClass::Init] isComplex check done
+[AircraftClass::Init] Calling SetSwitch(COMP_CANOPY)...
+[AircraftClass::Init] SetSwitch done
+[AircraftClass::Init] Checking ACMI recording...
+[AircraftClass::Init] ACMI check done
+[AircraftClass::Init] Checking IsComplex for laser/harm pods...
+[AircraftClass::Init] IsComplex check done
+[AircraftClass::Init] Checking Guns=(nil)
+[AircraftClass::Init] Guns check done
+[AircraftClass::Init] Starting sensor setup...
+[AircraftClass::Init] Sensor setup done, numSensors=2
+[AircraftClass::Init] Creating brain, GetCampaignObject=0x59af4a940720
+[AircraftClass::Init] Brain created, calling DBrain()->SetTaxiPoint...
+[AircraftClass::Init] Creating PilotInputs...
+[AircraftClass::Init] PilotInputs created: 0x71f77c1e12e0
+[AircraftClass::Init] Checking PreFlight...
+[AircraftClass::Init] Calling PreFlight()...
+[AircraftClass::Init] PreFlight done
+[AircraftClass::Init] End of initData block
+[AircraftClass::Init] EXIT - Init complete
+[StartLoop] SimDriver.GetPlayerEntity()=0x71f77c005a40, calling SplashScreenUpdate(2)
+[StartLoop] Waiting for gLeftToDeaggregate=-1, player=0x71f77c005a40, IsLocal=1
+[StartLoop] gLeftToDeaggregate wait done: gLeft=-1 counter=100
+[RenderFirstFrame] Enter, vuxGameTime=32582000, todOffset=0.0
+[RenderFirstFrame] Setting TimeManager to 32582000 ms = 09:03
+[RenderFirstFrame] TimeManager refreshed, TOD ambient=0.2124 diffuse=0.7386
+[RenderFirstFrame] Weather refreshed
+[RenderFirstFrame] Calling Reset3DParameters()...
+[RenderFirstFrame] Reset3DParameters() done
+[RenderFirstFrame] Cockpit defaults loaded, calling PreLoadScene...
+Assertion at 356  /home/admin/freefalcon-central/src/graphics/bsplib/texbank.cpp  Sep 16 2026
+[Failed:  IsValidIndex(id)] Assertion at 356  /home/admin/freefalcon-central/src/graphics/bsplib/texbank.cpp  Sep 16 2026
+[RenderFirstFrame] PreLoadScene done
+[RenderFirstFrame] Exit
+[GL] FF_SimThreadReleaseGL() ENTER
+[GL] Sim thread released GL context, g_simOwnsGLContext=false
+[StartLoop] Setting currentMode = StartRunningGraphics
+[GL] FF_SimThreadAcquireGL() ENTER
+[GL] Sim thread acquired GL context, g_simOwnsGLContext=true
+[TERRAIN_DIAG] ground_color=(0.937,0.962,1.000) haze_ground=(0.652,0.818,0.968)
+[TERRAIN_DIAG] far_clip=262319.0 haze_start=26231.9 haze_depth=131159.5 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.212 lightDiffuse=0.738 lightSpecular=1.500
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=1
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.65,0.81,0.96,1.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[VERT_COLOR] r=0.881 g=0.908 b=0.931 a=1.070 dist=16931.6 scale=0.064 state=37 colorIdx=130
+[VERT_COLOR] r=0.879 g=0.906 b=0.929 a=1.064 dist=17741.0 scale=0.067 state=37 colorIdx=130
+[VERT_COLOR] r=0.853 g=0.884 b=0.913 a=1.058 dist=18550.1 scale=0.070 state=37 colorIdx=200
+[VERT_COLOR] r=0.840 g=0.871 b=0.899 a=1.052 dist=19357.7 scale=0.073 state=37 colorIdx=200
+[VERT_COLOR] r=0.846 g=0.877 b=0.906 a=1.069 dist=17155.7 scale=0.065 state=37 colorIdx=200
+[StoreMPRPalette] lightColor=(0.937, 0.962, 1.000) lightLevel=0.951
+[StoreMPRPalette] lightColor=(0.937, 0.962, 1.000) lightLevel=0.951
+[StoreMPRPalette] lightColor=(0.937, 0.962, 1.000) lightLevel=0.951
+Assertion at 4166  /home/admin/freefalcon-central/src/graphics/3dlib/context.cpp  Sep 18 2026
+[Failed:  (nVerts >= 3) or (nPrimType == MPR_PRM_POINTS and nVerts >= 1) or (nPrimType <= MPR_PRM_POLYLINE and nVerts >= 2)] Assertion at 4166  /home/admin/freefalcon-central/src/graphics/3dlib/context.cpp  Sep 18 2026
+[TERRAIN_DIAG] ground_color=(0.937,0.962,1.000) haze_ground=(0.652,0.818,0.968)
+[TERRAIN_DIAG] far_clip=262319.0 haze_start=26231.9 haze_depth=131159.5 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.212 lightDiffuse=0.738 lightSpecular=1.500
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=1
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.65,0.81,0.96,1.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[TERRAIN_DIAG] ground_color=(0.937,0.962,1.000) haze_ground=(0.652,0.818,0.968)
+[TERRAIN_DIAG] far_clip=262319.0 haze_start=26231.9 haze_depth=131159.5 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.212 lightDiffuse=0.738 lightSpecular=1.500
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=1
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.65,0.81,0.96,1.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[shot] frame 200 -> /home/admin/ff-gates/shots/screenshot_sim.bmp (1024x768)
+[PalLight] light=(0.937 0.962 1.000) gametime=32593769 pal=0x71f775ca1440
+[shot] frame 600 -> /home/admin/ff-gates/shots/screenshot_sim.bmp (1024x768)
+[FF_VIEW_SCRIPT] view mode 2 at 40007ms (sim-entry clock; wall 72103ms)
+[VIEWMODE] sim thread: request=2  before=2  after=7
+[font] ScreenText fontNum=2 totalFont=4 tex=125307648131088 slots=[125307647470112 125307647276224 125307648131088 125307648793296] text="CHASE CAMERA"  A=(l189 t2 w5 h14)  F=(l219 t2 w5 h14)  R=(l44 t16 w5 h14)
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'H'(72) rect l231 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'S'(83) rect l50 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   ' '(32) rect l9 t2 w0 h14 pw7.0
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'M'(77) rect l14 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   'R'(82) rect l44 t16 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[fontdump] glTex=93 256x256 surface w=256 h=256 -> /home/admin/ff-gates/tex/caption_font_gl.ppm (written)
+[fontv] game: n=12  [0] u0.7851 v0.0078 | u0.8046 v0.0078  [1] u0.9023 v0.0078 | u0.9218 v0.0078  [2] u0.7382 v0.0078 | u0.7578 v0.0078  [3] u0.1953 v0.0625 | u0.2148 v0.0625  [4] u0.8320 v0.0078 | u0.8515 v0.0078  [5] u0.0351 v0.0078 | u0.0351 v0.0078  [6] u0.7851 v0.0078 | u0.8046 v0.0078  [7] u0.7382 v0.0078 | u0.7578 v0.0078  [8] u0.0546 v0.0625 | u0.0742 v0.0625  [9] u0.8320 v0.0078 | u0.8515 v0.0078  [10] u0.1718 v0.0625 | u0.1914 v0.0625  [11] u0.7382 v0.0078 | u0.7578 v0.0078
+[fontv] shim: fvf=0x2c4 size=40 uvOff=24 count=72  [0] x475 y41 u0.7851 v0.0078 | u0.8046 v0.0078  [1] x481 y41 u0.9023 v0.0078 | u0.9218 v0.0078  [2] x487 y41 u0.7382 v0.0078 | u0.7578 v0.0078  [3] x493 y41 u0.1953 v0.0625 | u0.2148 v0.0625
+[font] ScreenText fontNum=2 totalFont=4 tex=125307648131088 slots=[125307647470112 125307647276224 125307648131088 125307648793296] text="CHASE CAMERA"  A=(l189 t2 w5 h14)  F=(l219 t2 w5 h14)  R=(l44 t16 w5 h14)
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'H'(72) rect l231 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'S'(83) rect l50 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   ' '(32) rect l9 t2 w0 h14 pw7.0
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'M'(77) rect l14 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   'R'(82) rect l44 t16 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[fontdump] glTex=93 256x256 surface w=256 h=256 -> /home/admin/ff-gates/tex/caption_font_gl.ppm (written)
+[fontv] game: n=12  [0] u0.7851 v0.0078 | u0.8046 v0.0078  [1] u0.9023 v0.0078 | u0.9218 v0.0078  [2] u0.7382 v0.0078 | u0.7578 v0.0078  [3] u0.1953 v0.0625 | u0.2148 v0.0625  [4] u0.8320 v0.0078 | u0.8515 v0.0078  [5] u0.0351 v0.0078 | u0.0351 v0.0078  [6] u0.7851 v0.0078 | u0.8046 v0.0078  [7] u0.7382 v0.0078 | u0.7578 v0.0078  [8] u0.0546 v0.0625 | u0.0742 v0.0625  [9] u0.8320 v0.0078 | u0.8515 v0.0078  [10] u0.1718 v0.0625 | u0.1914 v0.0625  [11] u0.7382 v0.0078 | u0.7578 v0.0078
+[fontv] shim: fvf=0x2c4 size=40 uvOff=24 count=72  [0] x475 y41 u0.7851 v0.0078 | u0.8046 v0.0078  [1] x481 y41 u0.9023 v0.0078 | u0.9218 v0.0078  [2] x487 y41 u0.7382 v0.0078 | u0.7578 v0.0078  [3] x493 y41 u0.1953 v0.0625 | u0.2148 v0.0625
+[font] ScreenText fontNum=2 totalFont=4 tex=125307648131088 slots=[125307647470112 125307647276224 125307648131088 125307648793296] text="CHASE CAMERA"  A=(l189 t2 w5 h14)  F=(l219 t2 w5 h14)  R=(l44 t16 w5 h14)
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'H'(72) rect l231 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'S'(83) rect l50 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   ' '(32) rect l9 t2 w0 h14 pw7.0
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'M'(77) rect l14 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   'R'(82) rect l44 t16 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[fontdump] glTex=93 256x256 surface w=256 h=256 -> /home/admin/ff-gates/tex/caption_font_gl.ppm (written)
+[fontv] game: n=12  [0] u0.7851 v0.0078 | u0.8046 v0.0078  [1] u0.9023 v0.0078 | u0.9218 v0.0078  [2] u0.7382 v0.0078 | u0.7578 v0.0078  [3] u0.1953 v0.0625 | u0.2148 v0.0625  [4] u0.8320 v0.0078 | u0.8515 v0.0078  [5] u0.0351 v0.0078 | u0.0351 v0.0078  [6] u0.7851 v0.0078 | u0.8046 v0.0078  [7] u0.7382 v0.0078 | u0.7578 v0.0078  [8] u0.0546 v0.0625 | u0.0742 v0.0625  [9] u0.8320 v0.0078 | u0.8515 v0.0078  [10] u0.1718 v0.0625 | u0.1914 v0.0625  [11] u0.7382 v0.0078 | u0.7578 v0.0078
+[fontv] shim: fvf=0x2c4 size=40 uvOff=24 count=72  [0] x475 y41 u0.7851 v0.0078 | u0.8046 v0.0078  [1] x481 y41 u0.9023 v0.0078 | u0.9218 v0.0078  [2] x487 y41 u0.7382 v0.0078 | u0.7578 v0.0078  [3] x493 y41 u0.1953 v0.0625 | u0.2148 v0.0625
+[font] ScreenText fontNum=2 totalFont=4 tex=125307648131088 slots=[125307647470112 125307647276224 125307648131088 125307648793296] text="CHASE CAMERA"  A=(l189 t2 w5 h14)  F=(l219 t2 w5 h14)  R=(l44 t16 w5 h14)
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'H'(72) rect l231 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'S'(83) rect l50 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   ' '(32) rect l9 t2 w0 h14 pw7.0
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'M'(77) rect l14 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   'R'(82) rect l44 t16 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[fontdump] glTex=93 256x256 surface w=256 h=256 -> /home/admin/ff-gates/tex/caption_font_gl.ppm (written)
+[fontv] game: n=12  [0] u0.7851 v0.0078 | u0.8046 v0.0078  [1] u0.9023 v0.0078 | u0.9218 v0.0078  [2] u0.7382 v0.0078 | u0.7578 v0.0078  [3] u0.1953 v0.0625 | u0.2148 v0.0625  [4] u0.8320 v0.0078 | u0.8515 v0.0078  [5] u0.0351 v0.0078 | u0.0351 v0.0078  [6] u0.7851 v0.0078 | u0.8046 v0.0078  [7] u0.7382 v0.0078 | u0.7578 v0.0078  [8] u0.0546 v0.0625 | u0.0742 v0.0625  [9] u0.8320 v0.0078 | u0.8515 v0.0078  [10] u0.1718 v0.0625 | u0.1914 v0.0625  [11] u0.7382 v0.0078 | u0.7578 v0.0078
+[fontv] shim: fvf=0x2c4 size=40 uvOff=24 count=72  [0] x475 y41 u0.7851 v0.0078 | u0.8046 v0.0078  [1] x481 y41 u0.9023 v0.0078 | u0.9218 v0.0078  [2] x487 y41 u0.7382 v0.0078 | u0.7578 v0.0078  [3] x493 y41 u0.1953 v0.0625 | u0.2148 v0.0625
+[font] ScreenText fontNum=2 totalFont=4 tex=125307648131088 slots=[125307647470112 125307647276224 125307648131088 125307648793296] text="CHASE CAMERA"  A=(l189 t2 w5 h14)  F=(l219 t2 w5 h14)  R=(l44 t16 w5 h14)
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'H'(72) rect l231 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'S'(83) rect l50 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   ' '(32) rect l9 t2 w0 h14 pw7.0
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'M'(77) rect l14 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   'R'(82) rect l44 t16 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[fontdump] glTex=93 256x256 surface w=256 h=256 -> /home/admin/ff-gates/tex/caption_font_gl.ppm (written)
+[fontv] game: n=12  [0] u0.7851 v0.0078 | u0.8046 v0.0078  [1] u0.9023 v0.0078 | u0.9218 v0.0078  [2] u0.7382 v0.0078 | u0.7578 v0.0078  [3] u0.1953 v0.0625 | u0.2148 v0.0625  [4] u0.8320 v0.0078 | u0.8515 v0.0078  [5] u0.0351 v0.0078 | u0.0351 v0.0078  [6] u0.7851 v0.0078 | u0.8046 v0.0078  [7] u0.7382 v0.0078 | u0.7578 v0.0078  [8] u0.0546 v0.0625 | u0.0742 v0.0625  [9] u0.8320 v0.0078 | u0.8515 v0.0078  [10] u0.1718 v0.0625 | u0.1914 v0.0625  [11] u0.7382 v0.0078 | u0.7578 v0.0078
+[fontv] shim: fvf=0x2c4 size=40 uvOff=24 count=72  [0] x475 y41 u0.7851 v0.0078 | u0.8046 v0.0078  [1] x481 y41 u0.9023 v0.0078 | u0.9218 v0.0078  [2] x487 y41 u0.7382 v0.0078 | u0.7578 v0.0078  [3] x493 y41 u0.1953 v0.0625 | u0.2148 v0.0625
+[font] ScreenText fontNum=2 totalFont=4 tex=125307648131088 slots=[125307647470112 125307647276224 125307648131088 125307648793296] text="CHASE CAMERA"  A=(l189 t2 w5 h14)  F=(l219 t2 w5 h14)  R=(l44 t16 w5 h14)
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'H'(72) rect l231 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'S'(83) rect l50 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   ' '(32) rect l9 t2 w0 h14 pw7.0
+[font]   'C'(67) rect l201 t2 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[font]   'M'(77) rect l14 t16 w5 h14 pw6.0
+[font]   'E'(69) rect l213 t2 w5 h14 pw6.0
+[font]   'R'(82) rect l44 t16 w5 h14 pw6.0
+[font]   'A'(65) rect l189 t2 w5 h14 pw6.0
+[fontdump] glTex=93 256x256 surface w=256 h=256 -> /home/admin/ff-gates/tex/caption_font_gl.ppm (written)
+[fontv] game: n=12  [0] u0.7851 v0.0078 | u0.8046 v0.0078  [1] u0.9023 v0.0078 | u0.9218 v0.0078  [2] u0.7382 v0.0078 | u0.7578 v0.0078  [3] u0.1953 v0.0625 | u0.2148 v0.0625  [4] u0.8320 v0.0078 | u0.8515 v0.0078  [5] u0.0351 v0.0078 | u0.0351 v0.0078  [6] u0.7851 v0.0078 | u0.8046 v0.0078  [7] u0.7382 v0.0078 | u0.7578 v0.0078  [8] u0.0546 v0.0625 | u0.0742 v0.0625  [9] u0.8320 v0.0078 | u0.8515 v0.0078  [10] u0.1718 v0.0625 | u0.1914 v0.0625  [11] u0.7382 v0.0078 | u0.7578 v0.0078
+[fontv] shim: fvf=0x2c4 size=40 uvOff=24 count=72  [0] x475 y41 u0.7851 v0.0078 | u0.8046 v0.0078  [1] x481 y41 u0.9023 v0.0078 | u0.9218 v0.0078  [2] x487 y41 u0.7382 v0.0078 | u0.7578 v0.0078  [3] x493 y41 u0.1953 v0.0625 | u0.2148 v0.0625
+[FF_SIM_SCREENSHOT] requested /home/admin/ff-gates/hudline/chase_font6.bmp at 48015ms (wall 80111ms)
+[DIAG] Pre-screenshot GL state:
+  GL_FOG=1 GL_LIGHTING=0 GL_CULL_FACE=0 GL_ALPHA_TEST=0 GL_DEPTH_TEST=1 GL_BLEND=0 GL_STENCIL_TEST=0
+  Fog: color=(0.65,0.81,0.96,0.00) start=0.0 end=80000.0 mode=0x2601
+  Viewport: 0,0 1024x768
+  Cull: frontFace=0x900 cullMode=0x405
+  GL_POLYGON_MODE: front=0x1b02 back=0x1b02
+  GL_DITHER=1 GL_POLYGON_STIPPLE=0 GL_LINE_SMOOTH=0 GL_POLYGON_SMOOTH=0 GL_MULTISAMPLE=1
+  AlphaFunc=0x207 AlphaRef=0.003
+  ClearColor=(0.00,0.00,0.00,0.00)
+[Screenshot] Saved 1024x768 framebuffer to /home/admin/ff-gates/hudline/chase_font6.bmp (nonblack=99.9% nonwhite=99.9% distinct15bit=583 avgRGB=105,141,173)
+[PalLight] light=(0.937 0.962 1.000) gametime=32654471 pal=0x71f775ca1440
+[FF_VIEW_SCRIPT] alive el=90012ms steps=1 fired=1
+[FF_VIEW_SCRIPT] alive el=100023ms steps=1 fired=1
+[FARTEX] suppressed redundant reload #1 (texID=703)
+[FF_VIEW_SCRIPT] alive el=110030ms steps=1 fired=1
+[FF_VIEW_SCRIPT] alive el=120035ms steps=1 fired=1
+[FF_VIEW_SCRIPT] alive el=130050ms steps=1 fired=1
+[PalLight] light=(0.936 0.961 1.000) gametime=32715031 pal=0x71f775ca1440
+[FF_VIEW_SCRIPT] alive el=140063ms steps=1 fired=1
+[FF_VIEW_SCRIPT] alive el=150063ms steps=1 fired=1
+[FF_VIEW_SCRIPT] alive el=160069ms steps=1 fired=1

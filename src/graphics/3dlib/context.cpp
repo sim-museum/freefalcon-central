@@ -2107,6 +2107,9 @@ void ContextMPR::SetTexture2(intptr_t texID)
 #endif
 }
 
+#ifdef FF_LINUX
+extern "C" int g_ffDumpNextFontTex; extern "C" int ff_dump_dds_texture(void*, const char*);   /* GOLDMATCH-FF-2 S9 */
+#endif
 void ContextMPR::SelectTexture1(intptr_t texID)
 {
 #ifdef _CONTEXT_TRACE_ALL
@@ -2117,6 +2120,12 @@ void ContextMPR::SelectTexture1(intptr_t texID)
 
     if (texID)
         texID = (intptr_t)((TextureHandle *)texID)->m_pDDS;
+        #ifdef FF_LINUX
+        if (g_ffDumpNextFontTex && texID) { g_ffDumpNextFontTex = 0;
+            char pth[1024]; const char* home = getenv("HOME"); if (!home || !*home) home = ".";
+            snprintf(pth, sizeof pth, "%s/ff-gates/tex/caption_font_gl.ppm", home);
+            ff_dump_dds_texture((void*)texID, pth); }
+        #endif
 
     if (texID not_eq currentTexture1)
     {

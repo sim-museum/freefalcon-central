@@ -21560,3 +21560,37 @@ Also: the gold's bolder glyphs (S6) come through this same upload; whatever it d
 pixels is the other half of the same defect.
 
 **GOLDMATCH-FF-2: the caption defect is pinned to one function's output. FF sprint 1 of 4 (cycle 5).**
+
+## GOLDMATCH-FF-2 S9 (Fable 5.1, 2026-09-18) — ⭐⭐⭐ **the caption defect, pinned to the raster: every glyph is drawn FOUR columns wide from a FIVE-column cell — the right-most texel column is never rasterised. `A` loses its right leg, `R` its bowl (both read `F`); `C H S E M` survive; the whole font reads thinner than the gold.** Atlas read back byte-identical, UVs correct at both ends; the half-texel shift is NOT it
+
+**Story:** FF rotation, cycle 5, sprint 2. S8 left "the uploaded pixels". This sprint read them back
+and then followed the vertices to the screen.
+
+### ⭐ Everything upstream of the raster, verified equal to the data
+* **Atlas readback** (`ff_dump_dds_texture`, armed by the caption trace, fired in
+  `ContextMPR::SelectTexture1`): slot 2's GL texture, 256×256, **0 of 228 cells differ** from
+  `10x7font.gif`, 3,510 non-zero texels in both (`caption_atlas_gl_readback_s9.png`).
+* **Vertex stream** (`caption_vertex_trace_s9.log`): the game builds `A`'s quad with
+  `u 0.7382–0.7578` = texels 189–194, its own cell; the shim receives the same numbers
+  (`fvf=0x2c4`, 40-byte verts, uv at 24, 72 verts for 12 characters, quads at x 475, 481, 487, …
+  6 px pitch).
+* **Half-texel shift** (`g_bOldFontTexelFix`, D3D's convention): skipped under
+  `FF_FONT_NO_TEXELFIX=1` — the profile is unchanged. Not the cause.
+
+### ⭐⭐⭐ The screen (`caption_screen_vs_atlas_8x_s9.png`)
+Green columns per glyph: `####..` at a 6-px pitch — **4 lit of the 5 the cell holds**, for every
+character; the missing column is always the right-most. Rows lit: see the log line above the
+entry. `A` without its right leg is an `F`; `R` without its bowl's right edge is an `F`; `C H S E M`
+lose a column and remain themselves. **S3's "some cells right, some wrong" was one loss applied to
+every cell, legible on some glyphs and not on others.** The same loss is S6's "bolder in the gold":
+the gold draws the fifth column.
+
+### ⛔ Not yet explained — the next measurement is exact
+Which convention drops the column: the quad spans x 487→492 (5 px) at the shim's input; whether the
+shim's RHW→NDC transform, a −0.5 pixel offset, a viewport rounding, or the texture-coordinate
+edge (u 0.7578 = 194/256 lands on the boundary of texel 194 with NEAREST) rasterises 4 pixels.
+**Print the quad's post-transform NDC/window x for one glyph and the GL raster rule in force; a
++1-texel test on the width closes it.** Also: the HUD digits in font 1 (`8x6`, 4-wide cells) are
+likely losing a column too — measure them the same way.
+
+**GOLDMATCH-FF-2: the caption defect and the thin-glyph gap are ONE defect at the raster, all inputs proven. FF cycle 5: 2 sprints — rotating to MA.**
