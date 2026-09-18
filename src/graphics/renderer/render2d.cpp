@@ -439,6 +439,22 @@ void Render2D::ScreenText(float xLeft, float yTop, const char *string, int boxed
     }
     else context.RestoreState(STATE_TEXTURE_TEXT);   //JAM 18Oct03
 
+    /* FF_LINUX GOLDMATCH-FF-2 S8 (2026-09-18): the caption "CHFSE CFMEFF" is drawn HERE. Name what
+       this draw actually uses: the font index, the texture handle bound for it, every slot's handle
+       (which atlases loaded at all), and the rects the table holds for A, F, R. FF_TRACE_FONT=1. */
+    if (getenv("FF_TRACE_FONT") && strstr(string, "CAMERA")) { static int ffn = 0; if (ffn++ < 6) {
+        int f = pFontSet->fontNum;
+        fprintf(stderr, "[font] ScreenText fontNum=%d totalFont=%d tex=%lu slots=[%lu %lu %lu %lu] text=\"%s\"",
+                f, pFontSet->totalFont, (unsigned long)pFontSet->fontTexture[f].TexHandle(),
+                (unsigned long)pFontSet->fontTexture[0].TexHandle(), (unsigned long)pFontSet->fontTexture[1].TexHandle(),
+                (unsigned long)pFontSet->fontTexture[2].TexHandle(), (unsigned long)pFontSet->fontTexture[3].TexHandle(), string);
+        const char probe[] = "AFR";
+        for (int i = 0; probe[i]; i++) { const FontDataType& d = pFontSet->fontData[f][(unsigned char)probe[i]];
+            fprintf(stderr, "  %c=(l%.0f t%.0f w%.0f h%.0f)", probe[i], d.left*256.0f, d.top*256.0f, d.width*256.0f, d.height*256.0f); }
+        fprintf(stderr, "\n");
+        if (strstr(string, "CAMERA")) for (const char* q = string; *q; q++) { const FontDataType& d = pFontSet->fontData[f][(unsigned char)*q];
+            fprintf(stderr, "[font]   '%c'(%d) rect l%.0f t%.0f w%.0f h%.0f pw%.1f\n", *q, (int)(unsigned char)*q, d.left*256.0f, d.top*256.0f, d.width*256.0f, d.height*256.0f, d.pixelWidth); }
+        fflush(stderr); } }
     context.SelectTexture1(pFontSet->fontTexture[pFontSet->fontNum].TexHandle());
 
     TwoDVertex *pVtx = vert;

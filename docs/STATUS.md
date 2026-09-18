@@ -21531,3 +21531,32 @@ rect for each character** — then the parse-vs-lookup question is one line of o
 ### ⚠️ Grooming
 Two sprints on FF this cycle; the stroke width landed at parity, the glyph question is narrowed to two
 functions and has its instrument half-built. **Rotating to MA.**
+
+## GOLDMATCH-FF-2 S8 (Fable 5.1, 2026-09-18) — ⭐⭐⭐ **the caption trace spoke: `ScreenText fontNum=2 … text="CHASE CAMERA"`, every character's rect EXACTLY its `10x7font.rct` row (`A`=l189 t2, `R`=l44 t16, `C`=l201 t2), bound texture = slot 2's own handle — and the screen still shows `CHFSE CFMEFF`.** Table, lookup and slot are all correct; what is wrong is the PIXELS the port uploaded for that atlas
+
+**Story:** FF rotation, cycle 5, sprint 1. S7 left the caption defect narrowed to "parser or lookup"
+with an instrument that had not fired. Three placements later it fired where the glyphs are made.
+
+### ⭐⭐⭐ `docs/reference/260917_refuel/caption_font_trace_s8.log`
+```
+[font] ScreenText fontNum=2 totalFont=4 tex=…530512 slots=[…869536 …675648 …530512 …192720] text="CHASE CAMERA"
+[font]   'C'(67) rect l201 t2 w5 h14   'H'(72) l231 t2   'A'(65) l189 t2   'S'(83) l50 t16   'E'(69) l213 t2
+[font]   ' '(32) l9 t2 w0             'M'(77) l14 t16   'R'(82) l44 t16
+```
+Against `art/ckptart/3dfont/10x7font.rct`: `65 189 2 5 14`, `82 44 16 5 14`, `67 201 2 5 14` —
+**identical.** Four distinct slot handles (all four atlases loaded); the bound handle is slot 2's.
+The HUD's own strings (`" 307"`, `"25,390"`, `"AL"`) draw through the same function in font 1
+with `8x6font.rct`'s rects, correctly. **The `.rct` parser is exonerated; the lookup is exonerated;
+the slot pairing is exonerated.**
+
+### ⛔ What is left — one thing
+The glyph cells at (189,2) and (44,16) of the texture the port holds for `10x7font.gif` do not
+contain `A` and `R`. On disk they do (S7 rendered them). So the **GIF → texture upload of this
+atlas** (palette + `MPR_TI_CHROMAKEY`, `Texture::LoadImage` → GL) alters cell contents in a way
+that leaves `C H S E M` intact and turns `A` and `R` into `F` — a row/column remap, not noise.
+**Sprint 2: read slot 2's GL texture back and diff it against the GIF, cell by cell.**
+
+Also: the gold's bolder glyphs (S6) come through this same upload; whatever it does to the atlas's
+pixels is the other half of the same defect.
+
+**GOLDMATCH-FF-2: the caption defect is pinned to one function's output. FF sprint 1 of 4 (cycle 5).**
