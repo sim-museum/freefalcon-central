@@ -21299,3 +21299,68 @@ blend / tex` — one run on a HUD-green pixel names it.
 chase distance and bring the tanker into frame; (c) the caption glyphs. **GOLDMATCH-FF-2: HUD-only at
 layout parity, two new named defects, and a phantom retired with its harness cause fixed. FF sprint 2
 of 4.**
+
+## GOLDMATCH-FF-2 S3 (Fable 5.1, 2026-09-17) — ⛔ **`FF_PROBE_PIXEL` cannot see the HUD: it hooks `DIPVB` and `DrawVerts` only, and the HUD is 143 `Line()` calls plus `ScreenText` through the MPR `DrawPrimitive` path — 0 probed draws produced green at a pixel that IS a stroke.** ⭐ The caption defect is narrowed to one font table, the chase distance to one setter, and the gold's zoom is reproduced with the PO's own key
+
+**Story:** FF rotation: sprint 3 of 4. S2 left three tasks — the HUD colour's mechanism, the chase
+distance, the caption glyphs — and named `FF_PROBE_PIXEL` as the one-run instrument for the first.
+It is not, and proving that is the sprint's main result.
+
+### ⛔⛔ The probe's blind spot, proven rather than inferred
+
+run6: `FF_PROBE_PIXEL=500,382` on the HUD-only view — a pixel chosen from run5's capture at
+(117,255,207), a horizontal stroke. **22,143 probe lines; zero whose output colour is green.**
+Meanwhile run6's own capture at (500,382) reads **(117,255,207)** with four green neighbours — **the
+pixel was a stroke in this run too.** So the HUD reached the framebuffer through a draw the probe
+never saw.
+
+Why, by reading: `FF_ProbePixel(...)` is called from exactly two sites — `"DIPVB"` and `"DrawVerts"`
+(the D3D indexed-primitive paths). The HUD (`hud.cpp`) is **143 × `display->Line(`**, 24 × `Text*`, 6 ×
+`Circle(` — `Canvas3D` → `Render2D` → **`context.DrawPrimitive(MPR_PRM_…)`**, the software-renderer
+path, which the probe does not hook. ⚠️ *S2 named this instrument as sufficient; it is not, and
+"0 green draws" would have read as a clean result had the capture not been checked at the same
+pixel.* **Handoff is exact: hook `FF_ProbePixel` at the MPR `DrawPrimitive` → GL translation.**
+
+### ⭐ The colour decode is right; the lift is downstream
+
+`Render2D::ScreenText` decodes `Color()` as **`r = c & 0xFF, g = (c >> 8) & 0xFF, b = (c >> 16) & 0xFF`**
+— `0xAABBGGRR` — so `HUDcolor[0] = 0xff00ff00` arrives as **pure green (0,255,0)**. **The cyan is
+added after the vertex colour is set**, in the MPR/GL path the probe cannot yet see.
+
+### ⭐⭐ The caption: one font table, not a string
+
+* The string is correct in our binary: `CameraLabel[] = {"FLY-BY CAMERA", "CHASE CAMERA", …}`.
+* `: Viper` **is** in what we draw — `otwloop.cpp:1072` builds `label + ": " + Label() + " - heading: NNN"`
+  and draws it at `:1158`; the bare-label `else` branch is `:1161`. Our on-screen `CHFSE CFMEFF` is
+  12 characters like `CHASE CAMERA` — **the suffix's lowercase, colon and digits rendered blank; the
+  capitals rendered with `A→F`, `R→F`, and `C H S E M` correct.**
+* `ScreenText` indexes glyph UVs **directly by character code**: `pFontSet->fontData[fontNum][*string].left/.top/.width`.
+  Some cells right and some wrong is the signature of **a metrics table paired with the wrong atlas
+  for that `fontNum`** (`VirtualDisplay::Font3D`; resources `art/fonts/`, `art/FONTIDS.LST`).
+  **Which pair is loaded for the sim overlay is the next read.**
+
+### ⭐ The chase distance: three setters, one matches ours
+
+| site | value | when |
+|---|---|---|
+| `otwdrive.cpp:269` | −500 ft | construction default |
+| `access.cpp:505` | −1.5 × `Radius()` − rand·400 | the random "action camera" placement |
+| **`access.cpp:1879`** | **−75 ft** | the view-reset path (`chaseAz = chaseEl = 0`) |
+
+Our F-16 at ~40 % of the frame is **−75**; the gold's at ~4 % is near the **−900 floor** —
+`ViewZoomOut` steps **50 ft** to that floor, so the PO pressed the key. **Reproduced with the PO's own
+control rather than a new knob:** `FF_SIM_KEY="0x47@22;…"` (`OTWViewZoomOut` = DIK `0x47`, twelve
+presses, sim-entry clock). **run7 is in flight with captures before, during and after.**
+
+### ⚠️ Not claimed
+
+* **That the HUD colour mechanism is known.** It is bounded — not the setting, not the decode, not
+  blend-over-background — and **unmeasured past the vertex colour.** The probe gap is the reason.
+* **That the caption is a mismatched font pair.** That is what the *pattern* says; **no font file has
+  been read.**
+* **That the tanker renders.** run7 had not finished. If the zoom lands, S4's first look is the
+  KC-10 — model, boom, and the F-16's position relative to it against `gold_chase_tanker_t262.png`.
+
+**S4:** read run7; extend `FF_ProbePixel` to the MPR path and name the colour mechanism; identify
+the overlay font pair. **GOLDMATCH-FF-2: the instrument named in S2 shown blind to the HUD, three
+defects each narrowed to one site. FF sprint 3 of 4.**
