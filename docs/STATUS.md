@@ -21364,3 +21364,60 @@ presses, sim-entry clock). **run7 is in flight with captures before, during and 
 **S4:** read run7; extend `FF_ProbePixel` to the MPR path and name the colour mechanism; identify
 the overlay font pair. **GOLDMATCH-FF-2: the instrument named in S2 shown blind to the HUD, three
 defects each narrowed to one site. FF sprint 3 of 4.**
+
+## GOLDMATCH-FF-2 S4 (Fable 5.1, 2026-09-17) — ⭐⭐⭐ **at the gold's zoom the chase framing matches and the KC-10 RENDERS — a distant dot at the base of its contrail. The gold's frame-filling tanker is formation flying the PO did, not a scene the port lacks.** ✅ The refuelling TE's three scene classes are now each measured; the two remaining defects each have one site
+
+**Story:** FF rotation: sprint 4 of 4. S3 reproduced the PO's zoom with the PO's own key. This reads
+the result and closes the rotation.
+
+### ⭐⭐⭐ run7 — twelve `OTWViewZoomOut` presses, all delivered
+
+| capture | object bbox width | object px | |
+|---|---|---|---|
+| ours, before zoom (−75 ft) | 430 px | 6019 | the F-16 fills the frame |
+| ours, after 5 presses | 110 px | 284 | |
+| **ours, at the floor (−900 ft)** | — | **33** | **F-16 ≈ 40 px, as in the gold** |
+| **gold t=262** | 206 px | **1015** | **F-16 ≈ 40 px *plus the KC-10 at ~200 px*** |
+
+`chase_zoomfloor_ours_vs_gold_t262.png`: **same sky, haze band, horizon, terrain quality; the F-16 at
+the same size in the same place.** Whole-frame 15.19 against an in-run floor of 1.45, and **sky
+9.42** — the difference is the tanker, and the tanker is *there*: **a dot at the foot of a contrail
+climbing away to the upper right**, exactly where TE 27 puts a KC-10 "already in position". The PO's
+KC-10 fills the frame because the PO **flew to it and held ~1,000 ft** — the harness leaves the jet
+alone for 36 s. ⚖️ **Position is a flight-state difference; the object is rendered.**
+
+### ✅ GOLDMATCH-FF-2, scene by scene, after four sprints
+
+| scene | verdict | what remains |
+|---|---|---|
+| TE list / TE map | ✅ reached by id, verified from the log | map screen parity not yet compared |
+| **full pit** | ✅ **parity** bar two things | **HUD colour**; heavier haze in the gold |
+| **HUD-only** | ✅ **layout parity** (MFD boxes, ladder, boxes, tape) | **HUD colour** |
+| **chase** | ✅ framing parity at matched zoom; **tanker renders** | caption glyphs; in-formation view needs a flown approach |
+| tanker approach (boom, closure) | ⛔ **not reached** — needs the aircraft flown to the tanker | the one scene the harness cannot script without flying |
+
+### ⭐ The two defects, each at one site, for the next rotation
+
+1. **HUD colour** — pure green leaves `ScreenText` as (0,255,0) and arrives on screen as
+   (117–151, 255, 196–221) regardless of background. `FF_PROBE_PIXEL` is blind to it (S3); **the
+   hook site is `ContextMPR::DrawPrimitive` — `src/graphics/3dlib/context.cpp:4052 / 4152 / 4272`**,
+   three overloads. One `FF_ProbePixel("MPR", …)` call there and the next run names it.
+2. **Caption glyphs** (`CHFSE CFMEFF`) — `ScreenText` indexes `fontData[fontNum][ch]` by character
+   code; `A→F, R→F`, others correct; suffix glyphs blank. `VirtualDisplay::SetFont` already carries a
+   port fix (a dead clamp that left `fontNum` stale), so the loader has been touched before. Fonts
+   are `art/fonts/*.bft` (`arial12/14/16`, `bnkgth14–26`, `haet16`) with `FONTIDS.ID`; **the `.bft`
+   loader was not found under `src/graphics` by name and is the next read.**
+
+`FF_DUMP_UNITS` prints unit positions (see above) — the instrument for confirming the dot's identity
+and range if anyone wants the number rather than the contrail.
+
+### ⚠️ Not claimed
+
+* **That the tanker approach matches.** Never reached; **cannot be reached by clicks and keys alone**
+  — it needs the jet flown (or the game's AR autopilot driven) to the tanker.
+* **That the dot is the KC-10.** It is the only other object, at the foot of a contrail, in a TE
+  with one tanker; **not confirmed by position.**
+* That either defect is fixed. **Sites, not fixes.**
+
+**FF rotation complete — 4 sprints (TE 27 reached; two clocks; HUD-only and chase at layout parity;
+tanker rendered; HUD colour and caption glyphs each pinned to one site). ⏭ Rotating to MiG Alley.**
