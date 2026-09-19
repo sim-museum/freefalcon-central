@@ -21626,8 +21626,13 @@ the lead; `atm.cpp:2334 sortie_rate <= 2` (×1). None appear in the menu run. Th
   and never re-copies (`.installed`). `Theaters/Taiwan`, `ZipsTaiwan`, `UnInstall_Taiwan.exe` and
   `theater.lst` are now copied in there (file list verified equal, 20,273 files; the previous
   `theater.lst` kept as `theater.lst.pre-taiwan`). **The PO's installed Linux FF has Taiwan now.**
-* `~/Documents/260919/FreeFalcon-x86_64-260919.AppImage` — `appimage-build/build_ff.sh` from the
-  09-18 binary plus the data tree with Taiwan — for fresh installs. Verification of the packed
-  image is recorded below when it lands.
+* `~/Documents/260919/FreeFalcon-x86_64-260919.AppImage` (3.35 GB, packed 11:09, sha256
+  `1d3dd797…7dc14`) — `appimage-build/build_ff.sh` from the 09-18 binary plus the data tree with
+  Taiwan. **Verified by running it** against the installed tree with Taiwan selected:
+  `Data directory: ~/.local/share/freefalcon/FreeFalcon6`, `Setting theater: Taiwan`, terrain global
+  in `Theaters/Taiwan`, `[Screenshot] … nonblack=92.4%` — the Taiwan menu
+  (`docs/reference/260919_taiwan/appimage_taiwan_menu.png`). The bundled `theater.lst` lists
+  Taiwan. (A first attempt captured at 25 s while the MA pack loaded the box read all-black: a
+  timing miss, not the image — the 95 s re-run painted at every 20 s tick.)
 
 **TAIWAN-1: 1 sprint.**
