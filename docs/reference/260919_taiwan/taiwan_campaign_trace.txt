@@ -1,0 +1,84 @@
+[THEATER] MapClass::Setup '/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea/terrain/Theater.map' -> opened
+[THEATER] GetCurrentTheater read size=7 bytes: 54 61 69 77 61 6E 00  byte[size]=00
+[THEATER] name='Taiwan' -> matched 'Taiwan'
+[THEATER] MapClass::Setup '/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/Theaters/Taiwan/terrdata/terrain/Theater.map' -> opened
+[THEATER] SetCurrentTheater wrote 'Taiwan' as 7 bytes (incl NUL)
+[THEATER] after switch to 'Taiwan':
+[THEATER]   campaign  = /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/Theaters/Taiwan/campaign
+[THEATER]   terrain   = /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/Theaters/Taiwan/terrdata
+[THEATER]   objects   = /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/Theaters/Taiwan/objects
+[THEATER]   3ddata    = /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/Theaters/Taiwan/objects
+[THEATER]   uiart     = /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/Theaters/Taiwan
+[THEATER]   cockpit   = /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/Theaters/Taiwan/ckptart
+[THEATER]   misctex   = /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/misctex
+[THEATER]   splash    = /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/Theaters/Taiwan/art/splash
+[Failed:  channel > 0 and channel <= NUM_CHANNELS] Assertion at 168  /home/admin/freefalcon-central/src/sim/navaids/tacan.cpp  Sep 16 2026
+[Failed:  result >= NUM_TACAN_FIELDS] Assertion at 135  /home/admin/freefalcon-central/src/sim/navaids/tacan.cpp  Sep 16 2026
+[Failed:  result >= NUM_TACAN_FIELDS] Assertion at 135  /home/admin/freefalcon-central/src/sim/navaids/tacan.cpp  Sep 16 2026
+[ATM] DoCampaignLoop teams -> 0:atm 1:atm 2:atm 3:atm 4:atm 5:atm 6:atm 7:atm 
+[ATM] team=0 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=1 Task() STOPPED: no squadrons (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=2 Task() PROCEEDS (squadrons=46 flags=0xc hasRequestList=1 missionsFilled=0/0)
+[ATM] team=3 Task() PROCEEDS (squadrons=5 flags=0x4 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=4 Task() STOPPED: no squadrons (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=5 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=6 Task() PROCEEDS (squadrons=86 flags=0xc hasRequestList=1 missionsFilled=0/0)
+[ATM] team=7 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] DoCampaignLoop teams -> 0:atm 1:atm 2:atm 3:atm 4:atm 5:atm 6:atm 7:atm 
+[ATM] team=0 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=1 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/30)
+[ATM] team=2 Task() PROCEEDS (squadrons=46 flags=0x8 hasRequestList=1 missionsFilled=0/11)
+[ATM] team=3 Task() PROCEEDS (squadrons=5 flags=0x8 hasRequestList=1 missionsFilled=0/17)
+[ATM] team=4 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=5 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=6 Task() PROCEEDS (squadrons=86 flags=0x8 hasRequestList=1 missionsFilled=0/10)
+Assertion at 2334  /home/admin/freefalcon-central/src/campaign/camptask/atm.cpp  Sep 16 2026
+[Failed:  sortie_rate <= 2] Assertion at 2334  /home/admin/freefalcon-central/src/campaign/camptask/atm.cpp  Sep 16 2026
+[ATM] team=7 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] DoCampaignLoop teams -> 0:atm 1:atm 2:atm 3:atm 4:atm 5:atm 6:atm 7:atm 
+[ATM] team=0 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=1 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/31)
+[ATM] team=2 Task() PROCEEDS (squadrons=46 flags=0x8 hasRequestList=1 missionsFilled=11/12)
+[ATM] team=3 Task() PROCEEDS (squadrons=5 flags=0x8 hasRequestList=1 missionsFilled=0/17)
+[ATM] team=4 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=5 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=6 Task() PROCEEDS (squadrons=86 flags=0x8 hasRequestList=1 missionsFilled=0/13)
+[ATM] team=7 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=0 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=1 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/31)
+[ATM] team=2 Task() PROCEEDS (squadrons=46 flags=0x8 hasRequestList=1 missionsFilled=12/12)
+[ATM] team=3 Task() PROCEEDS (squadrons=5 flags=0x8 hasRequestList=1 missionsFilled=2/18)
+[ATM] team=4 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=5 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=6 Task() PROCEEDS (squadrons=86 flags=0x8 hasRequestList=1 missionsFilled=0/15)
+[ATM] team=7 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=0 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=1 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/31)
+[ATM] team=2 Task() STOPPED: no new requests or planes (squadrons=46 flags=0x0 hasRequestList=1 missionsFilled=12/12)
+[ATM] team=3 Task() PROCEEDS (squadrons=5 flags=0x8 hasRequestList=1 missionsFilled=3/18)
+[ATM] team=4 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=5 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=6 Task() PROCEEDS (squadrons=86 flags=0x8 hasRequestList=1 missionsFilled=0/15)
+[ATM] team=7 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=0 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=1 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/31)
+[ATM] team=2 Task() STOPPED: no new requests or planes (squadrons=46 flags=0x0 hasRequestList=1 missionsFilled=12/12)
+[ATM] team=3 Task() STOPPED: no new requests or planes (squadrons=5 flags=0x0 hasRequestList=1 missionsFilled=3/18)
+[ATM] team=4 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=5 Task() STOPPED: no squadrons (squadrons=0 flags=0x8 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=6 Task() STOPPED: no new requests or planes (squadrons=86 flags=0x0 hasRequestList=1 missionsFilled=0/15)
+[ATM] team=7 Task() STOPPED: team not TEAM_ACTIVE (squadrons=0 flags=0x0 hasRequestList=1 missionsFilled=0/0)
+[ATM] team=2 Task() STOPPED: no new requests or planes (squadrons=46 flags=0x0 hasRequestList=1 missionsFilled=12/12)
+[ATM] team=3 Task() STOPPED: no new requests or planes (squadrons=5 flags=0x0 hasRequestList=1 missionsFilled=3/18)
+[ATM] team=6 Task() STOPPED: no new requests or planes (squadrons=86 flags=0x0 hasRequestList=1 missionsFilled=0/15)
+[ATM] team=2 Task() STOPPED: no new requests or planes (squadrons=46 flags=0x0 hasRequestList=1 missionsFilled=12/12)
+[ATM] team=3 Task() STOPPED: no new requests or planes (squadrons=5 flags=0x0 hasRequestList=1 missionsFilled=3/18)
+[ATM] team=6 Task() STOPPED: no new requests or planes (squadrons=86 flags=0x0 hasRequestList=1 missionsFilled=0/15)
+[ATM] team=2 Task() STOPPED: no new requests or planes (squadrons=46 flags=0x0 hasRequestList=1 missionsFilled=12/12)
+[ATM] team=3 Task() STOPPED: no new requests or planes (squadrons=5 flags=0x0 hasRequestList=1 missionsFilled=3/18)
+[ATM] team=6 Task() STOPPED: no new requests or planes (squadrons=86 flags=0x0 hasRequestList=1 missionsFilled=0/15)
+[ATM] team=2 Task() STOPPED: no new requests or planes (squadrons=46 flags=0x0 hasRequestList=1 missionsFilled=12/12)
+[ATM] team=3 Task() STOPPED: no new requests or planes (squadrons=5 flags=0x0 hasRequestList=1 missionsFilled=3/18)
+[ATM] team=6 Task() STOPPED: no new requests or planes (squadrons=86 flags=0x0 hasRequestList=1 missionsFilled=0/15)
+[ATM] team=3 Task() STOPPED: no new requests or planes (squadrons=5 flags=0x0 hasRequestList=1 missionsFilled=3/18)
+[ATM] team=6 Task() STOPPED: no new requests or planes (squadrons=86 flags=0x0 hasRequestList=1 missionsFilled=0/15)

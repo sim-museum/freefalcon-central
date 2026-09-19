@@ -21594,3 +21594,40 @@ edge (u 0.7578 = 194/256 lands on the boundary of texel 194 with NEAREST) raster
 likely losing a column too — measure them the same way.
 
 **GOLDMATCH-FF-2: the caption defect and the thin-glyph gap are ONE defect at the raster, all inputs proven. FF cycle 5: 2 sprints — rotating to MA.**
+
+### TAIWAN-1 (Fable 5.1, 2026-09-19) — ⭐⭐ **the Taiwan theater the PO installed under Wine runs on the Linux port: menu, theater switch, and a campaign that fills 12/12 missions.** Copied into the AppImage's installed data tree; a new AppImage with the theater bundled is packing
+
+**PO (2026-09-19):** *"I just added the taiwan theater to wine free falcon. add it to linux ff."*
+
+The Wine installer wrote `Theaters/Taiwan` (3.3 GB, 20,273 files), `ZipsTaiwan/`, and a new line
+in `theater.lst` into the shared drive_c tree the dev build reads. The port needed no code: the
+list parser converts backslashes, the path shim resolves `Taiwan.tdf` → `taiwan.tdf`, and the
+`.tdf` keys (campaigndir, terraindir, objectdir, ckptart, zipsdir ZipsTaiwan) all land.
+
+### ⭐ Verified by running it (`docs/reference/260919_taiwan/`)
+* `curTheater=1,54616977616E00` in `config/registry.ini` (backed up and restored), `FF_DEBUG_THEATER=1`:
+  all eight theater globals point into `Theaters/Taiwan` (misctex stays at the base tree, as the
+  `.tdf` leaves it), `Theaters/Taiwan/terrdata/terrain/Theater.map` opens, `fartiles.dds` loads.
+* `linux_taiwan_menu.png`: the Taiwan main menu with its own art (F-16 6830, TAIWAN plate).
+* `linux_taiwan_campaign_frag.png` (Campaign → COMMIT → priorities → START CAMPAIGN,
+  `FF_UI_CLICK="924,745@12;905,758@20;563,751@26;495,390@34"`): the Taiwan map, 42nd FS frag order
+  (Escort Naval Strike ×2, DCA), TASK "Naval Strike, northeast of Fuzhou", a drawn flight plan to
+  the 76th Carrier Strike Task Force, Taiwan event text. `[ATM]` teams 2/3/6 task with 46/5/86
+  squadrons; `missionsFilled` reaches **12/12**. 0 crash signatures in either run.
+
+### ⚠️ Four non-halting assertions, recorded not fixed
+`tacan.cpp:168 channel > 0 and channel <= NUM_CHANNELS` (×1), `tacan.cpp:135 result >=
+NUM_TACAN_FIELDS` (×2) — Taiwan sets `mintacan 1` where Korea uses 70, so the channel arithmetic is
+the lead; `atm.cpp:2334 sortie_rate <= 2` (×1). None appear in the menu run. The Israeli theaters'
+`entity.cpp:285` assertion (THEATERS-1 sprint 1) did not fire for Taiwan.
+
+### Delivery
+* The AppImage the PO runs materialises its own data copy at `~/.local/share/freefalcon/FreeFalcon6`
+  and never re-copies (`.installed`). `Theaters/Taiwan`, `ZipsTaiwan`, `UnInstall_Taiwan.exe` and
+  `theater.lst` are now copied in there (file list verified equal, 20,273 files; the previous
+  `theater.lst` kept as `theater.lst.pre-taiwan`). **The PO's installed Linux FF has Taiwan now.**
+* `~/Documents/260919/FreeFalcon-x86_64-260919.AppImage` — `appimage-build/build_ff.sh` from the
+  09-18 binary plus the data tree with Taiwan — for fresh installs. Verification of the packed
+  image is recorded below when it lands.
+
+**TAIWAN-1: 1 sprint.**
