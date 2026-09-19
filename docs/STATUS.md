@@ -21710,6 +21710,15 @@ release all work — the first two-PC flight this port has had (MP-2PC-1's "neve
 | **MP-CLOCK-1** 🔴 | client's campaign clock frozen while the host's runs; different event text on each | the campaign clock/compression is host-authoritative (`campaign.cpp:1219 UpdateRemoteCompression`); the client's `vuxGameTime` is fed by the host's time messages (`timerthread.cpp`). Same transport question as MP-DMG-1: are those messages arriving? |
 | **HUDBOX-1** 🟠 | client's HUD drawn on an opaque black box (views 1 and 3 too) | not seen in any single-PC capture on this box (the HUD glass is clear in every `[shot]`); the client PC differs in GPU/driver or window size — first check which PC showed it and its `[vid]`/GL lines. |
 
+**TAIWAN-2 VERIFIED by flight (Fable 5.1, 2026-09-19, run C9).** Recipe `tools/ff_te_end_switch.sh`-style with
+absolute click times so the post-switch campaign clicks could not fire early: Korea TE flight (3-D entry,
+`RenderFirstFrame] Exit`), back to the UI, `theater step 'Taiwan' at 168004ms`, then
+`[lodlife] CleanupTable: free LodBuffer 0x700a10000040 size 2953752` (the theater switch), `FM_START_CAMPAIGN`,
+second 3-D entry: `[lodlife] Load(4454): resize free (nil) (size 0 -> 67836)` -- the pointer the old code
+would have freed again is nil -- `RenderFirstFrame] Exit`, no `double free`. Log
+`docs/reference/260919_taiwan/te_switch_fly_C9.log`. The fix (`LodBuffer = NULL` after the free in
+`ObjectLOD::CleanupTable`) is in `FreeFalcon-x86_64-260919b.AppImage`.
+
 ### PO report 2026-09-19 (FreeFalcon AppImage, campaign) -- three new items
 
 | item | PO's words | first read |
