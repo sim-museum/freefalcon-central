@@ -652,7 +652,19 @@ BOOL C_3dViewer::ViewGreyOTW()
             int TempColor = rendOTW_->Color(); //Added to be able to restore the color
             rendOTW_->SetFont(2); //Set a bigger font
             rendOTW_->SetColor(0xFF00FFFF); //Yellow.  Seemed to be the best color for visibility.
+            /* RECON-2 (PO 2026-09-19: "the LAT LONG coordinates in the recon view are rendered too
+               small -- there is resolution loss such that the numbers are hard to make out"). The UI
+               runs at 1024 wide, where font slot 2 is the 7x18 px 10x7font atlas, and the whole UI is
+               then stretched to the display; at 1920 that is a 13 px-wide glyph made of 7 texels.
+               Draw the coordinates at FF_RECON_TEXT_SCALE x (default 2) -- the same texels, twice the
+               size, which is what the eye needs to separate the digits. 1 restores the old size. */
+            {
+                static float s_scale = -1.0f;
+                if (s_scale < 0.0f) { const char* e = getenv("FF_RECON_TEXT_SCALE"); s_scale = e ? (float)atof(e) : 2.0f; if (s_scale <= 0.0f) s_scale = 1.0f; }
+                rendOTW_->SetTextScale(s_scale);
+            }
             rendOTW_->ScreenText((float)viewport.left + 4, (float)viewport.top + 1, tempstr);
+            rendOTW_->SetTextScale(1.0f);
             rendOTW_->SetFont(TempFont); //Added to restore the font
             rendOTW_->SetColor(TempColor); //Added to restore the color
 

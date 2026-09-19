@@ -38,6 +38,10 @@ private:
     void IntersectLeft(TwoDVertex *v1, TwoDVertex *v2, TwoDVertex *v);
     void IntersectRight(TwoDVertex *v1, TwoDVertex *v2, TwoDVertex *v);
     float OffsetX, OffsetY;
+    float ffTextScale = 1.0f;   /* RECON-2 (Linux): ScreenText glyph scale, 1 = the atlas size */
+public:
+    void SetTextScale(float s) { ffTextScale = s > 0.0f ? s : 1.0f; }
+private:
 public:
     virtual void Setup(ImageBuffer *imageBuffer);
     virtual void Cleanup(void);

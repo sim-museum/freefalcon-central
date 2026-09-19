@@ -478,7 +478,7 @@ void Render2D::ScreenText(float xLeft, float yTop, const char *string, int boxed
         pVtx[0].q = 1.0F;
 
         // Top Right 1
-        pVtx[1].x = x + (pFontSet->fontData[pFontSet->fontNum][*string].width * 256.0f);
+        pVtx[1].x = x + (pFontSet->fontData[pFontSet->fontNum][*string].width * 256.0f) * ffTextScale;
         pVtx[1].y = y;
         pVtx[1].r = r;
         pVtx[1].g = g;
@@ -491,7 +491,7 @@ void Render2D::ScreenText(float xLeft, float yTop, const char *string, int boxed
 
         // Bottom Left 1
         pVtx[2].x = x;
-        pVtx[2].y = y + pFontSet->fontData[pFontSet->fontNum][*string].pixelHeight;
+        pVtx[2].y = y + pFontSet->fontData[pFontSet->fontNum][*string].pixelHeight * ffTextScale;
         pVtx[2].r = r;
         pVtx[2].g = g;
         pVtx[2].b = b;
@@ -508,8 +508,8 @@ void Render2D::ScreenText(float xLeft, float yTop, const char *string, int boxed
         pVtx[4] = pVtx[1];
 
         // Bottom Right 2
-        pVtx[5].x = x + (pFontSet->fontData[pFontSet->fontNum][*string].width * 256.0f);
-        pVtx[5].y = y + pFontSet->fontData[pFontSet->fontNum][*string].pixelHeight;
+        pVtx[5].x = x + (pFontSet->fontData[pFontSet->fontNum][*string].width * 256.0f) * ffTextScale;
+        pVtx[5].y = y + pFontSet->fontData[pFontSet->fontNum][*string].pixelHeight * ffTextScale;
         pVtx[5].r = r;
         pVtx[5].g = g;
         pVtx[5].b = b;
@@ -532,7 +532,7 @@ void Render2D::ScreenText(float xLeft, float yTop, const char *string, int boxed
         if ( not (pVtx[5].x <= rightPixel and pVtx[5].x >= leftPixel and pVtx[5].y <= bottomPixel and pVtx[5].y >= topPixel))
             break;
 
-        x += pFontSet->fontData[pFontSet->fontNum][*string].pixelWidth;
+        x += pFontSet->fontData[pFontSet->fontNum][*string].pixelWidth * ffTextScale;
         string++;
         n++;
         pVtx += 6;

@@ -21732,6 +21732,28 @@ the Taiwan theater to the main menu (`Setting theater: Taiwan`, terrdata path, U
 | **RECON-2** 🟠 | "the LAT LONG coordinates in the recon view are rendered too small -- there is resolution loss such that the LAT LONG numbers are hard to make out" | the recon window's text is drawn at the 1024x768 UI scale and then scaled with the window, or drawn into a low-resolution offscreen surface; compare with the other UI text in the same window. |
 | **TAKEOFF-JUMP-1** 🟠 | "during takeoff in 0 view there is a slight jump when the wheels leave the tarmac -- a relic of a long-ago-fixed 'aircraft is 2 m below tarmac' bug" | the wheels-on-ground state hands the aircraft's height from the gear/ground model to the airborne model at rotation; a residual offset between the two (the runway HAT vs the terrain HAT, or the gear-compression term) shows as a step at lift-off. Log the aircraft z, ground z and gear state per frame across rotation (`FF_DEBUG_TAKEOFF`) before touching anything. |
 
+**RECON-1 S1 / RECON-2 S1 (Fable 5.1, 2026-09-19) -- mechanism found, fixes in the tree, captures pending.**
+*RECON-1.* The recon scene is two draw paths into one offscreen target: the terrain is software-transformed
+RHW geometry, the objects are hardware-transformed through the D3D projection. The GL shim's RHW path
+deliberately does NOT flip Y when the target is an FBO (`d3d_gl.cpp` DrawPrimitive/DrawIndexedPrimitive:
+"so texture v=0 reads what was drawn at D3D y=0") and the readback copies FBO rows 1:1 -- but the
+projection path (`D3D7Device::ApplyMatrices`) loaded the D3D projection unchanged, +y up in NDC, so every
+hardware-transformed object landed on the HIGH GL rows = the bottom of the read-back image: objects are
+drawn vertically MIRRORED against the terrain in any offscreen scene. That is an upside-down bridge (RECON-3
+S1 measured the arch bowed DOWN at 0 and 180 degrees while the terrain rotated) and, because a mirror
+reverses apparent rotation, "the object rotates the other way when the terrain turns". Fix: negate the
+projection's y output for FBO targets (row 1 of the row-vector matrix) and invert the front-face winding
+with it (`ffFboYFlip`/`ffLastCullCW` in the device; the CULLMODE case honours them). Screen rendering is
+untouched. `FF_NO_FBO_YFLIP=1` reverts. NOT YET CAPTURED: the recon at `FF_RECON_HDG=0/90` before/after,
+and a check of the other FBO scenes that carry 3-D objects (the A/G ground-map radar, tactical reference)
+-- do these before packing.
+*RECON-2.* RECON-2 (2026-09-13) had restored the coordinate line whole in "the same 10x7 font as Wine"; the
+PO's complaint is the RESOLUTION: the UI runs at 1024 wide, slot 2 is the 7x18 px `10x7font` atlas, and
+the whole UI is stretched to the display, so at 1920 each digit is 13 px wide made of 7 texels.
+`Render2D::ScreenText` gained a glyph scale (`SetTextScale`), and the recon coordinate line is drawn at
+`FF_RECON_TEXT_SCALE` x (default 2) -- twice the size from the same texels, which is what separates the
+digits; 1 restores the old size. Capture pending with RECON-1's.
+
 **MP-DMG-1 S2 (Fable 5.1, 2026-09-19) -- the damage path read end to end; the trace is in the next image.**
 The lead above was wrong in one respect: `FalconDamageMessage` is broadcast to the whole game group
 (`simweapn.cpp:321`, target `FalconLocalGame`, loopback on) and `FalconDamageMessage::Process`

@@ -363,6 +363,8 @@ struct D3D7Device : public IDirect3DDevice7 {
     D3D7Surface* defaultRenderTarget;  // FF_LINUX: The initial RT (screen back buffer)
 
     // Current state
+    bool ffFboYFlip = false;   /* RECON-1: projection y negated for the current FBO target */
+    bool ffLastCullCW = false; /* RECON-1: last D3D cull mode (true = D3DCULL_CW) */
     D3DMATRIX projMatrix;
     D3DMATRIX viewMatrix;
     D3DMATRIX worldMatrix;
@@ -4011,7 +4013,8 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
                 case D3DCULL_CW:
                     glEnable(GL_CULL_FACE);
 #ifdef FF_LINUX
-                    glFrontFace(GL_CW);   // FF_LINUX: Flip matrix (det=-1) reverses winding
+                    ffLastCullCW = true;    /* RECON-1: remembered so an FBO y-flip can invert it */
+                    glFrontFace(ffFboYFlip ? GL_CCW : GL_CW);   // FF_LINUX: Flip matrix (det=-1) reverses winding
 #else
                     glFrontFace(GL_CCW);
 #endif
@@ -4020,7 +4023,8 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
                 case D3DCULL_CCW:
                     glEnable(GL_CULL_FACE);
 #ifdef FF_LINUX
-                    glFrontFace(GL_CCW);  // FF_LINUX: Flip matrix (det=-1) reverses winding
+                    ffLastCullCW = false;   /* RECON-1 */
+                    glFrontFace(ffFboYFlip ? GL_CW : GL_CCW);  // FF_LINUX: Flip matrix (det=-1) reverses winding
 #else
                     glFrontFace(GL_CW);
 #endif
@@ -4820,6 +4824,32 @@ void D3D7Device::ApplyMatrices() {
 
             for (int i = 0; i < 4; i++)
                 cp[i * 4 + 2] = 2.0f * cp[i * 4 + 2] - cp[i * 4 + 3];
+
+            /* RECON-1 (PO 2026-09-19: "recon view -- the terrain rotates one direction while the
+               object rotates the other; a bridge was rendered upside down"; RECON-3 S1 measured the
+               arch bowed DOWN at 0 and 180 deg while the terrain rotated). MECHANISM: when the target
+               is an FBO the RHW (pre-transformed) path deliberately does NOT flip Y ("so texture v=0
+               reads what was drawn at D3D y=0", DrawPrimitive/DrawIndexedPrimitive above), i.e. D3D
+               y=0 lands on GL row 0, and the readback copies rows 1:1. Hardware-transformed geometry
+               came through THIS projection with +y up in NDC, so its "up" landed on the HIGH GL rows
+               = the bottom of the read-back image: every object in an offscreen scene was drawn
+               vertically mirrored against the terrain, which is exactly an upside-down bridge whose
+               apparent rotation runs backwards. Negate the projection's y output for FBO targets so
+               both paths agree; the winding flips with it (see the CULLMODE case). Screen rendering
+               is untouched. FF_NO_FBO_YFLIP=1 reverts. */
+            {
+                static int s_noflip = -1;
+                if (s_noflip < 0) s_noflip = getenv("FF_NO_FBO_YFLIP") ? 1 : 0;
+                D3D7Surface* rtY = renderTarget;
+                const bool fboY = !s_noflip && rtY && rtY != defaultRenderTarget && rtY->fboId;
+                if (fboY != ffFboYFlip) {
+                    ffFboYFlip = fboY;
+                    if (glIsEnabled(GL_CULL_FACE))
+                        glFrontFace((ffLastCullCW ^ ffFboYFlip) ? GL_CW : GL_CCW);
+                }
+                if (fboY)
+                    for (int i = 0; i < 4; i++) cp[i * 4 + 1] = -cp[i * 4 + 1];
+            }
 
             glLoadMatrixf(cp);
         }
