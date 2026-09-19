@@ -206,6 +206,24 @@ int VuMessage::Write(VU_BYTE** buf)
     return Encode(buf);
 }
 
+#include <typeinfo>
+/* MP-DMG-1 / MP-CLOCK-1 (PO 2026-09-19, two PCs): the host's hit never damages the joiner's jet and the
+   joiner's campaign clock stays frozen. Both travel as VU messages addressed to the game or a session.
+   FF_DEBUG_MPMSG=1 prints every non-local send with its target and result, and every message received
+   from a remote session, so the next two-PC run says whether these messages leave one side and reach
+   the other. Rate-limited per (class, direction) so position traffic cannot flood the log. */
+static int ffMpMsgDbg(void) { static int on = -1; if (on < 0) on = getenv("FF_DEBUG_MPMSG") ? 1 : 0; return on; }
+static void ffMpMsgLine(const char* dir, const VuMessage* m, int retval)
+{
+    static const char* seen[64]; static int cnt[64]; static int n = 0;
+    const char* cls = typeid(*m).name();
+    int i = 0; for (; i < n; i++) if (seen[i] == cls) break;
+    if (i == n) { if (n >= 64) return; seen[n] = cls; cnt[n] = 0; n++; }
+    if (++cnt[i] > 20 && (cnt[i] % 500) != 0) return;
+    fprintf(stderr, "[mpmsg] %s %s type=%d target=%p flags=0x%x ret=%d (#%d)\n", dir, cls, (int)m->Type(),
+            (const void*)m->Target(), (unsigned)m->Flags(), retval, cnt[i]);
+    fflush(stderr);
+}
 int VuMessage::Send()
 {
     int retval = -1;
@@ -213,6 +231,7 @@ int VuMessage::Send()
     if (Target() and Target() not_eq vuLocalSessionEntity)
     {
         retval = Target()->SendMessage(this);
+        if (ffMpMsgDbg()) ffMpMsgLine("SEND", this, retval);
 
         if (retval <= 0)
         {
@@ -229,6 +248,7 @@ VU_ERRCODE VuMessage::Dispatch(VU_BOOL autod)
 
     if ( not IsLocal() or (flags_ bitand VU_LOOPBACK_MSG_FLAG))
     {
+        if (ffMpMsgDbg() and not IsLocal()) ffMpMsgLine("RECV", this, 0);
         if ( not Entity())
         {
             // try to find ent again -- may have been in queue
