@@ -21719,6 +21719,11 @@ would have freed again is nil -- `RenderFirstFrame] Exit`, no `double free`. Log
 `docs/reference/260919_taiwan/te_switch_fly_C9.log`. The fix (`LodBuffer = NULL` after the free in
 `ObjectLOD::CleanupTable`) is in `FreeFalcon-x86_64-260919b.AppImage`.
 
+**DELIVERY 260919b verified (Fable 5.1, 2026-09-19):** `FreeFalcon-x86_64-260919b.AppImage` (TAIWAN-2 fix,
+TAIWAN-2b tree-cleanup guard, MP-DMG-1/MP-CLOCK-1 `FF_DEBUG_MPMSG` trace) boots the PO's installed tree with
+the Taiwan theater to the main menu (`Setting theater: Taiwan`, terrdata path, UI screenshot 92 % non-black,
+`$HOME/ff-gates/taiwan/appimage_b_taiwan_menu.png`); SHA256SUMS refreshed in `~/Documents/260919/`.
+
 ### PO report 2026-09-19 (FreeFalcon AppImage, campaign) -- three new items
 
 | item | PO's words | first read |
