@@ -21710,5 +21710,28 @@ release all work — the first two-PC flight this port has had (MP-2PC-1's "neve
 | **MP-CLOCK-1** 🔴 | client's campaign clock frozen while the host's runs; different event text on each | the campaign clock/compression is host-authoritative (`campaign.cpp:1219 UpdateRemoteCompression`); the client's `vuxGameTime` is fed by the host's time messages (`timerthread.cpp`). Same transport question as MP-DMG-1: are those messages arriving? |
 | **HUDBOX-1** 🟠 | client's HUD drawn on an opaque black box (views 1 and 3 too) | not seen in any single-PC capture on this box (the HUD glass is clear in every `[shot]`); the client PC differs in GPU/driver or window size — first check which PC showed it and its `[vid]`/GL lines. |
 
+**MP-DMG-1 S2 (Fable 5.1, 2026-09-19) -- the damage path read end to end; the trace is in the next image.**
+The lead above was wrong in one respect: `FalconDamageMessage` is broadcast to the whole game group
+(`simweapn.cpp:321`, target `FalconLocalGame`, loopback on) and `FalconDamageMessage::Process`
+(`damagemsg.cpp:38-44`) applies it on EVERY copy -- there is no owner routing and no `IsLocal()` gate
+before `ApplyDamage`. What zeroes the damage is `SimVehicleClass::ApplyDamage` (`simveh.cpp:1478`):
+`if (IsSetFalcFlag(FEC_INVULNERABLE)) hitPoints = 0;`, and the same flag skips `RegisterHit`
+(`damagemsg.cpp:47`), which is the only thing that turns the debrief's optimistic `missed++`
+(`misseval.cpp:2467`) into a hit. So "explosion drawn, no damage, debrief miss" is exactly the
+signature of the joiner's OWN copy carrying `FEC_INVULNERABLE` while the host's copy does not
+(the host never sends a death message for a remote jet -- `simveh.cpp:1540` `if (IsLocal())` -- so the
+two views then diverge for good). Where the flag comes from: `GameManager.LockPlayer` sets it on entry
+(`gamemgr.cpp:425`, dogfight `dogfight.cpp:909`) and `ReleasePlayer` (`gamemgr.cpp:458`) clears it only
+if `not PlayerOptions.InvulnerableOn()` -- the LOCAL options file, not the host's rules -- and then calls
+`MakeFlagsDirty()` one line BEFORE `ChangeOwner()`, so the cleared flag is never transmitted
+(`falcent.cpp:610` drops dirty data on a non-local entity). Furball dogfights release from
+`simloop.cpp:1253`; team matchplay from `dogfight.cpp:591` (AllPlayersReady). This PC's `Viper.pop`
+has SimFlags=0 (invulnerability OFF), so if this PC was the joiner the flag is stale from LockPlayer,
+not from the option. Traces added under `FF_DEBUG_MPMSG=1`: `[mpdmg] LockPlayer/ReleasePlayer`
+(with `PlayerOptions.InvulnerableOn`), `[mpdmg] PROC` per damage message (target, local, invuln, dead,
+type, points, shooter) and `[mpdmg] APPLY` (hitPoints after the flag, strength). Ship in the next
+image; the joiner's log answers this in one line. Candidate fix once confirmed: honour
+`FalconLocalGame->rules.InvulnerableOn()` in `ReleasePlayer` and mark flags dirty AFTER `ChangeOwner`.
+
 Julia racer, same session: *"julia multiplayer works, cars can see each other but drive through each other
 as reported in the multiplayer instructions"* — E85's first two-PC confirmation.

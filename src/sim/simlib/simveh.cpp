@@ -1483,6 +1483,10 @@ void SimVehicleClass::ApplyDamage(FalconDamageMessage* damageMessage)
 
     strength -= hitPoints;
     pctStrength = strength / maxStrength;
+    if (getenv("FF_DEBUG_MPMSG"))
+        fprintf(stderr, "[mpdmg] APPLY id=%08x local=%d invuln=%d hitPoints=%d strength=%.0f/%.0f pct=%.2f\n",
+                (unsigned)Id().num_, IsLocal() ? 1 : 0, IsSetFalcFlag(FEC_INVULNERABLE) ? 1 : 0, (int)hitPoints,
+                (double)strength, (double)maxStrength, (double)pctStrength);
 
     // JB 000816
     // If damaged has been sustained then:

@@ -424,6 +424,7 @@ void GameManagerClass::LockPlayer(FalconSessionEntity *player)
     if (simEntity)
     {
         MonoPrint("Locking up the hounds %08x - setting invulnerable\n", simEntity);
+        if (getenv("FF_DEBUG_MPMSG")) fprintf(stderr, "[mpdmg] LockPlayer id=%08x local=%d -> FEC_INVULNERABLE set\n", (unsigned)simEntity->Id().num_, simEntity->IsLocal() ? 1 : 0);
 
         // Set our entry flags
         simEntity->SetFalcFlag(FEC_INVULNERABLE);
@@ -454,6 +455,7 @@ void GameManagerClass::ReleasePlayer(FalconSessionEntity *player)
         simEntity->UnSetFalcFlag(FEC_PLAYER_ENTERING);
         simEntity->UnSetFalcFlag(FEC_HOLDSHORT);
         MonoPrint("Releasing the player\n");
+        if (getenv("FF_DEBUG_MPMSG")) fprintf(stderr, "[mpdmg] ReleasePlayer id=%08x local=%d PlayerOptions.InvulnerableOn=%d -> invuln stays=%d\n", (unsigned)simEntity->Id().num_, simEntity->IsLocal() ? 1 : 0, PlayerOptions.InvulnerableOn() ? 1 : 0, PlayerOptions.InvulnerableOn() ? 1 : 0);
 
         if ( not PlayerOptions.InvulnerableOn())
         {

@@ -41,6 +41,15 @@ int FalconDamageMessage::Process(uchar autodisp)
     {
         if (theEntity->IsSim())
         {
+            /* MP-DMG-1 (PO 2026-09-19): the client sees the explosion but takes no damage while the host's
+               copy dies. Report every damage message processed, with the two terms that zero the damage
+               below (FEC_INVULNERABLE in SimVehicleClass::ApplyDamage) and whether this copy is the owner. */
+            if (getenv("FF_DEBUG_MPMSG"))
+                fprintf(stderr, "[mpdmg] PROC target=%08x local=%d invuln=%d dead=%d type=%d pts=%d shooter=%08x\n",
+                        (unsigned)dataBlock.dEntityID.num_, theEntity->IsLocal() ? 1 : 0,
+                        theEntity->IsSetFalcFlag(FEC_INVULNERABLE) ? 1 : 0, theEntity->IsDead() ? 1 : 0,
+                        (int)dataBlock.damageType, (int)dataBlock.damageStrength,
+                        (unsigned)dataBlock.fEntityID.num_);
             ((SimBaseClass*)theEntity)->ApplyDamage(this);
 
             // Record any hits directly
