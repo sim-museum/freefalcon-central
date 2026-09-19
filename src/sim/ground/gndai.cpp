@@ -815,6 +815,17 @@ void GNDAIClass::ProcessTargeting(void)
             if (tracking)
                 sprintf(label, "Track");
 
+            /* SAM-1 (PO 2026-09-19): FF_DEBUG_SAM=1 -- the radar handoff the launch gate waits for. */
+            {
+                static int s_dbg = -1; if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_SAM") ? 1 : 0;
+                if (s_dbg) { static ulong s_last = 0; static int s_n = 0;
+                    if (SimLibElapsedTime - s_last > 3000 and s_n < 80) { s_last = SimLibElapsedTime; s_n++;
+                        fprintf(stderr, "[sam] radar step: unit=%d target=%s tracking=%d detecting=%d range=%.0fft sensorState0=%d radarEmitting=%d curTarget=%s mode(before)=%d\n",
+                            (int)(self->Type() - VU_LAST_ENTITY_TYPE), self->targetPtr ? "yes" : "none", tracking, detecting, range,
+                            self->targetPtr ? (int)self->targetPtr->localData->sensorState[0] : -1, (int)radar->IsEmitting(),
+                            radar->CurrentTarget() ? "yes" : "none", (int)self->GetCampaignObject()->GetRadarMode());
+                        fflush(stderr); } }
+            }
             //me123 modifyed to take tracking/detection parameter))
             switch (self->GetCampaignObject()->StepRadar(tracking, detecting, range))
             {

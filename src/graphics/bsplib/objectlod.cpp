@@ -53,6 +53,7 @@ FileMemMap  ObjectLOD::ObjectLodMap;
    Serialise Load() the same way texbank.cpp already serialises its bank state (FF_TEXBANK_LOCK).
    Recursive, because Load() can re-enter through the LOD chain. FF_NO_LODLOCK=1 reverts for A/B. */
 #include <mutex>
+#include <pthread.h>
 static std::recursive_mutex s_lodLoadLock;
 #define FF_LODLOAD_LOCK()                                                        \
     static int s_ffNoLodLock = -1;                                               \
@@ -63,6 +64,11 @@ static std::recursive_mutex s_lodLoadLock;
 #define FF_LODLOAD_LOCK() ((void)0)
 #endif
 
+/* TAIWAN-2 (PO 2026-09-19): FF_DEBUG_LODLIFE=1 -- the life of the shared LodBuffer across a theater
+   switch. The crash is free(LodBuffer) in Load() right after a switch that followed a flight; the
+   question is whether that pointer was already freed (CleanupTable) and never re-allocated
+   (SetupTable), or whether the chunk was corrupted. Print every alloc/free with the pointer. */
+static int ffLodLife(void) { static int on = -1; if (on < 0) on = getenv("FF_DEBUG_LODLIFE") ? 1 : 0; return on; }
 BYTE *ObjectLOD::LodBuffer;
 DWORD ObjectLOD::LodBufferSize;
 bool ObjectLOD::RatedLoad;
@@ -107,8 +113,10 @@ void ObjectLOD::SetupEmptyTable(int numEntries)
     TheObjectLODsCount = numEntries;
 
     // Allocate space for load buffer
+    if (ffLodLife()) { fprintf(stderr, "[lodlife] SetupTable: LodBuffer was %p size %lu -> malloc(%d)\n", (void*)LodBuffer, (unsigned long)LodBufferSize, (int)DEFAULT_BUFFER_SIZE); fflush(stderr); }
     LodBuffer = (BYTE*) malloc(DEFAULT_BUFFER_SIZE);
     LodBufferSize = DEFAULT_BUFFER_SIZE;
+    if (ffLodLife()) { fprintf(stderr, "[lodlife] SetupTable: LodBuffer now %p (entries=%d)\n", (void*)LodBuffer, (int)numEntries); fflush(stderr); }
     RatedLoad = true;
 
     // Allocte acche with a little safety margin
@@ -324,10 +332,12 @@ void ObjectLOD::CleanupTable(void)
     DeleteCriticalSection(&cs_ObjectLOD);
     fprintf(stderr, "        [ObjectLOD::CleanupTable] Critical section deleted\n"); fflush(stderr);
 
+    if (ffLodLife()) { fprintf(stderr, "[lodlife] CleanupTable: free LodBuffer %p size %lu\n", (void*)LodBuffer, (unsigned long)LodBufferSize); fflush(stderr); }
     if (LodBufferSize)
     {
         if (LodBuffer) free(LodBuffer);
     }
+    LodBuffer = NULL;   /* TAIWAN-2: never leave a freed pointer behind (Load() frees it again on resize) */
 
     LodBufferSize = 0;
 
@@ -445,7 +455,10 @@ DWORD ObjectLOD::Load(void)
     gDebugLodID = WhoAmI();
 
     // check for buffer size... if smaller make a new Buffer
-    if (filesize > LodBufferSize) free(LodBuffer), LodBufferSize = filesize, LodBuffer = (BYTE*)malloc(LodBufferSize);
+    if (filesize > LodBufferSize) {
+        if (ffLodLife()) { static int n = 0; if (n++ < 40) { fprintf(stderr, "[lodlife] Load(%d): resize free %p (size %lu -> %lu) thread=%lu\n", (int)WhoAmI(), (void*)LodBuffer, (unsigned long)LodBufferSize, (unsigned long)filesize, (unsigned long)pthread_self()); fflush(stderr); } }
+        free(LodBuffer), LodBufferSize = filesize, LodBuffer = (BYTE*)malloc(LodBufferSize);
+    }
 
     //Default the Root to null
     root = NULL;

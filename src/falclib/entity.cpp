@@ -257,6 +257,28 @@ int LoadClassTable(char *filename)
     printf("  Falcon4ClassTable = %p, NumEntities = %d\n", (void*)Falcon4ClassTable, NumEntities); fflush(stdout);
     F4Assert(Falcon4ClassTable);
     WriteClassTable();
+    /* LGB-1 (PO 2026-09-19: after the LGB hit "there were no objects, no buildings, just a bomb crater
+       decal and terrain"). A destroyed feature is drawn with visType[VIS_DESTROYED]; if the class
+       table hands us -1 there, a destroyed building is simply NOT drawn -- which is the report.
+       FF_DUMP_VISTYPES=1 counts, per feature class, which visual states have a model. */
+    if (getenv("FF_DUMP_VISTYPES"))
+    {
+        int nFeat = 0, nNorm = 0, nDam = 0, nDest = 0, nLeft = 0, shown = 0;
+        for (int k = 0; k < NumEntities; k++)
+        {
+            if (Falcon4ClassTable[k].vuClassData.classInfo_[VU_CLASS] != CLASS_FEATURE) continue;
+            nFeat++;
+            if (Falcon4ClassTable[k].visType[0] >= 0) nNorm++;
+            if (Falcon4ClassTable[k].visType[VIS_DAMAGED] >= 0) nDam++;
+            if (Falcon4ClassTable[k].visType[VIS_DESTROYED] >= 0) nDest++;
+            if (Falcon4ClassTable[k].visType[VIS_LEFT_DEST] >= 0) nLeft++;
+            if (shown < 12 && Falcon4ClassTable[k].visType[0] >= 0 && Falcon4ClassTable[k].visType[VIS_DESTROYED] < 0) { shown++;
+                fprintf(stderr, "[vistypes]   feature class %d: normal=%d damaged=%d destroyed=%d (no destroyed model)\n", k,
+                    Falcon4ClassTable[k].visType[0], Falcon4ClassTable[k].visType[VIS_DAMAGED], Falcon4ClassTable[k].visType[VIS_DESTROYED]); }
+        }
+        fprintf(stderr, "[vistypes] feature classes=%d with normal model=%d damaged=%d destroyed=%d left-dest=%d\n", nFeat, nNorm, nDam, nDest, nLeft);
+        fflush(stderr);
+    }
 
     // Build ptr data
     for (i = 0; i < NumEntities; i++)

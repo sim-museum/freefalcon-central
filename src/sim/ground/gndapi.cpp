@@ -236,6 +236,36 @@ void GNDAIClass::Fire(void)
         }
 
         // RV - Biker - Radar vehicles shouldn't do this
+        /* SAM-1 (PO 2026-09-19): FF_DEBUG_SAM=1 -- say, per ground unit with an AIR target, whether
+           this gate opens and what it selects. MissileTrack's own refusals print separately; a run
+           with neither line means no ground unit ever held an air target at all. */
+        {
+            static int s_dbg = -1; if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_SAM") ? 1 : 0;
+            if (s_dbg and not self->targetPtr->BaseData()->OnGround())
+            {
+                static ulong s_last = 0; static int s_n = 0;
+                if (SimLibElapsedTime - s_last > 3000 and s_n < 60) { s_last = SimLibElapsedTime; s_n++;
+                    float ddx = self->XPos() - self->targetPtr->BaseData()->XPos(), ddy = self->YPos() - self->targetPtr->BaseData()->YPos(), ddz = self->ZPos() - self->targetPtr->BaseData()->ZPos();
+                    fprintf(stderr, "[sam] gnd unit type=%d '%s' has AIR target: t=%u nextFire=%u emitter=%d hasWeapons=%d allowSamFire=%d hidden=%d curWeapon=%s range=%.1fkm dz=%.0fft vt=%.1f weapons=[%d:%d %d:%d %d:%d %d:%d] smsHp=%d\n",
+                        (int)(self->Type() - VU_LAST_ENTITY_TYPE), vc->Name, (unsigned)SimLibElapsedTime, (unsigned)nextFire, (int)self->isEmitter, hasWeapons,
+                        battalionCommand ? (int)battalionCommand->self->allowSamFire : -1, (int)self->IsSetLocalFlag(IS_HIDDEN),
+                        (self->Sms and self->Sms->GetCurrentWeapon()) ? "yes" : "none",
+                        sqrtf(ddx*ddx + ddy*ddy + ddz*ddz) * FT_TO_KM, ddz, self->GetVt(),
+                        vc->Weapon[0], vc->Weapons[0], vc->Weapon[1], vc->Weapons[1], vc->Weapon[2], vc->Weapons[2], vc->Weapon[3], vc->Weapons[3],
+                        self->Sms ? self->Sms->NumHardpoints() : -1);
+                    if (self->GetCampaignObject())
+                        fprintf(stderr, "[sam]    campaign unit radarMode=%d emitting=%d (GUIDE=%d SEARCH_100=%d AQUIRE=%d) unitRadarType=%d\n",
+                            (int)((Unit)self->GetCampaignObject())->GetRadarMode(), (int)((Unit)self->GetCampaignObject())->IsEmitting(),
+                            (int)FEC_RADAR_GUIDE, (int)FEC_RADAR_SEARCH_100, (int)FEC_RADAR_AQUIRE, (int)((Unit)self->GetCampaignObject())->GetRadarType());
+                    /* and the stores as the SMS sees them, with the campaign unit's ammo verdict per hardpoint */
+                    if (self->Sms)
+                        for (int hp = 0; hp < self->Sms->NumHardpoints() and hp < 6; hp++)
+                            if (self->Sms->hardPoint[hp])
+                                fprintf(stderr, "[sam]    hp%d weaponId=%d count=%d canShoot=%d\n", hp, (int)self->Sms->hardPoint[hp]->weaponId, (int)self->Sms->hardPoint[hp]->weaponCount,
+                                    (self->GetCampaignObject() and self->Sms->hardPoint[hp]->weaponId) ? (int)((Unit)self->GetCampaignObject())->CanShootWeapon(self->Sms->hardPoint[hp]->weaponId) : -1);
+                    fflush(stderr); }
+            }
+        }
         if (SimLibElapsedTime > nextFire and not (self->isEmitter and not hasWeapons))
         {
             // FRB - The weapns search above seems to break the SAM firing (decreases it or stops it)

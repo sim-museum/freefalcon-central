@@ -87,6 +87,7 @@ void RebuildGameTree();  // ui_comms.cpp (S6o)
 
 // External initialization functions
 extern void LoadTheaterList();
+extern "C" int FF_UISwitchTheater(const char* name);   /* TAIWAN-2: ui_main.cpp, the THEATER Back path */
 extern void FF_PresentPrimarySurface();  // Present DirectDraw primary surface via OpenGL
 extern void LoadTrails();
 extern int UI_Startup();
@@ -3470,7 +3471,7 @@ static void render_frame(void) {
         // messages a real mouse click produces - for automated UI testing.
         {
             static int s_clickInit = 0;
-            static struct { int x, y; Uint32 atMs; int fired; int dbl; int afterJoin; Uint32 holdMs; int downAt; } s_clicks[16];
+            static struct { int x, y; Uint32 atMs; int fired; int dbl; int afterJoin; Uint32 holdMs; int downAt; char tname[32]; } s_clicks[16];
             static int s_nClicks = 0;
             static Uint32 s_uiStart = 0;
             if (!s_clickInit) {
@@ -3492,6 +3493,15 @@ static void render_frame(void) {
                         // than after process start -- the load time varies per
                         // mission and with machine speed, so an absolute schedule
                         // races it.
+                        /* TAIWAN-2: "T<theater>@<sec>" switches theater the way the THEATER screen's
+                           Back button does (FF_UISwitchTheater) -- the PO's crash needs that switch. */
+                        { char tnm[32]; float tat;
+                          if (tok[0] == 'T' && sscanf(tok, "T%31[^@]@%f", tnm, &tat) == 2) {
+                              memset(&s_clicks[s_nClicks], 0, sizeof(s_clicks[s_nClicks]));
+                              s_clicks[s_nClicks].x = -1; s_clicks[s_nClicks].y = -1;
+                              s_clicks[s_nClicks].atMs = (Uint32)(tat * 1000.0f);
+                              strncpy(s_clicks[s_nClicks].tname, tnm, 31);
+                              s_nClicks++; continue; } }
                         if (sscanf(tok, "%d,%d@J%f%c", &cx, &cy, &at, &dbl) >= 3) {
                             afterJoin = 1;
                         } else if (sscanf(tok, "%d,%d@%f%c", &cx, &cy, &at, &dbl) >= 3) {
@@ -3500,6 +3510,7 @@ static void render_frame(void) {
                             continue;
                         }
                         {
+                            s_clicks[s_nClicks].tname[0] = 0;
                             s_clicks[s_nClicks].x = cx;
                             s_clicks[s_nClicks].y = cy;
                             s_clicks[s_nClicks].atMs = (Uint32)(at * 1000.0f);
@@ -3536,6 +3547,12 @@ static void render_frame(void) {
                             PostGameMessage(WM_LBUTTONUP, 0, lp);
                             g_ffUiClickHeld = 0;
                         }
+                        continue;
+                    }
+                    if (!s_clicks[ci].fired && ffDue && s_clicks[ci].tname[0]) {   /* TAIWAN-2: theater step */
+                        s_clicks[ci].fired = 1;
+                        fprintf(stderr, "[FF_UI_CLICK] theater step '%s' at %ums\n", s_clicks[ci].tname, el);
+                        FF_UISwitchTheater(s_clicks[ci].tname);
                         continue;
                     }
                     if (!s_clicks[ci].fired && ffDue) {

@@ -2235,6 +2235,24 @@ static void TheaterBackCB(long, short hittype, C_Base *control)
     PostMessage(gMainHandler->GetAppWnd(), FM_START_UI, 1, 0);
 }
 
+/* TAIWAN-2 (PO 2026-09-19: "loaded taiwan campaign, selected first mission, takeoff, crash entering
+   3D"): the crash needs the THEATER SWITCH first -- flying with Taiwan preset in the registry does
+   not crash. This is the switch the THEATER screen's Back button performs (TheaterBackCB above),
+   callable from a scripted step so the PO's path is reproducible headlessly:
+   FF_UI_CLICK="T<name>@<sec>". Returns 1 if the theater was found. */
+extern "C" int FF_UISwitchTheater(const char* name)
+{
+    TheaterDef *td = g_theaters.FindTheaterByName(name);
+    if (not td) { fprintf(stderr, "[theater-step] no theater named '%s'\n", name); fflush(stderr); return 0; }
+    fprintf(stderr, "[theater-step] switching to '%s' (the THEATER screen's Back path)\n", td->m_name); fflush(stderr);
+    SetCursor(gCursors[CRSR_WAIT]);
+    g_theaters.SetNewTheater(td);
+    SetCursor(gCursors[CRSR_F16]);
+    PostMessage(gMainHandler->GetAppWnd(), FM_END_UI, 0, 0);
+    PostMessage(gMainHandler->GetAppWnd(), FM_START_UI, 1, 0);
+    return 1;
+}
+
 static void TheaterCancelCB(long, short hittype, C_Base *control)
 {
     if (hittype not_eq C_TYPE_LMOUSEUP)

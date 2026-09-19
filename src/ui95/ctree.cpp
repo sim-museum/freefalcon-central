@@ -169,7 +169,16 @@ void C_TreeList::Cleanup()
 {
     if (Root_)
     {
+        /* TAIWAN-2b (2026-09-19): a theater switch from the TE planning screen (FM_END_UI ->
+           UI_Cleanup -> C_Handler::Cleanup -> every window's Cleanup) tears this tree down while
+           its delete-callback (UpdateMissionWindow) still runs per branch and pokes the mission
+           window's controls -- which the same cleanup is freeing. SIGSEGV in C_Window::UnHideCluster.
+           A callback that updates the UI has no business during teardown: silence it for the
+           duration. FF_TREE_CLEANUP_CB=1 restores the old behaviour. */
+        auto ffCb = DelCallback_;
+        if (not getenv("FF_TREE_CLEANUP_CB")) DelCallback_ = NULL;
         DeleteBranch(Root_);
+        DelCallback_ = ffCb;
         Root_ = NULL;
     }
 

@@ -1,0 +1,1181 @@
+[TRACE] About to call init_game_paths
+[TRACE] init_game_paths completed
+[TRACE] About to call init_resource_manager
+[TRACE] init_resource_manager completed
+[TRACE] About to call init_sdl
+[TRACE] SDL_Init completed, setting GL attributes
+[TRACE] About to create window
+[TRACE] init_sdl completed
+[TRACE] About to call init_opengl
+[TRACE] About to call SDL_GL_CreateContext
+[TRACE] init_opengl completed
+[main] Calling init_game_core...
+  [FalconDisplay::Setup] Starting DeviceIndependentGraphicsSetup...
+  [FalconDisplay::Setup] DeviceIndependentGraphicsSetup done
+  [FalconDisplay::Setup] Registering window class...
+  [FalconDisplay::Setup] RegisterClass done, calling MakeWindow...
+  [FalconDisplay::Setup] Calling MakeWindow...
+  [FalconDisplay::Setup] MakeWindow done, calling devmgr.Setup...
+  [EnumD3DDrivers] Starting...
+  [EnumD3DDrivers] DirectDrawCreateEx returned pDD7=0x5fb350a96e60
+  [EnumD3DDrivers] QueryInterface for D3D7: hr=0x0, pD3D=0x5fb350a96e90
+  [EnumD3DDrivers] Calling EnumDevices...
+    [EnumD3DDriversCallback] name=OpenGL, desc=FreeFalcon OpenGL Device
+    [EnumD3DDriversCallback] dwDevCaps=0x90000, required=0x10000
+    [EnumD3DDriversCallback] Adding device to list
+  [EnumD3DDrivers] EnumDevices returned
+  [FalconDisplay::Setup] devmgr.Setup done
+  Setting theater: Korea
+  [SetNewTheater] ReadIndex...
+  [SetNewTheater] LoadPriorityTables...
+  [SetNewTheater] TheaterReload...
+      [ObjectParent::CleanupTable] Starting, TheObjectList=0x5fb350a0ee18, TheObjectListLength=3961
+      [ObjectParent::CleanupTable] FlushReferences()...
+      [ObjectParent::CleanupTable] FlushReferences() done
+      [ObjectParent::CleanupTable] ObjectLOD::CleanupTable()...
+        [ObjectLOD::CleanupTable] Starting, TheObjectLODs=0x5fb35094d728, TheObjectLODsCount=6801
+        [ObjectLOD::CleanupTable] Iterating 6801 LODs...
+        [ObjectLOD::CleanupTable] LOD iteration done
+        [ObjectLOD::CleanupTable] WaitUpdates()...
+        [ObjectLOD::CleanupTable] WaitUpdates() done
+        [ObjectLOD::CleanupTable] Deleting TheObjectLODs...
+        [ObjectLOD::CleanupTable] TheObjectLODs deleted
+        [ObjectLOD::CleanupTable] Deleting tagListBuffer...
+        [ObjectLOD::CleanupTable] tagListBuffer deleted
+        [ObjectLOD::CleanupTable] ObjectLodMap.Close()...
+        [ObjectLOD::CleanupTable] ObjectLodMap closed
+        [ObjectLOD::CleanupTable] DeleteCriticalSection()...
+        [ObjectLOD::CleanupTable] Critical section deleted
+      [ObjectParent::CleanupTable] ObjectLOD::CleanupTable() done
+      [ObjectParent::CleanupTable] TheTextureBank.Cleanup()...
+      [ObjectParent::CleanupTable] ThePaletteBank.Cleanup()...
+      [ObjectParent::CleanupTable] TheColorBank.Cleanup()...
+      [ObjectParent::CleanupTable] Banks cleanup done
+      [ObjectParent::CleanupTable] Deleting TheObjectList...
+      [ObjectParent::CleanupTable] TheObjectList deleted
+  [SetNewTheater] ResSetDirectory...
+  [SetNewTheater] UnloadClassTable...
+  [SetNewTheater] LoadClassTable...
+========================================
+FreeFalcon 7.0.0
+Open Source Project
+Build: Sep 19 2026 12:21:51
+========================================
+
+Data directory: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
+Setting up game paths...
+  Campaign saves: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save
+  Terrain data: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea
+  Object data: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/objects
+  Sound directory: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/sounds
+Initializing resource manager...
+Initializing SDL2...
+  Window created: 1024x768
+  Keyboard scancode translation initialized.
+Initializing OpenGL...
+  OpenGL Vendor: NVIDIA Corporation
+  OpenGL Renderer: NVIDIA GeForce GTX 1660 SUPER/PCIe/SSE2
+  OpenGL Version: 4.6.0 NVIDIA 595.84
+  OpenGL Stencil Bits: 8
+Initializing OpenAL...
+  OpenAL Vendor: OpenAL Community
+  OpenAL Renderer: OpenAL Soft
+  OpenAL Version: 1.1 ALSOFT 
+
+--- Initializing Game Core Systems ---
+  Initializing communications layer...
+  Communications layer initialized successfully
+  Setting up FalconDisplay for Linux...
+  Loading display options...
+  Initializing DeviceManager...
+[D3DGL] Creating DirectDraw7 interface
+  Initializing simulation memory pools...
+  Loading particle system parameters...
+  Loading theater list...
+  Loading class table (InitClassTableAndData)...
+  Class table loaded. Falcon4ClassTable=0x5fb351222330
+  Loading: UnitData...
+LoadUnitData: trying to open file Falcon4 with extension UCD
+LoadUnitData: file opened successfully
+LoadUnitData: file size=252002, entries=750, sizeof(UnitClassDataType)=336, expected=252002
+  Loading: FeatureEntryData...
+  Loading: ObjectiveData...
+  Loading: WeaponData...
+  Loading: FeatureData...
+  Loading: VehicleData...
+  Loading: WeaponListData...
+  Loading: PtHeaderData...
+  Loading: PtData...
+  Loading: RadarData...
+  Loading: IRSTData...
+  Loading: RwrData...
+  Loading: VisualData...
+  Loading: SimWeaponData...
+  Loading: ACDefData...
+  Loading: SquadronStoresData...
+  Loading: RocketData...
+  Loading: DirtyData...
+  Loading: MissionData...
+  Loading: VisIdMap...
+  Loading: RackTables...
+  Loading: RDRackData...
+  All data files loaded! Checking Falcon4ClassTable...
+  Falcon4ClassTable = 0x5fb351222330, NumEntities = 3678
+  [SetNewTheater] ReadCampAIInputs...
+  [SetNewTheater] FreeTactics...
+  [SetNewTheater] LoadTactics...
+  [SetNewTheater] LoadTrails...
+  [SetNewTheater] Freeing SIM data...
+  [SetNewTheater] Reading SIM data...
+  [SetNewTheater] SetCurrentTheater...
+  [SetNewTheater] Complete!
+  [main_linux] SetNewTheater returned, calling InitVU...
+  Initializing VU system...
+  [main_linux] InitVU returned
+  Setting up thread manager...
+  [main_linux] ThreadManager::setup() returned
+  Initializing sound manager...
+[InstallDSound] Starting, gSoundDriver=0x5fb3509e4ad0, DSound=(nil)
+[InstallDSound] Calling DirectSoundCreate...
+[InstallDSound] DirectSoundCreate returned 0x0, DSound=0x5fb3516ff710
+  [main_linux] InitSoundManager() succeeded
+  Starting sound system...
+  [main_linux] F4SoundStart() returned
+  Starting simulation loop...
+  [main_linux] SimulationLoopControl::StartSim() returned
+  Initializing weather system...
+  [main_linux] realWeather created
+  Initializing campaign system...
+[ThreadManager::start_campaign_thread] ENTRY, function=0x5fb330b6e390
+[ThreadManager::start_campaign_thread] Calling CreateThread...
+[StartLoop] Thread started, entering main loop
+[StartLoop] Waiting for wait_for_start_graphics event...
+[ThreadManager::start_campaign_thread] CreateThread returned handle=0x5fb356353e70
+[ThreadManager::start_campaign_thread] DONE
+[CampaignThread] STARTED - entering function
+[CampaignThread] About to call HandleCampaignThread()
+[HandleCampaignThread] STARTED - entering function
+[HandleCampaignThread] Set CAMP_RUNNING, campaign_active()=1
+[HandleCampaignThread] Got CAMP_SUSPEND_REQUEST, setting CAMP_SUSPENDED
+  [main_linux] Camp_Init() returned
+  Building key mappings...
+  [main_linux] BuildAscii() SKIPPED -- static Key_Chart kept (MP-1)
+  Initializing comms manager...
+  [main_linux] gCommsMgr->Setup() returned
+  Loading logbook...
+[FF_LINUX] WeatherClass::Init entry (instantAction=1)
+[FF_LINUX] WeatherClass::Init: lastCheck=0
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+  [main_linux] logbook loaded for 'Viper'
+  Loading keyboard function tables...
+  [main_linux] LoadFunctionTables() returned
+  Game core initialization complete.
+[main] init_game_core() returned
+[main] Calling init_d3d_graphics...
+[Texture::SetupForDevice] rc=0x5fb3515c1af0 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/objects/
+[main] init_d3d_graphics() returned
+
+========================================
+Initialization complete!
+========================================
+[main] Entering main_loop...
+
+========================================
+Entering main loop
+  ESC = quit, Click X to close
+========================================
+
+[Main] Posting FM_START_GAME to initialize game...
+[INPUT] focus gained (doUI=0) -> relative mouse re-enabled
+[FM] FM_START_GAME received
+[FF_SIM_SCREENSHOT] parsed 4 capture(s)
+[FF_SIM_KEY] parsed 1 key events
+[FM] FM_START_UI received
+[FM] Main thread re-acquired GL context
+[FM] Calling UI_Startup()...
+[UI_Startup] ENTRY, FalconDisplay.currentMode=1
+[UI_Startup] Calling EnterMode(UI)...
+  [DisplayDevice::Setup] Starting 1024x768x16, fullscreen=0
+  [DisplayDevice::Setup] Calling CreateContext...
+  [CreateContext] driverNum=0, devNum=0, resNum=18
+  [CreateContext] GetDriver returned pDDI=0x5fb350a98360
+  [CreateContext] D3D devices count: 1
+  [CreateContext] Display modes count: 46
+  [CreateContext] GetDevice returned pD3DDI=0x5fb350a96ee0
+  [CreateContext] GetDisplayMode returned pddsd=0x5fb350a9aae0
+  [DXContext::Init] Starting with hWnd=0x5fb34fadf5b0, 1024x768@16, fullscreen=0
+  [DXContext::Init] Checking thread ID...
+  [DXContext::Init] Thread ID check passed
+  [DXContext::Init] Calling DirectDrawCreateEx...
+  [DXContext::Init] DirectDrawCreateEx returned m_pDD=0x5fb3567308d0
+  [DXContext::Init] Calling GetCaps... m_pcapsDD=0x5fb356730ae0
+  [DXContext::Init] GetCaps done
+  [DXContext::Init] Calling GetDeviceIdentifier... m_pDevID=0x5fb35672f570
+  [DXContext::Init] GetDeviceIdentifier done
+  [DXContext::Init] DXContext::Init - DriverInfo - "OpenGL" - "FreeFalcon OpenGL Renderer", Vendor: 4318, Device: 4660, SubSys: 0, Rev: 0, Product: 0, Version: 0, SubVersion: 0, Build: 0
+  [DXContext::Init] Calling SetCooperativeLevel with flags=0x1408...
+  [DXContext::Init] SetCooperativeLevel done
+  [DXContext::Init] Complete!
+  [DisplayDevice::Setup] CreateContext returned m_DXCtx=0x5fb356730a60
+  [DisplayDevice::Setup] Context created, setting up window...
+  [DisplayDevice::Setup] Calling ShowWindow...
+  [DisplayDevice::Setup] ShowWindow done
+  [DisplayDevice::Setup] Setting up windowed image, IsHardware=1...
+  [DisplayDevice::Setup] image.Setup done
+  [DisplayDevice::Setup] Calling SetRenderTarget, targetSurface=0x5fb356730d70...
+[SetRenderTarget] Linux: Creating D3D7 interface directly
+[SetRenderTarget] Linux: m_pD3D=0x5fb356730740
+[AttachDepthBuffer] Linux: Skipping - OpenGL manages depth buffers
+[SetRenderTarget] Linux: Creating D3D device directly, pRenderTarget=0x5fb356730d70
+[SetRenderTarget] Linux: m_pD3DD=0x7f71156da010
+  [DisplayDevice::Setup] SetRenderTarget done
+  [DisplayDevice::Setup] Calling movieInit...
+  [DisplayDevice::Setup] Complete!
+[UI_Startup] EnterMode done, getting ImageBuffer...
+[GlobalSetup] Creating C_Parser...
+[GlobalSetup] Loading ID lists...
+[LoadIDList] Loading: userids.lst
+[LoadIDList] file size=500 for userids.lst
+[LoadIDList] Loading: fontids.lst
+[LoadIDList] file size=22 for fontids.lst
+[LoadIDList] Loading: imageids.lst
+[LoadIDList] file size=197 for imageids.lst
+[LoadIDList] Loading: soundids.lst
+[LoadIDList] file size=46 for soundids.lst
+[LoadIDList] Loading: textids.lst
+[LoadIDList] file size=21 for textids.lst
+[LoadIDList] Loading: movieids.lst
+[LoadIDList] file size=20 for movieids.lst
+[LoadImageList] Loading: resimgs.lst
+[LoadImageList] Opened: resimgs.lst
+[LoadSoundList] Loading: sounds.lst
+[LoadImageList] Loading: main_res.lst
+[LoadImageList] Opened: main_res.lst
+[LoadSoundList] Loading: main_snd.lst
+[LoadWindowList] Loading: main_scf.lst
+[LoadImageList] Loading: comm_res.lst
+[LoadImageList] Opened: comm_res.lst
+[LoadSoundList] Loading: comm_snd.lst
+[LoadWindowList] Loading: comm_scf.lst
+[LoadImageList] Loading: help_res.lst
+[LoadImageList] FAILED to open: help_res.lst
+[LoadSoundList] Loading: help_snd.lst
+[LoadWindowList] Loading: help_scf.lst
+[LoadImageList] Loading: lb_res.lst
+[LoadImageList] Opened: lb_res.lst
+[LoadSoundList] Loading: lb_snd.lst
+[LoadWindowList] Loading: lb_scf.lst
+[Texture::SetupForDevice] rc=0x5fb356730a60 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/misctex/
+[FarTexDB] DDS file: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea/texture/fartiles.dds, headerSize=124, bytesRead=124
+[FarTexDB] DDS header: flags=0x81007, width=32, height=32, linearSize=512, mipMapCount=0
+[FarTexDB] DDS pixfmt: flags=0x0, fourCC=0x31545844, rgbBitCount=4
+[FarTexDB] linearSize=512, texCount=96664, fartexDDSFile.IsReady=1
+[PalLight] light=(0.750 0.829 0.849) gametime=0 pal=0x5fb3596776f0
+[FM] UI_Startup() complete
+FPS: 58 (avg over 5 sec), doUI=1, gMainHandler=0x5fb356c53f50
+FPS: 60 (avg over 5 sec), doUI=1, gMainHandler=0x5fb356c53f50
+[FF_UI_CLICK] firing (677,748) at 12011ms
+[Mouse] LBUTTONDOWN at (677, 748)
+[LBUTTONDOWN] at (677,748) -> window=0x5fb35882f440 ID=5000
+[LBUTTONDOWN] GrabItem found control ID=30003 type=25
+[LBUTTONUP] at (677,748) -> window=0x5fb35882f440 Grab_.Control_=0x5fb3588314c0
+[LBUTTONUP] Grab_.Control_ found: ID=30003 type=25
+[LBUTTONUP] Calling Process(ID=30003, type=52)
+[LoadImageList] Loading: pln_res.lst
+[LoadImageList] Opened: pln_res.lst
+[LoadSoundList] Loading: pln_snd.lst
+[LoadWindowList] Loading: pln_scf.lst
+[LoadImageList] Loading: cmn_res.lst
+[LoadImageList] Opened: cmn_res.lst
+[LoadSoundList] Loading: cmn_snd.lst
+[LoadWindowList] Loading: cmn_scf.lst
+[LoadImageList] Loading: ts_res.lst
+[LoadImageList] Opened: ts_res.lst
+[LoadSoundList] Loading: ts_snd.lst
+[LoadWindowList] Loading: ts_scf.lst
+FPS: 59 (avg over 5 sec), doUI=1, gMainHandler=0x5fb356c53f50
+[FF_UI_CLICK] firing (140,128) at 18014ms
+[Mouse] LBUTTONDOWN at (140, 128)
+[LBUTTONDOWN] at (140,128) -> window=0x5fb35a609200 ID=30200
+[LBUTTONDOWN] GrabItem found control ID=30216 type=0
+[LBUTTONUP] at (140,128) -> window=0x5fb35a609200 Grab_.Control_=0x5fb35a612d00
+[LBUTTONUP] Grab_.Control_ found: ID=30216 type=0
+[LBUTTONUP] Calling Process(ID=30216, type=52)
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[LZSS_Expand] Called: srcSize=2731, size=16919
+[LZSS_Expand] LZSS_Expand: 16919 bytes out in 0.0 ms
+[FM] FM_GOT_CAMPAIGN_DATA received (wParam=16777216)
+[FM] FM_GOT_CAMPAIGN_DATA: RecieveScenarioInfo (S6x)
+[FF_UI_CLICK] firing (824,750) at 24007ms
+[Mouse] LBUTTONDOWN at (824, 750)
+[LBUTTONDOWN] at (824,750) -> window=0x5fb35a6204c0 ID=30209
+[LBUTTONDOWN] GrabItem found control ID=2000002 type=25
+[LBUTTONUP] at (824,750) -> window=0x5fb35a6204c0 Grab_.Control_=0x5fb35a61a4e0
+[LBUTTONUP] Grab_.Control_ found: ID=2000002 type=25
+[LBUTTONUP] Calling Process(ID=2000002, type=52)
+[LoadImageList] Loading: te_res.lst
+[LoadImageList] Opened: te_res.lst
+[LoadSoundList] Loading: te_snd.lst
+[LoadWindowList] Loading: te_scf.lst
+[FM] FM_LOAD_CAMPAIGN received (type=3)
+[FM] FM_LOAD_CAMPAIGN: Calling TheCampaign.LoadCampaign()...
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[VuSession::JoinGame] ENTRY: session=0x5fb3509e4580 newgame=0x5fb356cc0750 current_game=(nil)
+[VuSession::JoinGame] Setting game_.reset(newgame=0x5fb356cc0750)
+[VuSession::JoinGame] Game set, Game()=0x5fb356cc0750
+[VuSession::JoinGame] EXIT: retval=1 Game()=0x5fb356cc0750
+[FF_LINUX] WeatherClass::Init entry (instantAction=0)
+[FF_LINUX] WeatherClass::Init: lastCheck=31918789
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling UpdateCondition(1)
+[FF_LINUX] WeatherClass::Init: UpdateCondition returned
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] LoadBaseObjectives ENTRY: scenario='te_new'
+[FF_LINUX] LoadBaseObjectives: Calling ReadCampFile()
+[FF_LINUX] FF_TE_FILE: 'te_new' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] LoadBaseObjectives: ReadCampFile returned dataSize=-1
+[FF_LINUX] LoadBaseObjectives: No data, returning 0
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[LZSS_Expand] Called: srcSize=22, size=42
+[LZSS_Expand] LZSS_Expand: 42 bytes out in 0.0 ms
+Assertion at 3821  /home/admin/freefalcon-central/src/campaign/camplib/objectiv.cpp  Sep 18 2026
+[Failed:  o] Assertion at 3821  /home/admin/freefalcon-central/src/campaign/camplib/objectiv.cpp  Sep 18 2026
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] DecodeUnitData: count=13 size=7038 rem=2342 gCampDataVersion=73
+[LZSS_Expand] Called: srcSize=2342, size=7038
+[LZSS_Expand] LZSS_Expand: 7038 bytes out in 0.0 ms
+[FF_LINUX] DecodeUnitData: LZSS_Expand returned 2341
+[FF_LINUX] DecodeUnitData: first 20 bytes after expand: b6 01 29 4e 00 00 00 00 00 00 b6 01 9b 01 87 01 00 60 ea c6 
+[FF_LINUX] DecodeUnitData: bytes 80-99: 00 60 50 e4 01 01 00 00 80 40 00 00 1f 04 00 00 00 00 00 00 
+[FF_LINUX] DecodeUnitData: Unit 0 - buf before read: b6 01, rem=7038
+[FF_LINUX] DecodeUnitData: Unit 0 - type read: 438 (0x01b6)
+[FF_LINUX] CampBaseClass ctor[1] entry
+[FF_LINUX] CampBaseClass ctor[1] entityType=438
+[FF_LINUX] CampBaseClass ctor[1] calling SetLocation(411,391)
+[FF_LINUX] CampBaseClass ctor[1] SetLocation done
+[FF_LINUX] CampBaseClass ctor[1] complete
+[FF_LINUX] UnitClass ctor[1] entry after CampBase: rem=7007
+[FF_LINUX] UnitClass ctor[1] after DecodeWaypoints: rem=6807
+[FF_LINUX] DecodeUnitData: Unit 0 - after NewUnit, rem=6678, next bytes: 02 02
+[FF_LINUX] DecodeUnitData: Unit 1 - buf before read: 02 02, rem=6678
+[FF_LINUX] DecodeUnitData: Unit 1 - type read: 514 (0x0202)
+[FF_LINUX] CampBaseClass ctor[2] entry
+[FF_LINUX] CampBaseClass ctor[2] entityType=514
+[FF_LINUX] CampBaseClass ctor[2] calling SetLocation(415,416)
+[FF_LINUX] CampBaseClass ctor[2] SetLocation done
+[FF_LINUX] CampBaseClass ctor[2] complete
+[FF_LINUX] UnitClass ctor[2] entry after CampBase: rem=6647
+[FF_LINUX] UnitClass ctor[2] after DecodeWaypoints: rem=6604
+[FF_LINUX] SquadronClass ctor[1] entry: rem=6604 gCampDataVersion=73
+[FF_LINUX] SquadronClass ctor[1] after fuel+specialty: rem=6599
+[FF_LINUX] SquadronClass ctor[1] after stores: rem=5999
+[FF_LINUX] SquadronClass ctor[1] after pilot_data: rem=5519
+[FF_LINUX] DecodeUnitData: Unit 1 - after NewUnit, rem=5408, next bytes: 12 02
+[FF_LINUX] DecodeUnitData: Unit 2 - buf before read: 12 02, rem=5408
+[FF_LINUX] DecodeUnitData: Unit 2 - type read: 530 (0x0212)
+[FF_LINUX] CampBaseClass ctor[3] entry
+[FF_LINUX] CampBaseClass ctor[3] entityType=530
+[FF_LINUX] CampBaseClass ctor[3] calling SetLocation(411,391)
+[FF_LINUX] CampBaseClass ctor[3] SetLocation done
+[FF_LINUX] CampBaseClass ctor[3] complete
+[FF_LINUX] UnitClass ctor[3] entry after CampBase: rem=5377
+[FF_LINUX] UnitClass ctor[3] after DecodeWaypoints: rem=5334
+[FF_LINUX] DecodeUnitData: Unit 2 - after NewUnit, rem=5253, next bytes: ee 02
+[FF_LINUX] CampBaseClass ctor[4] entry
+[FF_LINUX] CampBaseClass ctor[4] entityType=750
+[FF_LINUX] CampBaseClass ctor[4] calling SetLocation(397,439)
+[FF_LINUX] CampBaseClass ctor[4] SetLocation done
+[FF_LINUX] CampBaseClass ctor[4] complete
+[FF_LINUX] CampBaseClass ctor[5] entry
+[FF_LINUX] CampBaseClass ctor[5] entityType=530
+[FF_LINUX] CampBaseClass ctor[5] calling SetLocation(397,439)
+[FF_LINUX] CampBaseClass ctor[5] SetLocation done
+[FF_LINUX] CampBaseClass ctor[5] complete
+[FF_LINUX] SquadronClass ctor[2] entry: rem=4398 gCampDataVersion=73
+[FF_LINUX] SquadronClass ctor[2] after fuel+specialty: rem=4393
+[FF_LINUX] SquadronClass ctor[2] after stores: rem=3793
+[FF_LINUX] SquadronClass ctor[2] after pilot_data: rem=3313
+[FF_LINUX] SquadronClass ctor[3] entry: rem=2973 gCampDataVersion=73
+[FF_LINUX] SquadronClass ctor[3] after fuel+specialty: rem=2968
+[FF_LINUX] SquadronClass ctor[3] after stores: rem=2368
+[FF_LINUX] SquadronClass ctor[3] after pilot_data: rem=1888
+[FF_LINUX] FF_TE_FILE: 'te_new' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+Assertion at 1371  /home/admin/freefalcon-central/src/campaign/camptask/gtm.cpp  Sep 16 2026
+[Failed:  PODataList and PODataList->GetFirstElement()] Assertion at 1371  /home/admin/freefalcon-central/src/campaign/camptask/gtm.cpp  Sep 16 2026
+Assertion at 1389  /home/admin/freefalcon-central/src/campaign/camptask/gtm.cpp  Sep 16 2026
+[Failed:  0] Assertion at 1389  /home/admin/freefalcon-central/src/campaign/camptask/gtm.cpp  Sep 16 2026
+[FF_LINUX] WeatherClass::Init entry (instantAction=0)
+[FF_LINUX] WeatherClass::Init: lastCheck=31918789
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling UpdateCondition(1)
+[FF_LINUX] WeatherClass::Init: UpdateCondition returned
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FM] FM_LOAD_CAMPAIGN: LoadCampaign() returned 1
+[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_SUCCEEDED
+[FM] FM_JOIN_SUCCEEDED received
+[FF_UI_CLICK] firing (973,750) at 30013ms
+[Mouse] LBUTTONDOWN at (973, 750)
+[LBUTTONDOWN] at (973,750) -> window=0x5fb35a95a270 ID=30402
+[LBUTTONDOWN] GrabItem found control ID=2000000 type=25
+[LBUTTONUP] at (973,750) -> window=0x5fb35a95a270 Grab_.Control_=0x5fb35a95cbc0
+[LBUTTONUP] Grab_.Control_ found: ID=2000000 type=25
+[LBUTTONUP] Calling Process(ID=2000000, type=52)
+[FM] FM_START_TACTICAL received
+[StartLoop] Event received! Proceeding.
+[GL] FF_SimThreadAcquireGL() ENTER
+[EndUI] ENTRY
+[EndUI] Calling TheCampaign.Suspend()...
+[HandleCampaignThread] Got CAMP_SUSPEND_REQUEST, setting CAMP_SUSPENDED
+[EndUI] Suspend() returned, calling UI_Cleanup()...
+[UI_Cleanup] ENTRY
+[UI_Cleanup] SetCursor done, cleaning UI_VuThread...
+[UI_Cleanup] UI_VuThread done, cleaning gCommsMgr callbacks...
+[UI_Cleanup] gCommsMgr callbacks done, sleeping 10ms...
+[UI_Cleanup] Sleep done, cleaning gMapMgr...
+[UI_Cleanup] gMapMgr done, cleaning gMainHandler...
+[GL] Sim thread acquired GL context, g_simOwnsGLContext=true
+[StartLoop] GL context acquired
+[OTWDriver.Enter] this=0x5fb3315d88e0, &OTWDriver=0x5fb3315d88e0
+[OTWDriver.Enter] Calling FalconDisplay.EnterMode(Sim)...
+  [DisplayDevice::Setup] Starting 1024x768x32, fullscreen=0
+  [DisplayDevice::Setup] Calling CreateContext...
+  [CreateContext] driverNum=0, devNum=0, resNum=19
+  [CreateContext] GetDriver returned pDDI=0x5fb350a98360
+  [CreateContext] D3D devices count: 1
+  [CreateContext] Display modes count: 46
+  [CreateContext] GetDevice returned pD3DDI=0x5fb350a96ee0
+  [CreateContext] GetDisplayMode returned pddsd=0x5fb350a9ab68
+  [DXContext::Init] Starting with hWnd=0x5fb34fadf5b0, 1024x768@32, fullscreen=0
+  [DXContext::Init] Checking thread ID...
+  [DXContext::Init] Thread ID check passed
+  [DXContext::Init] Calling DirectDrawCreateEx...
+  [DXContext::Init] DirectDrawCreateEx returned m_pDD=0x5fb356730050
+  [DXContext::Init] Calling GetCaps... m_pcapsDD=0x5fb356730ae0
+  [DXContext::Init] GetCaps done
+  [DXContext::Init] Calling GetDeviceIdentifier... m_pDevID=0x7f71081ab810
+  [DXContext::Init] GetDeviceIdentifier done
+  [DXContext::Init] DXContext::Init - DriverInfo - "OpenGL" - "FreeFalcon OpenGL Renderer", Vendor: 4318, Device: 4660, SubSys: 0, Rev: 0, Product: 0, Version: 0, SubVersion: 0, Build: 0
+  [DXContext::Init] Calling SetCooperativeLevel with flags=0x1408...
+  [DXContext::Init] SetCooperativeLevel done
+  [DXContext::Init] Complete!
+  [DisplayDevice::Setup] CreateContext returned m_DXCtx=0x5fb356730a60
+  [DisplayDevice::Setup] Context created, setting up window...
+  [DisplayDevice::Setup] Calling ShowWindow...
+  [DisplayDevice::Setup] ShowWindow done
+  [DisplayDevice::Setup] Setting up windowed image, IsHardware=1...
+  [DisplayDevice::Setup] image.Setup done
+  [DisplayDevice::Setup] Calling SetRenderTarget, targetSurface=0x5fb356730d70...
+[SetRenderTarget] Linux: Creating D3D7 interface directly
+[SetRenderTarget] Linux: m_pD3D=0x7f71081ab7f0
+[AttachDepthBuffer] Linux: Skipping - OpenGL manages depth buffers
+[SetRenderTarget] Linux: Creating D3D device directly, pRenderTarget=0x5fb356730d70
+[SetRenderTarget] Linux: m_pD3DD=0x7f71084ca980
+  [DisplayDevice::Setup] SetRenderTarget done
+  [DisplayDevice::Setup] Calling movieInit...
+  [DisplayDevice::Setup] Complete!
+[OTWDriver.Enter] EnterMode done
+[OTWDriver.Enter] OTWImage=0x5fb33106f678, targetSurface=0x5fb356730d70
+[Texture::CleanupForDevice] Setting rc=NULL (was 0x5fb356730a60)
+[Texture::SetupForDevice] rc=0x5fb356730a60 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/misctex/
+[FarTexDB] DDS file: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea/texture/fartiles.dds, headerSize=124, bytesRead=124
+[FarTexDB] DDS header: flags=0x81007, width=32, height=32, linearSize=512, mipMapCount=0
+[FarTexDB] DDS pixfmt: flags=0x0, fourCC=0x31545844, rgbBitCount=4
+[FarTexDB] linearSize=512, texCount=96664, fartexDDSFile.IsReady=1
+[PalLight] light=(0.750 0.829 0.849) gametime=31918789 pal=0x7f7109ca1500
+[OTWDriver.Enter] Creating viewPoint...
+[OTWDriver.Enter] viewPoint created: 0x7f710a22bf20
+[OTWDriver.Enter] viewPoint->Setup done
+[OTWDriver.Enter] Creating renderer, OTWImage=0x5fb33106f678, targetSurface=0x5fb356730d70
+[OTWDriver.Enter] Calling renderer->Setup...
+[OTW.Setup] LastNearTexLOD=2 LastFarTexLOD=4 NumLevels=6
+[OTWDriver.Enter] renderer->Setup done
+[OTWDriver.Enter] VbManager.Setup...
+[OTWDriver.Enter] VbManager.Setup done
+[OTWDriver.Enter] SetupSplashScreen...
+[UI_Cleanup] gMainHandler done, cleaning gUIViewer...
+[UI_Cleanup] gUIViewer done, checking CleanViewpoint (mode=5)...
+[UI_Cleanup] Skipping CleanViewpoint() - in Sim mode
+[UI_Cleanup] Skipping DeviceDependentGraphicsCleanup() - in Sim mode
+[UI_Cleanup] sound/music done, cleaning popup/image/anim managers...
+[EndUI] UI_Cleanup() returned, calling Resume()...
+[EndUI] Resume() returned, calling SetFocus()...
+[EndUI] EXIT
+[FF_SIM_KEY] sim entry latched at 32115ms; times are relative to this
+[OTWDriver.Enter] SplashScreenUpdate...
+[OTWDriver.Enter] RegisterTimeUpdateCB...
+[OTWDriver.Enter] VCock_Init...
+[SetupRttTarget] Created: 512x512 bpp=32 renderTexture=0x7f70f037a250 m_pDDS=0x7f70f037a2c0
+[OTWDriver.Enter] VCock_Init done
+[OTWDriver.Enter] Button3D_Init...
+[OTWDriver.Enter] Button3D_Init done
+[OTWDriver.Enter] Initializing view state...
+[OTWDriver.Enter] View state initialized
+[OTWDriver.Enter] FindCockpit ckpit_res.dat...
+[OTWDriver.Enter] Creating CockpitManager (resX=0, resY=0, DispWidth=1024, DispHeight=768, FindBest=1024)...
+[OTWDriver.Enter] CockpitManager created=0x7f70f2aef990 PadlockCPManager=0x7f70d83135a0, creating MenuManager...
+[OTWDriver.Enter] MFD CreateDrawables...
+[OTWDriver.Enter] CreateCockpitGeometry...
+[OTWDriver.Enter] CreateCockpitGeometry done
+[OTWDriver.Enter] F4SoundFXInit...
+[OTWDriver.Enter] F4SoundFXInit done
+[OTWDriver.Enter] SetupDIMouseAndKeyboard...
+[CreateSimCursors] Trying to open: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/art/ckptart/6_cursor.dat
+[CreateSimCursors] Loaded 12 cursors from /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/art/ckptart/6_turn.gif
+[OTWDriver.Enter] SetupDIMouseAndKeyboard done
+[OTWDriver.Enter] SetActive(TRUE)...
+[OTWDriver.Enter] Complete!
+[AircraftClass::Init] ENTER
+[AircraftClass::Init] SimVehicleClass::Init done
+[AircraftClass::Init] classPtr=0x5fb351255550, initData=0x7f7117ffea60
+[AircraftClass::Init] Checking SType/SPType...
+[AircraftClass::Init] Creating AirframeClass...
+[AircraftClass::Init] AirframeClass created: 0x7f710c0031a0
+[AircraftClass::Init] SetFlag done, mFaults=(nil)
+[AircraftClass::Init] FackClass created, isDigital=1
+[AircraftClass::Init] Checking RunningInstantAction...
+[AircraftClass::Init] RunningInstantAction check done
+[AircraftClass::Init] Initial pos set: x=1608830.0 y=1303791.8 z=-5000.0
+[AircraftClass::Init] Waypoints: numWaypoints=9 waypoint=0x7f710c000ee0
+[AircraftClass::Init] Waypoint loop done
+[AircraftClass::Init] st=31664970 SimLibElapsedTime=31918789
+[AircraftClass::Init] SetStartTime done, currentWaypoint=2
+[AircraftClass::Init] Waypoint index loop done, curWaypoint=0x7f710c001190
+[AircraftClass::Init] Inside curWaypoint check, getting WPAction...
+[AircraftClass::Init] Getting UnitAirbase from campBase=0x5fb35a9ef860
+[AircraftClass::Init] UnitAirbase ent=(nil)
+[AircraftClass::Init] WPAction=11 (WP_TAKEOFF=1) allowGroundInit=1
+[AircraftClass::Init] Else branch (not WP_TAKEOFF)
+[AircraftClass::Init] Calling AddTakeOff, waypoint=0x7f710c000ee0
+[AircraftClass::Init] AddTakeOff done
+[AircraftClass::Init] Got atWaypoint location: 1539950.3, 1303791.8, -5300.0
+[AircraftClass::Init] RunningInstantAction=0 isDigital=1
+[AircraftClass::Init] Getting wp2 location from curWaypoint=0x7f710c001190
+[AircraftClass::Init] wp2 location: 1710509.3, 1300511.8, -5000.0
+[AircraftClass::Init] initialPsi=-0.019, getting arrival times
+[AircraftClass::Init] dt=220274 SEC_TO_MSEC=1000
+[AircraftClass::Init] initialMach=775.411
+[AircraftClass::Init] After waypoint if block, initialMach=775.411
+[AircraftClass::Init] Mach clamped, afIdx lookup from vehicleDataIndex=129
+[AircraftClass::Init] afIdx=71 NumACDefEntries=266
+[AircraftClass::Init] Calling af->InitData(71)...
+[AircraftClass::Init] af->InitData done
+[AircraftClass::Init] Checking auxaeroData=0x5fb355e066c0
+[AircraftClass::Init] F16 flag check done
+[AircraftClass::Init] Engine flag check done, creating SMS...
+[AircraftClass::Init] SMS created: 0x7f710c003bc0
+[AircraftClass::Init] Creating FCC, NumHardpoints=10
+[AircraftClass::Init] FCC created: 0x7f710c0079b0
+[AircraftClass::Init] FCC->SetSms done
+[AircraftClass::Init] Getting gun from hardPoint[0]=0x7f710c003d60
+[AircraftClass::Init] Guns=0x7f710c003e50
+[AircraftClass::Init] Gun TrailID set
+[AircraftClass::Init] Checking ground level...
+[AircraftClass::Init] Ground level check done
+[AircraftClass::Init] Calling af->Init(71)...
+[AircraftClass::Init] af->Init done
+[AircraftClass::Init] Checking hasSwingWing...
+[AircraftClass::Init] hasSwingWing check done
+[AircraftClass::Init] Checking isComplex=1
+[AircraftClass::Init] Calling MakeComplex()...
+[AircraftClass::Init] MakeComplex done
+[AircraftClass::Init] isComplex check done
+[AircraftClass::Init] Calling SetSwitch(COMP_CANOPY)...
+[AircraftClass::Init] SetSwitch done
+[AircraftClass::Init] Checking ACMI recording...
+[AircraftClass::Init] ACMI check done
+[AircraftClass::Init] Checking IsComplex for laser/harm pods...
+[AircraftClass::Init] IsComplex check done
+[AircraftClass::Init] Checking Guns=0x7f710c003e50
+[AircraftClass::Init] Guns check done
+[AircraftClass::Init] Starting sensor setup...
+[AircraftClass::Init] Sensor setup done, numSensors=4
+[AircraftClass::Init] Creating brain, GetCampaignObject=0x5fb35a9ef860
+[AircraftClass::Init] Creating DigitalBrain...
+[AircraftClass::Init] DigitalBrain created: 0x7f710c008360
+[AircraftClass::Init] Brain created, calling DBrain()->SetTaxiPoint...
+[AircraftClass::Init] Creating PilotInputs...
+[AircraftClass::Init] PilotInputs created: 0x7f710c0087c0
+[AircraftClass::Init] Checking PreFlight...
+[AircraftClass::Init] Calling PreFlight()...
+[AircraftClass::Init] PreFlight done
+[AircraftClass::Init] End of initData block
+[AircraftClass::Init] EXIT - Init complete
+[StartLoop] Starting deagg wait: flight=0x5fb35a9ef860 IsAggregate=0 IsDead=0
+[StartLoop] Deagg wait done: flight=0x5fb35a9ef860 IsAggregate=0 IsDead=0 delayCounter=120
+[StartLoop] Waiting for SimDriver.GetPlayerEntity()...
+[AircraftClass::Init] ENTER
+[AircraftClass::Init] SimVehicleClass::Init done
+[AircraftClass::Init] classPtr=0x5fb3512488c8, initData=0x7f7117ffea60
+[AircraftClass::Init] Checking SType/SPType...
+[AircraftClass::Init] Creating AirframeClass...
+[AircraftClass::Init] AirframeClass created: 0x7f710c0214f0
+[AircraftClass::Init] SetFlag done, mFaults=(nil)
+[AircraftClass::Init] FackClass created, isDigital=1
+[AircraftClass::Init] Checking RunningInstantAction...
+[AircraftClass::Init] RunningInstantAction check done
+[AircraftClass::Init] Initial pos set: x=1441551.0 y=1303791.8 z=-25000.0
+[AircraftClass::Init] Waypoints: numWaypoints=7 waypoint=0x7f710c020040
+[AircraftClass::Init] Waypoint loop done
+[AircraftClass::Init] st=31430300 SimLibElapsedTime=31918789
+[AircraftClass::Init] SetStartTime done, currentWaypoint=3
+[AircraftClass::Init] Waypoint index loop done, curWaypoint=0x7f710c020160
+[AircraftClass::Init] Inside curWaypoint check, getting WPAction...
+[AircraftClass::Init] Getting UnitAirbase from campBase=0x5fb35a9edaa0
+[AircraftClass::Init] UnitAirbase ent=(nil)
+[AircraftClass::Init] WPAction=12 (WP_TAKEOFF=1) allowGroundInit=1
+[AircraftClass::Init] Else branch (not WP_TAKEOFF)
+[AircraftClass::Init] Calling AddTakeOff, waypoint=0x7f710c020040
+[AircraftClass::Init] AddTakeOff done
+[AircraftClass::Init] Got atWaypoint location: 1441551.0, 1303791.8, -5000.0
+[AircraftClass::Init] RunningInstantAction=0 isDigital=1
+[AircraftClass::Init] Getting wp2 location from curWaypoint=0x7f710c020160
+[AircraftClass::Init] wp2 location: 1471070.8, 1303791.8, -5000.0
+[AircraftClass::Init] initialPsi=0.000, getting arrival times
+[AircraftClass::Init] dt=38117 SEC_TO_MSEC=1000
+[AircraftClass::Init] initialMach=776.838
+[AircraftClass::Init] After waypoint if block, initialMach=776.838
+[AircraftClass::Init] Mach clamped, afIdx lookup from vehicleDataIndex=23
+[AircraftClass::Init] afIdx=18 NumACDefEntries=266
+[AircraftClass::Init] Calling af->InitData(18)...
+[AircraftClass::Init] af->InitData done
+[AircraftClass::Init] Checking auxaeroData=0x5fb35610c2c0
+[AircraftClass::Init] F16 flag check done
+[AircraftClass::Init] Engine flag check done, creating SMS...
+[AircraftClass::Init] SMS created: 0x7f710c021f10
+[AircraftClass::Init] Creating FCC, NumHardpoints=7
+[AircraftClass::Init] FCC created: 0x7f710c024800
+[AircraftClass::Init] FCC->SetSms done
+[AircraftClass::Init] Getting gun from hardPoint[0]=0x7f710c022090
+[AircraftClass::Init] Guns=0x7f710c022180
+[AircraftClass::Init] Gun TrailID set
+[AircraftClass::Init] Checking ground level...
+[AircraftClass::Init] Ground level check done
+[AircraftClass::Init] Calling af->Init(18)...
+[AircraftClass::Init] af->Init done
+[AircraftClass::Init] Checking hasSwingWing...
+[AircraftClass::Init] hasSwingWing check done
+[AircraftClass::Init] Checking isComplex=1
+[AircraftClass::Init] Calling MakeComplex()...
+[AircraftClass::Init] MakeComplex done
+[AircraftClass::Init] isComplex check done
+[AircraftClass::Init] Calling SetSwitch(COMP_CANOPY)...
+[AircraftClass::Init] SetSwitch done
+[AircraftClass::Init] Checking ACMI recording...
+[AircraftClass::Init] ACMI check done
+[AircraftClass::Init] Checking IsComplex for laser/harm pods...
+[AircraftClass::Init] IsComplex check done
+[AircraftClass::Init] Checking Guns=0x7f710c022180
+[AircraftClass::Init] Guns check done
+[AircraftClass::Init] Starting sensor setup...
+[AircraftClass::Init] Sensor setup done, numSensors=3
+[AircraftClass::Init] Creating brain, GetCampaignObject=0x5fb35a9edaa0
+[AircraftClass::Init] Creating DigitalBrain...
+[AircraftClass::Init] DigitalBrain created: 0x7f710c025bf0
+[AircraftClass::Init] Brain created, calling DBrain()->SetTaxiPoint...
+[AircraftClass::Init] Creating PilotInputs...
+[AircraftClass::Init] PilotInputs created: 0x7f710c026050
+[AircraftClass::Init] Checking PreFlight...
+[AircraftClass::Init] Calling PreFlight()...
+[AircraftClass::Init] PreFlight done
+[AircraftClass::Init] End of initData block
+[AircraftClass::Init] EXIT - Init complete
+[StartLoop] SimDriver.GetPlayerEntity()=0x7f710c001430, calling SplashScreenUpdate(2)
+[StartLoop] Waiting for gLeftToDeaggregate=-1, player=0x7f710c001430, IsLocal=1
+[StartLoop] gLeftToDeaggregate wait done: gLeft=-1 counter=100
+[RenderFirstFrame] Enter, vuxGameTime=31918789, todOffset=0.0
+[RenderFirstFrame] Setting TimeManager to 31918789 ms = 08:51
+[RenderFirstFrame] TimeManager refreshed, TOD ambient=0.2109 diffuse=0.7363
+[RenderFirstFrame] Weather refreshed
+[RenderFirstFrame] Calling Reset3DParameters()...
+[RenderFirstFrame] Reset3DParameters() done
+[RenderFirstFrame] Cockpit defaults loaded, calling PreLoadScene...
+Assertion at 843  /home/admin/freefalcon-central/src/campaign/camptask/atm.cpp  Sep 16 2026
+[Failed:  sq->GetRating(j) == 0 or uc->Scores[j] > 0] Assertion at 843  /home/admin/freefalcon-central/src/campaign/camptask/atm.cpp  Sep 16 2026
+[RenderFirstFrame] PreLoadScene done
+[RenderFirstFrame] Exit
+[GL] FF_SimThreadReleaseGL() ENTER
+[GL] Sim thread released GL context, g_simOwnsGLContext=false
+[StartLoop] Setting currentMode = StartRunningGraphics
+[GL] FF_SimThreadAcquireGL() ENTER
+[GL] Sim thread acquired GL context, g_simOwnsGLContext=true
+[TERRAIN_DIAG] ground_color=(0.945,0.967,1.000) haze_ground=(0.657,0.822,0.972)
+[TERRAIN_DIAG] far_clip=262319.0 haze_start=26231.9 haze_depth=131159.5 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.210 lightDiffuse=0.736 lightSpecular=1.500
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=1
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.65,0.82,0.97,0.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[VERT_COLOR] r=0.790 g=0.809 b=0.836 a=1.000 dist=250.8 scale=0.000 state=37 colorIdx=190
+[VERT_COLOR] r=0.795 g=0.813 b=0.841 a=1.000 dist=223.1 scale=0.000 state=37 colorIdx=190
+[VERT_COLOR] r=0.813 g=0.832 b=0.860 a=1.000 dist=278.6 scale=0.001 state=37 colorIdx=190
+[VERT_COLOR] r=0.790 g=0.809 b=0.836 a=1.000 dist=250.8 scale=0.000 state=37 colorIdx=190
+[VERT_COLOR] r=0.795 g=0.813 b=0.841 a=1.000 dist=223.1 scale=0.000 state=37 colorIdx=190
+[StoreMPRPalette] lightColor=(0.945, 0.967, 1.000) lightLevel=0.947
+[StoreMPRPalette] lightColor=(0.945, 0.967, 1.000) lightLevel=0.947
+[StoreMPRPalette] lightColor=(0.945, 0.967, 1.000) lightLevel=0.947
+Assertion at 4166  /home/admin/freefalcon-central/src/graphics/3dlib/context.cpp  Sep 18 2026
+[Failed:  (nVerts >= 3) or (nPrimType == MPR_PRM_POINTS and nVerts >= 1) or (nPrimType <= MPR_PRM_POLYLINE and nVerts >= 2)] Assertion at 4166  /home/admin/freefalcon-central/src/graphics/3dlib/context.cpp  Sep 18 2026
+[sam] gnd unit type=3420 has AIR target: t=31919316 nextFire=31918789 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[TERRAIN_DIAG] ground_color=(0.945,0.967,1.000) haze_ground=(0.657,0.822,0.972)
+[TERRAIN_DIAG] far_clip=262319.0 haze_start=26231.9 haze_depth=131159.5 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.210 lightDiffuse=0.736 lightSpecular=1.500
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=1
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.65,0.82,0.97,0.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[TERRAIN_DIAG] ground_color=(0.945,0.967,1.000) haze_ground=(0.657,0.822,0.972)
+[TERRAIN_DIAG] far_clip=262319.0 haze_start=26231.9 haze_depth=131159.5 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.210 lightDiffuse=0.736 lightSpecular=1.500
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=1
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.65,0.82,0.97,0.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[sam] gnd unit type=3420 has AIR target: t=31922327 nextFire=31922796 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[shot] frame 200 -> /home/admin/ff-gates/shots/screenshot_sim.bmp (1024x768)
+[FF_SIM_KEY] DOWN dik=0x1e nmods=0 at 8010ms
+[FF_SIM_KEY] UP   dik=0x1e nmods=0 at 8268ms
+[sam] gnd unit type=3420 has AIR target: t=31925336 nextFire=31926808 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31928339 nextFire=31926808 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[shot] frame 600 -> /home/admin/ff-gates/shots/screenshot_sim.bmp (1024x768)
+[PalLight] light=(0.945 0.967 1.000) gametime=31930117 pal=0x7f7109ca1500
+[sam] gnd unit type=3420 has AIR target: t=31931357 nextFire=31930811 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31934367 nextFire=31934819 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31937373 nextFire=31938824 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31940387 nextFire=31938824 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31943404 nextFire=31942839 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31946421 nextFire=31946850 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31949430 nextFire=31950866 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31952433 nextFire=31950866 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31955438 nextFire=31954874 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31958455 nextFire=31958887 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31961472 nextFire=31962895 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31964481 nextFire=31962895 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31967485 nextFire=31966896 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31970499 nextFire=31970910 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31973504 nextFire=31974916 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31976508 nextFire=31974916 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[FF_SIM_SCREENSHOT] requested /home/admin/ff-gates/taiwan/sam28b-60.bmp at 60001ms (wall 92116ms)
+[DIAG] Pre-screenshot GL state:
+  GL_FOG=1 GL_LIGHTING=0 GL_CULL_FACE=1 GL_ALPHA_TEST=0 GL_DEPTH_TEST=1 GL_BLEND=0 GL_STENCIL_TEST=0
+  Fog: color=(0.65,0.82,0.97,0.00) start=0.0 end=80000.0 mode=0x2601
+  Viewport: 0,1 1024x767
+  Cull: frontFace=0x900 cullMode=0x405
+  GL_POLYGON_MODE: front=0x1b02 back=0x1b02
+  GL_DITHER=1 GL_POLYGON_STIPPLE=0 GL_LINE_SMOOTH=0 GL_POLYGON_SMOOTH=0 GL_MULTISAMPLE=1
+  AlphaFunc=0x207 AlphaRef=0.003
+  ClearColor=(0.00,0.00,0.00,0.00)
+[Screenshot] Saved 1024x768 framebuffer to /home/admin/ff-gates/taiwan/sam28b-60.bmp (nonblack=94.5% nonwhite=99.7% distinct15bit=2490 avgRGB=71,89,101)
+[sam] gnd unit type=3420 has AIR target: t=31979513 nextFire=31978933 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31982523 nextFire=31982934 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31985526 nextFire=31986941 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31988544 nextFire=31986941 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[PalLight] light=(0.944 0.966 1.000) gametime=31990638 pal=0x7f7109ca1500
+[sam] gnd unit type=3420 has AIR target: t=31991557 nextFire=31990956 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31994575 nextFire=31994973 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=31997588 nextFire=31998984 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32000605 nextFire=31998984 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32003613 nextFire=32002987 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32006618 nextFire=32007003 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32009636 nextFire=32011019 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32012640 nextFire=32011019 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32015650 nextFire=32015023 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32018658 nextFire=32019026 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32021666 nextFire=32023030 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32024672 nextFire=32023030 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32027676 nextFire=32027040 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32030693 nextFire=32031042 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32033712 nextFire=32035051 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[FF_SIM_SCREENSHOT] requested /home/admin/ff-gates/taiwan/sam28b-120.bmp at 120010ms (wall 152125ms)
+[DIAG] Pre-screenshot GL state:
+  GL_FOG=1 GL_LIGHTING=0 GL_CULL_FACE=1 GL_ALPHA_TEST=0 GL_DEPTH_TEST=1 GL_BLEND=0 GL_STENCIL_TEST=0
+  Fog: color=(0.65,0.82,0.97,0.00) start=0.0 end=80000.0 mode=0x2601
+  Viewport: 0,1 1024x767
+  Cull: frontFace=0x900 cullMode=0x405
+  GL_POLYGON_MODE: front=0x1b02 back=0x1b02
+  GL_DITHER=1 GL_POLYGON_STIPPLE=0 GL_LINE_SMOOTH=0 GL_POLYGON_SMOOTH=0 GL_MULTISAMPLE=1
+  AlphaFunc=0x207 AlphaRef=0.003
+  ClearColor=(0.00,0.00,0.00,0.00)
+[Screenshot] Saved 1024x768 framebuffer to /home/admin/ff-gates/taiwan/sam28b-120.bmp (nonblack=94.5% nonwhite=99.7% distinct15bit=2786 avgRGB=74,88,92)
+[sam] gnd unit type=3420 has AIR target: t=32036730 nextFire=32035051 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32039738 nextFire=32039060 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32042744 nextFire=32043072 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32045746 nextFire=32047086 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32048754 nextFire=32047086 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[PalLight] light=(0.943 0.966 1.000) gametime=32051188 pal=0x7f7109ca1500
+[sam] gnd unit type=3420 has AIR target: t=32051757 nextFire=32051094 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32054762 nextFire=32055097 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32057777 nextFire=32059103 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32060784 nextFire=32059103 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32063787 nextFire=32063113 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32066798 nextFire=32067125 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32069809 nextFire=32071132 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32072815 nextFire=32071132 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32075821 nextFire=32075150 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32078827 nextFire=32079166 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+Assertion at 219  /home/admin/freefalcon-central/src/graphics/objects/drawbsp.cpp  Sep 18 2026
+[Failed:  slotNumber < instance.ParentObject->nSlots] Assertion at 219  /home/admin/freefalcon-central/src/graphics/objects/drawbsp.cpp  Sep 18 2026
+[sam] gnd unit type=3420 has AIR target: t=32082118 nextFire=32089183 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32085130 nextFire=32089183 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32088140 nextFire=32089183 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32091141 nextFire=32089183 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[sam] gnd unit type=3420 has AIR target: t=32094142 nextFire=32093192 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[FF_SIM_SCREENSHOT] requested /home/admin/ff-gates/taiwan/sam28b-180.bmp at 180007ms (wall 212122ms)
+[DIAG] Pre-screenshot GL state:
+  GL_FOG=1 GL_LIGHTING=0 GL_CULL_FACE=0 GL_ALPHA_TEST=1 GL_DEPTH_TEST=1 GL_BLEND=1 GL_STENCIL_TEST=0
+  Fog: color=(0.65,0.82,0.97,0.00) start=0.0 end=80000.0 mode=0x2601
+  Viewport: 0,0 1024x768
+  Cull: frontFace=0x900 cullMode=0x405
+  GL_POLYGON_MODE: front=0x1b02 back=0x1b02
+  GL_DITHER=1 GL_POLYGON_STIPPLE=0 GL_LINE_SMOOTH=0 GL_POLYGON_SMOOTH=0 GL_MULTISAMPLE=1
+  AlphaFunc=0x206 AlphaRef=0.003
+  ClearColor=(0.00,0.00,0.00,0.00)
+[Screenshot] Saved 1024x768 framebuffer to /home/admin/ff-gates/taiwan/sam28b-180.bmp (nonblack=99.6% nonwhite=99.8% distinct15bit=294 avgRGB=51,98,152)
+[sam] gnd unit type=3420 has AIR target: t=32097158 nextFire=32097208 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none
+[PalLight] light=(0.943 0.965 1.000) gametime=32111823 pal=0x7f7109ca1500
+[ExitMenu] E/D pressed: i=18 endsAvail=[1,1,0] endFlightTimer=0 vuxRealTime=317455175
+[EndFlight] timer=317460175 vuxRealTime=317455192 delta=-4983
+[EndFlight] timer=317460175 vuxRealTime=317456191 delta=-3984
+[EndFlight] timer=317460175 vuxRealTime=317457191 delta=-2984
+[EndFlight] timer=317460175 vuxRealTime=317458208 delta=-1967
+[EndFlight] timer=317460175 vuxRealTime=317459208 delta=-967
+[StopGraphics] Called, currentMode=6 (need RunningGraphics=6)
+[StopGraphics] Setting currentMode = StoppingGraphics
+[GL] FF_SimThreadReleaseGL() ENTER
+[GL] Sim thread released GL context, g_simOwnsGLContext=false
+[GL] FF_SimThreadAcquireGL() ENTER
+[GL] Sim thread acquired GL context, g_simOwnsGLContext=true
+[StartLoop] Reset3DParameters...
+[StartLoop] ShowSimpleWaitScreen...
+[StartLoop] ShowSimpleWaitScreen done
+[StartLoop] F4SoundFXEnd...
+[StartLoop] AnnounceExit...
+[StartLoop] ClearCameras...
+[OTWDriver.Exit] Cleaning up sim resources...
+[RemoveObject being called outside of the sim thread] Error:  line 316, /home/admin/freefalcon-central/src/sim/otwdrive/otwlist.cpp on Sep 18 2026
+[RemoveObject being called outside of the sim thread] Error:  line 316, /home/admin/freefalcon-central/src/sim/otwdrive/otwlist.cpp on Sep 18 2026
+[RemoveObject being called outside of the sim thread] Error:  line 316, /home/admin/freefalcon-central/src/sim/otwdrive/otwlist.cpp on Sep 18 2026
+[RemoveObject being called outside of the sim thread] Error:  line 316, /home/admin/freefalcon-central/src/sim/otwdrive/otwlist.cpp on Sep 18 2026
+[RemoveObject being called outside of the sim thread] Error:  line 316, /home/admin/freefalcon-central/src/sim/otwdrive/otwlist.cpp on Sep 18 2026
+[OTWDriver.CleanViewpoint] CALLED! this=0x5fb3315d88e0, viewPoint=(nil)
+[OTWDriver.Exit] Cleanup complete
+[GL] FF_SimThreadReleaseGL() ENTER
+[GL] Sim thread released GL context, g_simOwnsGLContext=false
+[StartLoop] Waiting for wait_for_start_graphics event...
+[FM] FM_REVERT_CAMPAIGN received
+[FM] FM_SHUTDOWN_CAMPAIGN received
+[VuSession::JoinGame] ENTRY: session=0x5fb3509e4580 newgame=(nil) current_game=0x5fb356cc0750
+[VuSession::JoinGame] EXIT: retval=0 Game()=(nil)
+[FM] FM_LOAD_CAMPAIGN received (type=3)
+[FM] FM_LOAD_CAMPAIGN: Calling TheCampaign.LoadCampaign()...
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[LZSS_Expand] Called: srcSize=2731, size=16919
+[LZSS_Expand] LZSS_Expand: 16919 bytes out in 0.0 ms
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[VuSession::JoinGame] ENTRY: session=0x5fb3509e4580 newgame=0x5fb35b08d170 current_game=(nil)
+[VuSession::JoinGame] Setting game_.reset(newgame=0x5fb35b08d170)
+[VuSession::JoinGame] Game set, Game()=0x5fb35b08d170
+[VuSession::JoinGame] EXIT: retval=1 Game()=0x5fb35b08d170
+[FF_LINUX] WeatherClass::Init entry (instantAction=0)
+[FF_LINUX] WeatherClass::Init: lastCheck=31918789
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling UpdateCondition(1)
+[FF_LINUX] WeatherClass::Init: UpdateCondition returned
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] LoadBaseObjectives ENTRY: scenario='te_new'
+[FF_LINUX] LoadBaseObjectives: Calling ReadCampFile()
+[FF_LINUX] FF_TE_FILE: 'te_new' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] LoadBaseObjectives: ReadCampFile returned dataSize=-1
+[FF_LINUX] LoadBaseObjectives: No data, returning 0
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[LZSS_Expand] Called: srcSize=22, size=42
+[LZSS_Expand] LZSS_Expand: 42 bytes out in 0.0 ms
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] DecodeUnitData: count=13 size=7038 rem=2342 gCampDataVersion=73
+[LZSS_Expand] Called: srcSize=2342, size=7038
+[LZSS_Expand] LZSS_Expand: 7038 bytes out in 0.0 ms
+[FF_LINUX] DecodeUnitData: LZSS_Expand returned 2341
+[FF_LINUX] DecodeUnitData: first 20 bytes after expand: b6 01 29 4e 00 00 00 00 00 00 b6 01 9b 01 87 01 00 60 ea c6 
+[FF_LINUX] DecodeUnitData: bytes 80-99: 00 60 50 e4 01 01 00 00 80 40 00 00 1f 04 00 00 00 00 00 00 
+[FF_LINUX] DecodeUnitData: Unit 0 - buf before read: b6 01, rem=7038
+[FF_LINUX] DecodeUnitData: Unit 0 - type read: 438 (0x01b6)
+[FF_LINUX] DecodeUnitData: Unit 0 - after NewUnit, rem=6678, next bytes: 02 02
+[FF_LINUX] DecodeUnitData: Unit 1 - buf before read: 02 02, rem=6678
+[FF_LINUX] DecodeUnitData: Unit 1 - type read: 514 (0x0202)
+[FF_LINUX] DecodeUnitData: Unit 1 - after NewUnit, rem=5408, next bytes: 12 02
+[FF_LINUX] DecodeUnitData: Unit 2 - buf before read: 12 02, rem=5408
+[FF_LINUX] DecodeUnitData: Unit 2 - type read: 530 (0x0212)
+[FF_LINUX] DecodeUnitData: Unit 2 - after NewUnit, rem=5253, next bytes: ee 02
+[FF_LINUX] FF_TE_FILE: 'te_new' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] WeatherClass::Init entry (instantAction=0)
+[FF_LINUX] WeatherClass::Init: lastCheck=31918789
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling UpdateCondition(1)
+[FF_LINUX] WeatherClass::Init: UpdateCondition returned
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FM] FM_LOAD_CAMPAIGN: LoadCampaign() returned 1
+[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_SUCCEEDED
+[FM] FM_GOT_CAMPAIGN_DATA received (wParam=16777216)
+[FM] FM_JOIN_SUCCEEDED received
+[FM] FM_START_UI received
+[FM] Main thread re-acquired GL context
+[FM] Calling UI_Startup()...
+[UI_Startup] ENTRY, FalconDisplay.currentMode=5
+[UI_Startup] Calling EnterMode(UI)...
+  [DisplayDevice::Setup] Starting 1024x768x16, fullscreen=0
+  [DisplayDevice::Setup] Calling CreateContext...
+  [CreateContext] driverNum=0, devNum=0, resNum=18
+  [CreateContext] GetDriver returned pDDI=0x5fb350a98360
+  [CreateContext] D3D devices count: 1
+  [CreateContext] Display modes count: 46
+  [CreateContext] GetDevice returned pD3DDI=0x5fb350a96ee0
+  [CreateContext] GetDisplayMode returned pddsd=0x5fb350a9aae0
+  [DXContext::Init] Starting with hWnd=0x5fb34fadf5b0, 1024x768@16, fullscreen=0
+  [DXContext::Init] Checking thread ID...
+  [DXContext::Init] Thread ID check passed
+  [DXContext::Init] Calling DirectDrawCreateEx...
+  [DXContext::Init] DirectDrawCreateEx returned m_pDD=0x5fb3514e9ff0
+  [DXContext::Init] Calling GetCaps... m_pcapsDD=0x5fb35884c0c0
+  [DXContext::Init] GetCaps done
+  [DXContext::Init] Calling GetDeviceIdentifier... m_pDevID=0x5fb35887f070
+  [DXContext::Init] GetDeviceIdentifier done
+  [DXContext::Init] DXContext::Init - DriverInfo - "OpenGL" - "FreeFalcon OpenGL Renderer", Vendor: 4318, Device: 4660, SubSys: 0, Rev: 0, Product: 0, Version: 0, SubVersion: 0, Build: 0
+  [DXContext::Init] Calling SetCooperativeLevel with flags=0x1408...
+  [DXContext::Init] SetCooperativeLevel done
+  [DXContext::Init] Complete!
+  [DisplayDevice::Setup] CreateContext returned m_DXCtx=0x5fb35a618840
+  [DisplayDevice::Setup] Context created, setting up window...
+  [DisplayDevice::Setup] Calling ShowWindow...
+  [DisplayDevice::Setup] ShowWindow done
+  [DisplayDevice::Setup] Setting up windowed image, IsHardware=1...
+  [DisplayDevice::Setup] image.Setup done
+  [DisplayDevice::Setup] Calling SetRenderTarget, targetSurface=0x5fb356730d70...
+[SetRenderTarget] Linux: Creating D3D7 interface directly
+[SetRenderTarget] Linux: m_pD3D=0x5fb3513b45c0
+[AttachDepthBuffer] Linux: Skipping - OpenGL manages depth buffers
+[SetRenderTarget] Linux: Creating D3D device directly, pRenderTarget=0x5fb356730d70
+[SetRenderTarget] Linux: m_pD3DD=0x5fb356dce1d0
+  [DisplayDevice::Setup] SetRenderTarget done
+  [DisplayDevice::Setup] Calling movieInit...
+  [DisplayDevice::Setup] Complete!
+[UI_Startup] EnterMode done, getting ImageBuffer...
+[GlobalSetup] Creating C_Parser...
+[GlobalSetup] Loading ID lists...
+[LoadIDList] Loading: userids.lst
+[LoadIDList] file size=500 for userids.lst
+[LoadIDList] Loading: fontids.lst
+[LoadIDList] file size=22 for fontids.lst
+[LoadIDList] Loading: imageids.lst
+[LoadIDList] file size=197 for imageids.lst
+[LoadIDList] Loading: soundids.lst
+[LoadIDList] file size=46 for soundids.lst
+[LoadIDList] Loading: textids.lst
+[LoadIDList] file size=21 for textids.lst
+[LoadIDList] Loading: movieids.lst
+[LoadIDList] file size=20 for movieids.lst
+[LoadImageList] Loading: resimgs.lst
+[LoadImageList] Opened: resimgs.lst
+[LoadSoundList] Loading: sounds.lst
+[LoadImageList] Loading: main_res.lst
+[LoadImageList] Opened: main_res.lst
+[LoadSoundList] Loading: main_snd.lst
+[LoadWindowList] Loading: main_scf.lst
+[LoadImageList] Loading: comm_res.lst
+[LoadImageList] Opened: comm_res.lst
+[LoadSoundList] Loading: comm_snd.lst
+[LoadWindowList] Loading: comm_scf.lst
+[LoadImageList] Loading: help_res.lst
+[LoadImageList] FAILED to open: help_res.lst
+[LoadSoundList] Loading: help_snd.lst
+[LoadWindowList] Loading: help_scf.lst
+[LoadImageList] Loading: lb_res.lst
+[LoadImageList] Opened: lb_res.lst
+[LoadSoundList] Loading: lb_snd.lst
+[LoadWindowList] Loading: lb_scf.lst
+[LoadImageList] Loading: cs_res.lst
+[LoadImageList] Opened: cs_res.lst
+[LoadSoundList] Loading: cs_snd.lst
+[LoadWindowList] Loading: cs_scf.lst
+[LoadImageList] Loading: pln_res.lst
+[LoadImageList] Opened: pln_res.lst
+[LoadSoundList] Loading: pln_snd.lst
+[LoadWindowList] Loading: pln_scf.lst
+[LoadImageList] Loading: cmn_res.lst
+[LoadImageList] Opened: cmn_res.lst
+[LoadSoundList] Loading: cmn_snd.lst
+[LoadWindowList] Loading: cmn_scf.lst
+[LoadImageList] Loading: ts_res.lst
+[LoadImageList] Opened: ts_res.lst
+[LoadSoundList] Loading: ts_snd.lst
+[LoadWindowList] Loading: ts_scf.lst
+[LoadImageList] Loading: te_res.lst
+[LoadImageList] Opened: te_res.lst
+[LoadSoundList] Loading: te_snd.lst
+[LoadWindowList] Loading: te_scf.lst
+[Texture::SetupForDevice] rc=0x5fb35a618840 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/misctex/
+[FarTexDB] DDS file: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea/texture/fartiles.dds, headerSize=124, bytesRead=124
+[FarTexDB] DDS header: flags=0x81007, width=32, height=32, linearSize=512, mipMapCount=0
+[FarTexDB] DDS pixfmt: flags=0x0, fourCC=0x31545844, rgbBitCount=4
+[FarTexDB] linearSize=512, texCount=96664, fartexDDSFile.IsReady=1
+[PalLight] light=(0.943 0.965 1.000) gametime=31918789 pal=0x7f7109ca1500
+[FM] UI_Startup() complete
+[INPUT] focus lost (doUI=1) -> relative mouse released
+[INPUT] focus gained (doUI=1) -> relative mouse left off
+[INPUT] focus lost (doUI=1) -> relative mouse released
+[INPUT] focus gained (doUI=1) -> relative mouse left off
+[INPUT] focus lost (doUI=1) -> relative mouse released
+[INPUT] focus gained (doUI=1) -> relative mouse left off
+[INPUT] focus lost (doUI=1) -> relative mouse released
+[INPUT] focus gained (doUI=1) -> relative mouse left off
+[INPUT] focus lost (doUI=1) -> relative mouse released

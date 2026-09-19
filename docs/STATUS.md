@@ -21636,3 +21636,43 @@ the lead; `atm.cpp:2334 sortie_rate <= 2` (×1). None appear in the menu run. Th
   timing miss, not the image — the 95 s re-run painted at every 20 s tick.)
 
 **TAIWAN-1: 1 sprint.**
+
+### TAIWAN-2 (Fable 5.1, 2026-09-19) — ⭐⭐ **PO: "loaded taiwan campaign, selected first mission, takeoff, crash entering 3D" (`double free or corruption (out)` in `ObjectLOD::Load`). REPRODUCED on the sixth recipe and the mechanism found: a flight, THEN a theater switch, THEN a flight. `ObjectLOD::CleanupTable` frees the shared `LodBuffer` and leaves the pointer dangling; the next `Load()` that needs a bigger buffer frees it again.** Fix in; verification run queued
+
+**Repro (`tools/ff_te_end_switch.sh`, arm C6):** fly TE 02 → Esc, E (the exit menu needs the E key; Esc
+alone only opens it) → RESCUE twice back to the main menu → `TTaiwan@168` (a new `FF_UI_CLICK` step,
+`T<theater>@<sec>`, = the THEATER screen's Back path via `FF_UISwitchTheater`) → Campaign → COMMIT → OK →
+FLY → TAKEOFF. Same backtrace as the PO's: loader thread, `ObjectLOD::Load` objectlod.cpp:448,
+`UpdateLods`, `Loader::MainLoop`. Without the first flight (arms A, B2) the same switch and flight are
+clean — the buffer only exists once something has loaded.
+
+**Mechanism (`FF_DEBUG_LODLIFE=1`, arm C7):** `[lodlife] Load(153): resize free (nil) (0 -> 56324)` …
+`Load(4105): resize free 0x…62c20 (56324 -> 2953752)` … switch: `[lodlife] CleanupTable: free LodBuffer
+0x…53650 size 2953752` — and nothing re-allocates: the `SetupTable` malloc never printed, so the next
+`Load` saw `LodBufferSize == 0`, took the resize branch and `free()`d the already-freed pointer.
+**Fix:** `LodBuffer = NULL` after the cleanup free (objectlod.cpp). The resize branch then frees NULL.
+
+**Also fixed on the way (TAIWAN-2b):** switching theater from the TE planning screen crashed in
+`UI_Cleanup → C_TreeList::DeleteBranch → UpdateMissionWindow → UnHideCluster` (arm C5) — the tree's
+delete-callback poked a window being torn down. `C_TreeList::Cleanup` now silences the callback
+(`FF_TREE_CLEANUP_CB=1` restores).
+
+**Not done yet:** the C7 verification lost its post-switch clicks to a stall (they all fired at 254 s);
+C8 with join-relative timing is queued. Evidence: `docs/reference/260919_taiwan/repro_C6_crash.log`.
+
+### SAM-1 (Fable 5.1, 2026-09-19) — 🟠 **PO: "missile threat TE, drove to SA 8 site, SA 8 search radar on RWR but no missile launch, overfly SA 8 site with no missile launch." First measurement: the SA-8 unit HOLDS an air target with weapons and permission, but its stores manager never selects a missile (`curWeapon=none`), so `MissileTrack()` is never reached**
+
+* `FF_DEBUG_SAM=1` (new): `MissileTrack` prints every refusal with its reason; `GNDAIClass::Fire`
+  prints, per unit with an AIR target, `emitter/hasWeapons/allowSamFire/hidden/curWeapon`.
+* TE 28 on autopilot (`tools/ff_sam28_trace.sh`, `sam28b`): 21 lines, all
+  `gnd unit type=3420 has AIR target: emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none`,
+  zero `MissileTrack` lines, zero launches. The player died between 120 and 180 s (pilot-options menu
+  in the 180 s frame) — not to a ground missile.
+* So the gate is `GroundClass::SelectWeapon → SMSBaseClass::SelectBestWeapon`, which returns nothing.
+  Its first test is `Unit::CanShootWeapon(wid)`; for a RADAR-guided weapon `BattalionClass::
+  CanShootWeapon` requires the battalion's radar mode to be GUIDE or SEARCH_100, and that mode is
+  stepped in `GNDAIClass` from the ground radar's `tracking`/`detecting` sensor states — **exactly the
+  "search radar on RWR, never a launch" the PO saw.** Next run (`sam28c`, queued) prints the vehicle
+  name, range, each hardpoint's `canShoot`, the campaign unit's radar mode and the radar-step inputs.
+
+### LGB-1 (Fable 5.1, 2026-09-19) — 🟡 **PO: "lgb TE worked, bomb hit, but when I turned around and flew back to target to see result visually, there were no objects, no buildings, just a bomb crater decal and terrain."** One hypothesis eliminated: `FF_DUMP_VISTYPES=1` counts 637 feature classes, all 637 with normal, damaged, destroyed AND left-destroyed models — destroyed buildings are not modelless. Open; the feature wake/sleep path on the return leg (`CreateDrawable` retires the old drawable with `RemoveObject`) is the next suspect and needs a flown repro (`FF_TEST_BOMB` on TE 25).

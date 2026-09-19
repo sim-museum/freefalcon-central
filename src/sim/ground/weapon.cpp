@@ -356,6 +356,7 @@ BOOL GroundClass::DoWeapons(void)
             vec.y = 0.0f;
             vec.z = 0.0f;
             /*
+            if (ffSamDbg()) { fprintf(stderr, "[sam] LAUNCH t=%u\n", (unsigned)SimLibElapsedTime); fflush(stderr); }
             OTWDriver.AddSfxRequest( new SfxClass( SFX_SAM_LAUNCH,
              SFX_MOVES bitor SFX_NO_GROUND_CHECK,
              &pos,
@@ -728,6 +729,20 @@ int GroundClass::GunTrack(void)
     return (fire);
 }
 
+/* SAM-1 (PO 2026-09-19, TE 28: "SA 8 search radar on RWR but no missile launch, overfly SA 8 site
+   with no missile launch"). MissileTrack() has nine silent return-FALSE paths; without a trace the
+   difference between "the SAM decided not to" and "the SAM never got here" is invisible.
+   FF_DEBUG_SAM=1 prints the first 40 refusals (with their reason) and every launch. */
+static int ffSamDbg(void) { static int on = -1; if (on < 0) on = getenv("FF_DEBUG_SAM") ? 1 : 0; return on; }
+static void ffSamRefuse(const char* why, float a = 0.f, float b = 0.f)
+{
+    if (!ffSamDbg()) return;
+    static int n = 0; if (n >= 40) return; n++;
+    fprintf(stderr, "[sam] MissileTrack refused: %s (%.1f / %.1f) t=%u\n", why, a, b, (unsigned)SimLibElapsedTime);
+    fflush(stderr);
+}
+#define SAM_REFUSE(why, ...) do { ffSamRefuse(why, ##__VA_ARGS__); return FALSE; } while (0)
+
 int GroundClass::MissileTrack(void)
 {
     float zft;
@@ -753,7 +768,7 @@ int GroundClass::MissileTrack(void)
     // RV - Biker - Think here is a problem
     // FRB - Increased VT = 1 to VT = 3, same as GMT threshold
     if ( not isShip and (GetVt() > 3.0f and not g_bFireOntheMove))
-        return FALSE;
+        SAM_REFUSE("moving", GetVt());
 
     // check for radar-guided missiles
     if (theMissile->sensorArray)
@@ -767,7 +782,7 @@ int GroundClass::MissileTrack(void)
 
                 // if we don't have a fire control radar, don't launch
                 if ( not battalionFireControl)
-                    return FALSE;
+                    SAM_REFUSE("no battalion fire-control radar vehicle");
 
                 // Shoot at our fire control radar's target
                 // (Kinda annoying to go to the trouble of picking a target for this vehicle,
@@ -797,13 +812,13 @@ int GroundClass::MissileTrack(void)
 
                 // ADDED BY S.G. SO SAM DO NOT NORMALLY FIRE WHEN JAMMED. DEPENDING ON THE SKILL, THEY MIGHT FIRE THOUGH
                 if (radar->CurrentTarget() and radar->CurrentTarget()->localData->sensorState[SensorClass::Radar] not_eq SensorClass::SensorTrack and (rand() % 1000 >= (4 - gai->skillLevel) * (4 - gai->skillLevel) * 10))
-                    return FALSE;
+                    SAM_REFUSE("radar not tracking target (search only / jammed)");
 
                 // END OF ADDED SECTION
 
                 // Make sure we still have a target after all the above contortions
                 if ( not targetPtr)
-                    return FALSE;
+                    SAM_REFUSE("no target after radar handoff");
             }
             break;
 
@@ -814,7 +829,7 @@ int GroundClass::MissileTrack(void)
 
                 if ( not ((IrstClass*)theMissile->sensorArray[0])->CanDetectObject(targetPtr))
                 {
-                    return FALSE;
+                    SAM_REFUSE("IR seeker cannot see target");
                 }
             }
             break;
@@ -908,23 +923,23 @@ int GroundClass::MissileTrack(void)
     if ( not target->OnGround())
     {
         if (maxAlt == 0.0f)
-            return FALSE;
+            SAM_REFUSE("weapon MaxAlt is 0");
 
         // edg: I'm leaving these in for now, however this should all be
         // moved into weapon selection.  I've commented them out in guns.
         if (zft < maxAlt or zft > minAlt)
-            return FALSE;
+            SAM_REFUSE("target outside alt band (zft / maxAlt)", zft, maxAlt);
 
         // if (targetPtr->localData->range > wc->Range*KM_TO_FT /*or targetPtr->localData->range < wc->Range*KM_TO_FT*0.1F */)
         // return FALSE;
         if (targetPtr->localData->range > theMissile->GetRMax(-target->ZPos(), 0,
                 targetPtr->localData->az, targetPtr->BaseData()->GetVt(), targetPtr->localData->ataFrom))
-            return FALSE;
+            SAM_REFUSE("beyond Rmax (range)", targetPtr->localData->range);
 
         if (auxData)
         {
             if (targetPtr->localData->range < auxData->MinEngagementRange) // 2002-03-09 MODIFIED BY S.G. Uses the MISSILES data file, more granular than the radar data file
-                return FALSE;
+                SAM_REFUSE("inside min engagement range", targetPtr->localData->range, auxData->MinEngagementRange);
         }
 
         // SCR 11/20/98  Lets let the seeker and kinematics deal with this...
