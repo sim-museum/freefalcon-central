@@ -279,6 +279,33 @@ int LoadClassTable(char *filename)
         fprintf(stderr, "[vistypes] feature classes=%d with normal model=%d damaged=%d destroyed=%d left-dest=%d\n", nFeat, nNorm, nDam, nDest, nLeft);
         fflush(stderr);
     }
+    /* SAM-1 (PO 2026-09-19): FF_DUMP_SAMDATA=1 -- every surface-to-air missile's engagement data as the
+       class table hands it to SelectBestWeapon/MissileTrack (Range km, HitChance LowAir/Air, MaxAlt kft,
+       the Name[18] min-alt byte, guidance), and every vehicle whose name says SA- with its weapon ids. */
+    if (getenv("FF_DUMP_SAMDATA"))
+    {
+        for (int k = 0; k < NumEntities; k++)
+        {
+            VU_BYTE* ci = Falcon4ClassTable[k].vuClassData.classInfo_;
+            if (ci[VU_DOMAIN] == DOMAIN_AIR && ci[VU_CLASS] == CLASS_VEHICLE && ci[VU_TYPE] == TYPE_MISSILE && ci[VU_STYPE] == STYPE_MISSILE_SURF_AIR)
+            {
+                int w = -1;
+                for (int j = 0; j < NumWeaponTypes; j++) if (WeaponDataTable[j].Index == k) { w = j; break; }
+                if (w >= 0)
+                    fprintf(stderr, "[samdata] weapon %d class %d '%s': Range=%d km HitChance LowAir=%d Air=%d MaxAlt=%d kft minAltByte=%d Guidance=0x%x Flags=0x%x\n",
+                        w, k, WeaponDataTable[w].Name, (int)WeaponDataTable[w].Range, (int)WeaponDataTable[w].HitChance[LowAir], (int)WeaponDataTable[w].HitChance[Air],
+                        (int)WeaponDataTable[w].MaxAlt, (int)(unsigned char)WeaponDataTable[w].Name[18], (unsigned)WeaponDataTable[w].GuidanceFlags, (unsigned)WeaponDataTable[w].Flags);
+            }
+            if (ci[VU_CLASS] == CLASS_VEHICLE && Falcon4ClassTable[k].dataPtr)
+            {
+                VehicleClassDataType* vc = (VehicleClassDataType*)Falcon4ClassTable[k].dataPtr;
+                if (strstr(vc->Name, "SA-") || strstr(vc->Name, "SA8") || strstr(vc->Name, "SA2"))
+                    fprintf(stderr, "[samdata] vehicle class %d '%s': radarType=%d weapons=[%d:%d %d:%d %d:%d %d:%d] flags=0x%x\n", k, vc->Name, (int)vc->RadarType,
+                        vc->Weapon[0], vc->Weapons[0], vc->Weapon[1], vc->Weapons[1], vc->Weapon[2], vc->Weapons[2], vc->Weapon[3], vc->Weapons[3], (unsigned)vc->Flags);
+            }
+        }
+        fflush(stderr);
+    }
 
     // Build ptr data
     for (i = 0; i < NumEntities; i++)

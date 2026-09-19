@@ -21676,3 +21676,15 @@ C8 with join-relative timing is queued. Evidence: `docs/reference/260919_taiwan/
   name, range, each hardpoint's `canShoot`, the campaign unit's radar mode and the radar-step inputs.
 
 ### LGB-1 (Fable 5.1, 2026-09-19) — 🟡 **PO: "lgb TE worked, bomb hit, but when I turned around and flew back to target to see result visually, there were no objects, no buildings, just a bomb crater decal and terrain."** One hypothesis eliminated: `FF_DUMP_VISTYPES=1` counts 637 feature classes, all 637 with normal, damaged, destroyed AND left-destroyed models — destroyed buildings are not modelless. Open; the feature wake/sleep path on the return leg (`CreateDrawable` retires the old drawable with `RemoveObject`) is the next suspect and needs a flown repro (`FF_TEST_BOMB` on TE 25).
+
+**SAM-1 S2 (same day):** the third TE 28 run with the stores, radar-mode and radar-step lines
+(`docs/reference/260919_taiwan/sam28c_trace.log`): the unit holding the player is the **SA-2**
+(`type 3420 'SA-2'`, weapons `[37:2 40:1]`, radarType 39); its battalion radar steps
+SEARCH→AQUIRE→**GUIDE (mode 6, tracking=1)** and hp1 (weapon 40) reports `canShoot=1` — so the radar
+handoff and the ammo gate both work. **What stops the launch in this run is range: the player sits at
+34–38 km** (`range=37.9km dz=1407ft`), outside the weapon's `GetWeaponRange` for LowAir, so
+`SelectBestWeapon` skips every hardpoint (`range_km > wrange → continue`) and `curWeapon` stays none.
+The autopilot route never enters any SAM envelope, and **the SA-8 never held the player at all** (no
+line for it) — this run does not reach the PO's overfly. `FF_DUMP_SAMDATA=1` (queued) prints every
+surface-to-air weapon's Range / HitChance / MaxAlt / min-alt byte and the SA- vehicles' weapon ids,
+to check the SA-8's envelope data before building a repro that flies through it.

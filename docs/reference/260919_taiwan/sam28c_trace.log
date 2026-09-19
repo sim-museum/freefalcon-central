@@ -1,0 +1,1136 @@
+[TRACE] About to call init_game_paths
+[TRACE] init_game_paths completed
+[TRACE] About to call init_resource_manager
+[TRACE] init_resource_manager completed
+[TRACE] About to call init_sdl
+[TRACE] SDL_Init completed, setting GL attributes
+[TRACE] About to create window
+[TRACE] init_sdl completed
+[TRACE] About to call init_opengl
+[TRACE] About to call SDL_GL_CreateContext
+[TRACE] init_opengl completed
+[main] Calling init_game_core...
+  [FalconDisplay::Setup] Starting DeviceIndependentGraphicsSetup...
+  [FalconDisplay::Setup] DeviceIndependentGraphicsSetup done
+  [FalconDisplay::Setup] Registering window class...
+  [FalconDisplay::Setup] RegisterClass done, calling MakeWindow...
+  [FalconDisplay::Setup] Calling MakeWindow...
+  [FalconDisplay::Setup] MakeWindow done, calling devmgr.Setup...
+  [EnumD3DDrivers] Starting...
+  [EnumD3DDrivers] DirectDrawCreateEx returned pDD7=0x572bb0f94ff0
+  [EnumD3DDrivers] QueryInterface for D3D7: hr=0x0, pD3D=0x572bb0f95020
+  [EnumD3DDrivers] Calling EnumDevices...
+    [EnumD3DDriversCallback] name=OpenGL, desc=FreeFalcon OpenGL Device
+    [EnumD3DDriversCallback] dwDevCaps=0x90000, required=0x10000
+    [EnumD3DDriversCallback] Adding device to list
+  [EnumD3DDrivers] EnumDevices returned
+  [FalconDisplay::Setup] devmgr.Setup done
+  Setting theater: Korea
+  [SetNewTheater] ReadIndex...
+  [SetNewTheater] LoadPriorityTables...
+  [SetNewTheater] TheaterReload...
+      [ObjectParent::CleanupTable] Starting, TheObjectList=0x572bb0f0cfa8, TheObjectListLength=3961
+      [ObjectParent::CleanupTable] FlushReferences()...
+      [ObjectParent::CleanupTable] FlushReferences() done
+      [ObjectParent::CleanupTable] ObjectLOD::CleanupTable()...
+        [ObjectLOD::CleanupTable] Starting, TheObjectLODs=0x572bb0e49af8, TheObjectLODsCount=6801
+        [ObjectLOD::CleanupTable] Iterating 6801 LODs...
+        [ObjectLOD::CleanupTable] LOD iteration done
+        [ObjectLOD::CleanupTable] WaitUpdates()...
+        [ObjectLOD::CleanupTable] WaitUpdates() done
+        [ObjectLOD::CleanupTable] Deleting TheObjectLODs...
+        [ObjectLOD::CleanupTable] TheObjectLODs deleted
+        [ObjectLOD::CleanupTable] Deleting tagListBuffer...
+        [ObjectLOD::CleanupTable] tagListBuffer deleted
+        [ObjectLOD::CleanupTable] ObjectLodMap.Close()...
+        [ObjectLOD::CleanupTable] ObjectLodMap closed
+        [ObjectLOD::CleanupTable] DeleteCriticalSection()...
+        [ObjectLOD::CleanupTable] Critical section deleted
+      [ObjectParent::CleanupTable] ObjectLOD::CleanupTable() done
+      [ObjectParent::CleanupTable] TheTextureBank.Cleanup()...
+      [ObjectParent::CleanupTable] ThePaletteBank.Cleanup()...
+      [ObjectParent::CleanupTable] TheColorBank.Cleanup()...
+      [ObjectParent::CleanupTable] Banks cleanup done
+      [ObjectParent::CleanupTable] Deleting TheObjectList...
+      [ObjectParent::CleanupTable] TheObjectList deleted
+  [SetNewTheater] ResSetDirectory...
+  [SetNewTheater] UnloadClassTable...
+  [SetNewTheater] LoadClassTable...
+========================================
+FreeFalcon 7.0.0
+Open Source Project
+Build: Sep 19 2026 12:21:51
+========================================
+
+Data directory: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
+Setting up game paths...
+  Campaign saves: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save
+  Terrain data: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea
+  Object data: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/objects
+  Sound directory: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/sounds
+Initializing resource manager...
+Initializing SDL2...
+  Window created: 1024x768
+  Keyboard scancode translation initialized.
+Initializing OpenGL...
+  OpenGL Vendor: NVIDIA Corporation
+  OpenGL Renderer: NVIDIA GeForce GTX 1660 SUPER/PCIe/SSE2
+  OpenGL Version: 4.6.0 NVIDIA 595.84
+  OpenGL Stencil Bits: 8
+Initializing OpenAL...
+  OpenAL Vendor: OpenAL Community
+  OpenAL Renderer: OpenAL Soft
+  OpenAL Version: 1.1 ALSOFT 
+
+--- Initializing Game Core Systems ---
+  Initializing communications layer...
+  Communications layer initialized successfully
+  Setting up FalconDisplay for Linux...
+  Loading display options...
+  Initializing DeviceManager...
+[D3DGL] Creating DirectDraw7 interface
+  Initializing simulation memory pools...
+  Loading particle system parameters...
+  Loading theater list...
+  Loading class table (InitClassTableAndData)...
+  Class table loaded. Falcon4ClassTable=0x572bb1720750
+  Loading: UnitData...
+LoadUnitData: trying to open file Falcon4 with extension UCD
+LoadUnitData: file opened successfully
+LoadUnitData: file size=252002, entries=750, sizeof(UnitClassDataType)=336, expected=252002
+  Loading: FeatureEntryData...
+  Loading: ObjectiveData...
+  Loading: WeaponData...
+  Loading: FeatureData...
+  Loading: VehicleData...
+  Loading: WeaponListData...
+  Loading: PtHeaderData...
+  Loading: PtData...
+  Loading: RadarData...
+  Loading: IRSTData...
+  Loading: RwrData...
+  Loading: VisualData...
+  Loading: SimWeaponData...
+  Loading: ACDefData...
+  Loading: SquadronStoresData...
+  Loading: RocketData...
+  Loading: DirtyData...
+  Loading: MissionData...
+  Loading: VisIdMap...
+  Loading: RackTables...
+  Loading: RDRackData...
+  All data files loaded! Checking Falcon4ClassTable...
+  Falcon4ClassTable = 0x572bb1720750, NumEntities = 3678
+  [SetNewTheater] ReadCampAIInputs...
+  [SetNewTheater] FreeTactics...
+  [SetNewTheater] LoadTactics...
+  [SetNewTheater] LoadTrails...
+  [SetNewTheater] Freeing SIM data...
+  [SetNewTheater] Reading SIM data...
+  [SetNewTheater] SetCurrentTheater...
+  [SetNewTheater] Complete!
+  [main_linux] SetNewTheater returned, calling InitVU...
+  Initializing VU system...
+  [main_linux] InitVU returned
+  Setting up thread manager...
+  [main_linux] ThreadManager::setup() returned
+  Initializing sound manager...
+[InstallDSound] Starting, gSoundDriver=0x572bb0ee0ee0, DSound=(nil)
+[InstallDSound] Calling DirectSoundCreate...
+[InstallDSound] DirectSoundCreate returned 0x0, DSound=0x572bb1bfdb60
+  [main_linux] InitSoundManager() succeeded
+  Starting sound system...
+  [main_linux] F4SoundStart() returned
+  Starting simulation loop...
+  [main_linux] SimulationLoopControl::StartSim() returned
+  Initializing weather system...
+  [main_linux] realWeather created
+  Initializing campaign system...
+[StartLoop] Thread started, entering main loop
+[StartLoop] Waiting for wait_for_start_graphics event...
+[ThreadManager::start_campaign_thread] ENTRY, function=0x572b96356710
+[ThreadManager::start_campaign_thread] Calling CreateThread...
+[ThreadManager::start_campaign_thread] CreateThread returned handle=0x572bb6849d70
+[ThreadManager::start_campaign_thread] DONE
+[CampaignThread] STARTED - entering function
+[CampaignThread] About to call HandleCampaignThread()
+[HandleCampaignThread] STARTED - entering function
+[HandleCampaignThread] Set CAMP_RUNNING, campaign_active()=1
+[HandleCampaignThread] Got CAMP_SUSPEND_REQUEST, setting CAMP_SUSPENDED
+  [main_linux] Camp_Init() returned
+  Building key mappings...
+  [main_linux] BuildAscii() SKIPPED -- static Key_Chart kept (MP-1)
+  Initializing comms manager...
+  [main_linux] gCommsMgr->Setup() returned
+  Loading logbook...
+[FF_LINUX] WeatherClass::Init entry (instantAction=1)
+[FF_LINUX] WeatherClass::Init: lastCheck=0
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+  [main_linux] logbook loaded for 'Viper'
+  Loading keyboard function tables...
+  [main_linux] LoadFunctionTables() returned
+  Game core initialization complete.
+[main] init_game_core() returned
+[main] Calling init_d3d_graphics...
+[Texture::SetupForDevice] rc=0x572bb1abfc00 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/objects/
+[main] init_d3d_graphics() returned
+
+========================================
+Initialization complete!
+========================================
+[main] Entering main_loop...
+
+========================================
+Entering main loop
+  ESC = quit, Click X to close
+========================================
+
+[Main] Posting FM_START_GAME to initialize game...
+[INPUT] focus gained (doUI=0) -> relative mouse re-enabled
+[INPUT] focus lost (doUI=0) -> relative mouse released
+[FM] FM_START_GAME received
+[FF_SIM_SCREENSHOT] parsed 4 capture(s)
+[FF_SIM_KEY] parsed 1 key events
+[FM] FM_START_UI received
+[FM] Main thread re-acquired GL context
+[FM] Calling UI_Startup()...
+[UI_Startup] ENTRY, FalconDisplay.currentMode=1
+[UI_Startup] Calling EnterMode(UI)...
+  [DisplayDevice::Setup] Starting 1024x768x16, fullscreen=0
+  [DisplayDevice::Setup] Calling CreateContext...
+  [CreateContext] driverNum=0, devNum=0, resNum=18
+  [CreateContext] GetDriver returned pDDI=0x572bb0f969e0
+  [CreateContext] D3D devices count: 1
+  [CreateContext] Display modes count: 46
+  [CreateContext] GetDevice returned pD3DDI=0x572bb0f95070
+  [CreateContext] GetDisplayMode returned pddsd=0x572bb0f99160
+  [DXContext::Init] Starting with hWnd=0x572baffc4c80, 1024x768@16, fullscreen=0
+  [DXContext::Init] Checking thread ID...
+  [DXContext::Init] Thread ID check passed
+  [DXContext::Init] Calling DirectDrawCreateEx...
+  [DXContext::Init] DirectDrawCreateEx returned m_pDD=0x572bb6c32190
+  [DXContext::Init] Calling GetCaps... m_pcapsDD=0x572bb6c351b0
+  [DXContext::Init] GetCaps done
+  [DXContext::Init] Calling GetDeviceIdentifier... m_pDevID=0x572bb6c35440
+  [DXContext::Init] GetDeviceIdentifier done
+  [DXContext::Init] DXContext::Init - DriverInfo - "OpenGL" - "FreeFalcon OpenGL Renderer", Vendor: 4318, Device: 4660, SubSys: 0, Rev: 0, Product: 0, Version: 0, SubVersion: 0, Build: 0
+  [DXContext::Init] Calling SetCooperativeLevel with flags=0x1408...
+  [DXContext::Init] SetCooperativeLevel done
+  [DXContext::Init] Complete!
+  [DisplayDevice::Setup] CreateContext returned m_DXCtx=0x572bb6c26a40
+  [DisplayDevice::Setup] Context created, setting up window...
+  [DisplayDevice::Setup] Calling ShowWindow...
+  [DisplayDevice::Setup] ShowWindow done
+  [DisplayDevice::Setup] Setting up windowed image, IsHardware=1...
+  [DisplayDevice::Setup] image.Setup done
+  [DisplayDevice::Setup] Calling SetRenderTarget, targetSurface=0x572bb6c26c90...
+[SetRenderTarget] Linux: Creating D3D7 interface directly
+[SetRenderTarget] Linux: m_pD3D=0x572bb6c25ad0
+[AttachDepthBuffer] Linux: Skipping - OpenGL manages depth buffers
+[SetRenderTarget] Linux: Creating D3D device directly, pRenderTarget=0x572bb6c26c90
+[SetRenderTarget] Linux: m_pD3DD=0x76799d6da010
+  [DisplayDevice::Setup] SetRenderTarget done
+  [DisplayDevice::Setup] Calling movieInit...
+  [DisplayDevice::Setup] Complete!
+[UI_Startup] EnterMode done, getting ImageBuffer...
+[GlobalSetup] Creating C_Parser...
+[GlobalSetup] Loading ID lists...
+[LoadIDList] Loading: userids.lst
+[LoadIDList] file size=500 for userids.lst
+[LoadIDList] Loading: fontids.lst
+[LoadIDList] file size=22 for fontids.lst
+[LoadIDList] Loading: imageids.lst
+[LoadIDList] file size=197 for imageids.lst
+[LoadIDList] Loading: soundids.lst
+[LoadIDList] file size=46 for soundids.lst
+[LoadIDList] Loading: textids.lst
+[LoadIDList] file size=21 for textids.lst
+[LoadIDList] Loading: movieids.lst
+[LoadIDList] file size=20 for movieids.lst
+[LoadImageList] Loading: resimgs.lst
+[LoadImageList] Opened: resimgs.lst
+[LoadSoundList] Loading: sounds.lst
+[LoadImageList] Loading: main_res.lst
+[LoadImageList] Opened: main_res.lst
+[LoadSoundList] Loading: main_snd.lst
+[LoadWindowList] Loading: main_scf.lst
+[LoadImageList] Loading: comm_res.lst
+[LoadImageList] Opened: comm_res.lst
+[LoadSoundList] Loading: comm_snd.lst
+[LoadWindowList] Loading: comm_scf.lst
+[LoadImageList] Loading: help_res.lst
+[LoadImageList] FAILED to open: help_res.lst
+[LoadSoundList] Loading: help_snd.lst
+[LoadWindowList] Loading: help_scf.lst
+[LoadImageList] Loading: lb_res.lst
+[LoadImageList] Opened: lb_res.lst
+[LoadSoundList] Loading: lb_snd.lst
+[LoadWindowList] Loading: lb_scf.lst
+[Texture::SetupForDevice] rc=0x572bb6c26a40 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/misctex/
+[FarTexDB] DDS file: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea/texture/fartiles.dds, headerSize=124, bytesRead=124
+[FarTexDB] DDS header: flags=0x81007, width=32, height=32, linearSize=512, mipMapCount=0
+[FarTexDB] DDS pixfmt: flags=0x0, fourCC=0x31545844, rgbBitCount=4
+[FarTexDB] linearSize=512, texCount=96664, fartexDDSFile.IsReady=1
+[PalLight] light=(0.750 0.829 0.849) gametime=0 pal=0x572bb9b798a0
+[FM] UI_Startup() complete
+FPS: 0 (avg over 5 sec), doUI=1, gMainHandler=0x572bb71586b0
+FPS: 57 (avg over 5 sec), doUI=1, gMainHandler=0x572bb71586b0
+FPS: 60 (avg over 5 sec), doUI=1, gMainHandler=0x572bb71586b0
+[FF_UI_CLICK] firing (677,748) at 12013ms
+[Mouse] LBUTTONDOWN at (677, 748)
+[LBUTTONDOWN] at (677,748) -> window=0x572bb8d311a0 ID=5000
+[LBUTTONDOWN] GrabItem found control ID=30003 type=25
+[LBUTTONUP] at (677,748) -> window=0x572bb8d311a0 Grab_.Control_=0x572bb8d33220
+[LBUTTONUP] Grab_.Control_ found: ID=30003 type=25
+[LBUTTONUP] Calling Process(ID=30003, type=52)
+[LoadImageList] Loading: pln_res.lst
+[LoadImageList] Opened: pln_res.lst
+[LoadSoundList] Loading: pln_snd.lst
+[LoadWindowList] Loading: pln_scf.lst
+[LoadImageList] Loading: cmn_res.lst
+[LoadImageList] Opened: cmn_res.lst
+[LoadSoundList] Loading: cmn_snd.lst
+[LoadWindowList] Loading: cmn_scf.lst
+[LoadImageList] Loading: ts_res.lst
+[LoadImageList] Opened: ts_res.lst
+[LoadSoundList] Loading: ts_snd.lst
+[LoadWindowList] Loading: ts_scf.lst
+[FF_UI_CLICK] firing (140,128) at 18010ms
+[Mouse] LBUTTONDOWN at (140, 128)
+[LBUTTONDOWN] at (140,128) -> window=0x572bbab100d0 ID=30200
+[LBUTTONDOWN] GrabItem found control ID=30216 type=0
+[LBUTTONUP] at (140,128) -> window=0x572bbab100d0 Grab_.Control_=0x572bbab19b30
+[LBUTTONUP] Grab_.Control_ found: ID=30216 type=0
+[LBUTTONUP] Calling Process(ID=30216, type=52)
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[LZSS_Expand] Called: srcSize=2731, size=16919
+[LZSS_Expand] LZSS_Expand: 16919 bytes out in 0.1 ms
+[FM] FM_GOT_CAMPAIGN_DATA received (wParam=16777216)
+[FM] FM_GOT_CAMPAIGN_DATA: RecieveScenarioInfo (S6x)
+[FF_UI_CLICK] firing (824,750) at 24001ms
+[Mouse] LBUTTONDOWN at (824, 750)
+[LBUTTONDOWN] at (824,750) -> window=0x572bbab272f0 ID=30209
+[LBUTTONDOWN] GrabItem found control ID=2000002 type=25
+[LBUTTONUP] at (824,750) -> window=0x572bbab272f0 Grab_.Control_=0x572bbab21310
+[LBUTTONUP] Grab_.Control_ found: ID=2000002 type=25
+[LBUTTONUP] Calling Process(ID=2000002, type=52)
+[LoadImageList] Loading: te_res.lst
+[LoadImageList] Opened: te_res.lst
+[LoadSoundList] Loading: te_snd.lst
+[LoadWindowList] Loading: te_scf.lst
+[FM] FM_LOAD_CAMPAIGN received (type=3)
+[FM] FM_LOAD_CAMPAIGN: Calling TheCampaign.LoadCampaign()...
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[VuSession::JoinGame] ENTRY: session=0x572bb0ee0990 newgame=0x572bb71c3ca0 current_game=(nil)
+[VuSession::JoinGame] Setting game_.reset(newgame=0x572bb71c3ca0)
+[VuSession::JoinGame] Game set, Game()=0x572bb71c3ca0
+[VuSession::JoinGame] EXIT: retval=1 Game()=0x572bb71c3ca0
+[FF_LINUX] WeatherClass::Init entry (instantAction=0)
+[FF_LINUX] WeatherClass::Init: lastCheck=31918789
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling UpdateCondition(1)
+[FF_LINUX] WeatherClass::Init: UpdateCondition returned
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] LoadBaseObjectives ENTRY: scenario='te_new'
+[FF_LINUX] LoadBaseObjectives: Calling ReadCampFile()
+[FF_LINUX] FF_TE_FILE: 'te_new' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] LoadBaseObjectives: ReadCampFile returned dataSize=-1
+[FF_LINUX] LoadBaseObjectives: No data, returning 0
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[LZSS_Expand] Called: srcSize=22, size=42
+[LZSS_Expand] LZSS_Expand: 42 bytes out in 0.0 ms
+Assertion at 3821  /home/admin/freefalcon-central/src/campaign/camplib/objectiv.cpp  Sep 18 2026
+[Failed:  o] Assertion at 3821  /home/admin/freefalcon-central/src/campaign/camplib/objectiv.cpp  Sep 18 2026
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] DecodeUnitData: count=13 size=7038 rem=2342 gCampDataVersion=73
+[LZSS_Expand] Called: srcSize=2342, size=7038
+[LZSS_Expand] LZSS_Expand: 7038 bytes out in 0.0 ms
+[FF_LINUX] DecodeUnitData: LZSS_Expand returned 2341
+[FF_LINUX] DecodeUnitData: first 20 bytes after expand: b6 01 29 4e 00 00 00 00 00 00 b6 01 9b 01 87 01 00 60 ea c6 
+[FF_LINUX] DecodeUnitData: bytes 80-99: 00 60 50 e4 01 01 00 00 80 40 00 00 1f 04 00 00 00 00 00 00 
+[FF_LINUX] DecodeUnitData: Unit 0 - buf before read: b6 01, rem=7038
+[FF_LINUX] DecodeUnitData: Unit 0 - type read: 438 (0x01b6)
+[FF_LINUX] CampBaseClass ctor[1] entry
+[FF_LINUX] CampBaseClass ctor[1] entityType=438
+[FF_LINUX] CampBaseClass ctor[1] calling SetLocation(411,391)
+[FF_LINUX] CampBaseClass ctor[1] SetLocation done
+[FF_LINUX] CampBaseClass ctor[1] complete
+[FF_LINUX] UnitClass ctor[1] entry after CampBase: rem=7007
+[FF_LINUX] UnitClass ctor[1] after DecodeWaypoints: rem=6807
+[FF_LINUX] DecodeUnitData: Unit 0 - after NewUnit, rem=6678, next bytes: 02 02
+[FF_LINUX] DecodeUnitData: Unit 1 - buf before read: 02 02, rem=6678
+[FF_LINUX] DecodeUnitData: Unit 1 - type read: 514 (0x0202)
+[FF_LINUX] CampBaseClass ctor[2] entry
+[FF_LINUX] CampBaseClass ctor[2] entityType=514
+[FF_LINUX] CampBaseClass ctor[2] calling SetLocation(415,416)
+[FF_LINUX] CampBaseClass ctor[2] SetLocation done
+[FF_LINUX] CampBaseClass ctor[2] complete
+[FF_LINUX] UnitClass ctor[2] entry after CampBase: rem=6647
+[FF_LINUX] UnitClass ctor[2] after DecodeWaypoints: rem=6604
+[FF_LINUX] SquadronClass ctor[1] entry: rem=6604 gCampDataVersion=73
+[FF_LINUX] SquadronClass ctor[1] after fuel+specialty: rem=6599
+[FF_LINUX] SquadronClass ctor[1] after stores: rem=5999
+[FF_LINUX] SquadronClass ctor[1] after pilot_data: rem=5519
+[FF_LINUX] DecodeUnitData: Unit 1 - after NewUnit, rem=5408, next bytes: 12 02
+[FF_LINUX] DecodeUnitData: Unit 2 - buf before read: 12 02, rem=5408
+[FF_LINUX] DecodeUnitData: Unit 2 - type read: 530 (0x0212)
+[FF_LINUX] CampBaseClass ctor[3] entry
+[FF_LINUX] CampBaseClass ctor[3] entityType=530
+[FF_LINUX] CampBaseClass ctor[3] calling SetLocation(411,391)
+[FF_LINUX] CampBaseClass ctor[3] SetLocation done
+[FF_LINUX] CampBaseClass ctor[3] complete
+[FF_LINUX] UnitClass ctor[3] entry after CampBase: rem=5377
+[FF_LINUX] UnitClass ctor[3] after DecodeWaypoints: rem=5334
+[FF_LINUX] DecodeUnitData: Unit 2 - after NewUnit, rem=5253, next bytes: ee 02
+[FF_LINUX] CampBaseClass ctor[4] entry
+[FF_LINUX] CampBaseClass ctor[4] entityType=750
+[FF_LINUX] CampBaseClass ctor[4] calling SetLocation(397,439)
+[FF_LINUX] CampBaseClass ctor[4] SetLocation done
+[FF_LINUX] CampBaseClass ctor[4] complete
+[FF_LINUX] CampBaseClass ctor[5] entry
+[FF_LINUX] CampBaseClass ctor[5] entityType=530
+[FF_LINUX] CampBaseClass ctor[5] calling SetLocation(397,439)
+[FF_LINUX] CampBaseClass ctor[5] SetLocation done
+[FF_LINUX] CampBaseClass ctor[5] complete
+[FF_LINUX] SquadronClass ctor[2] entry: rem=4398 gCampDataVersion=73
+[FF_LINUX] SquadronClass ctor[2] after fuel+specialty: rem=4393
+[FF_LINUX] SquadronClass ctor[2] after stores: rem=3793
+[FF_LINUX] SquadronClass ctor[2] after pilot_data: rem=3313
+[FF_LINUX] SquadronClass ctor[3] entry: rem=2973 gCampDataVersion=73
+[FF_LINUX] SquadronClass ctor[3] after fuel+specialty: rem=2968
+[FF_LINUX] SquadronClass ctor[3] after stores: rem=2368
+[FF_LINUX] SquadronClass ctor[3] after pilot_data: rem=1888
+[FF_LINUX] FF_TE_FILE: 'te_new' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+Assertion at 1371  /home/admin/freefalcon-central/src/campaign/camptask/gtm.cpp  Sep 16 2026
+[Failed:  PODataList and PODataList->GetFirstElement()] Assertion at 1371  /home/admin/freefalcon-central/src/campaign/camptask/gtm.cpp  Sep 16 2026
+Assertion at 1389  /home/admin/freefalcon-central/src/campaign/camptask/gtm.cpp  Sep 16 2026
+[Failed:  0] Assertion at 1389  /home/admin/freefalcon-central/src/campaign/camptask/gtm.cpp  Sep 16 2026
+[FF_LINUX] WeatherClass::Init entry (instantAction=0)
+[FF_LINUX] WeatherClass::Init: lastCheck=31918789
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling UpdateCondition(1)
+[FF_LINUX] WeatherClass::Init: UpdateCondition returned
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+[FF_LINUX] FF_TE_FILE: '02 Takeoff' -> '28 Missile Threat'
+[FF_LINUX] StartReadCampFile: type=3 filename='28 Missile Threat'
+[FF_LINUX] StartReadCampFile: FalconCampUserSaveDirectory='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save'
+[FF_LINUX] StartReadCampFile: Opening path='/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save/28 Missile Threat.trn'
+[FF_LINUX] StartReadCampFile: Successfully opened campaign file
+[FM] FM_LOAD_CAMPAIGN: LoadCampaign() returned 1
+[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_SUCCEEDED
+[FM] FM_JOIN_SUCCEEDED received
+[FF_UI_CLICK] firing (973,750) at 30009ms
+[Mouse] LBUTTONDOWN at (973, 750)
+[LBUTTONDOWN] at (973,750) -> window=0x572bbae60fa0 ID=30402
+[LBUTTONDOWN] GrabItem found control ID=2000000 type=25
+[LBUTTONUP] at (973,750) -> window=0x572bbae60fa0 Grab_.Control_=0x572bbae638f0
+[LBUTTONUP] Grab_.Control_ found: ID=2000000 type=25
+[LBUTTONUP] Calling Process(ID=2000000, type=52)
+[FM] FM_START_TACTICAL received
+[EndUI] ENTRY
+[EndUI] Calling TheCampaign.Suspend()...
+[HandleCampaignThread] Got CAMP_SUSPEND_REQUEST, setting CAMP_SUSPENDED
+[StartLoop] Event received! Proceeding.
+[GL] FF_SimThreadAcquireGL() ENTER
+[EndUI] Suspend() returned, calling UI_Cleanup()...
+[UI_Cleanup] ENTRY
+[UI_Cleanup] SetCursor done, cleaning UI_VuThread...
+[UI_Cleanup] UI_VuThread done, cleaning gCommsMgr callbacks...
+[UI_Cleanup] gCommsMgr callbacks done, sleeping 10ms...
+[UI_Cleanup] Sleep done, cleaning gMapMgr...
+[UI_Cleanup] gMapMgr done, cleaning gMainHandler...
+[GL] Sim thread acquired GL context, g_simOwnsGLContext=true
+[StartLoop] GL context acquired
+[OTWDriver.Enter] this=0x572b96dc0900, &OTWDriver=0x572b96dc0900
+[UI_Cleanup] gMainHandler done, cleaning gUIViewer...
+[UI_Cleanup] gUIViewer done, checking CleanViewpoint (mode=2)...
+[UI_Cleanup] Skipping CleanViewpoint() - in Sim mode
+[UI_Cleanup] Skipping DeviceDependentGraphicsCleanup() - in Sim mode
+[UI_Cleanup] sound/music done, cleaning popup/image/anim managers...
+[EndUI] UI_Cleanup() returned, calling Resume()...
+[EndUI] Resume() returned, calling SetFocus()...
+[EndUI] EXIT
+[FF_SIM_KEY] sim entry latched at 95719ms; times are relative to this
+[OTWDriver.Enter] Calling FalconDisplay.EnterMode(Sim)...
+  [DisplayDevice::Setup] Starting 1024x768x32, fullscreen=0
+  [DisplayDevice::Setup] Calling CreateContext...
+  [CreateContext] driverNum=0, devNum=0, resNum=19
+  [CreateContext] GetDriver returned pDDI=0x572bb0f969e0
+  [CreateContext] D3D devices count: 1
+  [CreateContext] Display modes count: 46
+  [CreateContext] GetDevice returned pD3DDI=0x572bb0f95070
+  [CreateContext] GetDisplayMode returned pddsd=0x572bb0f991e8
+  [DXContext::Init] Starting with hWnd=0x572baffc4c80, 1024x768@32, fullscreen=0
+  [DXContext::Init] Checking thread ID...
+  [DXContext::Init] Thread ID check passed
+  [DXContext::Init] Calling DirectDrawCreateEx...
+  [DXContext::Init] DirectDrawCreateEx returned m_pDD=0x572bb6c31a70
+  [DXContext::Init] Calling GetCaps... m_pcapsDD=0x572bb6c351b0
+  [DXContext::Init] GetCaps done
+  [DXContext::Init] Calling GetDeviceIdentifier... m_pDevID=0x76798c1ab770
+  [DXContext::Init] GetDeviceIdentifier done
+  [DXContext::Init] DXContext::Init - DriverInfo - "OpenGL" - "FreeFalcon OpenGL Renderer", Vendor: 4318, Device: 4660, SubSys: 0, Rev: 0, Product: 0, Version: 0, SubVersion: 0, Build: 0
+  [DXContext::Init] Calling SetCooperativeLevel with flags=0x1408...
+  [DXContext::Init] SetCooperativeLevel done
+  [DXContext::Init] Complete!
+  [DisplayDevice::Setup] CreateContext returned m_DXCtx=0x76798c1b0bb0
+  [DisplayDevice::Setup] Context created, setting up window...
+  [DisplayDevice::Setup] Calling ShowWindow...
+  [DisplayDevice::Setup] ShowWindow done
+[FF_SIM_KEY] DOWN dik=0x1e nmods=0 at 8004ms
+  [DisplayDevice::Setup] Setting up windowed image, IsHardware=1...
+  [DisplayDevice::Setup] image.Setup done
+[FF_SIM_KEY] UP   dik=0x1e nmods=0 at 8261ms
+  [DisplayDevice::Setup] Calling SetRenderTarget, targetSurface=0x572bb6c26c90...
+[SetRenderTarget] Linux: Creating D3D7 interface directly
+[SetRenderTarget] Linux: m_pD3D=0x76798c1b0b30
+[AttachDepthBuffer] Linux: Skipping - OpenGL manages depth buffers
+[SetRenderTarget] Linux: Creating D3D device directly, pRenderTarget=0x572bb6c26c90
+[SetRenderTarget] Linux: m_pD3DD=0x76798c4ca8f0
+  [DisplayDevice::Setup] SetRenderTarget done
+  [DisplayDevice::Setup] Calling movieInit...
+  [DisplayDevice::Setup] Complete!
+[OTWDriver.Enter] EnterMode done
+[OTWDriver.Enter] OTWImage=0x572b96857678, targetSurface=0x572bb6c26c90
+[Texture::CleanupForDevice] Setting rc=NULL (was 0x572bb6c26a40)
+[Texture::SetupForDevice] rc=0x76798c1b0bb0 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/misctex/
+[FarTexDB] DDS file: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea/texture/fartiles.dds, headerSize=124, bytesRead=124
+[FarTexDB] DDS header: flags=0x81007, width=32, height=32, linearSize=512, mipMapCount=0
+[FarTexDB] DDS pixfmt: flags=0x0, fourCC=0x31545844, rgbBitCount=4
+[FarTexDB] linearSize=512, texCount=96664, fartexDDSFile.IsReady=1
+[PalLight] light=(0.750 0.829 0.849) gametime=31918789 pal=0x76798e4213e0
+[OTWDriver.Enter] Creating viewPoint...
+[OTWDriver.Enter] viewPoint created: 0x76798e9abe00
+[OTWDriver.Enter] viewPoint->Setup done
+[OTWDriver.Enter] Creating renderer, OTWImage=0x572b96857678, targetSurface=0x572bb6c26c90
+[OTWDriver.Enter] Calling renderer->Setup...
+[OTW.Setup] LastNearTexLOD=2 LastFarTexLOD=4 NumLevels=6
+[OTWDriver.Enter] renderer->Setup done
+[OTWDriver.Enter] VbManager.Setup...
+[OTWDriver.Enter] VbManager.Setup done
+[OTWDriver.Enter] SetupSplashScreen...
+[OTWDriver.Enter] SplashScreenUpdate...
+[OTWDriver.Enter] RegisterTimeUpdateCB...
+[OTWDriver.Enter] VCock_Init...
+[SetupRttTarget] Created: 512x512 bpp=32 renderTexture=0x767978b90ba0 m_pDDS=0x767978b90c10
+[OTWDriver.Enter] VCock_Init done
+[OTWDriver.Enter] Button3D_Init...
+[OTWDriver.Enter] Button3D_Init done
+[OTWDriver.Enter] Initializing view state...
+[OTWDriver.Enter] View state initialized
+[OTWDriver.Enter] FindCockpit ckpit_res.dat...
+[OTWDriver.Enter] Creating CockpitManager (resX=0, resY=0, DispWidth=1024, DispHeight=768, FindBest=1024)...
+[OTWDriver.Enter] CockpitManager created=0x76797b6046b0 PadlockCPManager=0x76797b605670, creating MenuManager...
+[OTWDriver.Enter] MFD CreateDrawables...
+[INPUT] focus gained (doUI=0) -> relative mouse re-enabled
+[OTWDriver.Enter] CreateCockpitGeometry...
+[OTWDriver.Enter] CreateCockpitGeometry done
+[OTWDriver.Enter] F4SoundFXInit...
+[OTWDriver.Enter] F4SoundFXInit done
+[OTWDriver.Enter] SetupDIMouseAndKeyboard...
+[CreateSimCursors] Trying to open: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/art/ckptart/6_cursor.dat
+[CreateSimCursors] Loaded 12 cursors from /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/art/ckptart/6_turn.gif
+[OTWDriver.Enter] SetupDIMouseAndKeyboard done
+[OTWDriver.Enter] SetActive(TRUE)...
+[OTWDriver.Enter] Complete!
+[AircraftClass::Init] ENTER
+[AircraftClass::Init] SimVehicleClass::Init done
+[AircraftClass::Init] classPtr=0x572bb1753970, initData=0x76799fffea60
+[AircraftClass::Init] Checking SType/SPType...
+[AircraftClass::Init] Creating AirframeClass...
+[AircraftClass::Init] AirframeClass created: 0x767994003140
+[AircraftClass::Init] SetFlag done, mFaults=(nil)
+[AircraftClass::Init] FackClass created, isDigital=1
+[AircraftClass::Init] Checking RunningInstantAction...
+[AircraftClass::Init] RunningInstantAction check done
+[AircraftClass::Init] Initial pos set: x=1608830.0 y=1303791.8 z=-5000.0
+[AircraftClass::Init] Waypoints: numWaypoints=9 waypoint=0x767994000c50
+[AircraftClass::Init] Waypoint loop done
+[AircraftClass::Init] st=31664970 SimLibElapsedTime=31918789
+[AircraftClass::Init] SetStartTime done, currentWaypoint=2
+[AircraftClass::Init] Waypoint index loop done, curWaypoint=0x767994001130
+[AircraftClass::Init] Inside curWaypoint check, getting WPAction...
+[AircraftClass::Init] Getting UnitAirbase from campBase=0x572bbaef5ee0
+[AircraftClass::Init] UnitAirbase ent=(nil)
+[AircraftClass::Init] WPAction=11 (WP_TAKEOFF=1) allowGroundInit=1
+[AircraftClass::Init] Else branch (not WP_TAKEOFF)
+[AircraftClass::Init] Calling AddTakeOff, waypoint=0x767994000c50
+[AircraftClass::Init] AddTakeOff done
+[AircraftClass::Init] Got atWaypoint location: 1539950.3, 1303791.8, -5300.0
+[AircraftClass::Init] RunningInstantAction=0 isDigital=1
+[AircraftClass::Init] Getting wp2 location from curWaypoint=0x767994001130
+[AircraftClass::Init] wp2 location: 1710509.3, 1300511.8, -5000.0
+[AircraftClass::Init] initialPsi=-0.019, getting arrival times
+[AircraftClass::Init] dt=220274 SEC_TO_MSEC=1000
+[AircraftClass::Init] initialMach=775.411
+[AircraftClass::Init] After waypoint if block, initialMach=775.411
+[AircraftClass::Init] Mach clamped, afIdx lookup from vehicleDataIndex=129
+[AircraftClass::Init] afIdx=71 NumACDefEntries=266
+[AircraftClass::Init] Calling af->InitData(71)...
+[AircraftClass::Init] af->InitData done
+[AircraftClass::Init] Checking auxaeroData=0x572bb62fc5a0
+[AircraftClass::Init] F16 flag check done
+[AircraftClass::Init] Engine flag check done, creating SMS...
+[AircraftClass::Init] SMS created: 0x767994003b60
+[AircraftClass::Init] Creating FCC, NumHardpoints=10
+[AircraftClass::Init] FCC created: 0x767994007950
+[AircraftClass::Init] FCC->SetSms done
+[AircraftClass::Init] Getting gun from hardPoint[0]=0x767994003d00
+[AircraftClass::Init] Guns=0x767994003df0
+[AircraftClass::Init] Gun TrailID set
+[AircraftClass::Init] Checking ground level...
+[AircraftClass::Init] Ground level check done
+[AircraftClass::Init] Calling af->Init(71)...
+[AircraftClass::Init] af->Init done
+[AircraftClass::Init] Checking hasSwingWing...
+[AircraftClass::Init] hasSwingWing check done
+[AircraftClass::Init] Checking isComplex=1
+[AircraftClass::Init] Calling MakeComplex()...
+[AircraftClass::Init] MakeComplex done
+[AircraftClass::Init] isComplex check done
+[AircraftClass::Init] Calling SetSwitch(COMP_CANOPY)...
+[AircraftClass::Init] SetSwitch done
+[AircraftClass::Init] Checking ACMI recording...
+[AircraftClass::Init] ACMI check done
+[AircraftClass::Init] Checking IsComplex for laser/harm pods...
+[AircraftClass::Init] IsComplex check done
+[AircraftClass::Init] Checking Guns=0x767994003df0
+[AircraftClass::Init] Guns check done
+[AircraftClass::Init] Starting sensor setup...
+[AircraftClass::Init] Sensor setup done, numSensors=4
+[AircraftClass::Init] Creating brain, GetCampaignObject=0x572bbaef5ee0
+[AircraftClass::Init] Creating DigitalBrain...
+[AircraftClass::Init] DigitalBrain created: 0x767994008300
+[AircraftClass::Init] Brain created, calling DBrain()->SetTaxiPoint...
+[AircraftClass::Init] Creating PilotInputs...
+[AircraftClass::Init] PilotInputs created: 0x767994008760
+[AircraftClass::Init] Checking PreFlight...
+[AircraftClass::Init] Calling PreFlight()...
+[AircraftClass::Init] PreFlight done
+[AircraftClass::Init] End of initData block
+[AircraftClass::Init] EXIT - Init complete
+[StartLoop] Starting deagg wait: flight=0x572bbaef5ee0 IsAggregate=0 IsDead=0
+[StartLoop] Deagg wait done: flight=0x572bbaef5ee0 IsAggregate=0 IsDead=0 delayCounter=120
+[StartLoop] Waiting for SimDriver.GetPlayerEntity()...
+[AircraftClass::Init] ENTER
+[AircraftClass::Init] SimVehicleClass::Init done
+[AircraftClass::Init] classPtr=0x572bb1746ce8, initData=0x76799fffea60
+[AircraftClass::Init] Checking SType/SPType...
+[AircraftClass::Init] Creating AirframeClass...
+[AircraftClass::Init] AirframeClass created: 0x767994020520
+[AircraftClass::Init] SetFlag done, mFaults=(nil)
+[AircraftClass::Init] FackClass created, isDigital=1
+[AircraftClass::Init] Checking RunningInstantAction...
+[AircraftClass::Init] RunningInstantAction check done
+[AircraftClass::Init] Initial pos set: x=1441551.0 y=1303791.8 z=-25000.0
+[AircraftClass::Init] Waypoints: numWaypoints=7 waypoint=0x76799401f070
+[AircraftClass::Init] Waypoint loop done
+[AircraftClass::Init] st=31430300 SimLibElapsedTime=31918789
+[AircraftClass::Init] SetStartTime done, currentWaypoint=3
+[AircraftClass::Init] Waypoint index loop done, curWaypoint=0x76799401f190
+[AircraftClass::Init] Inside curWaypoint check, getting WPAction...
+[AircraftClass::Init] Getting UnitAirbase from campBase=0x572bbaef44f0
+[AircraftClass::Init] UnitAirbase ent=(nil)
+[AircraftClass::Init] WPAction=12 (WP_TAKEOFF=1) allowGroundInit=1
+[AircraftClass::Init] Else branch (not WP_TAKEOFF)
+[AircraftClass::Init] Calling AddTakeOff, waypoint=0x76799401f070
+[AircraftClass::Init] AddTakeOff done
+[AircraftClass::Init] Got atWaypoint location: 1441551.0, 1303791.8, -5000.0
+[AircraftClass::Init] RunningInstantAction=0 isDigital=1
+[AircraftClass::Init] Getting wp2 location from curWaypoint=0x76799401f190
+[AircraftClass::Init] wp2 location: 1471070.8, 1303791.8, -5000.0
+[AircraftClass::Init] initialPsi=0.000, getting arrival times
+[AircraftClass::Init] dt=38117 SEC_TO_MSEC=1000
+[AircraftClass::Init] initialMach=776.838
+[AircraftClass::Init] After waypoint if block, initialMach=776.838
+[AircraftClass::Init] Mach clamped, afIdx lookup from vehicleDataIndex=23
+[AircraftClass::Init] afIdx=18 NumACDefEntries=266
+[AircraftClass::Init] Calling af->InitData(18)...
+[AircraftClass::Init] af->InitData done
+[AircraftClass::Init] Checking auxaeroData=0x572bb66021b0
+[AircraftClass::Init] F16 flag check done
+[AircraftClass::Init] Engine flag check done, creating SMS...
+[AircraftClass::Init] SMS created: 0x767994020f40
+[AircraftClass::Init] Creating FCC, NumHardpoints=7
+[AircraftClass::Init] FCC created: 0x767994023830
+[AircraftClass::Init] FCC->SetSms done
+[AircraftClass::Init] Getting gun from hardPoint[0]=0x7679940210c0
+[AircraftClass::Init] Guns=0x7679940211b0
+[AircraftClass::Init] Gun TrailID set
+[AircraftClass::Init] Checking ground level...
+[AircraftClass::Init] Ground level check done
+[AircraftClass::Init] Calling af->Init(18)...
+[AircraftClass::Init] af->Init done
+[AircraftClass::Init] Checking hasSwingWing...
+[AircraftClass::Init] hasSwingWing check done
+[AircraftClass::Init] Checking isComplex=1
+[AircraftClass::Init] Calling MakeComplex()...
+[AircraftClass::Init] MakeComplex done
+[AircraftClass::Init] isComplex check done
+[AircraftClass::Init] Calling SetSwitch(COMP_CANOPY)...
+[AircraftClass::Init] SetSwitch done
+[AircraftClass::Init] Checking ACMI recording...
+[AircraftClass::Init] ACMI check done
+[AircraftClass::Init] Checking IsComplex for laser/harm pods...
+[AircraftClass::Init] IsComplex check done
+[AircraftClass::Init] Checking Guns=0x7679940211b0
+[AircraftClass::Init] Guns check done
+[AircraftClass::Init] Starting sensor setup...
+[AircraftClass::Init] Sensor setup done, numSensors=3
+[AircraftClass::Init] Creating brain, GetCampaignObject=0x572bbaef44f0
+[AircraftClass::Init] Creating DigitalBrain...
+[AircraftClass::Init] DigitalBrain created: 0x767994024c20
+[AircraftClass::Init] Brain created, calling DBrain()->SetTaxiPoint...
+[AircraftClass::Init] Creating PilotInputs...
+[AircraftClass::Init] PilotInputs created: 0x767994025080
+[AircraftClass::Init] Checking PreFlight...
+[AircraftClass::Init] Calling PreFlight()...
+[AircraftClass::Init] PreFlight done
+[AircraftClass::Init] End of initData block
+[AircraftClass::Init] EXIT - Init complete
+[StartLoop] SimDriver.GetPlayerEntity()=0x7679940013d0, calling SplashScreenUpdate(2)
+[StartLoop] Waiting for gLeftToDeaggregate=-1, player=0x7679940013d0, IsLocal=1
+[StartLoop] gLeftToDeaggregate wait done: gLeft=-1 counter=100
+[RenderFirstFrame] Enter, vuxGameTime=31918789, todOffset=0.0
+[RenderFirstFrame] Setting TimeManager to 31918789 ms = 08:51
+[PalLight] light=(0.945 0.967 1.000) gametime=31918789 pal=0x76798e4213e0
+[RenderFirstFrame] TimeManager refreshed, TOD ambient=0.2109 diffuse=0.7363
+[RenderFirstFrame] Weather refreshed
+[RenderFirstFrame] Calling Reset3DParameters()...
+[RenderFirstFrame] Reset3DParameters() done
+[RenderFirstFrame] Cockpit defaults loaded, calling PreLoadScene...
+Assertion at 843  /home/admin/freefalcon-central/src/campaign/camptask/atm.cpp  Sep 16 2026
+[Failed:  sq->GetRating(j) == 0 or uc->Scores[j] > 0] Assertion at 843  /home/admin/freefalcon-central/src/campaign/camptask/atm.cpp  Sep 16 2026
+[INPUT] focus lost (doUI=0) -> relative mouse released
+[FF_SIM_SCREENSHOT] requested /home/admin/ff-gates/taiwan/sam28c-60.bmp at 60002ms (wall 155721ms)
+[RenderFirstFrame] PreLoadScene done
+[RenderFirstFrame] Exit
+[GL] FF_SimThreadReleaseGL() ENTER
+[GL] Sim thread released GL context, g_simOwnsGLContext=false
+[StartLoop] Setting currentMode = StartRunningGraphics
+[GL] FF_SimThreadAcquireGL() ENTER
+[GL] Sim thread acquired GL context, g_simOwnsGLContext=true
+[PalLight] light=(0.944 0.966 1.000) gametime=31950523 pal=0x76798e4213e0
+[DIAG] Pre-screenshot GL state:
+  GL_FOG=1 GL_LIGHTING=0 GL_CULL_FACE=0 GL_ALPHA_TEST=0 GL_DEPTH_TEST=1 GL_BLEND=0 GL_STENCIL_TEST=0
+  Fog: color=(0.00,0.00,0.00,0.00) start=0.0 end=80000.0 mode=0x2601
+  Viewport: 0,1 1024x767
+  Cull: frontFace=0x900 cullMode=0x405
+  GL_POLYGON_MODE: front=0x1b02 back=0x1b02
+  GL_DITHER=1 GL_POLYGON_STIPPLE=0 GL_LINE_SMOOTH=0 GL_POLYGON_SMOOTH=0 GL_MULTISAMPLE=1
+  AlphaFunc=0x207 AlphaRef=0.000
+  ClearColor=(0.00,0.00,0.00,1.00)
+[Screenshot] Saved 1024x768 framebuffer to /home/admin/ff-gates/taiwan/sam28c-60.bmp (nonblack=89.6% nonwhite=100.0% distinct15bit=919 avgRGB=5,17,124)
+[TERRAIN_DIAG] ground_color=(0.944,0.966,1.000) haze_ground=(0.656,0.822,0.972)
+[TERRAIN_DIAG] far_clip=262319.0 haze_start=26231.9 haze_depth=131159.5 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.211 lightDiffuse=0.736 lightSpecular=1.500
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=1
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.65,0.82,0.97,0.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[VERT_COLOR] r=0.843 g=0.862 b=0.892 a=1.000 dist=306.0 scale=0.001 state=37 colorIdx=130
+[VERT_COLOR] r=0.839 g=0.858 b=0.887 a=1.000 dist=283.5 scale=0.001 state=37 colorIdx=130
+[VERT_COLOR] r=0.855 g=0.875 b=0.905 a=1.000 dist=328.3 scale=0.001 state=37 colorIdx=130
+[VERT_COLOR] r=0.843 g=0.862 b=0.892 a=1.000 dist=305.9 scale=0.001 state=37 colorIdx=130
+[VERT_COLOR] r=0.839 g=0.858 b=0.887 a=1.000 dist=283.5 scale=0.001 state=37 colorIdx=130
+[StoreMPRPalette] lightColor=(0.944, 0.966, 1.000) lightLevel=0.947
+[StoreMPRPalette] lightColor=(0.944, 0.966, 1.000) lightLevel=0.947
+[StoreMPRPalette] lightColor=(0.944, 0.966, 1.000) lightLevel=0.947
+Assertion at 4166  /home/admin/freefalcon-central/src/graphics/3dlib/context.cpp  Sep 18 2026
+[Failed:  (nVerts >= 3) or (nPrimType == MPR_PRM_POINTS and nVerts >= 1) or (nPrimType <= MPR_PRM_POLYLINE and nVerts >= 2)] Assertion at 4166  /home/admin/freefalcon-central/src/graphics/3dlib/context.cpp  Sep 18 2026
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31950523 nextFire=31918789 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.1km dz=4685ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=111927ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=2
+[TERRAIN_DIAG] ground_color=(0.944,0.966,1.000) haze_ground=(0.656,0.822,0.972)
+[TERRAIN_DIAG] far_clip=262319.0 haze_start=26231.9 haze_depth=131159.5 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.211 lightDiffuse=0.736 lightSpecular=1.500
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=1
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.65,0.82,0.97,0.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[TERRAIN_DIAG] ground_color=(0.944,0.966,1.000) haze_ground=(0.656,0.822,0.972)
+[TERRAIN_DIAG] far_clip=262319.0 haze_start=26231.9 haze_depth=131159.5 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.211 lightDiffuse=0.736 lightSpecular=1.500
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=1
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.65,0.82,0.97,0.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[INPUT] focus gained (doUI=0) -> relative mouse re-enabled
+[INPUT] focus lost (doUI=0) -> relative mouse released
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31953541 nextFire=31952523 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.1km dz=4645ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=0 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=112115ft sensorState0=0 radarEmitting=0 curTarget=yes mode(before)=0
+[shot] frame 200 -> /home/admin/ff-gates/shots/screenshot_sim.bmp (1024x768)
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31956556 nextFire=31956539 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.2km dz=4618ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=0 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=112357ft sensorState0=0 radarEmitting=0 curTarget=yes mode(before)=0
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31959559 nextFire=31960549 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.2km dz=4610ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31962581 nextFire=31964557 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.3km dz=4612ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=112629ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=2
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31965588 nextFire=31964557 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.3km dz=4619ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[shot] frame 600 -> /home/admin/ff-gates/shots/screenshot_sim.bmp (1024x768)
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=1 range=112935ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=2
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31968594 nextFire=31968572 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.4km dz=4629ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=3 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=113275ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=3
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31971615 nextFire=31972587 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.5km dz=4641ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=3 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31974630 nextFire=31976607 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.6km dz=4653ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=3 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=113634ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=3
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31977648 nextFire=31976607 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.7km dz=4664ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=4 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=114009ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=4
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31980651 nextFire=31980621 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.8km dz=4674ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=4 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=114396ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=4
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31983654 nextFire=31984627 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.8km dz=4682ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=5 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31986674 nextFire=31988650 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=34.9km dz=4687ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=114792ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31989689 nextFire=31988650 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=35.0km dz=4691ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=115195ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[PalLight] light=(0.944 0.966 1.000) gametime=31991836 pal=0x76798e4213e0
+[FF_SIM_SCREENSHOT] requested /home/admin/ff-gates/taiwan/sam28c-120.bmp at 120000ms (wall 215719ms)
+[DIAG] Pre-screenshot GL state:
+  GL_FOG=1 GL_LIGHTING=0 GL_CULL_FACE=1 GL_ALPHA_TEST=0 GL_DEPTH_TEST=1 GL_BLEND=0 GL_STENCIL_TEST=0
+  Fog: color=(0.65,0.82,0.97,0.00) start=0.0 end=80000.0 mode=0x2601
+  Viewport: 0,1 1024x767
+  Cull: frontFace=0x900 cullMode=0x405
+  GL_POLYGON_MODE: front=0x1b02 back=0x1b02
+  GL_DITHER=1 GL_POLYGON_STIPPLE=0 GL_LINE_SMOOTH=0 GL_POLYGON_SMOOTH=0 GL_MULTISAMPLE=1
+  AlphaFunc=0x207 AlphaRef=0.003
+  ClearColor=(0.00,0.00,0.00,0.00)
+[Screenshot] Saved 1024x768 framebuffer to /home/admin/ff-gates/taiwan/sam28c-120.bmp (nonblack=94.5% nonwhite=99.7% distinct15bit=2521 avgRGB=74,92,105)
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31992693 nextFire=31992661 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=35.1km dz=4692ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=115604ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31995715 nextFire=31996681 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=35.2km dz=4692ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=31998728 nextFire=32000683 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=35.3km dz=4689ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=116015ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32001745 nextFire=32000683 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=35.4km dz=4682ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=116428ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32004750 nextFire=32004700 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=35.5km dz=4673ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=116841ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32007758 nextFire=32008721 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=35.6km dz=4660ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32010773 nextFire=32012724 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=35.7km dz=4644ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=117247ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32013788 nextFire=32012724 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=35.8km dz=4625ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=117647ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32016796 nextFire=32016727 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=35.9km dz=4602ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=118038ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32019806 nextFire=32020736 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.0km dz=4578ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32022827 nextFire=32024755 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.0km dz=4548ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=118416ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32025843 nextFire=32024755 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.1km dz=4501ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=118780ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32028866 nextFire=32028769 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.2km dz=4424ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=119138ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32031872 nextFire=32032776 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.3km dz=4308ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32034894 nextFire=32036796 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.4km dz=4152ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=119500ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32037911 nextFire=32036796 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.5km dz=3965ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=119876ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32040912 nextFire=32040803 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.5km dz=3758ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=120270ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32043929 nextFire=32044808 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.6km dz=3544ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32046934 nextFire=32048810 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.7km dz=3332ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=120688ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32049953 nextFire=32048810 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.8km dz=3123ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=121133ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[FF_SIM_SCREENSHOT] requested /home/admin/ff-gates/taiwan/sam28c-180.bmp at 180009ms (wall 275728ms)
+[DIAG] Pre-screenshot GL state:
+  GL_FOG=1 GL_LIGHTING=0 GL_CULL_FACE=1 GL_ALPHA_TEST=0 GL_DEPTH_TEST=1 GL_BLEND=0 GL_STENCIL_TEST=0
+  Fog: color=(0.65,0.82,0.97,0.00) start=0.0 end=80000.0 mode=0x2601
+  Viewport: 0,1 1024x767
+  Cull: frontFace=0x900 cullMode=0x405
+  GL_POLYGON_MODE: front=0x1b02 back=0x1b02
+  GL_DITHER=1 GL_POLYGON_STIPPLE=0 GL_LINE_SMOOTH=0 GL_POLYGON_SMOOTH=0 GL_MULTISAMPLE=1
+  AlphaFunc=0x207 AlphaRef=0.003
+  ClearColor=(0.00,0.00,0.00,0.00)
+[Screenshot] Saved 1024x768 framebuffer to /home/admin/ff-gates/taiwan/sam28c-180.bmp (nonblack=94.5% nonwhite=99.7% distinct15bit=2726 avgRGB=74,87,90)
+[PalLight] light=(0.943 0.966 1.000) gametime=32052606 pal=0x76798e4213e0
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32052970 nextFire=32052821 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=36.9km dz=2917ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=121603ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32055991 nextFire=32056826 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.0km dz=2714ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32059009 nextFire=32060840 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.2km dz=2515ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=122097ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32062016 nextFire=32060840 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.3km dz=2319ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=122616ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32065020 nextFire=32064852 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.4km dz=2127ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=123164ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32068032 nextFire=32068861 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.5km dz=1937ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32071036 nextFire=32072868 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.7km dz=1750ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=1 detecting=1 range=123738ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32074037 nextFire=32072868 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.8km dz=1566ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=6 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=1
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=1 range=124339ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=6
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32077051 nextFire=32076888 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1384ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=5 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=124962ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=5
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32080063 nextFire=32080911 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=38.1km dz=1205ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=5 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+Assertion at 219  /home/admin/freefalcon-central/src/graphics/objects/drawbsp.cpp  Sep 18 2026
+[Failed:  slotNumber < instance.ParentObject->nSlots] Assertion at 219  /home/admin/freefalcon-central/src/graphics/objects/drawbsp.cpp  Sep 18 2026
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32083078 nextFire=32084912 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=38.2km dz=1112ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=7 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=124546ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=7
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32086092 nextFire=32084912 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1407ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=124546ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=2
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32089095 nextFire=32088925 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1407ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=124546ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=2
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32092110 nextFire=32092928 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1407ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32095127 nextFire=32096944 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1407ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=124546ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=2
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32098144 nextFire=32096944 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1407ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=124546ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=2
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32101161 nextFire=32100961 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1407ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=124546ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=2
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32104177 nextFire=32104978 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1407ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32107194 nextFire=32108994 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1407ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=124546ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=2
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32110210 nextFire=32108994 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1407ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=124546ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=2
+[FF_SIM_SCREENSHOT] requested /home/admin/ff-gates/taiwan/sam28c.bmp at 240003ms (wall 335722ms)
+[DIAG] Pre-screenshot GL state:
+  GL_FOG=1 GL_LIGHTING=0 GL_CULL_FACE=0 GL_ALPHA_TEST=1 GL_DEPTH_TEST=1 GL_BLEND=1 GL_STENCIL_TEST=0
+  Fog: color=(0.65,0.82,0.97,0.00) start=0.0 end=80000.0 mode=0x2601
+  Viewport: 0,0 1024x768
+  Cull: frontFace=0x900 cullMode=0x405
+  GL_POLYGON_MODE: front=0x1b02 back=0x1b02
+  GL_DITHER=1 GL_POLYGON_STIPPLE=0 GL_LINE_SMOOTH=0 GL_POLYGON_SMOOTH=0 GL_MULTISAMPLE=1
+  AlphaFunc=0x206 AlphaRef=0.003
+  ClearColor=(0.00,0.00,0.00,0.00)
+[Screenshot] Saved 1024x768 framebuffer to /home/admin/ff-gates/taiwan/sam28c.bmp (nonblack=99.7% nonwhite=99.8% distinct15bit=665 avgRGB=82,112,127)
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32113211 nextFire=32113012 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1407ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
+[PalLight] light=(0.943 0.965 1.000) gametime=32113311 pal=0x76798e4213e0
+[sam] radar step: unit=1923 target=yes tracking=0 detecting=0 range=124546ft sensorState0=0 radarEmitting=1 curTarget=yes mode(before)=2
+[sam] gnd unit type=3420 'SA-2' has AIR target: t=32116227 nextFire=32117028 emitter=0 hasWeapons=1 allowSamFire=1 hidden=0 curWeapon=none range=37.9km dz=1407ft vt=0.0 weapons=[37:2 40:1 0:1 0:0] smsHp=2
+[sam]    campaign unit radarMode=2 emitting=1 (GUIDE=6 SEARCH_100=1 AQUIRE=5) unitRadarType=39
+[sam]    hp0 weaponId=37 count=2 canShoot=0
+[sam]    hp1 weaponId=40 count=1 canShoot=1
