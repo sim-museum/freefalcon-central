@@ -21688,3 +21688,27 @@ The autopilot route never enters any SAM envelope, and **the SA-8 never held the
 line for it) — this run does not reach the PO's overfly. `FF_DUMP_SAMDATA=1` (queued) prints every
 surface-to-air weapon's Range / HitChance / MaxAlt / min-alt byte and the SA- vehicles' weapon ids,
 to check the SA-8's envelope data before building a repro that flies through it.
+
+## MP two-PC test results (PO, 2026-09-19 afternoon) — three items filed
+
+The PO ran host and joiner on two PCs from the 260919 AppImage: *"ff multiplayer very close to working.
+In campaign, can join 'viper's game' but then client campaign clock is frozen while host game continues to
+advance, client and host show different event messages at upper right, as if not synced. Dogfight - players
+can choose teams and see each other's choice. In 3D, host can lock and shoot missile at client. Client
+aircraft shows explosion, but client aircraft is unaffected in client view. In host view, client aircraft is
+destroyed. When host exits, all missiles are shown as 'missed'."* Plus: *"client view has HUD artifact (also
+in 1 and 3 views)"* — `docs/reference/260919_mp/po_client_hud_black_box.png`: the HUD glass is an opaque
+black rectangle behind the symbology; and `po_debrief_all_missed.png`: both debriefs list every AIM-9X /
+AIM-120 as `miss`, score 0/0.
+
+**What this establishes:** two-PC discovery, join, dogfight team select and a shared 3-D with weapons
+release all work — the first two-PC flight this port has had (MP-2PC-1's "never verified" is out of date).
+
+| item | symptom | lead |
+|---|---|---|
+| **MP-DMG-1** 🔴 | host's missile hits the client's jet: explosion drawn on the client, no damage; host sees a kill; debrief `miss` on both | `AircraftClass::ApplyDamage` applies damage only when `IsLocal()` (damage.cpp:282). The host applies nothing to its remote copy; the client, which owns the jet, must receive the `FalconDamageMessage`. Every damage message is built with target `FalconLocalGame` (guns.cpp:595, simweapn.cpp:321): a game-addressed VU message. Whether the port's transport forwards game-addressed messages to remote sessions (vs positions only) is the question — `VuTargetEntity::SendMessage` (vusessn.cpp:1322) is the send path to read. |
+| **MP-CLOCK-1** 🔴 | client's campaign clock frozen while the host's runs; different event text on each | the campaign clock/compression is host-authoritative (`campaign.cpp:1219 UpdateRemoteCompression`); the client's `vuxGameTime` is fed by the host's time messages (`timerthread.cpp`). Same transport question as MP-DMG-1: are those messages arriving? |
+| **HUDBOX-1** 🟠 | client's HUD drawn on an opaque black box (views 1 and 3 too) | not seen in any single-PC capture on this box (the HUD glass is clear in every `[shot]`); the client PC differs in GPU/driver or window size — first check which PC showed it and its `[vid]`/GL lines. |
+
+Julia racer, same session: *"julia multiplayer works, cars can see each other but drive through each other
+as reported in the multiplayer instructions"* — E85's first two-PC confirmation.
