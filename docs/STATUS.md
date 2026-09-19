@@ -21710,6 +21710,14 @@ release all work — the first two-PC flight this port has had (MP-2PC-1's "neve
 | **MP-CLOCK-1** 🔴 | client's campaign clock frozen while the host's runs; different event text on each | the campaign clock/compression is host-authoritative (`campaign.cpp:1219 UpdateRemoteCompression`); the client's `vuxGameTime` is fed by the host's time messages (`timerthread.cpp`). Same transport question as MP-DMG-1: are those messages arriving? |
 | **HUDBOX-1** 🟠 | client's HUD drawn on an opaque black box (views 1 and 3 too) | not seen in any single-PC capture on this box (the HUD glass is clear in every `[shot]`); the client PC differs in GPU/driver or window size — first check which PC showed it and its `[vid]`/GL lines. |
 
+### PO report 2026-09-19 (FreeFalcon AppImage, campaign) -- three new items
+
+| item | PO's words | first read |
+|---|---|---|
+| **RECON-1** 🔴 | "campaign recon view -- if I click on a side carrot to rotate the view, the terrain rotates one direction while the object rotates the other direction(!) Previously I saw when the object was a bridge, the bridge was rendered in recon view upside down, which seems consistent with it rotating the wrong way" | the recon window draws the terrain patch and the objective's objects through two paths (terrain via the map/recon renderer, objects via the 3-D object draw); one of them takes the rotation with the opposite sign in the Linux port, and the upside-down bridge is the same sign error seen as a flipped handedness. Find the recon camera setup (`src/ui/src/recon` / `ui_recon`, the `RECON` window's yaw handling) and the object transform it feeds. |
+| **RECON-2** 🟠 | "the LAT LONG coordinates in the recon view are rendered too small -- there is resolution loss such that the LAT LONG numbers are hard to make out" | the recon window's text is drawn at the 1024x768 UI scale and then scaled with the window, or drawn into a low-resolution offscreen surface; compare with the other UI text in the same window. |
+| **TAKEOFF-JUMP-1** 🟠 | "during takeoff in 0 view there is a slight jump when the wheels leave the tarmac -- a relic of a long-ago-fixed 'aircraft is 2 m below tarmac' bug" | the wheels-on-ground state hands the aircraft's height from the gear/ground model to the airborne model at rotation; a residual offset between the two (the runway HAT vs the terrain HAT, or the gear-compression term) shows as a step at lift-off. Log the aircraft z, ground z and gear state per frame across rotation (`FF_DEBUG_TAKEOFF`) before touching anything. |
+
 **MP-DMG-1 S2 (Fable 5.1, 2026-09-19) -- the damage path read end to end; the trace is in the next image.**
 The lead above was wrong in one respect: `FalconDamageMessage` is broadcast to the whole game group
 (`simweapn.cpp:321`, target `FalconLocalGame`, loopback on) and `FalconDamageMessage::Process`
