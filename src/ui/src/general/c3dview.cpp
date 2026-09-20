@@ -663,7 +663,19 @@ BOOL C_3dViewer::ViewGreyOTW()
                 if (s_scale < 0.0f) { const char* e = getenv("FF_RECON_TEXT_SCALE"); s_scale = e ? (float)atof(e) : 2.0f; if (s_scale <= 0.0f) s_scale = 1.0f; }
                 rendOTW_->SetTextScale(s_scale);
             }
-            rendOTW_->ScreenText((float)viewport.left + 4, (float)viewport.top + 1, tempstr);
+            {
+                /* at 2x the one-line form overruns a half-width pane (the target list takes the left
+                   half): LAT on the first line, LNG on the second. */
+                static float s_scale2 = -1.0f;
+                if (s_scale2 < 0.0f) { const char* e = getenv("FF_RECON_TEXT_SCALE"); s_scale2 = e ? (float)atof(e) : 2.0f; if (s_scale2 <= 0.0f) s_scale2 = 1.0f; }
+                if (s_scale2 > 1.0f)
+                {
+                    rendOTW_->ScreenText((float)viewport.left + 4, (float)viewport.top + 1, latstr);
+                    rendOTW_->ScreenText((float)viewport.left + 4, (float)viewport.top + 1 + 18.0f * s_scale2, longstr);
+                }
+                else
+                    rendOTW_->ScreenText((float)viewport.left + 4, (float)viewport.top + 1, tempstr);
+            }
             rendOTW_->SetTextScale(1.0f);
             rendOTW_->SetFont(TempFont); //Added to restore the font
             rendOTW_->SetColor(TempColor); //Added to restore the color
