@@ -21689,6 +21689,11 @@ line for it) — this run does not reach the PO's overfly. `FF_DUMP_SAMDATA=1` (
 surface-to-air weapon's Range / HitChance / MaxAlt / min-alt byte and the SA- vehicles' weapon ids,
 to check the SA-8's envelope data before building a repro that flies through it.
 
+**PO priority (2026-09-19 evening), SAM-1:** *"steer into SA-8 range rather than floating down to the ground and
+crashing into terrain, which is what the harness does now"* -- the harness flight must fly to the site, not
+ride the TE autopilot into the ground. Next sprint: a scripted steer to a target position (heading hold +
+altitude hold from `[sam]`-reported SA-8 unit coordinates), then the launch trace inside 8 km.
+
 **SAM-1 S3 (Fable 5.1, 2026-09-19) -- the SA-8's data is a normal envelope; the missing piece is a repro that enters it.**
 `FF_DUMP_SAMDATA=1` (`docs/reference/260919_taiwan/samdata.log`, the census indexes the tables before "Build
 ptr data" turns `dataPtr` into pointers -- the first cut dereferenced the index and segfaulted): weapon 41
