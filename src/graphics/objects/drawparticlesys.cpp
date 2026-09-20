@@ -1444,11 +1444,18 @@ float ParticleNode::EvalTimedLinLogFloat(int &LastStage, int Count, timedFloat *
     float Time = (input[LastStage + 1].time - input[LastStage].time);
     // Calculate the Time Position btw 1 and 0
     Time = (life - input[LastStage].time) / Time;
+    /* PARTICLE-CRASH-1 (PO 2026-09-20): the same unclamped ratio as the sibling evaluator, which
+       faulted for the PO in the ACMI viewer. (int)(Time * 500) overflows to INT_MIN when Time is far
+       past 1, and the ">=" check below cannot catch a negative. See PS_EvalTimedLinLogFloat for the full note. */
+    if (Time > 1.0f) Time = 1.0f;
+    if (!(Time > 0.0f)) Time = 0.0f;          /* also catches NaN */
+
     // scale to 100 to get a Log10 Array index
     int   Idx = (int)(Time * LOG10_ARRAY_ITEMS);
 
     // limit check
     if (Idx >= LOG10_ARRAY_ITEMS) Idx = LOG10_ARRAY_ITEMS - 1;
+    if (Idx < 0) Idx = 0;
 
     // get the Value difference btw In and Out
     float RelValue = fabs(input[LastStage].value) - fabs(input[LastStage + 1].value);
@@ -2485,11 +2492,28 @@ inline float DrawableParticleSys::PS_EvalTimedLinLogFloat(float life, int &LastS
     float Time = (input[LastStage + 1].time - input[LastStage].time);
     // Calculate the Time Position btw 1 and 0
     Time = (life - input[LastStage].time) / Time;
+    /* PARTICLE-CRASH-1 (PO 2026-09-20): this line faulted. Captured under gdb while the PO drove the
+       ACMI viewer (ACMIView::Draw -> RenderOTW::DrawScene -> PS_Exec -> PS_ParticleRun -> here) with
+       life=5290065.5, LastStage=1, Count=7.
+       The stage walk above advances at most ONE stage per call, so a particle whose age is far past
+       every stage leaves `Time` enormously greater than 1 -- the comment two lines below says it is
+       "btw 1 and 0" and nothing ever enforced that. The damage is not a merely oversized index:
+       (int)(huge * 500) OVERFLOWS the int, and x86 cvttss2si yields INT_MIN, which the
+       ">= LOG10_ARRAY_ITEMS" limit check does not catch, so Log10Array[Idx] reads ~2 GB below the
+       array. Clamp the ratio, which is what the comment always claimed. The !(Time > 0) form also
+       catches NaN, where the same conversion is equally indeterminate.
+       Why `life` is out of range at all is the ACMI viewer's own clock question (it drives particles
+       from replay time, not sim time) and is filed separately -- but no time base may be allowed to
+       fault the renderer. */
+    if (Time > 1.0f) Time = 1.0f;
+    if (!(Time > 0.0f)) Time = 0.0f;          /* also catches NaN */
+
     // scale to 100 to get a Log10 Array index
     int   Idx = (int)(Time * LOG10_ARRAY_ITEMS);
 
     // limit check
     if (Idx >= LOG10_ARRAY_ITEMS) Idx = LOG10_ARRAY_ITEMS - 1;
+    if (Idx < 0) Idx = 0;
 
     // get the Value difference btw In and Out
     float RelValue = input[LastStage].value - input[LastStage + 1].value;

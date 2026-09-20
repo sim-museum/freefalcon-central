@@ -21772,6 +21772,39 @@ the whole UI is stretched to the display, so at 1920 each digit is 13 px wide ma
 `FF_RECON_TEXT_SCALE` x (default 2) -- twice the size from the same texels, which is what separates the
 digits; 1 restores the old size. Capture pending with RECON-1's.
 
+**PARTICLE-CRASH-1 (Opus 5, 2026-09-20) -- the PO crashed the ACMI viewer on purpose; caught under gdb, fixed at both sites.**
+The PO asked for an instrumented run and broke it in fifteen minutes. The recipe: the dev build under
+`gdb -batch` with `run; bt full; thread apply all bt; info registers`, log at
+`~/ff-gates/po_crash/ff_260920-142801.log` (the launcher records the commit and the uncommitted edits the
+binary was built from, so the trace can be read against the right source).
+
+    Thread 1 "FFViper" received signal SIGSEGV
+    #0  DrawableParticleSys::PS_EvalTimedLinLogFloat (life=5290065.5, LastStage=1, Count=7)
+        drawparticlesys.cpp:2497  return RelValue * Log10Array[Idx] + input[LastStage + 1].value;
+    #1  PS_ParticleRun  #2  PS_Exec  #3  RenderOTW::DrawScene
+    #4  ACMIView::Draw (acmiloop.cpp:425)   <- the ACMI viewer, not a flight
+
+**Mechanism.** The stage walk in that function advances at most ONE stage per call
+(`if (life > input[LastStage+1].time) LastStage++;`, no loop), so a particle whose age is far past every
+stage yields `Time = (life - t[LastStage]) / (t[LastStage+1] - t[LastStage])` enormously greater than 1 --
+while the comment directly above it claims "the Time Position btw 1 and 0". The fault is then NOT a merely
+oversized index: `(int)(Time * LOG10_ARRAY_ITEMS)` overflows the int, x86 `cvttss2si` returns INT_MIN, and
+the existing `if (Idx >= LOG10_ARRAY_ITEMS)` limit check cannot catch a negative, so `Log10Array[Idx]` reads
+about 2 GB below the array. **Fix:** clamp the ratio to [0,1] before scaling (the `!(Time > 0)` form also
+catches NaN, where the conversion is equally indeterminate) and floor `Idx` at 0. Applied at BOTH sites
+carrying the pattern -- `DrawableParticleSys::PS_EvalTimedLinLogFloat` (the one that faulted) and
+`ParticleNode::EvalTimedLinLogFloat` (drawparticlesys.cpp:1448), which had the identical unguarded index.
+
+**Still open, filed rather than assumed:** why `life` is 5,290,065 at all. The ACMI viewer drives particles
+from replay time while they were stamped in sim time, which is the obvious candidate and is a different bug
+from this one. The clamp means no time base can fault the renderer while that is chased.
+
+**Ruled out en route.** The log also shows `drawbsp.cpp:425 [Failed: strlen(labelString) < sizeof(label)]`
+immediately before the crash, which looks like a smoking gun and is not: `SetLabel` asserts the length but
+then copies with `strncpy(label, labelString, 31); label[31] = 0;`, so nothing overflows. The assert is
+simply wrong about a truncation the code already handles. Left alone, and noted so the next reader does not
+chase it.
+
 **RECON-1 S2 (Fable 5.1, 2026-09-19) -- VERIFIED on the PO's own path: the rotate caret.**
 `tools/ff_recon_caret.sh`: TE 19 planning map -> right-click steerpoint 3 -> Recon, then the right-hand
 rotate caret twice (heading 0 -> 324), four arms: fix on / `FF_NO_FBO_YFLIP=1`, base / rotated
