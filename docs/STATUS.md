@@ -21689,6 +21689,19 @@ line for it) — this run does not reach the PO's overfly. `FF_DUMP_SAMDATA=1` (
 surface-to-air weapon's Range / HitChance / MaxAlt / min-alt byte and the SA- vehicles' weapon ids,
 to check the SA-8's envelope data before building a repro that flies through it.
 
+**SAM-1 S3 (Fable 5.1, 2026-09-19) -- the SA-8's data is a normal envelope; the missing piece is a repro that enters it.**
+`FF_DUMP_SAMDATA=1` (`docs/reference/260919_taiwan/samdata.log`, the census indexes the tables before "Build
+ptr data" turns `dataPtr` into pointers -- the first cut dereferenced the index and segfaulted): weapon 41
+`SA-8` Range=8 km, HitChance LowAir=100 / Air=25, MaxAlt=16 kft, min-alt byte 3, Guidance=0x44 (radar),
+Flags=0; vehicle class 556 `SA-8` weapons `[41:2 x4]`, **radarType=0** -- like the SA-6 (class 16,
+radarType 0) the launcher itself carries no radar in the data, the battalion's radar type does the
+handoff (S2 measured that path working for the SA-2, `unitRadarType=39`). So nothing in the data
+forbids a launch inside 8 km / 16 kft. The TE 28 route never comes within 34 km of any SAM and moves
+AWAY (34.1 -> 37.9 km over the run), so the harness cannot reach the PO's overfly by autopilot. Next:
+a scripted steer (`tools/ff_fm_stick.sh` style) from a `[sam]` line that prints the SA-8 unit's
+position at 3-D entry, flown to inside 8 km with `FF_DEBUG_SAM=1` -- the `SAM_REFUSE` reasons then say
+which gate holds fire. Sized 1 sprint.
+
 ## MP two-PC test results (PO, 2026-09-19 afternoon) — three items filed
 
 The PO ran host and joiner on two PCs from the 260919 AppImage: *"ff multiplayer very close to working.

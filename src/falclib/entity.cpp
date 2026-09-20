@@ -289,16 +289,18 @@ int LoadClassTable(char *filename)
             VU_BYTE* ci = Falcon4ClassTable[k].vuClassData.classInfo_;
             if (ci[VU_DOMAIN] == DOMAIN_AIR && ci[VU_CLASS] == CLASS_VEHICLE && ci[VU_TYPE] == TYPE_MISSILE && ci[VU_STYPE] == STYPE_MISSILE_SURF_AIR)
             {
-                int w = -1;
-                for (int j = 0; j < NumWeaponTypes; j++) if (WeaponDataTable[j].Index == k) { w = j; break; }
+                /* this runs BEFORE "Build ptr data" below: dataPtr is still the table INDEX, not a pointer */
+                int w = (Falcon4ClassTable[k].dataType == DTYPE_WEAPON) ? (int)(intptr_t)Falcon4ClassTable[k].dataPtr : -1;
+                if (w >= NumWeaponTypes) w = -1;
                 if (w >= 0)
                     fprintf(stderr, "[samdata] weapon %d class %d '%s': Range=%d km HitChance LowAir=%d Air=%d MaxAlt=%d kft minAltByte=%d Guidance=0x%x Flags=0x%x\n",
                         w, k, WeaponDataTable[w].Name, (int)WeaponDataTable[w].Range, (int)WeaponDataTable[w].HitChance[LowAir], (int)WeaponDataTable[w].HitChance[Air],
                         (int)WeaponDataTable[w].MaxAlt, (int)(unsigned char)WeaponDataTable[w].Name[18], (unsigned)WeaponDataTable[w].GuidanceFlags, (unsigned)WeaponDataTable[w].Flags);
             }
-            if (ci[VU_CLASS] == CLASS_VEHICLE && Falcon4ClassTable[k].dataPtr)
+            if (ci[VU_CLASS] == CLASS_VEHICLE && Falcon4ClassTable[k].dataType == DTYPE_VEHICLE &&
+                (int)(intptr_t)Falcon4ClassTable[k].dataPtr >= 0 && (int)(intptr_t)Falcon4ClassTable[k].dataPtr < NumVehicleEntries)
             {
-                VehicleClassDataType* vc = (VehicleClassDataType*)Falcon4ClassTable[k].dataPtr;
+                VehicleClassDataType* vc = &VehicleDataTable[(int)(intptr_t)Falcon4ClassTable[k].dataPtr];   /* index, see above */
                 if (strstr(vc->Name, "SA-") || strstr(vc->Name, "SA8") || strstr(vc->Name, "SA2"))
                     fprintf(stderr, "[samdata] vehicle class %d '%s': radarType=%d weapons=[%d:%d %d:%d %d:%d %d:%d] flags=0x%x\n", k, vc->Name, (int)vc->RadarType,
                         vc->Weapon[0], vc->Weapons[0], vc->Weapon[1], vc->Weapons[1], vc->Weapon[2], vc->Weapons[2], vc->Weapon[3], vc->Weapons[3], (unsigned)vc->Flags);
