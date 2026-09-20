@@ -21772,6 +21772,21 @@ the whole UI is stretched to the display, so at 1920 each digit is 13 px wide ma
 `FF_RECON_TEXT_SCALE` x (default 2) -- twice the size from the same texels, which is what separates the
 digits; 1 restores the old size. Capture pending with RECON-1's.
 
+**RECON-1 S2 (Fable 5.1, 2026-09-19) -- VERIFIED on the PO's own path: the rotate caret.**
+`tools/ff_recon_caret.sh`: TE 19 planning map -> right-click steerpoint 3 -> Recon, then the right-hand
+rotate caret twice (heading 0 -> 324), four arms: fix on / `FF_NO_FBO_YFLIP=1`, base / rotated
+(`docs/reference/260919_recon/caret_{fix,nofix}_{base,rot}.png`). The terrain's rotation sense was
+measured, not eyeballed: `tools/ff_recon_rotsign.py` brute-forces a similarity (angle, scale, offset)
+from the base pane to the rotated capture -- best match at -36 deg (clockwise on screen, ncc 0.232)
+against 0.119 for +36 deg. The objects were read off the same captures (the L-shaped block, the tall
+complex, the dark-roofed block, the small block): with the fix ON the group turns CLOCKWISE with the
+terrain (bearing from the complex to the L-block 114 -> 155 deg on screen); with the fix OFF the same
+group is the vertical mirror of the fixed one at every heading and turns COUNTER-CLOCKWISE
+(248 -> 205 deg) while the terrain turns clockwise -- exactly *"the terrain rotates one direction while
+the object rotates the other"*. The mechanism in S1 is the symptom; the fix removes it. Still to look
+at before calling the class closed: the other FBO scenes with 3-D objects (A/G ground-map radar,
+tactical reference). RECON-2's 2x two-line coordinates are visible in every capture.
+
 **MP-DMG-1 S2 (Fable 5.1, 2026-09-19) -- the damage path read end to end; the trace is in the next image.**
 The lead above was wrong in one respect: `FalconDamageMessage` is broadcast to the whole game group
 (`simweapn.cpp:321`, target `FalconLocalGame`, loopback on) and `FalconDamageMessage::Process`
