@@ -21939,7 +21939,22 @@ the PO's zoom). The line was drawn and lost: `ACMIView::Draw` renders the scene,
 radar-lock lines, the Internal-view wire cockpit and the screen text -- all `Draw2DLine` primitives that
 the context flushes at `FinishFrame` -- while the readback sat right after the scene draw, so those
 overlays went into a frame nobody presents. The readback (with the event-text redraw) now follows
-`context.FinishFrame(NULL)`.
+`context.FinishFrame(NULL)`. `acmi_lock_int.png` shows the Internal view with the gold's green wire cockpit and
+readouts (`GLOBAL_WIRE_COCKPIT` default on) -- the gold's t=470 frame.
+**Open after this pass (measured, not fixed):** (1) ground-unit labels -- Orbit on `1 SA-2` (`acmi_sa2.png`)
+draws the site's vehicles but no labels, while the gold shows red enemy labels 8 km out; the drawables
+carry the names (`[acmient] label='1 SA-2'`), the ACMI label limit is 150 nm and index 0 of
+`TeamSimColorList` is near-white, so neither distance nor colour explains it -- the ground-vehicle draw
+path needs its own trace; (2) terrain hue -- green detailed fields in the Wine gold, brown here, with
+identical `LastNearTexLOD=2`; the PO's own Linux sim frames at altitude look the same brown, so this is
+a sim-wide texture/palette difference, not the viewer's; (3) the garbage Focus names the PO saw after
+flying in the same process are not reproduced from a cold start (all 100 labels correct).
+**DELIVERY 260923 verified:** `~/Documents/260923/FreeFalcon-x86_64-260923.AppImage` (3.35 GB, packed 01:39,
+sha256 `75f72d9a…7357e8`, SHA256SUMS alongside; binary = commit 2d836f07 + the authored `trail.txt` in the
+bundled tree). Launched twice: boots the PO's installed tree to the menu (90.9 % non-black), and in the dev
+tree loads `missile_260922`, plays it and switches to Orbit with the event lines over the scene
+(`appimage23_acmi_orbit.png`, `camState=200124`, 3 windows excluded). The PO's installed tree already has
+`terrdata/trail.txt` (copied 00:12).
 
 **ACMI-LONG-1 (Fable 5.1, 2026-09-22) -- PO: "set ff to have long acmi files, not short ones" and "delete the old acmi files".**
 Why the tapes were short, measured rather than assumed: the PO's own profile already has
