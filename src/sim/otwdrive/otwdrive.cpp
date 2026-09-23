@@ -2863,6 +2863,9 @@ int OTWDriverClass::Exit(void)
     return endAbort;
 }
 
+// TAKEOFF-JUMP-1 anchor flag
+int ffLiftAnchorReset = 1;
+
 void OTWDriverClass::ObjectSetData(SimBaseClass *obj, Tpoint *simView, Trotation *viewRotation)
 {
     viewRotation->M11 = obj->dmx[0][0];
@@ -2921,7 +2924,11 @@ void OTWDriverClass::ObjectSetData(SimBaseClass *obj, Tpoint *simView, Trotation
         if ( not ffNoLift)
         {
             if (obj->OnGround())
+            {
                 ffLiftScale = 1.0f;
+                /* TAKEOFF-JUMP-1: re-arm the wheels-off anchor (see below) while on the ground. */
+                extern int ffLiftAnchorReset; if (obj == (SimBaseClass*)SimDriver.GetPlayerEntity()) ffLiftAnchorReset = 1;
+            }
             else
             {
                 static float ffFade = -9999.f;
@@ -2939,9 +2946,26 @@ void OTWDriverClass::ObjectSetData(SimBaseClass *obj, Tpoint *simView, Trotation
                                       - obj->ZPos();
                     ffAgl = agl;
 
-                    if (agl < ffFade)
+                    /* TAKEOFF-JUMP-1 (PO 2026-09-19: "during takeoff in 0 view there is a slight jump
+                       when the wheels leave the tarmac"). RWY-3 sprints 9-10 measured the hand-over:
+                       scale 1.000 on the last ground frame, 0.904 on the first airborne one -- because
+                       the fade is anchored at agl 0 while the jet leaves the ground at its gear
+                       clearance (~2.5-3 ft), so the drawn z steps by (1-0.904) x 3 ft = 0.28 ft in one
+                       frame and then fades smoothly. Anchor the fade at the clearance the jet HAD at
+                       wheels-off instead: scale is exactly 1 on the first airborne frame and falls
+                       continuously from there. Player only (the view). FF_LIFT_ANCHOR=0 reverts. */
+                    static int s_anchor = -1;
+                    if (s_anchor < 0) { const char* a = getenv("FF_LIFT_ANCHOR"); s_anchor = (a and atoi(a) != 0) ? 1 : 0; }   /* default OFF: unverified, and the real defect was the gear lift above */
+                    static float s_agl0 = 0.0f;
+                    float aglRef = agl;
+                    if (s_anchor and obj == (SimBaseClass*)SimDriver.GetPlayerEntity())
                     {
-                        ffLiftScale = 1.0f - (agl / ffFade);
+                        if (ffLiftAnchorReset) { s_agl0 = agl; ffLiftAnchorReset = 0; }
+                        aglRef = agl - s_agl0; if (aglRef < 0.0f) aglRef = 0.0f;
+                    }
+                    if (aglRef < ffFade)
+                    {
+                        ffLiftScale = 1.0f - (aglRef / ffFade);
 
                         if (ffLiftScale > 1.0f) ffLiftScale = 1.0f;
 
@@ -3069,7 +3093,17 @@ void OTWDriverClass::ObjectSetData(SimBaseClass *obj, Tpoint *simView, Trotation
                     // the mismatch is between MODEL DATA (how far the drawn gear
                     // reaches below the origin) and a physics constant (the 5.99ft
                     // standoff), not something derivable from either alone.
-                    extra = e ? (float)atof(e) : 2.0f;
+                    // GEAR-1 CORRECTED (PO 2026-09-20): DEFAULT 0. The A/B that chose 2.0 ("0 buries
+                    // the wheels, 4 floats the jet") was run while FF_RunwayDecal() still returned 3 ft;
+                    // that decal went to 0 on 2026-09-05 after its own PO A/B, and nobody re-ran this one
+                    // against the new baseline. Flying TE 02 in the orbit view today the PO reports the
+                    // opposite of the old finding: "aircraft floats above tarmac, drops to tarmac with
+                    // wheels up, then rises correctly" -- i.e. with this term the jet is 2 ft high, and the
+                    // instant the term leaves WITH THE GEAR it is standing on the tarmac. The physics never
+                    // moves: the FF_DEBUG_TAKEOFF tape across wheels-off is a smooth curve, agl 6.41 -> 6.52
+                    // -> 6.93 with no step and a single InAir transition, so the drop is purely this
+                    // drawable offset. FF_GEAR_LIFT=2 restores the old value.
+                    extra = e ? (float)atof(e) : 0.0f;
                 }
 
                 // PO 2026-09-04 (TE-02, external view): "the jet still dropped below the tarmac

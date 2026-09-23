@@ -42,6 +42,8 @@
 #include "fack.h"
 #include "caution.h"
 #include "unit.h"
+#include "camplist.h"
+#include "vehicle.h"
 #include "playerop.h"
 #include "camp2sim.h"
 #include "sfx.h"
@@ -731,6 +733,59 @@ void AircraftClass::Init(SimInitDataClass* initData)
         }
 #ifdef FF_LINUX
         fprintf(stderr, "[AircraftClass::Init] Waypoint index loop done, curWaypoint=%p\n", (void*)curWaypoint); fflush(stderr);
+#endif
+#ifdef FF_LINUX
+        /* SAM-1 S4 (PO 2026-09-19: "steer into SA-8 range rather than floating down to the ground and
+           crashing into terrain, which is what the harness does now"). FF_WP_TO_SAM=<name substring>
+           moves the CURRENT steerpoint onto the nearest battalion whose vehicle class name contains it
+           (e.g. "SA-8"), FF_WP_TO_SAM_ALT ft above its ground (default 6000). With the autopilot in
+           follow-waypoint (FF_SIM_KEY "0x1e@8;C0x02@12") the jet then flies itself into the site's
+           envelope and FF_DEBUG_SAM says which launch gate holds. Harness-only; unset, nothing changes. */
+        if (getenv("FF_WP_TO_SAM") and curWaypoint)
+        {
+            const char* want = getenv("FF_WP_TO_SAM");
+            float bestD = 1.0e30f, bx = 0.0f, by = 0.0f; const char* bname = 0; int nseen = 0, nunits = 0;
+            VuListIterator uit(AllUnitList);
+            Unit u = GetFirstUnit(&uit);
+            while (u)
+            {
+                nunits++;
+                if (u->IsBattalion())
+                {
+                    VehicleClassDataType* vc = GetVehicleClassData(u->GetVehicleID(0));
+                    if (vc and strstr(vc->Name, want))
+                    {
+                        nseen++;
+                        float dx = u->XPos() - XPos(), dy = u->YPos() - YPos();
+                        float d = (float)sqrt(dx * dx + dy * dy);
+                        if (d < bestD) { bestD = d; bx = u->XPos(); by = u->YPos(); bname = vc->Name; }
+                    }
+                }
+                u = GetNextUnit(&uit);
+            }
+            if (bname)
+            {
+                float gl = OTWDriver.GetGroundLevel(bx, by);
+                float alt = getenv("FF_WP_TO_SAM_ALT") ? (float)atof(getenv("FF_WP_TO_SAM_ALT")) : 6000.0f;
+                curWaypoint->SetLocation(bx, by, gl - alt);
+                /* S4b: the first steer run turned away 20 km short -- the route advanced to its next
+                   (original) steerpoint. Put the following steerpoints on a line THROUGH the site,
+                   20 km beyond it, so an advance keeps the jet overflying the SAM. */
+                {
+                    float ux = bx - XPos(), uy = by - YPos(); float un = (float)sqrt(ux * ux + uy * uy);
+                    if (un > 1.0f) { ux /= un; uy /= un; }
+                    WayPoint w = curWaypoint->GetNextWP(); int nw = 0;
+                    for (int k = 1; w and k <= 3; k++, w = w->GetNextWP(), nw++)
+                        w->SetLocation(bx + ux * 20000.0f * k * 3.2808f, by + uy * 20000.0f * k * 3.2808f, gl - alt);
+                    fprintf(stderr, "[sam] FF_WP_TO_SAM: %d following steerpoints laid through the site\n", nw);
+                }
+                fprintf(stderr, "[sam] FF_WP_TO_SAM: steerpoint moved onto '%s' at (%.0f,%.0f), %.1f km from the jet, %.0f ft AGL (ground %.0f; %d matching of %d units)\n",
+                        bname, bx, by, bestD * FT_TO_KM, alt, -gl, nseen, nunits);
+            }
+            else
+                fprintf(stderr, "[sam] FF_WP_TO_SAM: no battalion whose vehicle class contains '%s' (%d units scanned)\n", want, nunits);
+            fflush(stderr);
+        }
 #endif
 
         // Calculate current heading

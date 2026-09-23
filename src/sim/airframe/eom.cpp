@@ -43,6 +43,9 @@
 
 
 extern VU_TIME vuxGameTime;
+#ifdef FF_LINUX
+static ULONG ffPlayerLiftoffTime = 0;   /* TAKEOFF-JUMP-1: SimLibElapsedTime at the player's lift-off */
+#endif
 extern int gPlayerExitMenuShown;
 //extern bool g_bHardCoreReal; //me123 MI replaced with g_bRealisticAvionics
 extern bool g_bRealisticAvionics;
@@ -151,6 +154,33 @@ void AirframeClass::EquationsOfMotion(float dt)
 
     groundZ = OTWDriver.GetGroundLevel(x, y, &gndNormal);
     mag = (float)sqrt(gndNormal.x * gndNormal.x + gndNormal.y * gndNormal.y + gndNormal.z * gndNormal.z);
+#ifdef FF_LINUX
+    /* TAKEOFF-JUMP-1 (PO 2026-09-19): "during takeoff in 0 view there is a slight jump when the wheels leave
+       the tarmac". On the ground SetGroundPosition overrides z every frame (z = groundZ - CheckHeight());
+       at lift-off that override stops and the integrated z carries on. MEASURE the hand-over before touching
+       it: the player's z, the HAT ground, the DRAWN ground, the gear min-height and the flags, every 5th frame
+       on the ground and every frame for 120 frames after InAir is set. FF_DEBUG_TAKEOFF=1. */
+    {
+        static int s_on = -1; if (s_on < 0) s_on = getenv("FF_DEBUG_TAKEOFF") ? 1 : 0;
+        if (s_on and platform == SimDriver.GetPlayerEntity())
+        {
+            static int s_air = 0, s_after = 0, s_n = 0; static float s_lastz = 0.0f;
+            const int air = IsSet(InAir) ? 1 : 0;
+            if (air and not s_air) s_after = 120;
+            s_air = air; s_n++;
+            if ((not air and (s_n % 5) == 0) or s_after > 0)
+            {
+                extern float FF_DrawnGroundLevel(float x, float y);
+                const float drawn = FF_DrawnGroundLevel(x, y);
+                fprintf(stderr, "[takeoff] t=%u z=%.2f hat=%.2f drawn=%.2f agl=%.2f minH=%.2f dz=%.3f vt=%.1f alpha=%.2f gmma=%.2f InAir=%d Planted=%d ONG=%d gear=%.2f\n",
+                        (unsigned)SimLibElapsedTime, z, groundZ, drawn, groundZ - z, CheckHeight(), z - s_lastz, vt, alpha, gmma,
+                        air, IsSet(Planted) ? 1 : 0, platform->IsSetFlag(ON_GROUND) ? 1 : 0, gearPos);
+                if (s_after > 0) s_after--;
+            }
+            s_lastz = z;
+        }
+    }
+#endif
     gndNormal.x /= mag;
     gndNormal.y /= mag;
     gndNormal.z /= mag;
@@ -180,6 +210,9 @@ void AirframeClass::EquationsOfMotion(float dt)
                 platform->mFaults->AddTakeOff(SimLibElapsedTime);
                 SetFlag(InAir);
                 platform->UnSetFlag(ON_GROUND);
+#ifdef FF_LINUX
+                if (platform == SimDriver.GetPlayerEntity()) ffPlayerLiftoffTime = SimLibElapsedTime;
+#endif
 
                 if (platform == SimDriver.GetPlayerEntity())
                 {
@@ -1806,6 +1839,27 @@ void AirframeClass::CheckGroundImpact(float dt)
         return;
 
     float minHeight = CheckHeight();
+
+#ifdef FF_LINUX
+    /* TAKEOFF-JUMP-1 (PO 2026-09-19): FF_DEBUG_TAKEOFF measured the hand-over at rotation on TE 02:
+       InAir flips 1,0,1,0,1,0 for six frames. Each ground frame re-LANDS the jet (LandingCheck ->
+       SetGroundPosition, pitch rate zeroed, gamma reset) and snaps z up to the contact height, which
+       grows with alpha (minH 2.96 -> 4.13 ft) faster than the airborne frames climb -- so z steps
+       -0.19/-0.04/-0.47/-0.05/-0.28/-0.07 ft on alternate frames: the "slight jump when the wheels
+       leave the tarmac". The mains ARE still touching during rotation; treat that as a sliding contact:
+       for the first 2 s after lift-off, while the jet is not sinking, hold z at the contact height
+       without re-landing (no flag flip, no pitch/gamma reset). FF_ROTATION_CONTACT=0 reverts. */
+    {
+        static int s_on = -1; if (s_on < 0) { const char* e = getenv("FF_ROTATION_CONTACT"); s_on = (e and atoi(e) != 0) ? 1 : 0; }   /* default OFF (2026-09-20): the baseline tape shows ONE clean InAir transition and no z step, so there is nothing here to fix */
+        if (s_on and platform == SimDriver.GetPlayerEntity() and ffPlayerLiftoffTime
+            and SimLibElapsedTime - ffPlayerLiftoffTime < 2000 and zdot < 5.0f
+            and z > groundZ - minHeight + GROUND_TOLERANCE)
+        {
+            z = groundZ - minHeight;
+            return;
+        }
+    }
+#endif
 
     if (z > groundZ - minHeight + GROUND_TOLERANCE)
     {

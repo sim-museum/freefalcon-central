@@ -424,8 +424,23 @@ void DrawableBSP::SetLabel(char *labelString, DWORD color)
 {
     ShiAssert(strlen(labelString) < sizeof(label));
 
-    strncpy(label, labelString, 31);
-    label[31] = 0;
+    /* LABEL-OVERLAP-1 (PO 2026-09-20, caught by AddressSanitizer on the PO's ACMI tape load):
+           ERROR: AddressSanitizer: strncpy-param-overlap
+           ranges [0x7739330589a0,0x7739330589bf) and [0x7739330589a0,0x7739330589bf) overlap
+           #2 DrawableBSP::SetLabel  #3 ACMITape::SetupSimTapeEntities (acmitape.cpp:2769)
+       The non-aircraft branch there calls SetLabel(drawable->Label(), colour) -- the object's OWN
+       label buffer as the source -- to recolour a label while keeping its text. strncpy with src
+       == dst is undefined behaviour, however harmless the byte-for-byte copy looks.
+       (I had previously read this function and called it innocent because the copy is bounded.
+       The bound was never the problem; the aliasing is.)
+       Honour the intent instead of changing the callers: when the source IS our buffer the text is
+       already in place, so only the colour changes. */
+    if (labelString not_eq label)
+    {
+        strncpy(label, labelString, 31);
+        label[31] = 0;
+    }
+
     labelColor = color;
     labelLen = VirtualDisplay::ScreenTextWidth(labelString) >> 1;
 }

@@ -3252,6 +3252,42 @@ void ACMITape::UpdateSimTapeEntities(void)
 
     // create array of SimTapeEntity
     numEntities = NumEntities();
+#ifdef FF_LINUX
+    /* ACMI-OBJ-1 (PO 2026-09-20: "no aircraft icons or other objects in the 3D view ever appear").
+       Census, once a second, of what this loop is actually working with: how many tape entities
+       exist, how many have a base object and a drawable, and how many of those drawables are in the
+       viewpoint's display list -- which is the thing that decides whether anything is rendered.
+       Ruled out first, so the census does not re-litigate them: the trailStart/EndTime window is
+       reached only after `if (not ep->objTrail) continue;`, so AIRCRAFT never take it (only missiles
+       and flares do), and the aircraft drawable is inserted once at setup, not here.
+       FF_DEBUG_ACMI=1. */
+    {
+        static int s_on = -1; static time_t s_last = 0;
+        if (s_on < 0) s_on = getenv("FF_DEBUG_ACMI") ? 1 : 0;
+        time_t nowsec = 0; if (s_on) ::time(&nowsec);
+        if (s_on and nowsec != s_last)
+        {
+            s_last = nowsec;
+            const int ne = NumEntities();
+            int haveBase = 0, haveDraw = 0, inList = 0, isAir = 0, haveTrail = 0;
+            for (int q = 0; q < ne; q++)
+            {
+                SimTapeEntity *e2 = &_simTapeEntities[q];
+                if (e2->flags bitand ENTITY_FLAG_AIRCRAFT) isAir++;
+                if (e2->objTrail) haveTrail++;
+                if ( not e2->objBase) continue;
+                haveBase++;
+                if ( not e2->objBase->drawPointer) continue;
+                haveDraw++;
+                if (e2->objBase->drawPointer->InDisplayList()) inList++;
+            }
+            fprintf(stderr, "[acmi] simTime=%.2f entities=%d aircraft=%d withBase=%d withDrawable=%d IN-DISPLAY-LIST=%d withTrail=%d viewPoint=%p\n",
+                    _simTime, ne, isAir, haveBase, haveDraw, inList, haveTrail, (void*)_viewPoint);
+            fflush(stderr);
+        }
+    }
+#endif
+
     _renderer->SetColor(0xffff0000);
 
     // for each entity, create it's object stuff....

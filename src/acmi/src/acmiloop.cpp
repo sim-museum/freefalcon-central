@@ -423,6 +423,49 @@ void ACMIView::Draw()
 
         // render the 3d view
         _renderer->DrawScene(&pos, &rot);
+#ifdef FF_LINUX
+        /* ACMI-OBJ-1 (PO 2026-09-20): the entity census proved ~550 drawables ARE in the display
+           list every frame while the view shows no objects and no terrain, so the question moved to
+           WHERE THE CAMERA IS. `pos` here is the OFFSET handed to DrawScene (gdb names that
+           parameter `offset`) and is deliberately zero; the camera's real world position lives in
+           the viewpoint, set by ACMIView::Exec -> Viewpoint()->Update(_camWorldPos + _camPos).
+           Print all three plus one real entity position once a second: a viewpoint at the origin
+           while the entities sit at Korean map coordinates would be the whole defect.
+           FF_DEBUG_ACMI=1. */
+        {
+            static int s_c = -1; static time_t s_l = 0;
+            if (s_c < 0) s_c = getenv("FF_DEBUG_ACMI") ? 1 : 0;
+            time_t nw = 0; if (s_c) ::time(&nw);
+            if (s_c and nw != s_l)
+            {
+                s_l = nw;
+                Tpoint vp; vp.x = vp.y = vp.z = -1.0f;
+                if (Viewpoint()) Viewpoint()->GetPos(&vp);
+                Tpoint e0; e0.x = e0.y = e0.z = -1.0f; int shown = -1;
+                const int ne2 = Tape()->NumEntities();
+                for (int q = 0; q < ne2; q++)
+                {
+                    SimTapeEntity *e2 = Tape()->GetSimTapeEntity(q);
+                    if (e2 and (e2->flags bitand ENTITY_FLAG_AIRCRAFT) and e2->objBase and e2->objBase->drawPointer)
+                    { e2->objBase->drawPointer->GetPosition(&e0); shown = q; break; }
+                }
+                /* ACMI-OBJ-1: the camera is now PROVEN correct (orbit gives a 500 ft standoff from
+                   the focused jet) and the entities are PROVEN in a display list, yet nothing draws.
+                   The remaining suspect is identity: ACMITape is handed a viewpoint at construction
+                   (acmiview.cpp:274) while ACMIView creates its RViewPoint separately
+                   (acmiview.cpp:519). If those are two objects, entities are inserted into one
+                   display list and the renderer draws from the other. Print all three pointers --
+                   the tape's is already in the [acmi] census line, so the three can be compared in
+                   one log. */
+                fprintf(stderr, "[acmicam] viewpointPtr=%p rendererViewpointPtr=%p  viewpoint=(%.0f,%.0f,%.0f) camWorld=(%.0f,%.0f,%.0f) camOff=(%.0f,%.0f,%.0f) sceneOffset=(%.0f,%.0f,%.0f) camState=%d  firstAircraft[%d]=(%.0f,%.0f,%.0f)\n",
+                        (void*)Viewpoint(), (void*)(_renderer ? _renderer->viewpoint : NULL),
+                        vp.x, vp.y, vp.z, _camWorldPos.x, _camWorldPos.y, _camWorldPos.z,
+                        _camPos.x, _camPos.y, _camPos.z, pos.x, pos.y, pos.z,
+                        (int)_cameraState, shown, e0.x, e0.y, e0.z);
+                fflush(stderr);
+            }
+        }
+#endif
 
         //JAM 12Dec03 - ZBUFFERING OFF
         if (DisplayOptions.bZBuffering)

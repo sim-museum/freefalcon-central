@@ -83,6 +83,9 @@ extern bool g_bUseMappedFiles;
 ObjectLOD::ObjectLOD()
 {
     root = NULL;
+#ifdef FF_LINUX
+    ffDxId = 0;   /* TAPE-UAF-1 */
+#endif
     refCount = 0;
     OnRelease = OnOrder = false;
     RatedLoad = true;
@@ -479,6 +482,9 @@ DWORD ObjectLOD::Load(void)
             {
                 // Update the Root from VB Manager
                 root = (BRoot*)TheVbManager.GetModelRoot(DxID);
+#ifdef FF_LINUX
+                ffDxId = DxID;   /* TAPE-UAF-1: remember it; Free() must not read `root` (see objectlod.h) */
+#endif
                 // update flags and assert as good
                 TheVbManager.AssertValidModel(DxID);
 
@@ -506,7 +512,17 @@ void ObjectLOD::Free(void)
     // Release the textures
     //TheDXEngine.UnLoadTextures(((DxDbHeader*)root)->Id);
     // Release the model
+#ifdef FF_LINUX
+    /* TAPE-UAF-1: use the id captured at load time. Reading ((DxDbHeader*)root)->Id here is a
+       heap-use-after-free whenever the main thread has already drained the pending-free list.
+       `root` becomes non-NULL in exactly one place (Load, line ~484) and ffDxId is set with it, so
+       the two always agree. Guard the NULL case explicitly: the old code would have faulted on it,
+       and releasing a stale id would silently corrupt texture refcounts instead. */
+    if (root)
+        TheVbManager.ReleaseModel(ffDxId);
+#else
     TheVbManager.ReleaseModel(((DxDbHeader*)root)->Id);
+#endif
     // clear the root
     root = NULL;
 

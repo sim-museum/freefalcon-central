@@ -21772,6 +21772,74 @@ the whole UI is stretched to the display, so at 1920 each digit is 13 px wide ma
 `FF_RECON_TEXT_SCALE` x (default 2) -- twice the size from the same texels, which is what separates the
 digits; 1 restores the old size. Capture pending with RECON-1's.
 
+**PO crash-hunt session (Opus 5, 2026-09-20) -- four defects found with the PO driving, three of them verified by him or by AddressSanitizer.**
+Method: the dev build under `gdb -batch` (`tools/ff_po_instrumented.sh`) for crashes and hangs, then the
+`build-asan` tree for memory errors. Logs in `~/ff-gates/po_crash/`, evidence copied to
+`docs/reference/260920_crash/`.
+
+**GEAR-1 CORRECTED -- ✅ PO-verified: "TE 2 0 view on takeoff is correct!"** His report sharpened to
+*"the aircraft floats above the tarmac, then when the wheels lift off, drops down to where it should be
+(on the tarmac) and then rises correctly"*. That is `simView->z -= extra * gearScale` in otwdrive.cpp: a
+2 ft visual-only lift applied while the gear is DOWN, so it leaves at wheels-UP, not at a height. The A/B
+that chose 2.0 ran while `FF_RunwayDecal()` still returned 3 ft; that decal went to 0 on 2026-09-05 and
+this term was never re-tuned against the new baseline. Default is now 0 (`FF_GEAR_LIFT=2` restores it).
+The FF_DEBUG_TAKEOFF tape shows the physics was never involved: agl 6.41 -> 6.52 -> 6.93 across wheels-off,
+smooth, one InAir transition. My own two unverified takeoff edits from 09-19 (lift-fade anchor, rotation
+contact) are DEFAULT OFF: his baseline run reproduced the float without them, so they fixed nothing.
+
+**TRAIL-HANG-1 -- ✅ root cause, caught mid-hang.** PO: the ACMI viewer froze while he rotated the orbit
+view with the mouse. Interrupting gdb found the main thread RUNNING, not blocked:
+`_int_malloc <- operator new <- GetATrailNode <- DrawableTrail::AddPointAtHead <-
+ACMITape::UpdateSimTapeEntities <- ACMIView::Draw`. That interpolation loop advances only by
+`q += spacing`, and `spacing` comes from trail-type DATA, so a type with spacing 0 never advances and the
+loop allocates a TrailNode per iteration forever. The large-jump guard above it does not help: with
+spacing 0 it sets `q = d - 0.01`, still < d. Two belts now: refuse to interpolate when spacing cannot
+advance (the `not (spacing > 0.01f)` form also catches NaN), and cap one call at 256 nodes.
+`FF_TRAIL_NOGUARD=1` reverts.
+
+**LABEL-OVERLAP-1 -- ✅ found by ASan on the first tape load.** `strncpy-param-overlap` in
+`DrawableBSP::SetLabel`: the non-aircraft branch of `SetupSimTapeEntities` recolours a label by passing
+the drawable its OWN label buffer as the source. Undefined behaviour however benign the copy looks.
+⚠️ I had read this function earlier and called it innocent because the copy is bounded -- the bound was
+never the issue, the aliasing was. Fixed by honouring the intent: when the source is our own buffer the
+text is already there, so only the colour changes.
+
+**TAPE-UAF-1 -- ✅ the crash's real cause: a cross-thread use-after-free.** PO's repro (load tape 2, then
+n-1, then n) crashed inside `malloc`'s `unlink_chunk`, i.e. corrupted heap metadata -- the visible
+backtrace (a list box adding "2 F-16CG") was the victim, not the culprit. ASan named it:
+
+    allocated  T9 loader   Loader::MainLoop -> ObjectLOD::Load -> CDXVbManager::SetupModel
+    freed      T0 main     ACMIView::Draw -> FlushPolyLists -> FlushBuffers -> ResetDrawList
+    used       T9 loader   Loader::MainLoop -> ObjectLOD::UpdateLods -> ObjectLOD::Free
+
+`ObjectLOD::Free` recovered the model id by dereferencing `root` --
+`ReleaseModel(((DxDbHeader*)root)->Id)` -- but `root` points into vertex-buffer memory the MAIN thread
+frees when it drains the pending-free list. Tape switching makes the loader churn models while the viewer
+keeps drawing, which is why loads 2 and 3 are where it bites. Fix: keep the id `Load()` already computes
+(`ffDxId`), so the unload path never reads that memory; `root` becomes non-NULL in exactly one place and
+the id is set with it, plus a NULL-root guard. **Verified: the same tape sequence now produces ZERO ASan
+reports where it previously corrupted the heap.**
+
+**ACMI-OBJ-1 -- 🟠 open, but three explanations are dead and the symptom has changed shape.** PO: *"no
+aircraft icons or other objects in the 3D view ever appear"*. Ruled out, each by measurement rather than
+argument: (1) entities missing -- the `FF_DEBUG_ACMI` census shows 1957 entities, all with drawables, and
+548-1077 of them IN the viewpoint's display list, tracking playback; (2) camera lost -- `[acmicam]` shows
+it exactly on the focused jet in Internal, and a correct ~500 ft standoff in Orbit
+(`camOff=(-436,-4,-244)`); (3) two viewpoints -- ACMIView's, the renderer's and the tape's are one
+pointer, `0x5555609fa1b0`. Also dead: the trail time-window (`trailStartTime/EndTime`) is reached only
+after `if (not ep->objTrail) continue;`, so it governs missiles and flares, never aircraft; and the
+`pos = {0,0,0}` handed to `DrawScene` is an OFFSET (gdb names the parameter `offset`), not a position.
+**New**: after the fixes, the PO's second tape "does not load" -- but the census shows it DOES, arriving
+with **1 entity** where the first tape had 51. So the file is read and the viewer switches; the entities
+are lost in between. Next: compare the tape header's claimed entity count against what survives
+`SetupSimTapeEntities`, and chase the texture-bank assertions that fire around it (`IsValidIndex(id)` on
+reference and release, and one release of a texture whose refCount was already 0 -- all present in
+pre-fix logs, so not introduced here).
+
+**SAM-1 S4 -- hook added, untested.** `FF_WP_TO_SAM=<name>` moves the current steerpoint onto the nearest
+matching battalion (and lays the following ones through it) so the autopilot flies into the envelope;
+`FF_WP_TO_SAM_ALT` sets the height. Two runs reached the site's area but the item is not yet measured.
+
 **PARTICLE-CRASH-1 (Opus 5, 2026-09-20) -- the PO crashed the ACMI viewer on purpose; caught under gdb, fixed at both sites.**
 The PO asked for an instrumented run and broke it in fifteen minutes. The recipe: the dev build under
 `gdb -batch` with `run; bt full; thread apply all bt; info registers`, log at

@@ -473,6 +473,25 @@ void DrawableTrail::AddPointAtHead(Tpoint *worldPos, DWORD)
             }
 
             q += spacing;
+            /* TRAIL-HANG-1 (PO 2026-09-20): THE LOOP BELOW NEED NOT TERMINATE. Its only advance is
+               `q += spacing`, and `spacing` comes from trail-type DATA (line 424:
+               Type->spacing + NRANDPOS * Type->spcVariation), so a type whose spacing is 0 -- or a
+               negative spcVariation that cancels it -- leaves q where it is while the loop allocates
+               a TrailNode every iteration, forever. Caught in the act: the PO reported the ACMI
+               viewer hanging while rotating the orbit view with the mouse; interrupting gdb found the
+               main thread RUNNING, not blocked, at
+                   _int_malloc <- operator new <- GetATrailNode <- AddPointAtHead
+                   <- ACMITape::UpdateSimTapeEntities <- ACMIView::Draw
+               i.e. this loop eating the heap. The big-jump guard above does NOT save it: with
+               spacing 0 it sets q = d - 0.01, still < d, and q never moves.
+               Two belts: refuse to interpolate when spacing cannot advance, and cap the nodes one
+               call may emit so a legitimate but enormous d cannot stall the frame either.
+               FF_TRAIL_NOGUARD=1 restores the old behaviour. */
+            static int trailGuard = -1;
+            if (trailGuard < 0) trailGuard = getenv("FF_TRAIL_NOGUARD") ? 0 : 1;
+            int trailEmitted = 0;
+            const int TRAIL_MAX_NODES = 256;
+            if (trailGuard and not (spacing > 0.01f)) q = d;   /* also catches NaN; emit no filler */
 
             DWORD timed = now - n->NowTime;
             DWORD timeb = n->NowTime;
@@ -506,6 +525,9 @@ void DrawableTrail::AddPointAtHead(Tpoint *worldPos, DWORD)
                 }
 
                 q += spacing;
+
+                /* TRAIL-HANG-1: second belt -- bound the work per call (see the note above). */
+                if (trailGuard and ++trailEmitted >= TRAIL_MAX_NODES) break;
             }
         }
 

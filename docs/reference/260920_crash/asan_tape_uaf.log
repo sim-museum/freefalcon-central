@@ -1,0 +1,1410 @@
+=== FreeFalcon under AddressSanitizer, 20:40:38
+=== git 04d20248 + uncommitted:  M src/acmi/src/acmiloop.cpp  M src/acmi/src/acmitape.cpp  M src/graphics/objects/drawbsp.cpp  M src/graphics/objects/drawsgmt.cpp  M src/sim/aircraft/aircraft.cpp  M src/sim/airframe/eom.cpp  M src/sim/otwdrive/otwdrive.cpp 
+[TRACE] About to call init_game_paths
+[TRACE] init_game_paths completed
+[TRACE] About to call init_resource_manager
+[TRACE] init_resource_manager completed
+[TRACE] About to call init_sdl
+[TRACE] SDL_Init completed, setting GL attributes
+[TRACE] About to create window
+[TRACE] init_sdl completed
+[TRACE] About to call init_opengl
+[TRACE] About to call SDL_GL_CreateContext
+[TRACE] init_opengl completed
+[main] Calling init_game_core...
+  [FalconDisplay::Setup] Starting DeviceIndependentGraphicsSetup...
+  [FalconDisplay::Setup] DeviceIndependentGraphicsSetup done
+  [FalconDisplay::Setup] Registering window class...
+  [FalconDisplay::Setup] RegisterClass done, calling MakeWindow...
+  [FalconDisplay::Setup] Calling MakeWindow...
+  [FalconDisplay::Setup] MakeWindow done, calling devmgr.Setup...
+  [EnumD3DDrivers] Starting...
+  [EnumD3DDrivers] DirectDrawCreateEx returned pDD7=0x6dd4cba42350
+  [EnumD3DDrivers] QueryInterface for D3D7: hr=0x0, pD3D=0x6dd4cba422c0
+  [EnumD3DDrivers] Calling EnumDevices...
+    [EnumD3DDriversCallback] name=OpenGL, desc=FreeFalcon OpenGL Device
+    [EnumD3DDriversCallback] dwDevCaps=0x90000, required=0x10000
+    [EnumD3DDriversCallback] Adding device to list
+  [EnumD3DDrivers] EnumDevices returned
+  [FalconDisplay::Setup] devmgr.Setup done
+  Setting theater: Korea
+  [SetNewTheater] ReadIndex...
+  [SetNewTheater] LoadPriorityTables...
+  [SetNewTheater] TheaterReload...
+      [ObjectParent::CleanupTable] Starting, TheObjectList=0x6da4aa469808, TheObjectListLength=3961
+      [ObjectParent::CleanupTable] FlushReferences()...
+      [ObjectParent::CleanupTable] FlushReferences() done
+      [ObjectParent::CleanupTable] ObjectLOD::CleanupTable()...
+        [ObjectLOD::CleanupTable] Starting, TheObjectLODs=0x6da4ac1a6808, TheObjectLODsCount=6801
+        [ObjectLOD::CleanupTable] Iterating 6801 LODs...
+        [ObjectLOD::CleanupTable] LOD iteration done
+        [ObjectLOD::CleanupTable] WaitUpdates()...
+        [ObjectLOD::CleanupTable] WaitUpdates() done
+        [ObjectLOD::CleanupTable] Deleting TheObjectLODs...
+        [ObjectLOD::CleanupTable] TheObjectLODs deleted
+        [ObjectLOD::CleanupTable] Deleting tagListBuffer...
+        [ObjectLOD::CleanupTable] tagListBuffer deleted
+        [ObjectLOD::CleanupTable] ObjectLodMap.Close()...
+        [ObjectLOD::CleanupTable] ObjectLodMap closed
+        [ObjectLOD::CleanupTable] DeleteCriticalSection()...
+        [ObjectLOD::CleanupTable] Critical section deleted
+      [ObjectParent::CleanupTable] ObjectLOD::CleanupTable() done
+      [ObjectParent::CleanupTable] TheTextureBank.Cleanup()...
+      [ObjectParent::CleanupTable] ThePaletteBank.Cleanup()...
+      [ObjectParent::CleanupTable] TheColorBank.Cleanup()...
+      [ObjectParent::CleanupTable] Banks cleanup done
+      [ObjectParent::CleanupTable] Deleting TheObjectList...
+      [ObjectParent::CleanupTable] TheObjectList deleted
+  [SetNewTheater] ResSetDirectory...
+  [SetNewTheater] UnloadClassTable...
+  [SetNewTheater] LoadClassTable...
+========================================
+FreeFalcon 7.0.0
+Open Source Project
+Build: Sep 20 2026 19:27:49
+========================================
+
+Data directory: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6
+Setting up game paths...
+  Campaign saves: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/campaign/save
+  Terrain data: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea
+  Object data: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/objects
+  Sound directory: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/sounds
+Initializing resource manager...
+Initializing SDL2...
+  Window created: 1024x768
+  Keyboard scancode translation initialized.
+Initializing OpenGL...
+  OpenGL Vendor: NVIDIA Corporation
+  OpenGL Renderer: NVIDIA GeForce GTX 1660 SUPER/PCIe/SSE2
+  OpenGL Version: 4.6.0 NVIDIA 595.84
+  OpenGL Stencil Bits: 8
+Initializing OpenAL...
+  OpenAL Vendor: OpenAL Community
+  OpenAL Renderer: OpenAL Soft
+  OpenAL Version: 1.1 ALSOFT 
+
+--- Initializing Game Core Systems ---
+  Initializing communications layer...
+  Communications layer initialized successfully
+  Setting up FalconDisplay for Linux...
+  Loading display options...
+  Initializing DeviceManager...
+[D3DGL] Creating DirectDraw7 interface
+  Initializing simulation memory pools...
+  Loading particle system parameters...
+  Loading theater list...
+  Loading class table (InitClassTableAndData)...
+  Class table loaded. Falcon4ClassTable=0x6da4a0aee800
+  Loading: UnitData...
+LoadUnitData: trying to open file Falcon4 with extension UCD
+LoadUnitData: file opened successfully
+LoadUnitData: file size=252002, entries=750, sizeof(UnitClassDataType)=336, expected=252002
+  Loading: FeatureEntryData...
+  Loading: ObjectiveData...
+  Loading: WeaponData...
+  Loading: FeatureData...
+  Loading: VehicleData...
+  Loading: WeaponListData...
+  Loading: PtHeaderData...
+  Loading: PtData...
+  Loading: RadarData...
+  Loading: IRSTData...
+  Loading: RwrData...
+  Loading: VisualData...
+  Loading: SimWeaponData...
+  Loading: ACDefData...
+  Loading: SquadronStoresData...
+  Loading: RocketData...
+  Loading: DirtyData...
+  Loading: MissionData...
+  Loading: VisIdMap...
+  Loading: RackTables...
+  Loading: RDRackData...
+  All data files loaded! Checking Falcon4ClassTable...
+  Falcon4ClassTable = 0x6da4a0aee800, NumEntities = 3678
+  [SetNewTheater] ReadCampAIInputs...
+  [SetNewTheater] FreeTactics...
+  [SetNewTheater] LoadTactics...
+  [SetNewTheater] LoadTrails...
+  [SetNewTheater] Freeing SIM data...
+  [SetNewTheater] Reading SIM data...
+  [SetNewTheater] SetCurrentTheater...
+  [SetNewTheater] Complete!
+  [main_linux] SetNewTheater returned, calling InitVU...
+  Initializing VU system...
+  [main_linux] InitVU returned
+  Setting up thread manager...
+  [main_linux] ThreadManager::setup() returned
+  Initializing sound manager...
+[InstallDSound] Starting, gSoundDriver=0x6e64cbac95c0, DSound=(nil)
+[InstallDSound] Calling DirectSoundCreate...
+[InstallDSound] DirectSoundCreate returned 0x0, DSound=0x6dc4cbaebfb0
+  [main_linux] InitSoundManager() succeeded
+  Starting sound system...
+  [main_linux] F4SoundStart() returned
+  Starting simulation loop...
+  [main_linux] SimulationLoopControl::StartSim() returned
+  Initializing weather system...
+  [main_linux] realWeather created
+  Initializing campaign system...
+[ThreadManager::start_campaign_thread] ENTRY, function=0x59399863fa00
+[ThreadManager::start_campaign_thread] Calling CreateThread...
+[ThreadManager::start_campaign_thread] CreateThread returned handle=0x6dd4cba9ec90
+[ThreadManager::start_campaign_thread] DONE
+[CampaignThread] STARTED - entering function
+[CampaignThread] About to call HandleCampaignThread()
+[StartLoop] Thread started, entering main loop
+[StartLoop] Waiting for wait_for_start_graphics event...
+[HandleCampaignThread] STARTED - entering function
+[HandleCampaignThread] Set CAMP_RUNNING, campaign_active()=1
+[HandleCampaignThread] Got CAMP_SUSPEND_REQUEST, setting CAMP_SUSPENDED
+  [main_linux] Camp_Init() returned
+  Building key mappings...
+  [main_linux] BuildAscii() SKIPPED -- static Key_Chart kept (MP-1)
+  Initializing comms manager...
+  [main_linux] gCommsMgr->Setup() returned
+  Loading logbook...
+[FF_LINUX] WeatherClass::Init entry (instantAction=1)
+[FF_LINUX] WeatherClass::Init: lastCheck=0
+[FF_LINUX] WeatherClass::Init: weatherDay=0
+[FF_LINUX] WeatherClass::Init: Calling TimeOfDayGeneral()
+[FF_LINUX] WeatherClass::Init: About to call GenerateClouds()
+[FF_LINUX] WeatherClass::Init: GenerateClouds returned, exiting Init
+  [main_linux] logbook loaded for 'Viper'
+  Loading keyboard function tables...
+  [main_linux] LoadFunctionTables() returned
+  Game core initialization complete.
+[main] init_game_core() returned
+[main] Calling init_d3d_graphics...
+[Texture::SetupForDevice] rc=0x6e64cbabb280 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/objects/
+[main] init_d3d_graphics() returned
+
+========================================
+Initialization complete!
+========================================
+[main] Entering main_loop...
+
+========================================
+Entering main loop
+  ESC = quit, Click X to close
+========================================
+
+[Main] Posting FM_START_GAME to initialize game...
+[INPUT] focus gained (doUI=0) -> relative mouse re-enabled
+[FM] FM_START_GAME received
+[FM] FM_START_UI received
+[FM] Main thread re-acquired GL context
+[FM] Calling UI_Startup()...
+[UI_Startup] ENTRY, FalconDisplay.currentMode=1
+[UI_Startup] Calling EnterMode(UI)...
+  [DisplayDevice::Setup] Starting 1024x768x16, fullscreen=0
+  [DisplayDevice::Setup] Calling CreateContext...
+  [CreateContext] driverNum=0, devNum=0, resNum=18
+  [CreateContext] GetDriver returned pDDI=0x6f54cb9f1180
+  [CreateContext] D3D devices count: 1
+  [CreateContext] Display modes count: 46
+  [CreateContext] GetDevice returned pD3DDI=0x6ec4cb9fa140
+  [CreateContext] GetDisplayMode returned pddsd=0x6ff4cbcb8290
+  [DXContext::Init] Starting with hWnd=0x6eb4cba3c480, 1024x768@16, fullscreen=0
+  [DXContext::Init] Checking thread ID...
+  [DXContext::Init] Thread ID check passed
+  [DXContext::Init] Calling DirectDrawCreateEx...
+  [DXContext::Init] DirectDrawCreateEx returned m_pDD=0x6dd4cbaa5170
+  [DXContext::Init] Calling GetCaps... m_pcapsDD=0x6ed4cba91a40
+  [DXContext::Init] GetCaps done
+  [DXContext::Init] Calling GetDeviceIdentifier... m_pDevID=0x6f34cba04980
+  [DXContext::Init] GetDeviceIdentifier done
+  [DXContext::Init] DXContext::Init - DriverInfo - "OpenGL" - "FreeFalcon OpenGL Renderer", Vendor: 4318, Device: 4660, SubSys: 0, Rev: 0, Product: 0, Version: 0, SubVersion: 0, Build: 0
+  [DXContext::Init] Calling SetCooperativeLevel with flags=0x1408...
+  [DXContext::Init] SetCooperativeLevel done
+  [DXContext::Init] Complete!
+  [DisplayDevice::Setup] CreateContext returned m_DXCtx=0x6e64cbabb040
+  [DisplayDevice::Setup] Context created, setting up window...
+  [DisplayDevice::Setup] Calling ShowWindow...
+  [DisplayDevice::Setup] ShowWindow done
+  [DisplayDevice::Setup] Setting up windowed image, IsHardware=1...
+  [DisplayDevice::Setup] image.Setup done
+  [DisplayDevice::Setup] Calling SetRenderTarget, targetSurface=0x6e54cba494a0...
+[SetRenderTarget] Linux: Creating D3D7 interface directly
+[SetRenderTarget] Linux: m_pD3D=0x6dd4cbaa51d0
+[AttachDepthBuffer] Linux: Skipping - OpenGL manages depth buffers
+[SetRenderTarget] Linux: Creating D3D device directly, pRenderTarget=0x6e54cba494a0
+[SetRenderTarget] Linux: m_pD3DD=0x6da494c78800
+  [DisplayDevice::Setup] SetRenderTarget done
+  [DisplayDevice::Setup] Calling movieInit...
+  [DisplayDevice::Setup] Complete!
+[UI_Startup] EnterMode done, getting ImageBuffer...
+[GlobalSetup] Creating C_Parser...
+[GlobalSetup] Loading ID lists...
+[LoadIDList] Loading: userids.lst
+[LoadIDList] file size=500 for userids.lst
+[LoadIDList] Loading: fontids.lst
+[LoadIDList] file size=22 for fontids.lst
+[LoadIDList] Loading: imageids.lst
+[LoadIDList] file size=197 for imageids.lst
+[LoadIDList] Loading: soundids.lst
+[LoadIDList] file size=46 for soundids.lst
+[LoadIDList] Loading: textids.lst
+[LoadIDList] file size=21 for textids.lst
+[LoadIDList] Loading: movieids.lst
+[LoadIDList] file size=20 for movieids.lst
+[LoadImageList] Loading: resimgs.lst
+[LoadImageList] Opened: resimgs.lst
+[LoadSoundList] Loading: sounds.lst
+[LoadImageList] Loading: main_res.lst
+[LoadImageList] Opened: main_res.lst
+[LoadSoundList] Loading: main_snd.lst
+[LoadWindowList] Loading: main_scf.lst
+[LoadImageList] Loading: comm_res.lst
+[LoadImageList] Opened: comm_res.lst
+[LoadSoundList] Loading: comm_snd.lst
+[LoadWindowList] Loading: comm_scf.lst
+[LoadImageList] Loading: help_res.lst
+[LoadImageList] FAILED to open: help_res.lst
+[LoadSoundList] Loading: help_snd.lst
+[LoadWindowList] Loading: help_scf.lst
+[LoadImageList] Loading: lb_res.lst
+[LoadImageList] Opened: lb_res.lst
+[LoadSoundList] Loading: lb_snd.lst
+[LoadWindowList] Loading: lb_scf.lst
+[Texture::SetupForDevice] rc=0x6e64cbabb040 path=/home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/misctex/
+[FarTexDB] DDS file: /home/admin/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6/terrdata/korea/texture/fartiles.dds, headerSize=124, bytesRead=124
+[FarTexDB] DDS header: flags=0x81007, width=32, height=32, linearSize=512, mipMapCount=0
+[FarTexDB] DDS pixfmt: flags=0x0, fourCC=0x31545844, rgbBitCount=4
+[FarTexDB] linearSize=512, texCount=96664, fartexDDSFile.IsReady=1
+[PalLight] light=(0.750 0.829 0.849) gametime=0 pal=0x6f34cba6b180
+[FM] UI_Startup() complete
+FPS: 57 (avg over 5 sec), doUI=1, gMainHandler=0x6fe4cbc46100
+FPS: 60 (avg over 5 sec), doUI=1, gMainHandler=0x6fe4cbc46100
+FPS: 59 (avg over 5 sec), doUI=1, gMainHandler=0x6fe4cbc46100
+[Mouse] LBUTTONDOWN at (342, 747)
+[LBUTTONDOWN] at (342,747) -> window=0x6ff4cbf99100 ID=5000
+[LBUTTONDOWN] GrabItem found control ID=10047 type=25
+[LBUTTONUP] at (342,747) -> window=0x6ff4cbf99100 Grab_.Control_=0x6ec4cbaa2140
+[LBUTTONUP] Grab_.Control_ found: ID=10047 type=25
+[LBUTTONUP] Calling Process(ID=10047, type=52)
+[LoadImageList] Loading: ac_art.lst
+[LoadImageList] Opened: ac_art.lst
+[LoadSoundList] Loading: ac_snd.lst
+[LoadWindowList] Loading: ac_scf.lst
+[OTW.Setup] LastNearTexLOD=2 LastFarTexLOD=4 NumLevels=6
+[Mouse] LBUTTONDOWN at (349, 222)
+[LBUTTONDOWN] at (349,222) -> window=0x6ff4cbf5a900 ID=500
+[LBUTTONDOWN] GrabItem found control ID=506 type=0
+[LBUTTONUP] at (349,222) -> window=0x6ff4cbf5a900 Grab_.Control_=0x6ed4cbaac700
+[LBUTTONUP] Grab_.Control_ found: ID=506 type=0
+[LBUTTONUP] Calling Process(ID=506, type=52)
+[Mouse] LBUTTONDOWN at (559, 552)
+[LBUTTONDOWN] at (559,552) -> window=0x6ff4cbf5a900 ID=500
+[LBUTTONDOWN] GrabItem found control ID=504 type=25
+[LBUTTONUP] at (559,552) -> window=0x6ff4cbf5a900 Grab_.Control_=0x6ec4cbabdec0
+[LBUTTONUP] Grab_.Control_ found: ID=504 type=25
+[LBUTTONUP] Calling Process(ID=504, type=52)
+Assertion at 425  /home/admin/freefalcon-central/src/graphics/objects/drawbsp.cpp  Sep 20 2026
+[Failed:  strlen(labelString) < sizeof(label)] Assertion at 425  /home/admin/freefalcon-central/src/graphics/objects/drawbsp.cpp  Sep 20 2026
+[PalLight] light=(0.326 0.241 0.156) gametime=0 pal=0x6f34cba6b180
+[TERRAIN_DIAG] ground_color=(0.326,0.241,0.156) haze_ground=(0.962,0.722,0.399)
+[TERRAIN_DIAG] far_clip=196739.3 haze_start=19673.9 haze_depth=98369.6 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.084 lightDiffuse=0.253 lightSpecular=0.652
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=0
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.96,0.72,0.39,1.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=0 withTrail=0 viewPoint=0x6ee4cba5c040
+[TERRAIN_DIAG] ground_color=(0.326,0.241,0.156) haze_ground=(0.962,0.722,0.399)
+[TERRAIN_DIAG] far_clip=196739.3 haze_start=19673.9 haze_depth=98369.6 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.084 lightDiffuse=0.253 lightSpecular=0.652
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=0
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.96,0.72,0.39,1.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[TERRAIN_DIAG] ground_color=(0.326,0.241,0.156) haze_ground=(0.962,0.722,0.399)
+[TERRAIN_DIAG] far_clip=196739.3 haze_start=19673.9 haze_depth=98369.6 hazed=1
+[TERRAIN_DIAG] lightAmbient=0.084 lightDiffuse=0.253 lightSpecular=0.652
+[TERRAIN_DIAG] GL_LIGHTING=0 GL_FOG=1 GL_ALPHA_TEST=1 GL_BLEND=1 GL_DEPTH_TEST=1
+[TERRAIN_DIAG] GL_SCISSOR_TEST=0 GL_STENCIL_TEST=0 GL_CULL_FACE=0
+[TERRAIN_DIAG] fogMode=0x2601 fogStart=0.0 fogEnd=80000.0 fogColor=(0.96,0.72,0.39,1.00)
+[TERRAIN_DIAG] alphaFunc=0x206 alphaRef=0.0039
+[TERRAIN_DIAG] FOG_COORD_SRC=0x8452 (FRAG_DEPTH=0x8452, FOG_COORD=0x8457)
+[VERT_COLOR] r=0.069 g=0.051 b=0.033 a=1.000 dist=-1887.5 scale=-0.009 state=37 colorIdx=192
+[VERT_COLOR] r=0.094 g=0.072 b=0.048 a=1.085 dist=11231.4 scale=0.057 state=37 colorIdx=214
+[VERT_COLOR] r=0.069 g=0.051 b=0.033 a=1.000 dist=-1887.5 scale=-0.009 state=37 colorIdx=192
+[VERT_COLOR] r=0.094 g=0.072 b=0.048 a=1.085 dist=11231.4 scale=0.057 state=37 colorIdx=214
+[VERT_COLOR] r=0.065 g=0.052 b=0.035 a=0.952 dist=24350.3 scale=0.123 state=37 colorIdx=214
+Assertion at 356  /home/admin/freefalcon-central/src/graphics/bsplib/texbank.cpp  Sep 19 2026
+[Failed:  IsValidIndex(id)] Assertion at 356  /home/admin/freefalcon-central/src/graphics/bsplib/texbank.cpp  Sep 19 2026
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[StoreMPRPalette] lightColor=(0.326, 0.241, 0.156) lightLevel=0.337
+Assertion at 1405  /home/admin/freefalcon-central/src/graphics/texture/terrtex.cpp  Sep 19 2026
+[Failed:  TextureSets[set].tiles[tile].handleN[res]] Assertion at 1405  /home/admin/freefalcon-central/src/graphics/texture/terrtex.cpp  Sep 19 2026
+[StoreMPRPalette] lightColor=(0.326, 0.241, 0.156) lightLevel=0.337
+[StoreMPRPalette] lightColor=(0.326, 0.241, 0.156) lightLevel=0.337
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[Mouse] LBUTTONDOWN at (452, 749)
+[LBUTTONDOWN] at (452,749) -> window=0x6ff4cbfe9100 ID=200000
+[LBUTTONDOWN] GrabItem found control ID=200004 type=29
+[LBUTTONUP] at (452,749) -> window=0x6ff4cbfe9100 Grab_.Control_=0x6ec4cbbd9fc0
+[LBUTTONUP] Grab_.Control_ found: ID=200004 type=29
+[LBUTTONUP] Calling Process(ID=200004, type=52)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[Mouse] LBUTTONDOWN at (82, 16)
+[LBUTTONDOWN] at (82,16) -> window=0x6ff4cbfe9100 ID=200000
+[LBUTTONDOWN] GrabItem found control ID=200024 type=0
+[LBUTTONUP] at (82,16) -> window=0x6ff4cbfe9100 Grab_.Control_=0x6ee4cba5b440
+[LBUTTONUP] Grab_.Control_ found: ID=200024 type=0
+[LBUTTONUP] Calling Process(ID=200024, type=52)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766480,1602414,-2430) camWorld=(1766480,1602414,-2430) camOff=(0,0,0) sceneOffset=(0,0,0) camState=200123  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=50 withTrail=0 viewPoint=0x6ee4cba5c040
+[LBUTTONDOWN] at (71,48) -> window=0x6ff4cc117900 ID=1
+[LBUTTONDOWN] GrabItem found control ID=200124 type=27
+[LBUTTONUP] at (71,48) -> window=0x6ff4cc117900 Grab_.Control_=0x6ec4cbbe2540
+[LBUTTONUP] Grab_.Control_ found: ID=200124 type=27
+[LBUTTONUP] Calling Process(ID=200124, type=52)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[LBUTTONDOWN] at (334,749) -> window=0x6ff4cbfe9100 ID=200000
+[LBUTTONDOWN] GrabItem found control ID=200139 type=25
+[LBUTTONUP] at (334,749) -> window=0x6ff4cbfe9100 Grab_.Control_=0x6ec4cbbdbdc0
+[LBUTTONUP] Grab_.Control_ found: ID=200139 type=25
+[LBUTTONUP] Calling Process(ID=200139, type=52)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.46 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[LBUTTONDOWN] at (334,749) -> window=0x6ff4cbfe9100 ID=200000
+[LBUTTONDOWN] GrabItem found control ID=200139 type=25
+[LBUTTONUP] at (334,749) -> window=0x6ff4cbfe9100 Grab_.Control_=0x6ec4cbbdbdc0
+[LBUTTONUP] Grab_.Control_ found: ID=200139 type=25
+[LBUTTONUP] Calling Process(ID=200139, type=52)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.35 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.35 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[LBUTTONDOWN] at (366,747) -> window=0x6ff4cbfe9100 ID=200000
+[LBUTTONDOWN] GrabItem found control ID=200005 type=29
+[LBUTTONUP] at (366,747) -> window=0x6ff4cbfe9100 Grab_.Control_=0x6ec4cbbdaec0
+[LBUTTONUP] Grab_.Control_ found: ID=200005 type=29
+[LBUTTONUP] Calling Process(ID=200005, type=52)
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.19 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[LBUTTONDOWN] at (451,751) -> window=0x6ff4cbfe9100 ID=200000
+[LBUTTONDOWN] GrabItem found control ID=200004 type=29
+[LBUTTONUP] at (451,751) -> window=0x6ff4cbfe9100 Grab_.Control_=0x6ec4cbbd9fc0
+[LBUTTONUP] Grab_.Control_ found: ID=200004 type=29
+[LBUTTONUP] Calling Process(ID=200004, type=52)
+[acmi] simTime=66825.29 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[acmicam] viewpointPtr=0x6ee4cba5c040 rendererViewpointPtr=0x6ee4cba5c040  viewpoint=(1766474,1601914,-2430) camWorld=(1766480,1602414,-2430) camOff=(-6,-499,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(1766480,1602414,-2430)
+[acmi] simTime=66825.56 entities=51 aircraft=15 withBase=51 withDrawable=51 IN-DISPLAY-LIST=51 withTrail=0 viewPoint=0x6ee4cba5c040
+[LBUTTONDOWN] at (82,740) -> window=0x6ff4cbfe9100 ID=200000
+[LBUTTONDOWN] GrabItem found control ID=200122 type=25
+[LBUTTONUP] at (82,740) -> window=0x6ff4cbfe9100 Grab_.Control_=0x6ec4cbbd8ac0
+[LBUTTONUP] Grab_.Control_ found: ID=200122 type=25
+[LBUTTONUP] Calling Process(ID=200122, type=52)
+Assertion at 465  /home/admin/freefalcon-central/src/graphics/bsplib/texbank.cpp  Sep 19 2026
+[Failed:  IsValidIndex(id)] Assertion at 465  /home/admin/freefalcon-central/src/graphics/bsplib/texbank.cpp  Sep 19 2026
+[LBUTTONDOWN] at (354,757) -> window=0x6ff4cbf99100 ID=5000
+[LBUTTONDOWN] GrabItem found control ID=10047 type=25
+[LBUTTONUP] at (354,757) -> window=0x6ff4cbf99100 Grab_.Control_=0x6ec4cbaa2140
+[LBUTTONUP] Grab_.Control_ found: ID=10047 type=25
+[LBUTTONUP] Calling Process(ID=10047, type=52)
+[OTW.Setup] LastNearTexLOD=2 LastFarTexLOD=4 NumLevels=6
+[LBUTTONDOWN] at (365,321) -> window=0x6ff4cbf5a900 ID=500
+[LBUTTONDOWN] GrabItem found control ID=506 type=0
+[LBUTTONUP] at (365,321) -> window=0x6ff4cbf5a900 Grab_.Control_=0x6ed4cbaac700
+[LBUTTONUP] Grab_.Control_ found: ID=506 type=0
+[LBUTTONUP] Calling Process(ID=506, type=52)
+[LBUTTONDOWN] at (549,547) -> window=0x6ff4cbf5a900 ID=500
+[LBUTTONDOWN] GrabItem found control ID=504 type=25
+[LBUTTONUP] at (549,547) -> window=0x6ff4cbf5a900 Grab_.Control_=0x6ec4cbabdec0
+[LBUTTONUP] Grab_.Control_ found: ID=504 type=25
+[LBUTTONUP] Calling Process(ID=504, type=52)
+[PalLight] light=(0.933 0.959 1.000) gametime=0 pal=0x6f34cba6b180
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=0 withTrail=0 viewPoint=0x6ee4cba5a840
+[FARTEX] suppressed redundant reload #1 (texID=58676)
+[TEXBANK] cancelled pending release on re-reference #1 (id=1770)
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+=================================================================
+==17610==ERROR: AddressSanitizer: heap-use-after-free on address 0x6f04cba80b84 at pc 0x5939980a4322 bp 0x6da4a32566f0 sp 0x6da4a32566e0
+READ of size 4 at 0x6f04cba80b84 thread T9
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+    #0 0x5939980a4321 in ObjectLOD::Free() /home/admin/freefalcon-central/src/graphics/bsplib/objectlod.cpp:509
+    #1 0x5939980a4321 in ObjectLOD::Free() /home/admin/freefalcon-central/src/graphics/bsplib/objectlod.cpp:499
+    #2 0x5939980a4321 in ObjectLOD::UpdateLods() /home/admin/freefalcon-central/src/graphics/bsplib/objectlod.cpp:554
+    #3 0x59399833c4d1 in Loader::MainLoop() /home/admin/freefalcon-central/src/graphics/utils/loader.cpp:152
+    #4 0x5939983398d9 in FF_BeginThreadExTrampoline /home/admin/freefalcon-central/src/compat/process.h:48
+    #5 0x71a4ce263a80 in asan_thread_start ../../../../src/libsanitizer/asan/asan_interceptors.cpp:246
+    #6 0x71a4cd4a3df9 in start_thread nptl/pthread_create.c:454
+    #7 0x71a4cd5375cb in __clone3 ../sysdeps/unix/sysv/linux/x86_64/clone3.S:78
+
+0x6f04cba80b84 is located 4 bytes inside of 628-byte region [0x6f04cba80b80,0x6f04cba80df4)
+freed by thread T0 here:
+    #0 0x71a4ce32a3ff in free ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:51
+    #1 0x59399815f01f in CDXVbManager::ResetDrawList() /home/admin/freefalcon-central/src/graphics/dxengine/dxvbmanager.cpp:754
+    #2 0x59399814ce00 in CDXEngine::FlushBuffers() /home/admin/freefalcon-central/src/graphics/dxengine/dxengine.cpp:2763
+    #3 0x593998075cc5 in ContextMPR::FlushPolyLists() /home/admin/freefalcon-central/src/graphics/3dlib/context.cpp:2727
+    #4 0x59399913be30 in ACMIView::Draw() /home/admin/freefalcon-central/src/acmi/src/acmiloop.cpp:472
+    #5 0x5939990774d2 in C_Window::DrawWindow(SCREEN*) /home/admin/freefalcon-central/src/ui95/cwindow.cpp:1233
+    #6 0x593998fe996b in C_Handler::Update() /home/admin/freefalcon-central/src/ui95/chandler.cpp:1228
+    #7 0x593997d3c3d3 in ProcessGameMessages() /home/admin/freefalcon-central/src/ffviper/main_linux.cpp:2682
+    #8 0x593997d3eee0 in main_loop /home/admin/freefalcon-central/src/ffviper/main_linux.cpp:3830
+    #9 0x593997d1ab0d in main /home/admin/freefalcon-central/src/ffviper/main_linux.cpp:4612
+    #10 0x71a4cd42a600 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:59
+    #11 0x71a4cd42a717 in __libc_start_main_impl ../csu/libc-start.c:360
+    #12 0x593997d2c424 in _start (/home/admin/freefalcon-central/build-asan/src/ffviper/FFViper+0x2b4424) (BuildId: c6c6db0c0e12863d8d7712693b9221e08a0b7c99)
+
+previously allocated by thread T9 here:
+    #0 0x71a4ce32b60f in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:67
+    #1 0x59399815c687 in CDXVbManager::SetupModel(unsigned int, unsigned char*, unsigned int) /home/admin/freefalcon-central/src/graphics/dxengine/dxvbmanager.cpp:496
+    #2 0x5939980a3720 in ObjectLOD::Load() /home/admin/freefalcon-central/src/graphics/bsplib/objectlod.cpp:478
+    #3 0x5939980a41ca in ObjectLOD::UpdateLods() /home/admin/freefalcon-central/src/graphics/bsplib/objectlod.cpp:534
+    #4 0x59399833c4d1 in Loader::MainLoop() /home/admin/freefalcon-central/src/graphics/utils/loader.cpp:152
+    #5 0x5939983398d9 in FF_BeginThreadExTrampoline /home/admin/freefalcon-central/src/compat/process.h:48
+    #6 0x71a4ce263a80 in asan_thread_start ../../../../src/libsanitizer/asan/asan_interceptors.cpp:246
+    #7 0x71a4cd4a3df9 in start_thread nptl/pthread_create.c:454
+
+Thread T9 created by T0 here:
+    #0 0x71a4ce321f80 in pthread_create ../../../../src/libsanitizer/asan/asan_interceptors.cpp:257
+    #1 0x593998339d7e in _beginthreadex /home/admin/freefalcon-central/src/compat/process.h:64
+    #2 0x593998339d7e in Loader::Setup() /home/admin/freefalcon-central/src/graphics/utils/loader.cpp:80
+    #3 0x593998341b07 in DeviceIndependentGraphicsSetup(char*, char*, char*) /home/admin/freefalcon-central/src/graphics/utils/setup.cpp:105
+    #4 0x593997f76386 in FalconDisplayConfiguration::Setup(int) /home/admin/freefalcon-central/src/falclib/dispcfg.cpp:73
+    #5 0x593997d2f2d7 in init_game_core /home/admin/freefalcon-central/src/ffviper/main_linux.cpp:1833
+    #6 0x593997d1a99c in main /home/admin/freefalcon-central/src/ffviper/main_linux.cpp:4592
+    #7 0x71a4cd42a600 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:59
+    #8 0x71a4cd42a717 in __libc_start_main_impl ../csu/libc-start.c:360
+    #9 0x593997d2c424 in _start (/home/admin/freefalcon-central/build-asan/src/ffviper/FFViper+0x2b4424) (BuildId: c6c6db0c0e12863d8d7712693b9221e08a0b7c99)
+
+SUMMARY: AddressSanitizer: heap-use-after-free /home/admin/freefalcon-central/src/graphics/bsplib/objectlod.cpp:509 in ObjectLOD::Free()
+Shadow bytes around the buggy address:
+  0x6f04cba80900: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x6f04cba80980: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x6f04cba80a00: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x6f04cba80a80: fd fd fd fd fd fa fa fa fa fa fa fa fa fa fa fa
+  0x6f04cba80b00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+=>0x6f04cba80b80:[fd]fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x6f04cba80c00: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x6f04cba80c80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x6f04cba80d00: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd
+  0x6f04cba80d80: fd fd fd fd fd fd fd fd fd fd fd fd fd fd fd fa
+  0x6f04cba80e00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa
+Shadow byte legend (one shadow byte represents 8 application bytes):
+  Addressable:           00
+  Partially addressable: 01 02 03 04 05 06 07 
+  Heap left redzone:       fa
+  Freed heap region:       fd
+  Stack left redzone:      f1
+  Stack mid redzone:       f2
+  Stack right redzone:     f3
+  Stack after return:      f5
+  Stack use after scope:   f8
+  Global redzone:          f9
+  Global init order:       f6
+  Poisoned by user:        f7
+  Container overflow:      fc
+  Array cookie:            ac
+  Intra object redzone:    bb
+  ASan internal:           fe
+  Left alloca redzone:     ca
+  Right alloca redzone:    cb
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[INPUT] focus lost (doUI=1) -> relative mouse released
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+[acmicam] viewpointPtr=0x6ee4cba5a840 rendererViewpointPtr=0x6ee4cba5a840  viewpoint=(962174,1235686,-20387) camWorld=(962674,1235686,-20387) camOff=(-500,-0,0) sceneOffset=(0,0,0) camState=200124  firstAircraft[0]=(962674,1235686,-20387)
+[acmi] simTime=33000.00 entities=1 aircraft=1 withBase=1 withDrawable=1 IN-DISPLAY-LIST=1 withTrail=0 viewPoint=0x6ee4cba5a840
+=== exited rc=143 at 20:53:04

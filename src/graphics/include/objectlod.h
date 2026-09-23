@@ -79,6 +79,17 @@ protected:
 
 public:
     BRoot *root; // NULL until loaded, then pointer to node tree
+#ifdef FF_LINUX
+    /* TAPE-UAF-1 (PO 2026-09-20): ObjectLOD::Free() used to recover the model id by dereferencing
+       `root` -- `TheVbManager.ReleaseModel(((DxDbHeader*)root)->Id)` -- but `root` points into the
+       vertex-buffer model memory, which the MAIN thread frees in CDXVbManager::ResetDrawList while
+       the LOADER thread is still unloading LODs. AddressSanitizer caught exactly that on the PO's
+       second ACMI tape load: allocated on thread T9 (Loader -> ObjectLOD::Load -> SetupModel),
+       freed on T0 (ACMIView::Draw -> FlushPolyLists -> FlushBuffers -> ResetDrawList), then read
+       again on T9 (Loader -> ObjectLOD::UpdateLods -> Free). Keep the id we already computed at
+       load time so the unload path never has to read that memory at all. */
+    DWORD ffDxId;   // model id captured in Load(), valid while root != NULL
+#endif
     UInt32 fileoffset; // Where in the disk file is this record's tree stored
     UInt32 filesize; // How big the disk representation of this record's tree
     DWORD *TexBank; // The copy of the textures Bank of the Model
