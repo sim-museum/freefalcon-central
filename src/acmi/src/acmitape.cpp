@@ -653,8 +653,16 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
     endTime = 0.0;
     MonoPrint("ACMITape Import: Reading Raw Data ....\n");
 
+    /* ACMI-LONG-1 (2026-09-22): a session that never reached 3D exit (crash, kill) leaves a .flt cut
+       mid-record by stdio's 4 KiB buffer and WITHOUT the callsign list StopRecording appends. Every
+       short read used to bail the whole import (`Import BAILED at acmitape.cpp:675`), so the flight
+       was lost. A short read AT END OF FILE now ends the record walk instead; what was read is a
+       complete tape up to the cut, and a missing callsign list only costs the labels. */
+    int ffTruncated = 0; long ffRecords = 0;
+
     while (fread(&hdr, sizeof(ACMIRecHeader), 1, flightFile))
     {
+        ffRecords++;
         // now read in the rest of the record depending on type
         switch (hdr.type)
         {
@@ -671,6 +679,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 // Read the data
                 if ( not fread(&genpos, sizeof(ACMIGenPositionData), 1, flightFile))
                 {
+                    if (feof(flightFile)) { ffTruncated = 1; break; }   /* ACMI-LONG-1: crash-cut flight, keep what is complete */
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
                     return FFAcmiBail(__LINE__, flightFile);
                 }
@@ -690,6 +699,8 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
 
                     if ( not fread(&radarTarget32, sizeof(int32_t), 1, flightFile))
                     {
+
+                        if (feof(flightFile)) { ffTruncated = 1; break; }   /* ACMI-LONG-1: crash-cut flight, keep what is complete */
                         CleanupACMIImportPositionData(flightFile, rawPositionData);
                         return FFAcmiBail(__LINE__, flightFile);
                     }
@@ -746,6 +757,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 // Read the data
                 if ( not fread(&tracer, sizeof(ACMITracerStartData), 1, flightFile))
                 {
+                    if (feof(flightFile)) { ffTruncated = 1; break; }   /* ACMI-LONG-1: crash-cut flight, keep what is complete */
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
                     return FFAcmiBail(__LINE__, flightFile);
                 }
@@ -781,6 +793,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 // Read the data
                 if ( not fread(&sfx, sizeof(ACMIStationarySfxData), 1, flightFile))
                 {
+                    if (feof(flightFile)) { ffTruncated = 1; break; }   /* ACMI-LONG-1: crash-cut flight, keep what is complete */
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
                     return FFAcmiBail(__LINE__, flightFile);
                 }
@@ -815,6 +828,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 // Read the data
                 if ( not fread(&fs, sizeof(ACMIFeatureStatusData), 1, flightFile))
                 {
+                    if (feof(flightFile)) { ffTruncated = 1; break; }   /* ACMI-LONG-1: crash-cut flight, keep what is complete */
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
                     return FFAcmiBail(__LINE__, flightFile);
                 }
@@ -846,6 +860,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 // Read the data
                 if ( not fread(&msfx, sizeof(ACMIMovingSfxData), 1, flightFile))
                 {
+                    if (feof(flightFile)) { ffTruncated = 1; break; }   /* ACMI-LONG-1: crash-cut flight, keep what is complete */
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
                     return FFAcmiBail(__LINE__, flightFile);
                 }
@@ -885,6 +900,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 // Read the data
                 if ( not fread(&sd, sizeof(ACMISwitchData), 1, flightFile))
                 {
+                    if (feof(flightFile)) { ffTruncated = 1; break; }   /* ACMI-LONG-1: crash-cut flight, keep what is complete */
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
                     return FFAcmiBail(__LINE__, flightFile);
                 }
@@ -920,6 +936,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 // Read the data
                 if ( not fread(&dd, sizeof(ACMIDOFData), 1, flightFile))
                 {
+                    if (feof(flightFile)) { ffTruncated = 1; break; }   /* ACMI-LONG-1: crash-cut flight, keep what is complete */
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
                     return FFAcmiBail(__LINE__, flightFile);
                 }
@@ -955,6 +972,7 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 // Read the data
                 if ( not fread(&featpos, sizeof(ACMIFeaturePositionData), 1, flightFile))
                 {
+                    if (feof(flightFile)) { ffTruncated = 1; break; }   /* ACMI-LONG-1: crash-cut flight, keep what is complete */
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
                     return FFAcmiBail(__LINE__, flightFile);
                 }
@@ -1000,6 +1018,8 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
 
                 if ( not fread(&import_count, sizeof(int32_t), 1, flightFile))
                 {
+
+                    if (feof(flightFile)) { ffTruncated = 1; break; }   /* ACMI-LONG-1: crash-cut flight, keep what is complete */
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
                     return FFAcmiBail(__LINE__, flightFile);
                 }
@@ -1058,6 +1078,8 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
 
                 if ( not fread(Import_Callsigns, import_count * sizeof(ACMI_CallRec), 1, flightFile))
                 {
+
+                    if (feof(flightFile)) { ffTruncated = 1; break; }   /* ACMI-LONG-1: crash-cut flight, keep what is complete */
                     CleanupACMIImportPositionData(flightFile, rawPositionData);
                     return FFAcmiBail(__LINE__, flightFile);
                 }
@@ -1068,6 +1090,13 @@ BOOL ACMITape::Import(char *inFltFile, char *outTapeFileName)
                 // KCK: I was hitting this repeatidly.. So I'm making it a ShiAssert (and therefore ignorable)
                 // ShiAssert(0);
                 break;
+        }
+
+        if (ffTruncated)
+        {
+            fprintf(stderr, "[ACMI] Import: %s ends mid-record after %ld records (session never reached 3D exit); importing what is complete\n", inFltFile, ffRecords);
+            fflush(stderr);
+            break;
         }
 
         // save begin and end times

@@ -197,6 +197,13 @@ EventElement * ProcessEventListForACMI(void)
     PilotDataClass *pilot_data;
     int i;//,y=0;
 
+    // ACMI-LONG-1 (2026-09-22): the UI-entry import of a crash-cut flight runs in a FRESH process,
+    // where no mission has been evaluated yet and MissionEvaluator is NULL -- this dereference was the
+    // SIGSEGV after "ends mid-record". Such a tape carries no debrief text events, which is correct:
+    // the events lived in the process that died.
+    if ( not TheCampaign.MissionEvaluator)
+        return SortedEventList;
+
     // Build an event list from the MissionEvaluator class
     flight_data = TheCampaign.MissionEvaluator->flight_data;
 

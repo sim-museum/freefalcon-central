@@ -21878,6 +21878,50 @@ altitude pole under the focused jet, the orbit view draws the aircraft model its
    the terrain, timer 08:52:51 advancing, `camState=200124 camOff=(-499,9,19)` -- the gold's orbit frame.
    **Item 4 done. GOLD-260922: all four behaviours reproduce; packed as `FreeFalcon-x86_64-260922`.**
 
+**ACMI-LONG-1 (Fable 5.1, 2026-09-22) -- PO: "set ff to have long acmi files, not short ones" and "delete the old acmi files".**
+Why the tapes were short, measured rather than assumed: the PO's own profile already has
+`ACMIFileSize=0` (unlimited; read from `Viper.pop` at struct offset 32), so rotation was not cutting
+HIS tapes -- but recording only ran between two presses of the ACMI key (`ACMIToggleRecording ->
+SimDriver.doFile -> ToggleRecording`; the harness's `FF_ACMI_RECORD=1` was the only auto-start), and
+`default.pop` (any new pilot) still carries the 2008 value 5 MB, which at the ~100 KB/s of a busy
+flight (TAPE0009: 39 MB for 395 s) rotates every ~50 s. Two changes: (1) otwloop.cpp starts the
+session tape at mission start for every 3D session (`FF_ACMI_RECORD=0` restores key-only); the sim
+already stops it at 3D exit (simdrive.cpp:463), so one tape spans the flight; (2) acmirec.cpp ignores
+the profile's size limit (unlimited unless the test hook `FF_ACMI_MAXMB=<n>` is set) and says so once in
+the mono log. Old tapes: both `acmibin` trees (dev: 24 files/74 MB incl. TAPE0009 and TAPE0010;
+installed: 9 files/12 MB) were MOVED, not deleted, to `~/ff-gates/acmi_backup_260922/{dev,installed}`
+-- the game sees empty directories, nothing is destroyed. The first gate (a 200 s TE 28 flight with
+`FF_ACMI_RECORD` unset, ended by the harness timeout) showed the third way a flight goes missing:
+`[ACMI] auto-record: starting the session tape` fired, but the run left `acmi0000.flt` (1 MB) and NO
+tape, because the .flt -> .vhs conversion runs at recording stop (3D exit), which a killed or crashed
+session never reaches -- and the recorder's startup sweep then renamed such files to `.orphanN`
+(ACMI-4, from when the importer was broken), while the UI-entry import (`ACMI_ImportFile` at
+`FM_START_UI`) only ran under the harness flag `FF_ACMI_IMPORT=1`. Two more changes: the sweep leaves
+unconverted flights in place (`FF_ACMI_ORPHAN_FLT=1` / `FF_ACMI_PURGE_FLT=1` restore the old
+behaviours) and the UI-entry import is on by default (`FF_ACMI_IMPORT=0` disables), so a crash-cut
+flight becomes the next TAPEnnnn.vhs at the next launch. The first AppImage (packed 22:01, menu boot verified 90.9 % non-black) ran that import and it BAILED:
+`Import BAILED at acmitape.cpp:675 offset=-1`. The .flt is exactly 1,064,960 bytes = 260 x 4 KiB --
+stdio's buffer cut it mid-record, and it has no callsign list (StopRecording appends that), and every
+short read in `ACMITape::Import` returned FALSE for the whole file. Now a short read AT EOF ends the
+record walk (11 sites), the tape is built from the complete records, and a missing callsign list only
+costs the labels; `[ACMI] Import: ... ends mid-record after N records` says so. The gate then found the fourth
+gap: the import walked all 36,105 records and wrote a valid TAPE0001 (163.9 s, 39 entities -- the killed
+200 s flight minus loading) and SEGFAULTED in `ImportTextEventList -> ProcessEventListForACMI`
+(events.cpp:201): `TheCampaign.MissionEvaluator->flight_data` with a NULL evaluator, because a fresh
+process has evaluated no mission. Every earlier import ran right after a flight in the same process, so
+this dereference had never been reached from a cold start. Guarded (a crash-cut tape gets no debrief
+text events, which is what the dead process left). **Gate passed** (`import_gate.log`): a fresh dev-tree launch imported `acmi0000.flt` -> TAPE0001 (`Import
+= OK`, 163.9 s, 39 entities), retired the .flt as `.imported`, no crash.
+
+**DELIVERY 260922 verified:** `~/Documents/260922/FreeFalcon-x86_64-260922.AppImage` (3.35 GB, packed
+22:26, sha256 `cf234073…a1c4f`, SHA256SUMS alongside) -- GOLD-260922 (four gold behaviours) +
+ACMI-LONG-1. Verified by launching it: (1) against the PO's installed tree it boots to the menu
+(`appimage_menu.png`, 90.9 % non-black); (2) against the dev tree its ACMI viewer imports the crash-cut
+flight, loads that TAPE0001, plays it (tape time 31918.8 -> 31950.3 in 31.5 s of PLAY) and switches to
+Orbit on the F-16CJ with the drop list drawn over the pane (`appimage_acmi_orbit.png`, `camState=200124`,
+`camOff=(-499,10,-5)`, 3 windows excluded from the readback). The PO's installed tree keeps its own
+data; only the binary changes on his next run.
+
 **PO crash-hunt session (Opus 5, 2026-09-20) -- four defects found with the PO driving, three of them verified by him or by AddressSanitizer.**
 Method: the dev build under `gdb -batch` (`tools/ff_po_instrumented.sh`) for crashes and hangs, then the
 `build-asan` tree for memory errors. Logs in `~/ff-gates/po_crash/`, evidence copied to

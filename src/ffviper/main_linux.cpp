@@ -2632,10 +2632,14 @@ bool ProcessGameMessages() {
                 // So a recorded flight never becomes a loadable tape. ACMI is the
                 // project's quantitative instrument (PO), which makes that a real gap,
                 // not just an automation inconvenience.
-                if (getenv("FF_ACMI_IMPORT"))
+                // ACMI-LONG-1 (2026-09-22): ON by default, so a flight whose session never reached
+                // 3D exit (crash, kill) still becomes a tape at the next launch; FF_ACMI_IMPORT=0 disables.
+                static int ffImport = -1;
+                if (ffImport < 0) { const char *e = getenv("FF_ACMI_IMPORT"); ffImport = (e and e[0] == '0') ? 0 : 1; }
+                if (ffImport)
                 {
                     extern void ACMI_ImportFile(void);
-                    fprintf(stderr, "[ACMI] FF_ACMI_IMPORT: converting acmibin/acmi*.flt -> TAPEnnnn.vhs\n");
+                    fprintf(stderr, "[ACMI] UI entry: converting any acmibin/acmi*.flt -> TAPEnnnn.vhs (FF_ACMI_IMPORT=0 disables)\n");
                     fflush(stderr);
                     ACMI_ImportFile();
                     fprintf(stderr, "[ACMI] FF_ACMI_IMPORT: done\n");

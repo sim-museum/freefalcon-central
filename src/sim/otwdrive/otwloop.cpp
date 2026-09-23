@@ -890,11 +890,19 @@ void OTWDriverClass::RenderFirstFrame(void)
     // so automated flights leave a tape. ACMI is the project's quantitative
     // instrument (PO, 2026-08-09) -- without this, only manually-toggled flights
     // produce data and automation can never be measured against a gold tape.
-    if (getenv("FF_ACMI_RECORD") and not gACMIRec.IsRecording())
+    // ACMI-LONG-1 (PO 2026-09-22, "set ff to have long acmi files, not short ones"): recording is
+    // now ON by default for every 3D session, from mission start to 3D exit, so a tape covers the
+    // whole flight instead of the stretch between two presses of the ACMI key. FF_ACMI_RECORD=0
+    // restores the key-only behaviour.
     {
-        fprintf(stderr, "[ACMI] FF_ACMI_RECORD: starting recording\n");
-        fflush(stderr);
-        gACMIRec.StartRecording();
+        static int ffAutoRec = -1;
+        if (ffAutoRec < 0) { const char *e = getenv("FF_ACMI_RECORD"); ffAutoRec = (e and e[0] == '0') ? 0 : 1; }
+        if (ffAutoRec and not gACMIRec.IsRecording())
+        {
+            fprintf(stderr, "[ACMI] auto-record: starting the session tape (FF_ACMI_RECORD=0 disables)\n");
+            fflush(stderr);
+            gACMIRec.StartRecording();
+        }
     }
 #endif
 #ifdef FF_LINUX

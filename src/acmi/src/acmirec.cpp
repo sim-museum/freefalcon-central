@@ -127,6 +127,19 @@ ACMIRecorder::ACMIRecorder(void)
 
     handle = FindFirstFile("acmibin\\*.flt", &FindFileData);
 
+    /* ACMI-LONG-1 (2026-09-22): a .flt left behind by a session that never reached 3D exit (crash,
+       kill, power) is a WHOLE flight, and ACMI_ImportFile() at UI entry converts any acmibin/acmi*.flt
+       it finds into the next TAPEnnnn.vhs -- but only if this sweep has not already renamed it away.
+       ACMI-4 retired them because the importer was broken then (ACMI-3); it is fixed, so leave them
+       for it. FF_ACMI_ORPHAN_FLT=1 restores the retire-on-startup sweep, FF_ACMI_PURGE_FLT=1 deletes. */
+    if (handle not_eq INVALID_HANDLE_VALUE and not getenv("FF_ACMI_ORPHAN_FLT") and not getenv("FF_ACMI_PURGE_FLT"))
+    {
+        fprintf(stderr, "[ACMI] unconverted flight acmibin/%s left for the UI-entry import\n", FindFileData.cFileName);
+        fflush(stderr);
+        FindClose(handle);
+        handle = INVALID_HANDLE_VALUE;
+    }
+
     if (handle not_eq INVALID_HANDLE_VALUE)
     {
         strcpy(path, "acmibin\\");
@@ -217,6 +230,16 @@ ACMIRecorder::StartRecording(void)
 
         if (ffMax)
             _maxBytesToWrite = 1000000.0f * (float)atof(ffMax);
+        else
+        {
+            // ACMI-LONG-1 (PO 2026-09-22): one tape per session, whatever the saved profile says.
+            // default.pop still carries the 2008 value 5 (MB), which at the measured ~100 KB/s of a
+            // busy flight rotated every ~50 s -- the "short acmi files". The Setup field is kept
+            // for the profile but no longer shortens a tape; FF_ACMI_MAXMB=<n> is the test hook.
+            if (PlayerOptions.ACMIFileSize > 0)
+                MonoPrint("ACMI: profile file-size limit %d MB ignored, one tape per session\n", PlayerOptions.ACMIFileSize);
+            _maxBytesToWrite = 0.0f;
+        }
 
         if (_maxBytesToWrite <= 0.0f)
             _maxBytesToWrite = FLT_MAX;   // no rotation
