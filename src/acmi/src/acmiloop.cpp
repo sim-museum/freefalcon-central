@@ -11,6 +11,9 @@
 #include <time.h>
 
 #include "graphics/include/grtypes.h"
+#include "graphics/include/tod.h"   /* ACMI-OBJ-1: TheTimeOfDay in the camera trace */
+struct IDirectDrawSurface7;
+extern "C" int FF_ReadbackPrimaryRect(IDirectDrawSurface7 *, int, int, int, int);   /* ACMI-OBJ-1, d3d_gl.cpp (as c3dview.cpp) */
 #include "graphics/include/renderwire.h"
 #include "graphics/include/terrtex.h"
 #include "graphics/include/drawpole.h"
@@ -457,8 +460,8 @@ void ACMIView::Draw()
                    display list and the renderer draws from the other. Print all three pointers --
                    the tape's is already in the [acmi] census line, so the three can be compared in
                    one log. */
-                fprintf(stderr, "[acmicam] viewpointPtr=%p rendererViewpointPtr=%p  viewpoint=(%.0f,%.0f,%.0f) camWorld=(%.0f,%.0f,%.0f) camOff=(%.0f,%.0f,%.0f) sceneOffset=(%.0f,%.0f,%.0f) camState=%d  firstAircraft[%d]=(%.0f,%.0f,%.0f)\n",
-                        (void*)Viewpoint(), (void*)(_renderer ? _renderer->viewpoint : NULL),
+                fprintf(stderr, "[acmicam] light=%.2f amb=%.2f  viewpointPtr=%p rendererViewpointPtr=%p  viewpoint=(%.0f,%.0f,%.0f) camWorld=(%.0f,%.0f,%.0f) camOff=(%.0f,%.0f,%.0f) sceneOffset=(%.0f,%.0f,%.0f) camState=%d  firstAircraft[%d]=(%.0f,%.0f,%.0f)\n",
+                        TheTimeOfDay.GetLightLevel(), TheTimeOfDay.GetAmbientValue(), (void*)Viewpoint(), (void*)(_renderer ? _renderer->viewpoint : NULL),
                         vp.x, vp.y, vp.z, _camWorldPos.x, _camWorldPos.y, _camWorldPos.z,
                         _camPos.x, _camPos.y, _camPos.z, pos.x, pos.y, pos.z,
                         (int)_cameraState, shown, e0.x, e0.y, e0.z);
@@ -470,6 +473,28 @@ void ACMIView::Draw()
         //JAM 12Dec03 - ZBUFFERING OFF
         if (DisplayOptions.bZBuffering)
             _renderer->context.FlushPolyLists();
+#ifdef FF_LINUX
+        /* ACMI-OBJ-1 (PO 2026-09-22 gold video: "the saved ACMI plays correctly in default and orbit
+           view"; ours showed sky, haze and no terrain or objects, with the camera PROVEN on the jet and
+           ~550 drawables PROVEN in the display list). The renderer was built on the UI ImageBuffer,
+           gMainHandler->GetFront(), and RECON-1 S2 established what that means in this port: that
+           buffer's BACK surface is bound once as the render target and never presented, so every
+           frame lands in an off-screen FBO. The recon view fixed itself by copying its rectangle back
+           into the UI surface after drawing (c3dview.cpp, FF_ReadbackPrimaryRect); the ACMI viewer
+           never got the same call. Flush the poly lists unconditionally first (the sim does; here it
+           was gated on bZBuffering), then copy the render pane back. FF_ACMI_NOREADBACK=1 reverts. */
+        {
+            static int s_rb = -1; if (s_rb < 0) s_rb = getenv("FF_ACMI_NOREADBACK") ? 0 : 1;
+            if (s_rb)
+            {
+                _renderer->context.FlushPolyLists();
+                const int ok = FF_ReadbackPrimaryRect(gMainHandler->GetFront()->targetSurface(), _ffWinL, _ffWinT, _ffWinR, _ffWinB);
+                static int s_said = 0;
+                if ( not s_said and getenv("FF_DEBUG_ACMI")) { s_said = 1;
+                    fprintf(stderr, "[acmi] readback of the render pane (%d,%d)-(%d,%d) into the UI surface: %s\n", _ffWinL, _ffWinT, _ffWinR, _ffWinB, ok ? "done" : "SKIPPED"); fflush(stderr); }
+            }
+        }
+#endif
 
         // _renderer->PostSceneCloudOcclusion();
 

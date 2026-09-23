@@ -155,6 +155,9 @@ public:
     char _fileName[MAX_PATH];
     int _cameraState;
     RViewPoint *_viewPoint;
+#ifdef FF_LINUX
+    int _ffWinL, _ffWinT, _ffWinR, _ffWinB;   /* ACMI-OBJ-1: the render pane rect for the GL->UI readback */
+#endif
     RenderOTW *_renderer;
     Texture wireTexture;
     HWND _win;

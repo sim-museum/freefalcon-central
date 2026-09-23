@@ -38,6 +38,8 @@ extern bool g_bFireOntheMove; // FRB - Test
 ** frames.
 */
 
+static int ffSamDbg(void); /* defined below, next to the MissileTrack refusal trace */
+
 void GroundClass::WeaponKeepAlive(void)
 {
     static const int numToFly = 3;
@@ -317,6 +319,7 @@ BOOL GroundClass::DoWeapons(void)
                 gai->battalionCommand->self->nextSamFireTime = SimLibElapsedTime + rate / numVeh;
             }
 
+            if (ffSamDbg()) { fprintf(stderr, "[sam] LAUNCH t=%u at %.1f km from target\n", (unsigned)SimLibElapsedTime, sqrtf((XPos()-targetPtr->BaseData()->XPos())*(XPos()-targetPtr->BaseData()->XPos()) + (YPos()-targetPtr->BaseData()->YPos())*(YPos()-targetPtr->BaseData()->YPos())) * FT_TO_KM); fflush(stderr); }
             SendFireMessage(theMissile, FalconWeaponsFire::MRM, TRUE, targetPtr);
 
             // Special case for beam riders
@@ -356,7 +359,6 @@ BOOL GroundClass::DoWeapons(void)
             vec.y = 0.0f;
             vec.z = 0.0f;
             /*
-            if (ffSamDbg()) { fprintf(stderr, "[sam] LAUNCH t=%u\n", (unsigned)SimLibElapsedTime); fflush(stderr); }
             OTWDriver.AddSfxRequest( new SfxClass( SFX_SAM_LAUNCH,
              SFX_MOVES bitor SFX_NO_GROUND_CHECK,
              &pos,

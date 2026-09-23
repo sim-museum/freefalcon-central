@@ -21772,6 +21772,78 @@ the whole UI is stretched to the display, so at 1920 each digit is 13 px wide ma
 `FF_RECON_TEXT_SCALE` x (default 2) -- twice the size from the same texels, which is what separates the
 digits; 1 restores the old size. Capture pending with RECON-1's.
 
+**GOLD-260922 (Fable 5.1, 2026-09-22) -- 🟠 PO work order: four behaviours from the Wine gold video `260922_wine_ff_recon_missile_acmi_view.mp4`, in progress.**
+The video (332 s, 1920x1080, 60 fps) was read before touching code: a 36-frame contact sheet and close-ups
+in `~/ff-gates/gold260922/` (`sheet_10s.png`, `sheet_acmi.png`, `t35/t45/t55/t65/t230/t300.png`). Timeline:
+0-20 s main screen and the TE map; 20-50 s the RECON popup then the recon view of a bridge (t35: heading 000,
+slant range 1110 ft; t45: heading 320, 1350 ft -- so the gold's zoom in/out and rotate change the slant-range
+readout and the pane is full width); 50-70 s the TE map zoomed and panned (t65: waypoint 3 of "19 Bombs with
+CCRP" centred, no steerpoint popup open); 70-200 s the missile TE in the cockpit ending in a shoot-down; 205-330
+s the ACMI: the default view draws TERRAIN with detail below a haze horizon plus a green target box and a blue
+altitude pole under the focused jet, the orbit view draws the aircraft model itself (gold lower-band luma std
+55-59, i.e. real ground texture where ours is a flat band).
+
+1. **Map: wheel zoom and click-drag pan (MAPWHEEL-1).** Two port defects, both found by measurement.
+   (a) `SDL_MOUSEWHEEL` in main_linux.cpp fed only the sim's DirectInput buffer and DROPPED the event in UI mode,
+   so no UI screen ever saw a wheel. Forwarded as `WM_MOUSEWHEEL` with the signed delta in HIWORD(wParam) and
+   the canvas-scaled cursor in lParam, which is exactly what `C_Handler::EventHandler`'s wheel branch decodes
+   before `C_MapMover::Wheel -> C_TYPE_MOUSEWHEEL -> gMapMgr->ZoomIn/Out`. (b) The message pump's mouse switch
+   had no `case WM_MOUSEWHEEL`, so the forwarded message fell to `default` -- measured: three scripted wheel
+   posts over the TE map, three `[FF_UI_CLICK] wheel` lines, a capture identical to the baseline
+   (`map_base.png` vs `map_wheel.png`). Same class as RECON-2's missing C_WM_TIMER case. Routed. `FF_UI_CLICK`
+   gained two forms to test this headlessly: `x,y@secW<delta>` (wheel) and `x1,y1>x2,y2@sec` (drag as 8
+   MK_LBUTTON moves). NOTE: a drag that starts ON a steerpoint moves the steerpoint; the pan test starts on
+   empty map. **Drag VERIFIED:** `map_drag2.png` -- a scripted press at (420,200) dragged to (640,360) moved
+   every map feature by exactly (+220,+160): waypoint 3 went from (532,320) to (752,480). So click-and-drag pans
+   in the port; the PO's failure will have been a drag started on a steerpoint (which moves the steerpoint) or
+   under the open steerpoint popup. **Wheel VERIFIED** on the relinked binary: the `FF_DEBUG_UIWHEEL` trace
+   shows each post reaching `window id=30800 -> grabbed control id=1600009 (MAP_MOVER) -> Wheel(-1)`, and
+   `map_wheel3.png` is the TE map zoomed in (the 22.3 nm leg 4->3 grew from 179 px in `map_base.png` to
+   236 px after three wheel steps; `C_Map::ZoomIn` steps `ZoomStep_ + level/64`, so three steps is about
+   1.3x, not a jump). The earlier "identical" capture was taken with the binary that predated the pump
+   case. **Item 1 done.**
+
+2. **Recon zoom/rotate.** Rotate was verified 09-19 (RECON-1 S2). Zoom is the RECON panner driven by a held
+   click (RECON-2 added C_WM_TIMER for exactly that); the port's default slant range is the game's own 4000 ft
+   (targets.cpp:643), the gold's 1110 ft is the PO having zoomed in. **Zoom VERIFIED working, and its speed is
+   by design:** a 2.5 s hold on ZOOM IN at (461,741) produced 24 `[recon] ZoomPanner hit=70 vrange=-1` repeats
+   (about 10 Hz, C_WM_TIMER) each stepping `Recon.Distance += vrange * 10`, i.e. 4000 -> 3770 ft
+   (`recon_zoom.png`, full-width pane, terrain and objects drawn). The panner scales its step by how far the
+   held cursor sits from its centre, so the gold's fast dive to 1110 ft is the PO holding further up the
+   control. The control run shows the scaling from the other side: a 2.5 s hold at the panner's centre
+   (461,733) produced 23 repeats with `vrange=0` and `distance 3340 -> 3340` -- same repeat rate, zero
+   step. So rate = repeat rate x offset, as the gold's fast dive requires. **Item 2 done** (rotate: RECON-1
+   S2; zoom: `recon_zoom.png`; rate: `recon_zoom2`).
+
+3. **SA-2 launches in the missile TE.** The PO's OWN 09-20 session already recorded `SA-2 launched at Viper
+   09:20:14` and `Viper downed by DPRK SA-2` in the ACMI event log, so the port fires when flown into range.
+   The harness never got within 31 km (`sam28steer2`: 60 `has AIR target` lines, 0 refusals -> `DoWeapons`
+   never reached `MissileTrack` because `SelectBestWeapon` found no weapon in range: `range_km > wrange ->
+   continue`; `BattalionClass::CanShootWeapon` additionally needs the radar in GUIDE/SEARCH_100 and
+   `missiles_flying` below the radar's max). The `FF_WP_TO_SAM=SA-2` steer (`sa2steer.log`, 720 s) closed
+   from 33.8 km to 19.5 km and reported `LAUNCH=0 refusals=0` -- **but the launch trace never could print:
+   it sat inside the `/* OTWDriver.AddSfxRequest(...) */` comment block in weapon.cpp**, an instrument that
+   could not speak. What the same log does show is the SA-2's hardpoint-0 store going `count=2 -> 1 -> 0`
+   (with `curWeapon=yes` at 28.4 km on the first decrement) and the jet's range then frozen at 19.5 km for
+   the last 90 s: two shots taken, and most likely a kill. The trace now prints before `SendFireMessage`
+   with the launch range; re-run queued (`sa2steer2`).
+
+4. **ACMI plays correctly (ACMI-OBJ-1, continued).** The mechanism is the one RECON-1 S2 documented: the ACMI
+   renderer is built on `gMainHandler->GetFront()`, whose BACK surface is bound once as the render target and
+   never presented, so each frame lands in an off-screen FBO. The recon view solved this for itself by copying
+   its rectangle back into the UI surface after drawing (`FF_ReadbackPrimaryRect`, c3dview.cpp:784); the ACMI
+   viewer never got the same call -- which is consistent with everything measured on 09-20 (camera correct,
+   ~550 drawables in the shared display list, nothing visible). `ACMIView::Draw` now flushes the poly lists
+   unconditionally (the sim does; ACMI gated it on `bZBuffering`) and reads the render pane back
+   (`_ffWinL/T/R/B` captured in `InitGraphics`; `FF_ACMI_NOREADBACK=1` reverts). The `[acmicam]` line also
+   prints `TheTimeOfDay.GetLightLevel()` because the log carried a NIGHT-texture assertion
+   (`handleN[res]` at terrtex.cpp:1405, taken only when lightLevel < 0.5) at 09:16 tape time. Scripting found: main
+   screen ACMI button id 10047 at (337,748), LOAD at (253,749) opens the "LOAD ACMI TAPE" dialog (window
+   300101: tape list rows 17 px apart from `demo` at y=188, TAPE0002 at (344,222); its LOAD button at
+   (538,541) -- the first scripted run clicked (543,514), 27 px above it, and captured the dialog still open
+   with the readback line printed only for the pane geometry). Re-run queued with the corrected targets and a
+   dialog dump at 50 s to find the view controls for the orbit capture.
+
 **PO crash-hunt session (Opus 5, 2026-09-20) -- four defects found with the PO driving, three of them verified by him or by AddressSanitizer.**
 Method: the dev build under `gdb -batch` (`tools/ff_po_instrumented.sh`) for crashes and hangs, then the
 `build-asan` tree for memory errors. Logs in `~/ff-gates/po_crash/`, evidence copied to

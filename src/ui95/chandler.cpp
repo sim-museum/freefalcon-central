@@ -2220,6 +2220,12 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
             {
                 WORD MouseZ;
                 HelpOff();
+#ifdef FF_LINUX
+                /* MAPWHEEL-1: say what this branch decides. FF_DEBUG_UIWHEEL=1. */
+                static int s_wdbg = -1; if (s_wdbg < 0) s_wdbg = getenv("FF_DEBUG_UIWHEEL") ? 1 : 0;
+                if (s_wdbg) { fprintf(stderr, "[uiwheel] WM_MOUSEWHEEL wParam=%08lx lParam=%08lx old=%d (msgTime=%ld enabled=%ld)\n",
+                                      (unsigned long)wParam, (unsigned long)lParam, (int)OldInputMessage(), (long)GetMessageTime(), (long)EnabledTime_); fflush(stderr); }
+#endif
 
                 if (OldInputMessage())
         {
@@ -2238,6 +2244,9 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
     MouseX = (WORD)p.x;
     MouseY = (WORD)p.y;
     overme = GetWindow(MouseX, MouseY);
+#ifdef FF_LINUX
+    if (s_wdbg) { fprintf(stderr, "[uiwheel]   at (%d,%d) window=%p id=%ld\n", (int)MouseX, (int)MouseY, (void*)overme, overme ? (long)overme->GetID() : -1L); fflush(stderr); }
+#endif
 
     if (overme == NULL)
     {
@@ -2249,6 +2258,9 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
     // grab component we are over
     if ( not GrabItem(MouseX, MouseY, overme, MessageType))
     {
+#ifdef FF_LINUX
+        if (s_wdbg) { fprintf(stderr, "[uiwheel]   GrabItem found NO wheel-capable control\n"); fflush(stderr); }
+#endif
         break;
     }
 
@@ -2259,6 +2271,9 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
     MouseZ and_eq HIWORD(wParam);
     // here we invert, since positive in mouse wheel
     // is forward, and forward is up in screen coordinates (neg values)
+#ifdef FF_LINUX
+    if (s_wdbg) { fprintf(stderr, "[uiwheel]   grabbed control id=%ld -> Wheel(%s)\n", Grab_.Control_ ? (long)Grab_.Control_->GetID() : -1L, MouseZ ? "+1" : "-1"); fflush(stderr); }
+#endif
     Grab_.Control_->Wheel(MouseZ ? 1 : -1, MouseX, MouseY);
     ret = TRUE;
 }

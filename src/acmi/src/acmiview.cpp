@@ -561,6 +561,10 @@ void ACMIView::InitGraphics(C_Window *win)
     r = 1.0f - ((float)(sw - (win->GetX() + win->GetW())) / (sw * 0.5F));
     b = -1.0f + ((float)(sh - (win->GetY() + win->GetH())) / (sh * 0.5F));
     _renderer->SetViewport(l, t, r, b);
+#ifdef FF_LINUX
+    _ffWinL = win->GetX(); _ffWinT = win->GetY(); _ffWinR = win->GetX() + win->GetW(); _ffWinB = win->GetY() + win->GetH();
+    fprintf(stderr, "[acmi] render pane (%d,%d)-(%d,%d) on a %dx%d UI surface\n", _ffWinL, _ffWinT, _ffWinR, _ffWinB, (int)sw, (int)sh); fflush(stderr);
+#endif
 
 
     _isReady = TRUE;

@@ -2396,6 +2396,20 @@ static void handle_sdl_events(void) {
                         if (event.wheel.y != 0)
                             FF_PushMouseEvent(DIMOFS_Z, (DWORD)(int)(event.wheel.y * 120));
                     }
+                    else if (event.wheel.y != 0) {
+                        /* MAPWHEEL-1 (PO 2026-09-22, gold video): "on the map screen ... the user can use
+                           the mouse wheel to zoom in". The UI never saw the wheel: this handler only fed
+                           the SIM's DirectInput buffer and dropped the event in UI mode. UI95 expects
+                           WM_MOUSEWHEEL with the signed delta in HIWORD(wParam) (C_Handler::EventHandler
+                           tests the sign bit of that word) and the cursor in lParam; ScreenToClient is an
+                           identity here, so window coordinates are what it wants. The map screen then
+                           routes it C_MapMover::Wheel -> te_map/campaign C_TYPE_MOUSEWHEEL ->
+                           gMapMgr->ZoomIn/ZoomOut, exactly as under Wine. */
+                        int mx = 0, my = 0; SDL_GetMouseState(&mx, &my);
+                        int sx = mx * 1024 / WINDOW_WIDTH, sy = my * 768 / WINDOW_HEIGHT;   /* same scaling as the click/move handlers */
+                        const short delta = (short)(event.wheel.y * 120);
+                        PostGameMessage(WM_MOUSEWHEEL, MAKEWPARAM(0, (WORD)delta), MAKELPARAM(sx, sy));
+                    }
                 }
                 break;
 
@@ -3065,6 +3079,12 @@ bool ProcessGameMessages() {
             case WM_MOUSEMOVE:
             case WM_KEYDOWN:
             case WM_KEYUP:
+            /* MAPWHEEL-1 (2026-09-22): the wheel now reaches this queue (SDL_MOUSEWHEEL and the scripted
+               FF_UI_CLICK "W" form both post WM_MOUSEWHEEL), but this switch had no case for it, so it
+               fell to `default` and was dropped -- measured: three wheel posts over the TE map, three
+               "[FF_UI_CLICK] wheel" lines, capture identical to the baseline. Same class as RECON-2's
+               C_WM_TIMER below. Route it like every other mouse message. */
+            case WM_MOUSEWHEEL:
                 if (gMainHandler != nullptr) {
                     gMainHandler->EventHandler(NULL, msg.message, msg.wParam, msg.lParam);
                 }
@@ -3471,7 +3491,7 @@ static void render_frame(void) {
         // messages a real mouse click produces - for automated UI testing.
         {
             static int s_clickInit = 0;
-            static struct { int x, y; Uint32 atMs; int fired; int dbl; int afterJoin; Uint32 holdMs; int downAt; char tname[32]; } s_clicks[16];
+            static struct { int x, y; Uint32 atMs; int fired; int dbl; int afterJoin; Uint32 holdMs; int downAt; char tname[32]; int dragX, dragY, wheel, dragStep; } s_clicks[16];
             static int s_nClicks = 0;
             static Uint32 s_uiStart = 0;
             if (!s_clickInit) {
@@ -3501,6 +3521,27 @@ static void render_frame(void) {
                               s_clicks[s_nClicks].x = -1; s_clicks[s_nClicks].y = -1;
                               s_clicks[s_nClicks].atMs = (Uint32)(tat * 1000.0f);
                               strncpy(s_clicks[s_nClicks].tname, tnm, 31);
+                              s_nClicks++; continue; } }
+                        /* MAPWHEEL-1 (2026-09-22): two more forms so the gold video's map gestures can be
+                           driven headlessly. "x,y@secW<delta>" posts one WM_MOUSEWHEEL at (x,y) with the
+                           signed delta (120 = one notch up = zoom in). "x1,y1>x2,y2@sec" presses at the
+                           first point, moves to the second in 8 steps 30 ms apart, releases -- a drag. */
+                        { int x2, y2; float dat;
+                          if (sscanf(tok, "%d,%d>%d,%d@%f", &cx, &cy, &x2, &y2, &dat) == 5) {
+                              memset(&s_clicks[s_nClicks], 0, sizeof(s_clicks[s_nClicks]));
+                              s_clicks[s_nClicks].x = cx; s_clicks[s_nClicks].y = cy;
+                              s_clicks[s_nClicks].atMs = (Uint32)(dat * 1000.0f);
+                              s_clicks[s_nClicks].dbl = 3;                 /* drag */
+                              s_clicks[s_nClicks].holdMs = 0;
+                              s_clicks[s_nClicks].dragX = x2; s_clicks[s_nClicks].dragY = y2;
+                              s_nClicks++; continue; } }
+                        { int wd; float wat;
+                          if (sscanf(tok, "%d,%d@%fW%d", &cx, &cy, &wat, &wd) == 4) {
+                              memset(&s_clicks[s_nClicks], 0, sizeof(s_clicks[s_nClicks]));
+                              s_clicks[s_nClicks].x = cx; s_clicks[s_nClicks].y = cy;
+                              s_clicks[s_nClicks].atMs = (Uint32)(wat * 1000.0f);
+                              s_clicks[s_nClicks].dbl = 4;                 /* wheel */
+                              s_clicks[s_nClicks].wheel = wd;
                               s_nClicks++; continue; } }
                         if (sscanf(tok, "%d,%d@J%f%c", &cx, &cy, &at, &dbl) >= 3) {
                             afterJoin = 1;
@@ -3553,6 +3594,36 @@ static void render_frame(void) {
                         s_clicks[ci].fired = 1;
                         fprintf(stderr, "[FF_UI_CLICK] theater step '%s' at %ums\n", s_clicks[ci].tname, el);
                         FF_UISwitchTheater(s_clicks[ci].tname);
+                        continue;
+                    }
+                    if (s_clicks[ci].fired == 3) {                       /* MAPWHEEL-1: drag in progress */
+                        if ((int)el - s_clicks[ci].downAt >= 30 * (s_clicks[ci].dragStep + 1)) {
+                            int st = ++s_clicks[ci].dragStep;
+                            int px = s_clicks[ci].x + (s_clicks[ci].dragX - s_clicks[ci].x) * st / 8;
+                            int py = s_clicks[ci].y + (s_clicks[ci].dragY - s_clicks[ci].y) * st / 8;
+                            PostGameMessage(WM_MOUSEMOVE, 0x0001 /* MK_LBUTTON */, MAKELPARAM(px, py));
+                            if (st >= 8) {
+                                PostGameMessage(WM_LBUTTONUP, 0, MAKELPARAM(px, py));
+                                fprintf(stderr, "[FF_UI_CLICK] drag released at (%d,%d) at %ums\n", px, py, el);
+                                s_clicks[ci].fired = 1;
+                            }
+                        }
+                        continue;
+                    }
+                    if (!s_clicks[ci].fired && ffDue && s_clicks[ci].dbl == 3) {
+                        LPARAM lp = MAKELPARAM(s_clicks[ci].x, s_clicks[ci].y);
+                        fprintf(stderr, "[FF_UI_CLICK] drag start (%d,%d)->(%d,%d) at %ums\n", s_clicks[ci].x, s_clicks[ci].y, s_clicks[ci].dragX, s_clicks[ci].dragY, el);
+                        PostGameMessage(WM_MOUSEMOVE, 0, lp);
+                        PostGameMessage(WM_LBUTTONDOWN, 0, lp);
+                        s_clicks[ci].fired = 3; s_clicks[ci].downAt = (int)el; s_clicks[ci].dragStep = 0;
+                        continue;
+                    }
+                    if (!s_clicks[ci].fired && ffDue && s_clicks[ci].dbl == 4) {
+                        s_clicks[ci].fired = 1;
+                        LPARAM lp = MAKELPARAM(s_clicks[ci].x, s_clicks[ci].y);
+                        fprintf(stderr, "[FF_UI_CLICK] wheel %+d at (%d,%d) at %ums\n", s_clicks[ci].wheel, s_clicks[ci].x, s_clicks[ci].y, el);
+                        PostGameMessage(WM_MOUSEMOVE, 0, lp);
+                        PostGameMessage(WM_MOUSEWHEEL, MAKEWPARAM(0, (WORD)(short)s_clicks[ci].wheel), lp);
                         continue;
                     }
                     if (!s_clicks[ci].fired && ffDue) {
