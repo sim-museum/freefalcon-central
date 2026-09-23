@@ -3495,7 +3495,7 @@ static void render_frame(void) {
         // messages a real mouse click produces - for automated UI testing.
         {
             static int s_clickInit = 0;
-            static struct { int x, y; Uint32 atMs; int fired; int dbl; int afterJoin; Uint32 holdMs; int downAt; char tname[32]; int dragX, dragY, wheel, dragStep; } s_clicks[16];
+            static struct { int x, y; Uint32 atMs; int fired; int dbl; int afterJoin; Uint32 holdMs; int downAt; char tname[32]; int dragX, dragY, wheel, dragStep; } s_clicks[32];
             static int s_nClicks = 0;
             static Uint32 s_uiStart = 0;
             if (!s_clickInit) {
@@ -3504,7 +3504,7 @@ static void render_frame(void) {
                 if (e) {
                     char buf[256];
                     strncpy(buf, e, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
-                    for (char* tok = strtok(buf, ";"); tok && s_nClicks < 16; tok = strtok(NULL, ";")) {
+                    for (char* tok = strtok(buf, ";"); tok && s_nClicks < 32; tok = strtok(NULL, ";")) {
                         int cx, cy; float at;
                         char dbl = 0;  // 'd' = double-click, 'r' = right-click
                         int afterJoin = 0;
@@ -4275,7 +4275,7 @@ static void main_loop(void) {
         // real mouse feeds, which exercises the whole dispatch path.
         if (!doUI) {
             static int s_clickInit = 0;
-            static struct { int x, y; Uint32 atMs, holdMs; int phase; Uint32 downAt; } s_clicks[16];
+            static struct { int x, y; Uint32 atMs, holdMs; int phase; Uint32 downAt; } s_clicks[32];
             static int s_nClicks = 0;
             static Uint32 s_clickStart = 0;
 
@@ -4284,7 +4284,7 @@ static void main_loop(void) {
                 const char* e = getenv("FF_SIM_CLICK");
                 if (e) {
                     const char* p2 = e;
-                    while (*p2 && s_nClicks < 16) {
+                    while (*p2 && s_nClicks < 32) {
                         int cx = 0, cy = 0; float at = 0.0f; unsigned hold = 120;
                         if (sscanf(p2, "%d,%d@%f+%u", &cx, &cy, &at, &hold) >= 3) {
                             s_clicks[s_nClicks].x = cx;

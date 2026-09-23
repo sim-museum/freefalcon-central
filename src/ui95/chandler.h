@@ -320,6 +320,9 @@ public:
     C_Window *GetWindow(short x, short y); // get window mouse is over
     C_Window *FindWindow(long ID); // find a window by its ID
 #ifdef FF_LINUX
+    SCREEN *FFSurface() { return &surface_; }   /* GOLD-260923: the ACMI view redraws its event texts after the readback */
+#endif
+#ifdef FF_LINUX
     // FF_LINUX: visibility lives on the handler's list node, not on the window,
     // so iterating with _GetFirstWindow/_GetNextWindow loses it and every
     // registered-but-hidden window looks live. Used by the FF_DUMP_UI probe.

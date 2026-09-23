@@ -15,6 +15,8 @@
 struct IDirectDrawSurface7;
 extern "C" int FF_ReadbackPrimaryRect(IDirectDrawSurface7 *, int, int, int, int);   /* ACMI-OBJ-1, d3d_gl.cpp (as c3dview.cpp) */
 extern "C" void FF_ReconSetExclusions(int n, const int *rects);   /* d3d_gl.cpp, shared with the recon view */
+extern "C" void FF_ReconRecacheRect(int l, int t, int r, int b);
+extern "C" int FF_PrimaryPixels(void **mem, int *pitchPixels, int *height, int *bpp);   /* d3d_gl.cpp */   /* d3d_gl.cpp: text drawn over the readback becomes part of the re-applied frame */
 #include "graphics/include/renderwire.h"
 #include "graphics/include/terrtex.h"
 #include "graphics/include/drawpole.h"
@@ -474,47 +476,6 @@ void ACMIView::Draw()
         //JAM 12Dec03 - ZBUFFERING OFF
         if (DisplayOptions.bZBuffering)
             _renderer->context.FlushPolyLists();
-#ifdef FF_LINUX
-        /* ACMI-OBJ-1 (PO 2026-09-22 gold video: "the saved ACMI plays correctly in default and orbit
-           view"; ours showed sky, haze and no terrain or objects, with the camera PROVEN on the jet and
-           ~550 drawables PROVEN in the display list). The renderer was built on the UI ImageBuffer,
-           gMainHandler->GetFront(), and RECON-1 S2 established what that means in this port: that
-           buffer's BACK surface is bound once as the render target and never presented, so every
-           frame lands in an off-screen FBO. The recon view fixed itself by copying its rectangle back
-           into the UI surface after drawing (c3dview.cpp, FF_ReadbackPrimaryRect); the ACMI viewer
-           never got the same call. Flush the poly lists unconditionally first (the sim does; here it
-           was gated on bZBuffering), then copy the render pane back. FF_ACMI_NOREADBACK=1 reverts. */
-        {
-            static int s_rb = -1; if (s_rb < 0) s_rb = getenv("FF_ACMI_NOREADBACK") ? 0 : 1;
-            if (s_rb)
-            {
-                _renderer->context.FlushPolyLists();
-                /* GOLD-260922: the readback is re-applied at present time as the last write (RECON-1 S4), so it
-                   also paints over any window the UI stacks ABOVE the render pane -- the Camera/Focus drop
-                   lists open into the pane and were wiped to their top strip (acmi_orb10.png). Same cure as
-                   RECON-2: name the visible windows above the pane's owner and the shim leaves them alone. */
-                {
-                    int rects[8 * 4]; int n = 0; C_Window *owner = NULL;
-                    for (C_Window *w = gMainHandler->_GetFirstWindow(); w; w = gMainHandler->_GetNextWindow(w))
-                    {
-                        if ( not gMainHandler->FFIsWindowVisible(w)) continue;
-                        const int wl = w->GetX(), wt = w->GetY(), wr = wl + w->GetW(), wb = wt + w->GetH();
-                        if (wl <= _ffWinL and wt <= _ffWinT and wr >= _ffWinR and wb >= _ffWinB) { owner = w; n = 0; continue; }
-                        if ( not owner) continue;
-                        if (wr <= _ffWinL or wl >= _ffWinR or wb <= _ffWinT or wt >= _ffWinB) continue;
-                        if (n < 8) { rects[n * 4] = wl; rects[n * 4 + 1] = wt; rects[n * 4 + 2] = wr; rects[n * 4 + 3] = wb; n++; }
-                    }
-                    FF_ReconSetExclusions(n, rects);
-                    static int lastN = -1;
-                    if (n != lastN and getenv("FF_DEBUG_ACMI")) { lastN = n; fprintf(stderr, "[acmi] %d window(s) above the render pane excluded from the readback\n", n); fflush(stderr); }
-                }
-                const int ok = FF_ReadbackPrimaryRect(gMainHandler->GetFront()->targetSurface(), _ffWinL, _ffWinT, _ffWinR, _ffWinB);
-                static int s_said = 0;
-                if ( not s_said and getenv("FF_DEBUG_ACMI")) { s_said = 1;
-                    fprintf(stderr, "[acmi] readback of the render pane (%d,%d)-(%d,%d) into the UI surface: %s\n", _ffWinL, _ffWinT, _ffWinR, _ffWinB, ok ? "done" : "SKIPPED"); fflush(stderr); }
-            }
-        }
-#endif
 
         // _renderer->PostSceneCloudOcclusion();
 
@@ -677,6 +638,101 @@ void ACMIView::Draw()
         // tell renderer we're done
         _renderer->EndDraw();
         _renderer->context.FinishFrame(NULL);
+        /* GOLD-260923 (ACMI-LOCKLINE-1): the readback used to sit right after the scene draw, BEFORE the
+           radar-lock lines, the Internal-view wire cockpit and the screen text -- all Draw2DLine
+           primitives the frame flushes only here, in FinishFrame -- so those overlays were rendered
+           into a frame nobody presents. Read the pane back after the whole frame is finished. */
+#ifdef FF_LINUX
+        /* ACMI-OBJ-1 (PO 2026-09-22 gold video: "the saved ACMI plays correctly in default and orbit
+           view"; ours showed sky, haze and no terrain or objects, with the camera PROVEN on the jet and
+           ~550 drawables PROVEN in the display list). The renderer was built on the UI ImageBuffer,
+           gMainHandler->GetFront(), and RECON-1 S2 established what that means in this port: that
+           buffer's BACK surface is bound once as the render target and never presented, so every
+           frame lands in an off-screen FBO. The recon view fixed itself by copying its rectangle back
+           into the UI surface after drawing (c3dview.cpp, FF_ReadbackPrimaryRect); the ACMI viewer
+           never got the same call. Flush the poly lists unconditionally first (the sim does; here it
+           was gated on bZBuffering), then copy the render pane back. FF_ACMI_NOREADBACK=1 reverts. */
+        {
+            static int s_rb = -1; if (s_rb < 0) s_rb = getenv("FF_ACMI_NOREADBACK") ? 0 : 1;
+            if (s_rb)
+            {
+                _renderer->context.FlushPolyLists();
+                /* GOLD-260922: the readback is re-applied at present time as the last write (RECON-1 S4), so it
+                   also paints over any window the UI stacks ABOVE the render pane -- the Camera/Focus drop
+                   lists open into the pane and were wiped to their top strip (acmi_orb10.png). Same cure as
+                   RECON-2: name the visible windows above the pane's owner and the shim leaves them alone. */
+                int evL = 1 << 30, evT = 1 << 30, evR = -1, evB = -1; C_Window *evWin = NULL;
+    {
+                    int rects[8 * 4]; int n = 0; C_Window *owner = NULL;
+                    for (C_Window *w = gMainHandler->_GetFirstWindow(); w; w = gMainHandler->_GetNextWindow(w))
+                    {
+                        if ( not gMainHandler->FFIsWindowVisible(w)) continue;
+                        const int wl = w->GetX(), wt = w->GetY(), wr = wl + w->GetW(), wb = wt + w->GetH();
+                        if (wl <= _ffWinL and wt <= _ffWinT and wr >= _ffWinR and wb >= _ffWinB) { owner = w; n = 0; continue; }
+                        if ( not owner) continue;
+                        if (wr <= _ffWinL or wl >= _ffWinR or wb <= _ffWinT or wt >= _ffWinB) continue;
+                        if (n < 8) { rects[n * 4] = wl; rects[n * 4 + 1] = wt; rects[n * 4 + 2] = wr; rects[n * 4 + 3] = wb; n++; }
+                    }
+                    /* GOLD-260923 (gold video 260922_millile_acmi_gold.mp4): the green event lines ("SA-8 launched at
+       Viper 08:55:02") are C_Text controls of ACMI_LEFT_WIN client 0 (events.cpp ProcessEventArray),
+       drawn once by the UI and then buried: the readback overwrites them every frame and the present
+       re-applies the cache on top. Exclude their box from the re-apply and redraw them after the
+       readback (below), so they composite over the live terrain as in Wine. */
+    evWin = gMainHandler->FindWindow(ACMI_LEFT_WIN);
+    if (evWin)
+    {
+        UI95_RECT ca = evWin->GetClientArea(0);
+        for (CONTROLLIST *cl = evWin->GetControlList(); cl; cl = cl->Next)
+        {
+            C_Base *c = cl->Control_;
+            if ( not c or c->GetUserNumber(_UI95_DELGROUP_SLOT_) != _UI95_DELGROUP_ID_) continue;
+            const int cx = evWin->GetX() + ca.left + c->GetX(), cy = evWin->GetY() + ca.top + c->GetY();
+            if (cx < evL) evL = cx; if (cy < evT) evT = cy; if (cx + c->GetW() > evR) evR = cx + c->GetW(); if (cy + c->GetH() > evB) evB = cy + c->GetH();
+        }
+        /* (the box is NOT excluded: the redraw below is copied back into the cache instead) */
+    }
+    FF_ReconSetExclusions(n, rects);
+                    static int lastN = -1;
+                    if (n != lastN and getenv("FF_DEBUG_ACMI")) { lastN = n; fprintf(stderr, "[acmi] %d window(s) above the render pane excluded from the readback\n", n); fflush(stderr); }
+                }
+                const int ok = FF_ReadbackPrimaryRect(gMainHandler->GetFront()->targetSurface(), _ffWinL, _ffWinT, _ffWinR, _ffWinB);
+                if (ok and evWin and evR > evL)
+                {
+                    /* The UI handler draws into the ImageBuffer's BACK surface (C_Handler::Lock ->
+                       ImageBuffer::Lock -> m_pDDSBack), which the flip copies over the primary -- and over the
+                       readback. Draw the texts into the PRIMARY (where the readback just wrote the pane) and
+                       fold that box into the readback cache, which the present re-applies as the last write. */
+                    UI95_RECT ca = evWin->GetClientArea(0); UI95_RECT clip = ca;
+                    SCREEN prim; void *pmem = NULL; int ppitch = 0, ph = 0, pbpp = 0;
+                    if (FF_PrimaryPixels(&pmem, &ppitch, &ph, &pbpp))
+                    {
+                        prim.mem = (WORD *)pmem; prim.width = (short)ppitch; prim.height = (short)ph; prim.bpp = (BYTE)pbpp; prim.owner = gMainHandler->GetFront();
+                        for (CONTROLLIST *cl = evWin->GetControlList(); cl; cl = cl->Next)
+                        {
+                            C_Base *c = cl->Control_;
+                            if (c and c->GetUserNumber(_UI95_DELGROUP_SLOT_) == _UI95_DELGROUP_ID_) c->Draw(&prim, &clip);
+                        }
+                        FF_ReconRecacheRect(evL, evT, evR + 2, evB + 2);
+                    }
+                    static int saidEv = 0;
+                    if ( not saidEv and getenv("FF_DEBUG_ACMI"))
+                    {
+                        saidEv = 1; int nEv = 0;
+                        for (CONTROLLIST *cl = evWin->GetControlList(); cl; cl = cl->Next)
+                        {
+                            C_Base *c = cl->Control_;
+                            if (c and c->GetUserNumber(_UI95_DELGROUP_SLOT_) == _UI95_DELGROUP_ID_)
+                            { nEv++; fprintf(stderr, "[acmi]   event text #%d id=%ld at %ld,%ld %ldx%ld client=%ld vis=%d\n", nEv, c->GetID(), c->GetX(), c->GetY(), c->GetW(), c->GetH(), (long)c->GetClient(), (c->GetFlags() & C_BIT_INVISIBLE) ? 0 : 1); }
+                        }
+                        fprintf(stderr, "[acmi] event texts redrawn after the readback and re-cached in (%d,%d)-(%d,%d): %d controls, VY=%ld\n", evL, evT, evR, evB, nEv, (long)evWin->VY_[0]); fflush(stderr);
+                    }
+                }
+                static int s_said = 0;
+                if ( not s_said and getenv("FF_DEBUG_ACMI")) { s_said = 1;
+                    fprintf(stderr, "[acmi] readback of the render pane (%d,%d)-(%d,%d) into the UI surface: %s\n", _ffWinL, _ffWinT, _ffWinR, _ffWinB, ok ? "done" : "SKIPPED"); fflush(stderr); }
+            }
+        }
+#endif
 
         if (_takeScreenShot)
         {

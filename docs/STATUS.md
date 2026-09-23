@@ -21878,6 +21878,69 @@ altitude pole under the focused jet, the orbit view draws the aircraft model its
    the terrain, timer 08:52:51 advancing, `camState=200124 camOff=(-499,9,19)` -- the gold's orbit frame.
    **Item 4 done. GOLD-260922: all four behaviours reproduce; packed as `FreeFalcon-x86_64-260922`.**
 
+**GOLD-260923 (Fable 5.1, 2026-09-23) -- 🟠 PO: "fix the linux ff acmi so it works like the wine ff acmi gold standard, on the same file" (`~/Videos/260922_millile_acmi_gold.mp4` vs `260922_missile_somewhat_works.mp4`, both playing `missile_260922.vhs`, the PO's 331 s TE-28 flight recorded by the new AppImage).**
+Contact sheets and matched close-ups in `~/ff-gates/gold260923/` (`sheet_*.png`, `close_*.png`).
+Gold (Wine, all options on): green event lines top-left ("08:55:02 SA-8 launched at Viper"), a green
+target box with the focused jet's label in Internal view, long white wing trails, a yellow dotted SAM
+flight line, red SAM labels at the site, ground vehicles by the road, and the F-16 model (dark in Wine
+too -- the black silhouette is not a port defect). Linux (22:26 image): no event text, no box, no
+trails, garbage Focus-list names (`1 aZ~%X`, `2 V)%X` ... after the correct `1 F-16CJ`), the SA-8 orbiting
+on a ~500 ft pole, Tracking camera showing sky only.
+Before touching the viewer, the trail hang was traced to DATA (ACMI-TRAIL-1): this FF6 install has NO
+`terrdata/trail.txt` although its trail textures exist, so `LoadTrails()` returns silently and every
+type keeps spacing 0 -- the infinite-allocation loop that froze the port's viewer (TRAIL-HANG-1, guarded)
+and that ate 3.4 GB then faulted wined3d in the PO's Wine FF twice tonight. An authored `trail.txt`
+(values reasonable, not original; flags T/L/S per drawsgmt.cpp) is now in both game trees.
+Measured so far with the harness on the same tape (`acmi_opts.log`, `FF_DEBUG_ACMI_ENT` dump):
+* the tape's callsign list is 206 EMPTY labels (the recorder never fills `label`; "FIX" comments in
+  acmirec.cpp, same on Windows) -- the viewer's names come from `GetObjectName` (type names), and in a
+  FRESH process every one of the 100 entities is labelled correctly (`1 SA-2`, `1 Fan Song B`, `1 KrAz
+  F 255B`, missiles `1 SA-8`). The PO's garbage appeared after flying the mission in the same process;
+  not yet reproduced.
+* `_viewPoint->GetGroundLevel()` returned 0 for EVERY entity at the first census (before the terrain
+  loaded); re-measured at the 15th census in the next run. Tape z: SA-2 site at z=0 where the sim's
+  own ground is about -320 ft; SA-8s at -1213 ft. Whether the pole is our terrain or the tape's z is
+  decided by that measurement, not assumed.
+* the OPTIONS button (973,748) opens window 200151 at (646,576) 196x80: a menu -- Labels >, Altitude
+  Poles (on), Radar Lock Line, Wing Trails >, Vehicle Magnification > (rows 14 px from y=588).
+**ACMI-EVENTS-1 -- ✅ verified (`acmi_ev.png`): the four event lines sit over the sky exactly as in the
+gold, green time column, the 52:00 line already scrolled off.** Three attempts taught the surface
+topology: (1) excluding the text box from the present-time re-apply showed TWO copies (the UI's own draw
+at one scroll offset plus mine); (2) redrawing the `C_Text`s through the handler's `SCREEN` and copying
+the box back into the readback cache showed NOTHING -- because `C_Handler::Lock` draws into the
+ImageBuffer's BACK surface (`ImageBuffer::Lock -> m_pDDSBack`), which the flip copies over the primary
+and over the readback; (3) what works: build a `SCREEN` on the PRIMARY's pixels (`FF_PrimaryPixels`),
+draw the event `C_Text`s there right after the readback, and fold that box into the readback cache
+(`FF_ReconRecacheRect`) so the present's last write carries pane+text. `[acmi] event texts redrawn after
+the readback and re-cached in (10,80)-(384,160): 10 controls` (5 events x time+message).
+**Like-for-like frame** (`acmi_gold520.png` at tape 08:54:02 vs the gold's t=520 at 08:54:03, `gold_t520_win.png`):
+event lines identical; **wing trails now draw** (Wing Trails > Long selected through the popup, trace
+`[popup] menu 200155 item 200159 type=27 -> state=1`) and trail into the distance in the same direction
+as the gold's -- ACMI-TRAIL-1's data fix is what made them possible; Orbit on the jet with its yellow
+target box, label and pole. Still different: the jet stays tiny although Vehicle Magnification x4 ran
+(`item 200172 state=1`, `SetObjScale(4.0)`; the engine's `CDXEngine::DrawObject` builds
+`Scale._11 = scale * sx` so the value is expected to reach the model -- measured next); no yellow
+radar-lock line to the MiG-29 (the tape maps `radarTarget` VU ids to indices at import, acmitape.cpp:1690;
+`GetEntityCurrentTarget(0)` traced next); the gold's red enemy labels and ground-unit icon not seen from
+our camera bearing; terrain texture green/detailed in the gold vs brown here although both viewers report
+`LastNearTexLOD=2 LastFarTexLOD=4` (not LOD -- textures or palette, to measure). Harness fixes on the way:
+`FF_UI_CLICK` silently dropped every click past the 16th (the Orbit row was the 17th) -- cap raised to 32;
+`FF_DEBUG_POPUP=1` prints each popup item click with its resulting state; the OPTIONS popup's items
+are: Labels > (Name 870,588 / Airspeed / Altitude 616 / Heading / Turn Rate / Turn Radius / Lock Range 672),
+Altitude Poles (on), Radar Lock Line (720,616), Wing Trails > (None 860,630 / Short / Medium / Long 672 /
+Maximum 686), Vehicle Magnification > (x1 862,644 / x2 / x4 672 / x8 / x16 700); `Name` is ON by
+default (`DrawableBSP::drawLabels`), so clicking it turns labels OFF.
+**ACMI-LOCKLINE-1 -- ✅ verified (`acmi_lock_orb.png`, tape 08:54:02): the yellow radar-lock line from the
+jet up to the MiG-29, the wing trails, the x4 jet with label and pole, and the event lines -- the gold's
+t=520 frame.** Measured first: the MiG (entity 18) holds the jet as radar target for 65 of 76 census
+seconds (`[acmi] entities with a radar target now: 1 18->0`), `_tapeObjScale` reaches the drawable
+(radius 29.2 -> 117.0 at x4; the on-screen size difference was the orbit range, which scales with it, plus
+the PO's zoom). The line was drawn and lost: `ACMIView::Draw` renders the scene, and only THEN the
+radar-lock lines, the Internal-view wire cockpit and the screen text -- all `Draw2DLine` primitives that
+the context flushes at `FinishFrame` -- while the readback sat right after the scene draw, so those
+overlays went into a frame nobody presents. The readback (with the event-text redraw) now follows
+`context.FinishFrame(NULL)`.
+
 **ACMI-LONG-1 (Fable 5.1, 2026-09-22) -- PO: "set ff to have long acmi files, not short ones" and "delete the old acmi files".**
 Why the tapes were short, measured rather than assumed: the PO's own profile already has
 `ACMIFileSize=0` (unlimited; read from `Viper.pop` at struct offset 32), so rotation was not cutting

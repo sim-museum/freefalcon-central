@@ -3312,6 +3312,32 @@ void ACMITape::UpdateSimTapeEntities(void)
             }
             fprintf(stderr, "[acmi] simTime=%.2f entities=%d aircraft=%d withBase=%d withDrawable=%d IN-DISPLAY-LIST=%d withTrail=%d viewPoint=%p\n",
                     _simTime, ne, isAir, haveBase, haveDraw, inList, haveTrail, (void*)_viewPoint);
+            /* GOLD-260923: magnification and radar-lock inputs for entity 0 (the player's jet on a recorded tape) */
+            if (ne > 0 and _simTapeEntities[0].objBase and _simTapeEntities[0].objBase->drawPointer)
+                fprintf(stderr, "[acmi]   ent0 objScale=%.1f drawRadius=%.1f target=%d rawTarget=%ld\n", _tapeObjScale, _simTapeEntities[0].objBase->drawPointer->Radius(),
+                        GetEntityCurrentTarget(0), (long)(CurrentEntityPositionHead(0) ? CurrentEntityPositionHead(0)->posData.radarTarget : -2));
+            { int nT = 0; char buf[400]; buf[0] = 0;
+              for (int q = 0; q < ne and nT < 12; q++) { int tg = GetEntityCurrentTarget(q); if (tg != -1) { nT++; snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), " %d->%d", q, tg); } }
+              fprintf(stderr, "[acmi]   entities with a radar target now: %d%s\n", nT, buf); }
+            /* GOLD-260923: once, every entity with its label, flags, tape position and the VIEWER's
+               ground level under it -- the PO's SA-8 orbits on a 500 ft pole in the port and sits on
+               the ground in Wine on the same tape, so either the tape z or our ground differs. */
+            static int s_dumped = 0; static int s_census = 0; s_census++;
+            if ( not s_dumped and s_census >= 15 and getenv("FF_DEBUG_ACMI_ENT"))   /* the 1st census runs before the terrain is loaded */
+            {
+                s_dumped = 1;
+                for (int q = 0; q < ne; q++)
+                {
+                    SimTapeEntity *e2 = &_simTapeEntities[q]; ACMIEntityData *ed = EntityData(q);
+                    float gz = (_viewPoint and e2->objBase) ? _viewPoint->GetGroundLevel(e2->objBase->XPos(), e2->objBase->YPos()) : 0.0f;
+                    fprintf(stderr, "[acmient] %d uid=%ld type=%ld count=%ld flags=0x%lx label='%s' pos=(%.0f,%.0f,%.0f) groundZ=%.0f agl=%.0f draw=%d\n",
+                            q, ed ? (long)ed->uniqueID : -1L, ed ? (long)ed->type : -1L, ed ? (long)ed->count : -1L, ed ? (long)ed->flags : 0L,
+                            (e2->objBase and e2->objBase->drawPointer) ? ((DrawableBSP*)e2->objBase->drawPointer)->Label() : "-",
+                            e2->objBase ? e2->objBase->XPos() : 0.0f, e2->objBase ? e2->objBase->YPos() : 0.0f, e2->objBase ? e2->objBase->ZPos() : 0.0f,
+                            gz, e2->objBase ? (gz - e2->objBase->ZPos()) : 0.0f, (e2->objBase and e2->objBase->drawPointer) ? 1 : 0);
+                }
+                fflush(stderr);
+            }
             fflush(stderr);
         }
     }

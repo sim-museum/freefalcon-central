@@ -583,6 +583,12 @@ BOOL C_PopupList::Process(long ID, short HitType)
                 break;
         }
 
+#ifdef FF_LINUX
+        /* GOLD-260923: say what a popup click did (FF_DEBUG_POPUP=1) -- the ACMI OPTIONS menu's items
+           have no visible check mark for toggles, so the harness reads the state here. */
+        { static int s_pd = -1; if (s_pd < 0) s_pd = getenv("FF_DEBUG_POPUP") ? 1 : 0;
+          if (s_pd) { fprintf(stderr, "[popup] menu %ld item %ld type=%d hit=%d -> state=%d callback=%s\n", (long)GetID(), ID, (int)cur->Type_, (int)HitType, (int)cur->State_, cur->Callback_ ? "yes" : "no"); fflush(stderr); } }
+#endif
         if (cur->Callback_)
             (*cur->Callback_)(ID, HitType, this);
 

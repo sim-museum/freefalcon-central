@@ -5599,6 +5599,33 @@ static int g_ffReconArmed = 0;
    each time it renders; the present-time apply skips them. */
 static int g_ffReconExcl[8][4];
 static int g_ffReconNExcl = 0;
+/* GOLD-260923 (ACMI-EVENTS-1): copy a sub-rectangle of the UI surface back INTO the readback cache, so
+   text the caller has just drawn over the readback (the ACMI event lines) is part of what the present
+   re-applies as the last write -- whatever the UI paints over that box in between is covered again. */
+/* GOLD-260923: let a caller draw UI text straight into the primary surface (the UI handler draws into
+   the ImageBuffer's BACK surface, which the flip copies over the primary and over the readback). */
+extern "C" int FF_PrimaryPixels(void **mem, int *pitchPixels, int *height, int *bpp)
+{
+    D3D7Surface *surf = g_pPrimarySurface;
+    if ( not surf or not surf->pixelData) return 0;
+    const int bytes = surf->pixelFormat.dwRGBBitCount ? surf->pixelFormat.dwRGBBitCount / 8 : 4;
+    *mem = surf->pixelData; *pitchPixels = surf->pitch / bytes; *height = surf->height; *bpp = bytes * 8;
+    return 1;
+}
+
+extern "C" void FF_ReconRecacheRect(int l, int t, int r, int b)
+{
+    D3D7Surface *surf = g_pPrimarySurface;
+    if ( not surf or not surf->pixelData or not g_ffReconArmed or g_ffReconCacheW <= 0) return;
+    const int cl = g_ffReconRect[0], ct = g_ffReconRect[1], cr = cl + g_ffReconCacheW, cb = ct + g_ffReconCacheH;
+    if (l < cl) l = cl; if (t < ct) t = ct; if (r > cr) r = cr; if (b > cb) b = cb;
+    if (r <= l or b <= t) return;
+    const int bpp = g_ffReconCacheBpp;
+    for (int y = t; y < b; y++)
+        memcpy(g_ffReconCache.data() + ((size_t)(y - ct) * g_ffReconCacheW + (l - cl)) * bpp,
+               surf->pixelData + (size_t)y * surf->pitch + (size_t)l * bpp, (size_t)(r - l) * bpp);
+}
+
 extern "C" void FF_ReconSetExclusions(int n, const int *rects)
 {
     if (n < 0) n = 0;
