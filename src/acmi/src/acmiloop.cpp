@@ -14,6 +14,7 @@
 #include "graphics/include/tod.h"   /* ACMI-OBJ-1: TheTimeOfDay in the camera trace */
 struct IDirectDrawSurface7;
 extern "C" int FF_ReadbackPrimaryRect(IDirectDrawSurface7 *, int, int, int, int);   /* ACMI-OBJ-1, d3d_gl.cpp (as c3dview.cpp) */
+extern "C" void FF_ReconSetExclusions(int n, const int *rects);   /* d3d_gl.cpp, shared with the recon view */
 #include "graphics/include/renderwire.h"
 #include "graphics/include/terrtex.h"
 #include "graphics/include/drawpole.h"
@@ -488,6 +489,25 @@ void ACMIView::Draw()
             if (s_rb)
             {
                 _renderer->context.FlushPolyLists();
+                /* GOLD-260922: the readback is re-applied at present time as the last write (RECON-1 S4), so it
+                   also paints over any window the UI stacks ABOVE the render pane -- the Camera/Focus drop
+                   lists open into the pane and were wiped to their top strip (acmi_orb10.png). Same cure as
+                   RECON-2: name the visible windows above the pane's owner and the shim leaves them alone. */
+                {
+                    int rects[8 * 4]; int n = 0; C_Window *owner = NULL;
+                    for (C_Window *w = gMainHandler->_GetFirstWindow(); w; w = gMainHandler->_GetNextWindow(w))
+                    {
+                        if ( not gMainHandler->FFIsWindowVisible(w)) continue;
+                        const int wl = w->GetX(), wt = w->GetY(), wr = wl + w->GetW(), wb = wt + w->GetH();
+                        if (wl <= _ffWinL and wt <= _ffWinT and wr >= _ffWinR and wb >= _ffWinB) { owner = w; n = 0; continue; }
+                        if ( not owner) continue;
+                        if (wr <= _ffWinL or wl >= _ffWinR or wb <= _ffWinT or wt >= _ffWinB) continue;
+                        if (n < 8) { rects[n * 4] = wl; rects[n * 4 + 1] = wt; rects[n * 4 + 2] = wr; rects[n * 4 + 3] = wb; n++; }
+                    }
+                    FF_ReconSetExclusions(n, rects);
+                    static int lastN = -1;
+                    if (n != lastN and getenv("FF_DEBUG_ACMI")) { lastN = n; fprintf(stderr, "[acmi] %d window(s) above the render pane excluded from the readback\n", n); fflush(stderr); }
+                }
                 const int ok = FF_ReadbackPrimaryRect(gMainHandler->GetFront()->targetSurface(), _ffWinL, _ffWinT, _ffWinR, _ffWinB);
                 static int s_said = 0;
                 if ( not s_said and getenv("FF_DEBUG_ACMI")) { s_said = 1;

@@ -1426,9 +1426,12 @@ C_Base *C_Window::GetControl(long *ID, long relX, long relY)
 #ifdef FF_LINUX
         /* MPTEST-FF S6l: the tree 40211 never sees CheckHotSpots; print each control gate. FF_DEBUG_MPCOMMS=1. */
         {
-            static int s_dbgw = -1;
-            if (s_dbgw < 0) s_dbgw = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
-            if (s_dbgw && (GetID() == 40200 || GetID() == 40500))
+            static int s_dbgw = -1; static long s_dbgwin = 0;
+            if (s_dbgw < 0) { s_dbgw = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+                /* GOLD-260922: FF_DEBUG_GETCTRL=<window id> traces any one window's hit test (the ACMI
+                   camera popup is window 1; a scripted click on its rows found no control). */
+                const char *g = getenv("FF_DEBUG_GETCTRL"); if (g) { s_dbgwin = atol(g); s_dbgw = 1; } }
+            if (s_dbgw && (GetID() == 40200 || GetID() == 40500 || (s_dbgwin && GetID() == s_dbgwin)))
             {
                 long cl = cur->Control_->GetClient();
                 fprintf(stderr, "[GETCTRL] win %ld rel=(%ld,%ld) ctrl %ld isctrl=%d abs=%d client=%ld area=%ld,%ld-%ld,%ld v=(%ld,%ld) flags=0x%lx\n",
@@ -1456,6 +1459,14 @@ C_Base *C_Window::GetControl(long *ID, long relX, long relY)
                 if (relX >= ClientArea_[cur->Control_->GetClient()].left and relX <= ClientArea_[cur->Control_->GetClient()].right and relY >= ClientArea_[cur->Control_->GetClient()].top and relY <= ClientArea_[cur->Control_->GetClient()].bottom)
                 {
                     thisID = cur->Control_->CheckHotSpots(relX - VX_[cur->Control_->GetClient()], relY - VY_[cur->Control_->GetClient()]);
+#ifdef FF_LINUX
+                    if (getenv("FF_DEBUG_GETCTRL") and atol(getenv("FF_DEBUG_GETCTRL")) == GetID())
+                    {
+                        fprintf(stderr, "[GETCTRL]   ctrl %ld at %ld,%ld %ldx%ld ready=%d tested (%ld,%ld) -> hit=%ld\n",
+                                cur->Control_->GetID(), cur->Control_->GetX(), cur->Control_->GetY(), cur->Control_->GetW(), cur->Control_->GetH(),
+                                (int)cur->Control_->Ready(), relX - VX_[cur->Control_->GetClient()], relY - VY_[cur->Control_->GetClient()], thisID);
+                    }
+#endif
 
                     if (thisID)
                     {

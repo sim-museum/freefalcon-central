@@ -21772,7 +21772,7 @@ the whole UI is stretched to the display, so at 1920 each digit is 13 px wide ma
 `FF_RECON_TEXT_SCALE` x (default 2) -- twice the size from the same texels, which is what separates the
 digits; 1 restores the old size. Capture pending with RECON-1's.
 
-**GOLD-260922 (Fable 5.1, 2026-09-22) -- 🟠 PO work order: four behaviours from the Wine gold video `260922_wine_ff_recon_missile_acmi_view.mp4`, in progress.**
+**GOLD-260922 (Fable 5.1, 2026-09-22) -- ✅ PO work order: four behaviours from the Wine gold video `260922_wine_ff_recon_missile_acmi_view.mp4`, all four reproduced and captured (two port defects fixed: MAPWHEEL-1, ACMI-POPUP-1; two instruments fixed: the muted SAM launch trace, the ACMI readback).**
 The video (332 s, 1920x1080, 60 fps) was read before touching code: a 36-frame contact sheet and close-ups
 in `~/ff-gates/gold260922/` (`sheet_10s.png`, `sheet_acmi.png`, `t35/t45/t55/t65/t230/t300.png`). Timeline:
 0-20 s main screen and the TE map; 20-50 s the RECON popup then the recon view of a bridge (t35: heading 000,
@@ -21826,7 +21826,9 @@ altitude pole under the focused jet, the orbit view draws the aircraft model its
    could not speak. What the same log does show is the SA-2's hardpoint-0 store going `count=2 -> 1 -> 0`
    (with `curWeapon=yes` at 28.4 km on the first decrement) and the jet's range then frozen at 19.5 km for
    the last 90 s: two shots taken, and most likely a kill. The trace now prints before `SendFireMessage`
-   with the launch range; re-run queued (`sa2steer2`).
+   with the launch range. **Re-run (`sa2steer2.log`): 13 `[sam] LAUNCH` lines, the first at 28.6 km,
+   then 23.5, 18.0, 16.0 km ..., 0 refusals. Item 3 done** -- the port's SA-2 battalion fires at the jet
+   the moment it is inside the envelope; the PO's earlier "no launch" flights (SAM-1) never entered it.
 
 4. **ACMI plays correctly (ACMI-OBJ-1, continued).** The mechanism is the one RECON-1 S2 documented: the ACMI
    renderer is built on `gMainHandler->GetFront()`, whose BACK surface is bound once as the render target and
@@ -21841,8 +21843,40 @@ altitude pole under the focused jet, the orbit view draws the aircraft model its
    screen ACMI button id 10047 at (337,748), LOAD at (253,749) opens the "LOAD ACMI TAPE" dialog (window
    300101: tape list rows 17 px apart from `demo` at y=188, TAPE0002 at (344,222); its LOAD button at
    (538,541) -- the first scripted run clicked (543,514), 27 px above it, and captured the dialog still open
-   with the readback line printed only for the pane geometry). Re-run queued with the corrected targets and a
-   dialog dump at 50 s to find the view controls for the orbit capture.
+   with the readback line printed only for the pane geometry). **With the corrected targets the readback is VERIFIED**
+   (`acmi_play2.png`, TAPE0002 at 18:33:45 tape time, Internal camera on 1 Viper): terrain to a haze
+   horizon, a town's buildings, the labelled altitude poles (`1 C-130H`, `2 SR-71`, `1 F-22A`) and an
+   aircraft model on the horizon, with the census at `IN-DISPLAY-LIST=50` of 51 entities and the log's
+   `[acmi] readback of the render pane (0,32)-(1024,728) ... done`. The scene is dark because the tape is at
+   dusk (`light=0.33`), not because of the renderer. That run never pressed PLAY, so `simTime` stayed at
+   66825.19; the ACMI window (id 200000) dump gives the transport (`|<` 331, `<<` 361, `<` 391, stop 421,
+   PLAY 451, `>>` 481, `>|` 511 at y=750), the Camera combo id 200024 at (103,13) and the Focus combo
+   id 200007. PLAY then advanced `simTime` 66825.19 -> 66825.56 and stopped -- **because that is the end of the tape**:
+   TAPE0001/0002 are 2008 stock stubs (`totPlayTime` 1.34 s and 0.47 s, 51 entities, 415 features), read
+   straight from the `.vhs` headers. The same header read settles ACMI-OBJ-1's "second tape arrives with 1
+   entity": TAPE0003-0008 (Sep 15, harness recordings) each hold ONE entity and 0 features by content. The
+   real tapes are TAPE0009 (the PO's 09-20 session: 395 s, 1957 entities, the SA-2 shoot-down) and
+   TAPE0010 (today's `sa2steer` flight: 176 s, 40 entities). The Camera combo's list (popup window 1 at
+   50,22, 16 px rows) is Internal 200123, External 200124 (`// orbit` in acmiloop.cpp), Chase, Sat, Iso,
+   Free, Tracking; "orbit" is External at (105,48). **Default view VERIFIED on TAPE0010** (`acmi_int10.png`):
+   PLAY advances tape time at 1x real time (31948.63 -> 31986.54 over 38 s of wall clock, census once a
+   second), the timer reads 08:53:01 and the slider has moved, and the pane shows the gold's daylight
+   scene -- terrain with field/forest detail below a haze horizon and the flight's objects on the horizon
+   (`IN-DISPLAY-LIST=18` of 40, `withTrail=3`: the SA-2 shots).
+   **ACMI-POPUP-1, found and fixed on the way to the orbit capture:** the readback is re-applied at
+   present time as the LAST write (RECON-1 S4), so it also painted over the Camera drop list, which
+   opens INTO the pane -- `acmi_orb10.png` shows the list wiped to the 10 px that sit in the top strip;
+   the PO would have been choosing "Orbit" from a list he could not see. Same cure as RECON-2: before
+   the readback, `ACMIView::Draw` names the visible windows stacked above the pane's owner
+   (`FF_ReconSetExclusions`) and the shim's span copy skips them. Verified: `acmi_orb10c.png` shows the
+   full list (Internal, Orbit, Chase, Satellite, Isometric, Free, Tracking) over the playing scene, log
+   `[acmi] 1 window(s) above the render pane excluded`. Harness note, not a port defect: a list row's hit
+   rect is its rendered TEXT (`C_Button::CheckHotSpots` uses `btn->Image_`), so the dump's row-centre
+   click (105,48) misses "Orbit" while a click on the word (65,48) lands -- `FF_DEBUG_GETCTRL=<win id>`
+   prints each row's `tested (x,y) -> hit=`. **Orbit VERIFIED** (`acmi_orb10d.png`): `Camera Orbit`, the
+   Viper model at the pane's centre with its `1 VIPER / 0 MAG` label and the blue altitude pole down to
+   the terrain, timer 08:52:51 advancing, `camState=200124 camOff=(-499,9,19)` -- the gold's orbit frame.
+   **Item 4 done. GOLD-260922: all four behaviours reproduce; packed as `FreeFalcon-x86_64-260922`.**
 
 **PO crash-hunt session (Opus 5, 2026-09-20) -- four defects found with the PO driving, three of them verified by him or by AddressSanitizer.**
 Method: the dev build under `gdb -batch` (`tools/ff_po_instrumented.sh`) for crashes and hangs, then the
