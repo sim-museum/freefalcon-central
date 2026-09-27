@@ -1,65 +1,42 @@
-# FreeFalcon multiplayer between two PCs (MP-1 part a)
+# FreeFalcon multiplayer (Linux port)
 
-**Status: the transport path exists and is wired; a real two-machine connection has NEVER been
-tested from this box.** Everything below follows from the code. Treat the first run as the
-experiment, not as a checklist that is known to work.
+**Status (2026-09-27):** two-PC discovery, join, dogfight team select and a shared 3-D flight with
+weapons were confirmed by the PO on 2026-09-19. Two of the three defects that test found are fixed and
+measured on one box with two instances (`scripts/qa/mp-dogfight.sh`); the third is the HUD FLIR (Shift+H):
 
-## The short version
+| item | symptom (PO, 09-19) | cause | fix | revert |
+|---|---|---|---|---|
+| **MP-DMG-1** | host's missile hits the joiner: explosion, no damage on the joiner, host sees a kill, debriefs say `miss` | the joiner's OWN jet carried `FEC_INVULNERABLE`: the host's `LockPlayer` set it on its copy and broadcast it; the joiner's `ReleasePlayer` cleared it but dirtied the flags *before* `ChangeOwner`, so the clear was dropped, and `SimDirtyData` then applied the host's stale flags to the joiner's local jet | owner re-publishes its flags after `ChangeOwner`; a local entity keeps its own invulnerability bit against remote dirty data | `FF_NO_MPINVULN_FIX=1` |
+| **MP-CLOCK-1** | joiner's campaign clock frozen, different event text on each side | on Windows the sim loop ran behind the UI and its CLIENT branch followed the host's timing messages; the port idles that loop in the UI and advanced the clock with the single-player rule, where a client's ratio is always 0 | the UI tick runs the client branch (`FF_RemoteClientTimeStep`) | `FF_NO_MPCLOCK_FIX=1` |
+| **MPHOST-SIM-1** (partly fixed) | a campaign joiner never reached takeoff (one-PC runs) | the host, sitting in the UI, never deaggregated remote players' flights nor simulated the host-owned aircraft in their bubbles (same idled loop); then two HUD/altimeter buffer overflows on the joiner's first frames | while hosting online with a remote player loading/flying, the idle loop runs `RebuildBubble` + `SimDriver.Cycle`; buffers widened. **Open:** the joiner reaches the cockpit in about half the runs, and then its jet's position is NaN — not flyable yet. Workaround: the host takes a flight too | `FF_NO_MPHOSTSIM=1` |
+| HUDBOX-1 | joiner's HUD on a dark box | reproduced exactly, and it is not a defect: the picture is the HUD FLIR (`SimFLIRToggle`, **Shift+H**), a grayscale sensor image inside the HUD field of view | none — press Shift+H again | — |
 
-Both machines run the AppImage. Default port is **UDP 2934** (`CAPI_UDP_PORT`).
+## Connecting
 
-    # HOST (listens; no address needed)
-    FF_MP_CONNECT="2934" ~/Documents/260904/FreeFalcon-x86_64.AppImage
+Both machines run the same AppImage. Default port **UDP 2934** (the game also uses the port above).
 
-    # CLIENT (connects to the host's LAN address)
-    FF_MP_CONNECT="2934:2934:192.168.254.14" ~/Documents/260904/FreeFalcon-x86_64.AppImage
+    # HOST (listens)
+    FF_MP_CONNECT="2934" ./FreeFalcon-x86_64-<date>.AppImage
+    # JOINER
+    FF_MP_CONNECT="2934:2934:<host-ip>" ./FreeFalcon-x86_64-<date>.AppImage
 
-Find the host's address on the host with `hostname -I | awk '{print $1}'`.
+Or use the COMMS screen: URL/IP field, Connect as Server/Client, CONNECT, then close the status
+window with Cancel. `FF_MP_CONNECT="localPort[:remotePort[:host]]"` prints `[MPCONNECT] ... Online=1`.
 
-## What FF_MP_CONNECT does
+## Two instances on one box
 
-`FF_MP_CONNECT="localPort[:remotePort[:host]]"` (`src/ui/src/comms/phonebk.cpp:339`) drives the
-phonebook connect path directly, so the connection is made **without going through the phonebook
-dialog**. It is called during startup from `main_linux.cpp:1903`, right after `gCommsMgr->Setup()`.
+`scripts/qa/mp-dogfight.sh` (MODE=dogfight|campaign) drives both peers through the real UI. The second
+instance needs its OWN data tree (`FF2=~/ff2`, a `cp -a --reflink=auto` of the install) and ports ~10
+apart; windows are placed with `FF_WINPOS=x,y` on different monitors (a covered XWayland window runs at
+1 frame/s). Harness hooks: `FF_TEST_MPDMG=<sec>[:<str>]` (one proximity hit on the remote player's
+jet), `FF_TEST_MPFORMUP=<sec>[:<ft>[:<dur>]]` (hold position ahead of the remote player's nose).
 
-* Host absent or empty  -> `ip_address = 0` -> listen as server.
-* Host present          -> `ComAPIGetIP(host)` -> connect to that address.
+## Diagnostics
 
-It prints what it did, which is the first thing to read if nothing happens:
+`FF_DEBUG_MPCOMMS=1` (connect/game list), `FF_DEBUG_MPMSG=1` (`[mpmsg]` message census and `[mpdmg]`
+lock/release/flags/damage/RegisterHit lines), `FF_DEBUG_MPCLOCK=1` (`[mpclock]` joiner clock step),
+`FF_DEBUG_MPHOSTSIM=1` (`[mphostsim]`), `FF_DEBUG_CAMPCLOCK=1`, `FF_DEBUG_STARTCAMP=1`.
 
-    [MPCONNECT] StartComms local=2934 remote=2934 ip=0x...
-    [MPCONNECT] returned, Online=1
+## Not known
 
-`Online=0` means the comms manager did not come up, and the problem is local -- not a network
-question yet.
-
-## Why this exists rather than "type the address into the UI"
-
-The PO reported (2026-09-04) that no text could be typed anywhere in the FF UI, which made the
-phonebook's address field unusable and multiplayer unreachable. That was **three stacked defects**,
-now fixed (MP-1 part b, 2026-09-05):
-
-1. the scancode was posted in `wParam` while ui95 decodes it from `lParam` -- every keystroke
-   decoded to `Key = 0`;
-2. `BuildAscii()` corrupted the DIK->ASCII table on Linux via a `MapVirtualKey` stub that returns
-   its input unchanged;
-3. `GetKeyState` was a stub returning 0, so no shift, caps, ctrl or alt.
-
-**(3) is implemented but NOT yet verified** -- see STATUS.md. So the phonebook dialog should now
-accept typing, but `FF_MP_CONNECT` remains the route that does not depend on any of that.
-
-## If it does not connect
-
-1. `ping <host-ip>` from the client.
-2. On the host, confirm something is listening: `ss -lun | grep 2934`.
-3. On the host, `sudo ufw status` -- if a firewall is active it must allow **UDP 2934**.
-4. Re-run with the trace visible and read the `[MPCONNECT]` lines on BOTH machines.
-
-## What is NOT known
-
-* Whether the two machines actually complete a session -- untested, and untestable from one box.
-* Whether more than two players work.
-* Whether the in-game UI path (phonebook -> Connect) now works end to end, since the typing fix's
-  shift handling is unverified.
-
-Do not describe any of these as working until someone has run them on two machines.
+* More than two players; internet play (no NAT traversal); the same flight taken by two players.

@@ -120,6 +120,10 @@ int FalconSimCampMessage::Process(uchar autodisp)
     }
 #endif
 
+    if (dataBlock.message == simcampDeaggregateFromData and getenv("FF_DEBUG_MPMSG"))
+        fprintf(stderr, "[mpdeag] RECV DeaggregateFromData unit %08x size=%d autodisp=%d ent=%p session=%p agg=%d comps=%p\n",
+                (unsigned)EntityId().num_, (int)dataBlock.size, (int)autodisp, (void*)ent, (void*)session,
+                ent ? ent->IsAggregate() : -1, ent ? (void*)ent->GetComponents() : NULL);
     if (autodisp or not ent or not session or not FalconLocalGame)
     {
 #ifdef FF_LINUX

@@ -271,7 +271,9 @@ SimMoverClass* GameManagerClass::FindPlayerVehicle(UnitClass *campEntity, int ve
         return NULL;
     }
 
-    while (simEntity->vehicleInUnit not_eq vehSlot)
+    /* FF_LINUX: the slot may not be among the components yet (a joiner's flight fills in as the
+       host's aircraft arrive); the original walked off the end of the list into NULL. */
+    while (simEntity and simEntity->vehicleInUnit not_eq vehSlot)
     {
         simEntity = (SimMoverClass*) flit.GetNext();
     }

@@ -7107,6 +7107,10 @@ void SimRALTOFF(unsigned long, int state, void* pButton)
 
 void SimFLIRToggle(unsigned long, int state, void* pButton)
 {
+    if (getenv("FF_DEBUG_FLIR"))
+        fprintf(stderr, "[flir] SimFLIRToggle state=%d lantirn=%p enabled=%d flir=%d\n", state, (void*)theLantirn,
+                theLantirn ? (int)theLantirn->IsEnabled() : -1, theLantirn ? (int)theLantirn->IsFLIR() : -1);
+
     if (theLantirn and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP) and (state bitand KEY_DOWN))
     {
         theLantirn->ToggleFLIR();

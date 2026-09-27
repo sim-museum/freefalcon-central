@@ -364,6 +364,69 @@ void SimulationLoopControl::Loop(void)
             // the UI shows a white screen until something incidentally ticks.
             vuxRealTime = GetTickCount();
             RealTimeFunction(vuxRealTime, NULL);
+
+            /* MPHOST-SIM-1 (2026-09-26): a campaign/TE joiner could never take off while the host sat
+               in the UI -- its flight stayed aggregate for the whole 120 s deaggregation wait and the
+               load bailed back to the map (measured, one-PC run c4). On Windows this thread ran the
+               RunningSim loop behind the UI, and on the HOST that loop is what deaggregates remote
+               players' flights (RebuildBubble walks every session's bubble; "the host owns all the
+               planes") and then simulates the host-owned aircraft in them (SimDriver.Cycle). This
+               idle branch skipped both. When we host an online game and a REMOTE player is loading or
+               flying, run that headless part of the loop again. Single-player is untouched.
+               FF_NO_MPHOSTSIM=1 reverts; FF_DEBUG_MPHOSTSIM=1 traces. */
+            {
+                static int s_off = -1, s_dbg = -1;
+                if (s_off < 0)
+                {
+                    s_off = getenv("FF_NO_MPHOSTSIM") ? 1 : 0;
+                    s_dbg = getenv("FF_DEBUG_MPHOSTSIM") ? 1 : 0;
+                }
+
+                bool remoteFlying = false;
+
+                if ( not s_off and FalconLocalGame and FalconLocalGame->IsLocal() and gCommsMgr and gCommsMgr->Online())
+                {
+                    VuSessionsIterator sit(FalconLocalGame);
+
+                    for (FalconSessionEntity* se = (FalconSessionEntity*)sit.GetFirst(); se; se = (FalconSessionEntity*)sit.GetNext())
+                    {
+                        if (se == FalconLocalSession) continue;
+                        uchar fs = se->GetFlyState();
+                        if (fs == FLYSTATE_FLYING or fs == FLYSTATE_WAITING or fs == FLYSTATE_LOADING) { remoteFlying = true; break; }
+                    }
+                }
+
+                if (remoteFlying)
+                {
+                    if (gRebuildBubbleNow or
+                        static_cast<CampaignTime>(vuxRealTime - lastBubbleTime) > static_cast<CampaignTime>(BUBBLE_REBUILD_TIME * CampaignSeconds))
+                    {
+                        RebuildBubble(0);
+                        lastBubbleTime = vuxRealTime;
+                        gRebuildBubbleNow = 0;
+                    }
+
+                    FalconEntity::DoSimDirtyData(vuxRealTime);
+                    CampEnterCriticalSection();
+                    SimDriver.Cycle();
+                    CampLeaveCriticalSection();
+
+                    if (s_dbg)
+                    {
+                        static DWORD s_last = 0;
+                        if (vuxRealTime - s_last > 5000)
+                        {
+                            s_last = vuxRealTime;
+                            fprintf(stderr, "[mphostsim] host in UI running the headless sim loop for a remote player\n");
+                            fflush(stderr);
+                        }
+                    }
+
+                    Sleep(20);
+                    continue;
+                }
+            }
+
             Sleep(50);
             continue;
         }
@@ -1082,6 +1145,41 @@ void SimulationLoopControl::StartLoop(void)
             //FalconLocalSession->GetPilotSlot()
             //);
             player = GameManager.FindPlayerVehicle(flight, FalconLocalSession->GetAircraftNum());
+#ifdef FF_LINUX
+            /* MPHOST-SIM-1: on a JOINER the flight is deaggregated by the host, and the flag arrives
+               before the host-created aircraft do (VuCreateEvents). Measured (one-PC campaign join):
+               IsAggregate=0 but FindPlayerVehicle NULL at the first look, and the load bailed to the
+               map. Keep dispatching VU messages until our aircraft exists (bounded, 30 s). */
+            if ( not player and flight and not flight->IsLocal())
+            {
+                int ffWait = 0;
+                while ( not player and ffWait < 300 and not flight->IsDead())
+                {
+                    vuxRealTime = GetTickCount();
+                    RealTimeFunction(vuxRealTime, NULL);
+                    ThreadManager::sim_signal_campaign();
+                    ThreadManager::sim_wait_for_campaign(10);
+                    Sleep(100);
+                    ffWait++;
+                    player = GameManager.FindPlayerVehicle(flight, FalconLocalSession->GetAircraftNum());
+                    if (ffWait % 50 == 1)
+                    {
+                        int nc = 0, slots[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
+                        if (flight->GetComponents())
+                        {
+                            VuListIterator cit(flight->GetComponents());
+                            for (SimMoverClass* c = (SimMoverClass*)cit.GetFirst(); c; c = (SimMoverClass*)cit.GetNext())
+                            { if (nc < 8) slots[nc] = c->vehicleInUnit; nc++; }
+                        }
+                        fprintf(stderr, "[StartLoop] remote flight %08x: want slot %d, components=%d slots=%d,%d,%d,%d agg=%d\n",
+                                (unsigned)flight->Id().num_, (int)FalconLocalSession->GetAircraftNum(), nc, slots[0], slots[1], slots[2], slots[3],
+                                (int)flight->IsAggregate());
+                    }
+                }
+                fprintf(stderr, "[StartLoop] remote flight: player aircraft %s after %d.%d s\n",
+                        player ? "arrived" : "NEVER arrived", ffWait / 10, ffWait % 10);
+            }
+#endif
             FalconLocalSession->SetPlayerEntity(player);
             MonoPrint("Player %08x\n", player);
         }

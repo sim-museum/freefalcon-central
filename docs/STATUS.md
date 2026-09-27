@@ -22141,3 +22141,71 @@ image; the joiner's log answers this in one line. Candidate fix once confirmed: 
 
 Julia racer, same session: *"julia multiplayer works, cars can see each other but drive through each other
 as reported in the multiplayer instructions"* — E85's first two-PC confirmation.
+
+
+## MP-2INST / MP-DMG-1 / MP-CLOCK-1 / HUDBOX-1 / MPHOST-SIM-1 (Opus 5.5, 2026-09-26/27) -- the PO's three 09-19 two-PC items answered on one box with two real instances; two fixed and verified with controls, one is not a defect; the campaign joiner now reaches the cockpit but its jet is not yet flyable
+
+**Harness (new, `scripts/qa/mp-dogfight.sh`, MODE=dogfight|campaign).** Two instances, each with its OWN
+data tree (`~/ff2`, a reflink copy -- the old harness shared `config/registry.ini`), ports 2934/2944, and
+`FF_WINPOS=x,y` puts the windows on different monitors (a covered XWayland window runs at 1 frame/s).
+Recipes are UI clicks measured with `FF_DUMP_UI`: dogfight host DOGFIGHT/HOST/OK/TAKEOFF, joiner
+DOGFIGHT/ONLINE/row(140,122)/COMMIT/OK/TAKEOFF. Hooks: `FF_TEST_MPDMG=<s>[:<str>[:m]]` (one proximity
+hit on the remote player's jet; `m` waits for OUR live missile and attributes the hit to it, so the
+shooter's debrief path is the real one), `FF_TEST_MPFORMUP=<s>[:<ft>[:<dur>]]`.
+Evidence under `~/ff-gates/mp26/`.
+
+**MP-DMG-1 -- FIXED, verified end to end (e2 mechanism, e3/e7 fix).** The S2 lead was right about the
+flag and wrong about who carried it. e2 (before): the joiner's OWN jet logged
+`DecodeDirty id=00006d88 LOCAL: remote flags would set invuln 0 -> 1` -- the host's `LockPlayer` set
+FEC_INVULNERABLE on its copy while it still owned the aircraft and broadcast it; the joiner's
+`ReleasePlayer` cleared the bit but called `MakeFlagsDirty()` before `ChangeOwner()`, so the clear was
+dropped (non-local), and `SimDirtyData::Process` (deliberately applied to local entities too) then wrote
+the host's stale flags onto the joiner's jet. Fix: the owner re-publishes its flags after
+`ChangeOwner` (`gamemgr.cpp`), and a LOCAL entity keeps its own invulnerability bit against remote dirty
+data (`falcent.cpp`). `FF_NO_MPINVULN_FIX=1` reverts. e7 (host AIM-9 00006f41 away, hit attributed to
+it): joiner `APPLY id=00006f21 local=1 invuln=0 hitPoints=500 pct=-7.33`, joiner SENDs
+`FalconDeathMessage`, host RECVs it, host `RegisterHit weapon 929 -> HIT (hit=1 missed=0)` -- the
+debrief miss is a hit. (A real boresight AIM-9 against a formed-up joiner was tried three times and hit
+the ground each time -- no seeker lock; the attributed hit exercises everything after the fuze.)
+Harness bug found on the way: a synthetic MissileDamage with fWeaponID=0 SIGSEGVs in ApplyDamage (the
+weapon lookup); the hook uses ProximityDamage.
+
+**MP-CLOCK-1 -- FIXED, verified with a control (c2 vs c3).** On Windows the sim Loop thread ran
+behind the UI and its NO_TIMER_THREAD block has a CLIENT branch that turns the host's
+FalconTimingMessage into a local compression. The port idles that thread between missions and
+advances the clock from the UI tick with the single-player rule -- a client's `gameCompressionRatio`
+is 0 forever. `FF_RemoteClientTimeStep()` (timerthread.cpp) is that client branch, called first by the
+UI tick. Control `FF_NO_MPCLOCK_FIX=1`: joiner frozen at 09:01:07 while the host reached 09:04:31;
+fix: `[mpclock] ... ratio=1`, host 09:04:11 vs joiner 09:04:13 with the SAME event text
+(`c2/pair_clock.png`). Also fixed: `FalconTimingMessage::Decode` wrote `delta[30]` of a `delta[30]`.
+
+**HUDBOX-1 -- NOT A DEFECT: it is the HUD FLIR.** `SimFLIRToggle` (**Shift+H**, "HUD-display FLIR")
+draws a grayscale sensor picture -- black sky, grey ground -- inside the HUD field of view; with it on,
+our capture is the PO's picture (`hud/flir26.png` vs `hud/before.png`, `[flir] ... flir=1`). With the
+chat box open Shift+H does not reach it (`hud/chat2.log`), so chatting did not toggle it. Press
+Shift+H again.
+
+**TE join -- works (t3).** TE -> JOIN tab (287,16) -> the host's game (140,112; x=110 hits the
+expander) -> COMMIT (824,748) -> COMPLY (562,748): preload, all data, `FM_JOIN_SUCCEEDED`.
+
+**MPHOST-SIM-1 (the one-PC campaign joiner that "never reached takeoff") -- partly fixed.**
+c4: the joiner posts FM_START_CAMPAIGN, then its flight stays aggregate for the whole 120 s wait and
+the load bails. Cause: the same idled Loop -- on the HOST it is what deaggregates remote players'
+flights (RebuildBubble walks every session) and simulates the host-owned aircraft in their bubbles.
+Fix (simloop.cpp): while hosting online with a remote session LOADING/WAITING/FLYING, the idle branch
+runs RebuildBubble + DoSimDirtyData + SimDriver.Cycle (`FF_NO_MPHOSTSIM=1` reverts). After it the
+flight deaggregates at once (c5-c12). Then three crashes on the joiner's first frames, each a fixed-size
+buffer given a garbage value: `HudClass::DrawAlphaNumeric` "FUEL %03d" into char[10] (c6, FORTIFY),
+`CBEAltInd` `_ltoa` of a 64-bit NaN altitude into char[10] (c11, stack smash) -- both widened and
+clamped; and `FindPlayerVehicle` walked off its component list (NULL-safe now). StartLoop also waits up
+to 30 s for a remote flight's aircraft (the flag can arrive before the vehicles), and
+`DeaggregateFromData` no longer discards the host's data when the aggregate bit was already cleared
+(`FF_NO_DEAGDATA_RACE_FIX=1`).
+**Still open:** (a) in 4 of the 6 runs with the wait (c7-c10; c6/c11/c12 got their aircraft) the joiner's flight got IsAggregate=0 with ZERO
+components although the host built two aircraft and the joiner received `DeaggregateFromData`
+(`[mpdeag]` traces now print each vehicle built, or CancelFlight); (b) when it does reach the cockpit the
+joiner's ownship state is sometimes NaN -- c11 (altimeter overflow on a NaN z) and c12 (54k `Bad action
+camera X/Y/Z pos` warnings); c13 was clean (0 warnings, no crash, flew to the end of the run). The HUD
+and altimeter no longer crash on it, but a NaN run is not flyable. Single-player gate after all of this:
+`ff_validate sp_ia2` REAL CONTENT, 0 crashes, 0 camera warnings. Next: print af x/y/z and the entity position at ChangeOwner/MakeLocal on the joiner.
+Dogfight is not affected (e7: 0 warnings). Workaround for two PCs: have the host take a flight too.

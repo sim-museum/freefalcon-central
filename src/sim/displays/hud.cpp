@@ -1290,14 +1290,16 @@ void HudClass::DrawAlphaNumeric(void)
         // RV - RED - REWRITTEN THIS STUFF in a decent way
         if (PlayerOptions.GetAvionicsType() not_eq ATEasy)
         {
-            char tempstr[10] = "";
+            /* FF_LINUX (MPHOST-SIM-1): was char[10] + sprintf; "FUEL %03d" of a HomeFuel >= 100000 or
+               negative is 10+ bytes -> FORTIFY abort on a campaign joiner's first HUD frame (c6). */
+            char tempstr[32] = "";
 
             // Check various Fuel Situations
-            if (ownship->mFaults->GetFault(fuel_low_fault)) sprintf(tempstr, "FUEL");
+            if (ownship->mFaults->GetFault(fuel_low_fault)) snprintf(tempstr, sizeof(tempstr), "FUEL");
 
-            if (ownship->mFaults->GetFault(fuel_trapped))  sprintf(tempstr, "TRP FUEL");
+            if (ownship->mFaults->GetFault(fuel_trapped))  snprintf(tempstr, sizeof(tempstr), "TRP FUEL");
 
-            if (ownship->mFaults->GetFault(fuel_home)) sprintf(tempstr, "FUEL %03d", ownship->af->HomeFuel / 100);
+            if (ownship->mFaults->GetFault(fuel_home)) snprintf(tempstr, sizeof(tempstr), "FUEL %03d", (int)(ownship->af->HomeFuel / 100));
 
             // if any warn, draw it
             if (tempstr[0]) DrawWindowString(15, tempstr);

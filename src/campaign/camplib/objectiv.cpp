@@ -1187,10 +1187,20 @@ void ObjectiveClass::RemoveFromSimLists(void)
 
 void ObjectiveClass::DeaggregateFromData(VU_BYTE* data, long size)
 {
+#ifdef FF_LINUX
+    /* MPHOST-SIM-1: same flags-before-data race as UnitClass::DeaggregateFromData. */
+    static int s_off = -1;
+    if (s_off < 0) s_off = getenv("FF_NO_DEAGDATA_RACE_FIX") ? 1 : 0;
+    if (IsLocal() or (not IsAggregate() and (s_off or GetComponents())) or FalconLocalGame->IsLocal())
+    {
+        return;
+    }
+#else
     if (IsLocal() or not IsAggregate() or FalconLocalGame->IsLocal())
     {
         return;
     }
+#endif
 
     //we use this for size tracking
     long *rem = &size;

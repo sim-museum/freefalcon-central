@@ -1859,6 +1859,11 @@ int UnitClass::Deaggregate(FalconSessionEntity* session)
 
     SetAggregate(0);
 
+    if (getenv("FF_DEBUG_MPMSG") and (IsSetFalcFlag(FEC_HASPLAYERS) or session not_eq FalconLocalSession))
+        fprintf(stderr, "[mpdeag] host Deaggregate unit %08x for session %p (local=%d) online=%d comps=%d -> %s\n",
+                (unsigned)Id().num_, (void*)session, session == FalconLocalSession ? 1 : 0, TheCampaign.IsOnline() ? 1 : 0,
+                GetComponents() ? GetComponents()->Count() : -1, TheCampaign.IsOnline() ? "SendDeaggregateData" : "NOT SENT");
+
     if (TheCampaign.IsOnline())
     {
         SendDeaggregateData(FalconLocalGame);
@@ -2195,10 +2200,28 @@ void UnitClass::RemoveFromSimLists(void)
 //sfr: changed this proto
 void UnitClass::DeaggregateFromData(VU_BYTE* data, long size)
 {
+#ifdef FF_LINUX
+    /* MPHOST-SIM-1 (measured, one-PC campaign join c8): the host's deaggregation reaches a joiner as
+       TWO messages -- the unit's dirty flags (aggregate bit cleared) and this deaggregate-data
+       message -- and when the flags win the race this early-out threw the data away. The joiner's
+       flight then read IsAggregate=0 with ZERO components for good, its player aircraft never
+       existed, and the load bailed to the map. "Not aggregate" only means "already built" if we
+       actually hold components. FF_NO_DEAGDATA_RACE_FIX=1 reverts. */
+    static int s_off = -1;
+    if (s_off < 0) s_off = getenv("FF_NO_DEAGDATA_RACE_FIX") ? 1 : 0;
+    if (IsLocal() or (not IsAggregate() and (s_off or GetComponents())))
+    {
+        return;
+    }
+    if ( not IsAggregate() and getenv("FF_DEBUG_MPMSG"))
+        fprintf(stderr, "[mpdeag] unit %08x: aggregate flag already cleared, no components -- building from the host's data\n",
+                (unsigned)Id().num_);
+#else
     if (IsLocal() or not IsAggregate())
     {
         return;
     }
+#endif
 
     int i, classID, inslot, motiontype;
     SimInitDataClass simdata;
@@ -2344,6 +2367,9 @@ void UnitClass::DeaggregateFromData(VU_BYTE* data, long size)
 
             if (motiontype < 0)
             {
+                if (getenv("FF_DEBUG_MPMSG"))
+                    fprintf(stderr, "[mpdeag] DeaggregateFromData unit %08x: GetVehicleDeagData(vg=%u slot=%d) = %d -> CancelFlight, NO vehicles\n",
+                            (unsigned)Id().num_, vg, (int)slot, motiontype);
                 // Technically, if we get here the flight should have been canceled, so just do it.
                 CancelFlight((Flight)this);
                 return;
@@ -2363,6 +2389,10 @@ void UnitClass::DeaggregateFromData(VU_BYTE* data, long size)
 
             // This actually adds the bugger
             newObject = AddObjectToSim(&simdata, motiontype);
+
+            if (getenv("FF_DEBUG_MPMSG") and IsFlight())
+                fprintf(stderr, "[mpdeag] DeaggregateFromData unit %08x: vehicle vg=%u slot=%d id=%u -> %p\n",
+                        (unsigned)Id().num_, vg, (int)slot, (unsigned)simdata.forcedId.num_, (void*)newObject);
 
             if (newObject)
             {

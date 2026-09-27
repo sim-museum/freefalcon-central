@@ -118,12 +118,19 @@ void CBEAltInd(void * pObject)
 
     CPIndicator* pCPIndicator;
     long altitude;
-    char digitString[10];
+    /* FF_LINUX (MPHOST-SIM-1): was char[10]. A 64-bit long from a NaN/huge z (a campaign joiner's
+       first cockpit frame, c11) is "-9223372036854775808" -- 20 chars -> stack smash. Clamp too. */
+    char digitString[32];
     int i, j;
     int len;
 
     pCPIndicator = (CPIndicator*) pObject;
-    altitude = (long) - cockpitFlightData.z;
+    {
+        float ffz = -cockpitFlightData.z;
+        if ( not (ffz == ffz) or ffz < 0.0f) ffz = 0.0f;         // NaN or below sea level
+        if (ffz > 1.0e7f) ffz = 1.0e7f;
+        altitude = (long) ffz;
+    }
 
     if (altitude > MAX_ALTITUDE_VALUE)
     {
@@ -248,7 +255,7 @@ void CBERoundsRemaining(void * pObject)
 
     CPIndicator* pCPIndicator;
     long rounds;
-    char digitString[5];
+    char digitString[32];   // FF_LINUX: was [5]; a negative or 64-bit value overflowed it
     int i, j;
     int             len;
 
