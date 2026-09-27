@@ -2613,6 +2613,13 @@ void MissionEvaluationClass::RegisterHit(FalconDamageMessage *dmm)
                             tmpevent->vuIdData2 = dmm->dataBlock.dEntityID;
                             ParseTime(TheCampaign.CurrentTime, time_str);
 
+                            /* MP-DMG-1: the debrief line for this weapon is now a hit on dEntityID. */
+                            if (getenv("FF_DEBUG_MPMSG"))
+                                fprintf(stderr, "[mpdmg] RegisterHit weapon %d uid %08x -> HIT on %08x (pilot slot %d: hit=%d missed=%d)\n",
+                                        (int)dmm->dataBlock.fWeaponID, (unsigned)dmm->dataBlock.fWeaponUID.num_,
+                                        (unsigned)dmm->dataBlock.dEntityID.num_, (int)pilot_data->pilot_slot,
+                                        (int)pilot_data->weapon_data[wn].hit, (int)pilot_data->weapon_data[wn].missed);
+
                             if (Falcon4ClassTable[dmm->dataBlock.dIndex - VU_LAST_ENTITY_TYPE].dataType == DTYPE_VEHICLE)
                             {
                                 vc = GetVehicleClassData(dmm->dataBlock.dIndex - VU_LAST_ENTITY_TYPE);

@@ -109,7 +109,9 @@ int FalconTimingMessage::Decode(VU_BYTE **buf, long *rem)
             }
             else
             {
-                for (int i = numberofstats; i >= 0; i--)
+                /* FF_LINUX: the loop started at i = numberofstats and wrote delta[30] of a
+                   delta[30] array -- one static past the end on every timing message. */
+                for (int i = numberofstats - 1; i >= 0; i--)
                 {
                     if (i == 0) delta[i] = vuxTargetGameTime - dataBlock.targetTime;
                     else if (i > 0) delta[i] = delta[i - 1];

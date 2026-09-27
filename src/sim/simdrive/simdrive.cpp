@@ -1,4 +1,6 @@
 #include "falcsess.h"
+#include "MsgInc/DamageMsg.h"
+#include "falcgame.h"
 #include "f4thread.h"
 #include "fsound.h"
 #include "soundfx.h"
@@ -853,6 +855,113 @@ void SimulationDriver::Cycle()
     }
 
 #ifdef FF_LINUX
+    /* MP-DMG-1 harness: FF_TEST_MPDMG=<sec>[:<strength>] -- <sec> seconds after this machine's player
+       aircraft exists, send ONE FalconDamageMessage (ProximityDamage) at the first REMOTE player's
+       aircraft, built and addressed exactly as SimWeaponClass::ApplyProximityDamage builds a missile
+       hit (target FalconLocalGame, out-of-band, loopback). It exercises the whole receiving side --
+       transport, FalconDamageMessage::Process on every copy, FEC_INVULNERABLE, ApplyDamage, the
+       owner's death message -- without having to steer one jet into another's missile envelope. */
+    {
+        static int s_on = -1;
+        static float s_at = 0.0f, s_str = 400.0f;
+        static VU_TIME s_armed = 0;
+        static int s_done = 0;
+
+        if (s_on < 0)
+        {
+            const char* e = getenv("FF_TEST_MPDMG");
+            s_on = e ? 1 : 0;
+            if (e) sscanf(e, "%f:%f", &s_at, &s_str);
+        }
+
+        /* FF_TEST_MPDMG=<sec>:<str>:m -- wait for a missile WE launched and attribute the hit to it
+           (fWeaponID/fWeaponUID of that live missile), so the shooter's MissionEvaluator can turn its
+           launch event from "miss" into "hit" through the real RegisterHit path. */
+        static int s_mode = -1;
+        static SimWeaponClass* s_msl = NULL;
+        if (s_mode < 0)
+        {
+            const char* e = getenv("FF_TEST_MPDMG");
+            s_mode = (e and strchr(e, 'm')) ? 1 : 0;
+        }
+
+        if (s_on and s_mode and not s_done and playerEntity and not s_msl and SimDriver.ObjsWithNoCampaignParentList)
+        {
+            VuListIterator mit(SimDriver.ObjsWithNoCampaignParentList);
+            for (SimBaseClass* o = (SimBaseClass*)mit.GetFirst(); o; o = (SimBaseClass*)mit.GetNext())
+                if (o->IsMissile() and not o->IsDead() and ((SimWeaponClass*)o)->Parent() == playerEntity) { s_msl = (SimWeaponClass*)o; break; }
+            if (s_msl)
+            {
+                VuReferenceEntity(s_msl);
+                s_armed = vuxRealTime;
+                fprintf(stderr, "[mpdmg] TEST our missile %08x (type %d) is away -- the hit will be attributed to it\n",
+                        (unsigned)s_msl->Id().num_, (int)s_msl->Type());
+            }
+        }
+
+        if (s_on and not s_done and playerEntity and playerEntity->IsAirplane() and ( not s_mode or s_msl))
+        {
+            if ( not s_armed) s_armed = vuxRealTime;
+
+            if (vuxRealTime - s_armed >= (VU_TIME)(s_at * 1000.0f))
+            {
+                SimVehicleClass* victim = NULL;
+                VuSessionsIterator sit(FalconLocalGame);
+
+                for (FalconSessionEntity* sess = (FalconSessionEntity*)sit.GetFirst(); sess; sess = (FalconSessionEntity*)sit.GetNext())
+                {
+                    if (sess == FalconLocalSession) continue;
+                    FalconEntity* pe = (FalconEntity*)sess->GetPlayerEntity();
+                    if (pe and pe->IsSim() and ((SimBaseClass*)pe)->IsAirplane() and not pe->IsLocal())
+                    {
+                        victim = (SimVehicleClass*)pe;
+                        break;
+                    }
+                }
+
+                if (victim)
+                {
+                    s_done = 1;
+                    FalconDamageMessage* m = new FalconDamageMessage(victim->Id(), FalconLocalGame);
+                    m->dataBlock.fEntityID = playerEntity->Id();
+                    m->dataBlock.fCampID = playerEntity->GetCampID();
+                    m->dataBlock.fSide = static_cast<uchar>(playerEntity->GetCountry());
+                    m->dataBlock.fPilotID = ((SimMoverClass*)playerEntity)->pilotSlot;
+                    m->dataBlock.fIndex = playerEntity->Type();
+                    m->dataBlock.fWeaponID = s_msl ? s_msl->Type() : 0;
+                    m->dataBlock.fWeaponUID = s_msl ? s_msl->Id() : FalconNullId;
+                    m->dataBlock.dEntityID = victim->Id();
+                    m->dataBlock.dCampID = victim->GetCampID();
+                    m->dataBlock.dSide = static_cast<uchar>(victim->GetCountry());
+                    m->dataBlock.dPilotID = victim->pilotSlot;
+                    m->dataBlock.dIndex = victim->Type();
+                    /* ProximityDamage, not MissileDamage: a weapon-hit type makes ApplyDamage look the
+                       weapon up by fWeaponID in Falcon4ClassTable, and a synthetic message has no weapon
+                       (fWeaponID 0 indexes before the table -- SIGSEGV, found by this hook's first run).
+                       Proximity damage is pre-computed from damageStrength, as a missile's blast is. */
+                    m->dataBlock.damageType = FalconDamageType::ProximityDamage;
+                    m->dataBlock.damageStrength = s_str;
+                    m->dataBlock.damageRandomFact = 1.0f;
+                    m->RequestOutOfBandTransmit();
+                    fprintf(stderr, "[mpdmg] TEST SEND damage %.0f from %08x at REMOTE player aircraft %08x (local copy invuln=%d pctStrength=%.2f)\n",
+                            s_str, (unsigned)playerEntity->Id().num_, (unsigned)victim->Id().num_,
+                            victim->IsSetFalcFlag(FEC_INVULNERABLE) ? 1 : 0, (double)victim->pctStrength);
+                    fflush(stderr);
+                    FalconSendMessage(m, TRUE);
+                }
+                else
+                {
+                    static VU_TIME s_lastNone = 0;
+                    if (vuxRealTime - s_lastNone > 5000)
+                    {
+                        s_lastNone = vuxRealTime;
+                        fprintf(stderr, "[mpdmg] TEST no remote player aircraft yet\n");
+                    }
+                }
+            }
+        }
+    }
+
     // FF_LINUX_DIAG: FF_TEST_EXPLOSION=1 spawns a ground explosion ahead of the
     // player every ~5 seconds to exercise the particle system without weapons.
     {

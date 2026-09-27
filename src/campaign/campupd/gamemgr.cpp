@@ -470,6 +470,20 @@ void GameManagerClass::ReleasePlayer(FalconSessionEntity *player)
         simEntity->MakeFlagsDirty();
 
         simEntity->ChangeOwner(player->Id());
+
+        /* MP-DMG-1 (PO 2026-09-19: the host's missile hits the joiner, the joiner takes no damage,
+           both debriefs say miss). The MakeFlagsDirty() above runs while a joiner's aircraft is
+           still the HOST's entity, so MakeFalconEntityDirty() drops it (non-local) and the cleared
+           FEC_INVULNERABLE is never sent; meanwhile the host's LockPlayer() had set the flag on its
+           own copy and broadcast it. Now that the aircraft is ours, publish our flags as the owner
+           so every copy converges on them. FF_NO_MPINVULN_FIX=1 reverts. */
+        {
+            static int s_off = -1;
+            if (s_off < 0) s_off = getenv("FF_NO_MPINVULN_FIX") ? 1 : 0;
+            if ( not s_off and simEntity->IsLocal())
+                simEntity->MakeFlagsDirty();
+            if (getenv("FF_DEBUG_MPMSG")) fprintf(stderr, "[mpdmg] ReleasePlayer id=%08x after ChangeOwner local=%d invuln=%d -> flags %s\n", (unsigned)simEntity->Id().num_, simEntity->IsLocal() ? 1 : 0, simEntity->IsSetFalcFlag(FEC_INVULNERABLE) ? 1 : 0, ( not s_off and simEntity->IsLocal()) ? "PUBLISHED" : "not published");
+        }
         OTWDriver.SetGraphicsOwnship(NULL);
         simEntity->MakePlayerVehicle();
         simEntity->ConfigurePlayerAvionics();

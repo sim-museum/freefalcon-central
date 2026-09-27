@@ -20,6 +20,7 @@
 #include "otwdrive.h"
 #include "airframe.h"
 #include "falcsess.h"
+#include "falcgame.h"
 #include "hud.h"
 #include "cpvbounds.h"
 #include "graphics/include/renderow.h"
@@ -49,6 +50,75 @@ static int gMaxIAWeaponsFired = 12;
 void AircraftClass::DoWeapons()
 {
 #ifdef FF_LINUX
+    /* MP-DMG-1 harness: FF_TEST_MPFORMUP=<sec>[:<ft>[:<dur>]] -- on THIS machine's player aircraft,
+       from <sec> after the hook first runs and for <dur> seconds (default 90), hold our position
+       <ft> feet (default 3000) straight ahead of the first REMOTE player's aircraft, on its nose.
+       The other player can then shoot us with a boresight AIM-9 exactly as a person would ('D',
+       then the pickle) -- the launch, the missile, the hit, the damage and the debrief are all the
+       production path; only our position is scripted. Stops as soon as we are hit or dead. */
+    if (af and this == SimDriver.GetPlayerAircraft())
+    {
+        static int s_on = -1;
+        static float s_at = 0.0f, s_ft = 3000.0f, s_dur = 90.0f, s_first = -1.0f;
+
+        if (s_on < 0)
+        {
+            const char* e = getenv("FF_TEST_MPFORMUP");
+            s_on = e ? 1 : 0;
+            if (e) sscanf(e, "%f:%f:%f", &s_at, &s_ft, &s_dur);
+        }
+
+        if (s_on)
+        {
+            /* wall clock, not SimLibElapsedTime: a joiner's sim clock is re-synced to the host's
+               when the host enters, which jumped it past the window on the first run. */
+            float now = GetTickCount() * 0.001f;
+            if (s_first < 0.0f) s_first = now;
+            float rel = now - s_first;
+
+            {
+                static DWORD s_st = 0;
+                if (GetTickCount() - s_st > 5000)
+                {
+                    s_st = GetTickCount();
+                    fprintf(stderr, "[mpdmg] FORMUP state rel=%.1f window=[%.0f,%.0f) dead=%d pct=%.2f\n", rel, s_at, s_at + s_dur,
+                            IsDead() ? 1 : 0, (double)pctStrength);
+                }
+            }
+
+            if (rel >= s_at and rel < s_at + s_dur and not IsDead() and pctStrength >= 1.0f)
+            {
+                SimBaseClass* lead = NULL;
+                VuSessionsIterator sit(FalconLocalGame);
+
+                for (FalconSessionEntity* sess = (FalconSessionEntity*)sit.GetFirst(); sess; sess = (FalconSessionEntity*)sit.GetNext())
+                {
+                    if (sess == FalconLocalSession) continue;
+                    FalconEntity* pe = (FalconEntity*)sess->GetPlayerEntity();
+                    if (pe and pe->IsSim() and ((SimBaseClass*)pe)->IsAirplane() and not pe->IsLocal()) { lead = (SimBaseClass*)pe; break; }
+                }
+
+                if (lead)
+                {
+                    float yaw = lead->Yaw(), pitch = lead->Pitch(), cp = (float)cos(pitch);
+                    float nx = lead->XPos() + s_ft * cp * (float)cos(yaw);
+                    float ny = lead->YPos() + s_ft * cp * (float)sin(yaw);
+                    float nz = lead->ZPos() - s_ft * (float)sin(pitch);
+                    af->x = nx; af->y = ny; af->z = nz;
+                    SetPosition(nx, ny, nz);
+                    static DWORD s_log = 0;
+                    if (GetTickCount() - s_log > 2000)
+                    {
+                        s_log = GetTickCount();
+                        fprintf(stderr, "[mpdmg] FORMUP t=%.1f holding %.0f ft ahead of %08x (yaw=%.1f) invuln=%d pct=%.2f\n", rel, s_ft,
+                                (unsigned)lead->Id().num_, yaw * 57.2958f, IsSetFalcFlag(FEC_INVULNERABLE) ? 1 : 0, (double)pctStrength);
+                        fflush(stderr);
+                    }
+                }
+            }
+        }
+    }
+
     // FF_LINUX (BOMB-1 harness): FF_TEST_BOMB=<sec>[,<sec>...] puts the FCC into
     // the A/G bomb master mode and raises its bomb pickle at those sim times, so
     // an automated flight can release a bomb without a human driving master arm,

@@ -376,7 +376,32 @@ void FalconEntity::DecodeDirty(unsigned char **stream, long *rem)
 
     if (bits bitand DIRTY_FALCON_ENTITY)
     {
+#ifdef FF_LINUX
+        /* MP-DMG-1: SimDirtyData::Process deliberately applies dirty data to LOCAL entities too
+           ("some dirty data stuff come after unit has changed owner"). For the falcon flags that
+           lets a stale FEC_INVULNERABLE, broadcast by the previous owner (the host's LockPlayer,
+           sent before the joiner took its aircraft), land on the joiner's own jet AFTER its
+           ReleasePlayer cleared it -- and nothing ever re-dirties it, so the player stays
+           invulnerable for the whole flight. The owner is authoritative for its own
+           invulnerability: keep the local bit. FF_NO_MPINVULN_FIX=1 reverts. */
+        uchar ffOld = falconFlags;
         memcpychk(&falconFlags, stream, sizeof(uchar), rem);
+        static int s_off = -1;
+        if (s_off < 0) s_off = getenv("FF_NO_MPINVULN_FIX") ? 1 : 0;
+        if ( not s_off and IsLocal() and ((ffOld ^ falconFlags) & FEC_INVULNERABLE))
+        {
+            if (getenv("FF_DEBUG_MPMSG"))
+                fprintf(stderr, "[mpdmg] DecodeDirty id=%08x LOCAL: remote flags would set invuln %d -> %d; kept %d\n",
+                        (unsigned)Id().num_, (ffOld & FEC_INVULNERABLE) ? 1 : 0, (falconFlags & FEC_INVULNERABLE) ? 1 : 0,
+                        (ffOld & FEC_INVULNERABLE) ? 1 : 0);
+            falconFlags = (uchar)((falconFlags & ~FEC_INVULNERABLE) | (ffOld & FEC_INVULNERABLE));
+        }
+        else if (getenv("FF_DEBUG_MPMSG") and ((ffOld ^ falconFlags) & FEC_INVULNERABLE))
+            fprintf(stderr, "[mpdmg] DecodeDirty id=%08x local=%d invuln %d -> %d\n", (unsigned)Id().num_, IsLocal() ? 1 : 0,
+                    (ffOld & FEC_INVULNERABLE) ? 1 : 0, (falconFlags & FEC_INVULNERABLE) ? 1 : 0);
+#else
+        memcpychk(&falconFlags, stream, sizeof(uchar), rem);
+#endif
     }
 
     if (bits bitand DIRTY_CAMPAIGN_BASE)

@@ -6,6 +6,9 @@
 #include "Cmpclass.h"
 #include "ui/include/uicomms.h"
 #include "sim/include/simdrive.h"
+#include "falcgame.h"
+#include <cstdio>
+#include <cstdlib>
 
 // Time compression globals
 uint32_t            lastStartTime;  // FF_LINUX: Use uint32_t for binary compat
@@ -80,6 +83,113 @@ void endTimer(void)
     CloseHandle(timerHandle);
 }
 
+#endif
+
+#ifdef FF_LINUX
+/* MP-CLOCK-1 (PO 2026-09-19: "client campaign clock is frozen while host game continues to advance").
+   On Windows the sim Loop thread ran in RunningSim mode behind the UI and executed the NO_TIMER_THREAD
+   time block in simloop.cpp, whose CLIENT branch turns the host's FalconTimingMessage
+   (vuxTargetGameTime / targetGameCompressionRatio) into a local compression via
+   SetOnlineTimeCompression(). The Linux port idles that thread between missions and advances the
+   clock from the UI timer tick instead -- with only the single-player rule
+   `vuxGameTime += delta * gameCompressionRatio`. A remote client never sets gameCompressionRatio
+   itself (SetTimeCompression only files a REQUEST when online), so in the campaign UI the joiner's
+   clock sat at ratio 0 for good. This is the client branch of that block, verbatim in its
+   arithmetic, for the UI tick to call. Returns false when this session is not a remote client (or
+   has not heard a timing message yet), leaving the caller's own rule in force.
+   FF_NO_MPCLOCK_FIX=1 reverts; FF_DEBUG_MPCLOCK=1 traces it every 5 s. */
+extern CampaignTime gLaunchTime;
+
+bool FF_RemoteClientTimeStep(void)
+{
+    static int s_off = -1, s_dbg = -1;
+
+    if (s_off < 0)
+    {
+        s_off = getenv("FF_NO_MPCLOCK_FIX") ? 1 : 0;
+        s_dbg = getenv("FF_DEBUG_MPCLOCK") ? 1 : 0;
+    }
+
+    if (s_off or not FalconLocalGame or FalconLocalGame->IsLocal() or lastTimingMessage == 0)
+        return false;
+
+    if (vuPlayerPoolGroup and FalconLocalGame->Id() == vuPlayerPoolGroup->Id())
+        return false;
+
+    vuxRealTime = GetTickCount();
+    DWORD real_delta = (DWORD)(vuxRealTime - lastStartTime);
+    DWORD delta = real_delta;
+    const int lookahead = 2000;
+    int ratio;
+    int y = (int)(vuxTargetGameTime + (targetGameCompressionRatio * lookahead) - vuxGameTime);
+
+    if (y < 0)
+    {
+        ratio = 0;
+    }
+    else if (y <= lookahead + 2000)
+    {
+        if ((y >= lookahead) and (delta))
+            delta = delta * (min(10, (y - lookahead) / 10) + 100) / 100;
+        else if ((y <= lookahead) and (delta))
+            delta = delta * ((100 - min(10, (lookahead - y) / 10)) / 100);
+
+        ratio = 1;
+    }
+    else
+    {
+        ratio = y / lookahead;
+
+        if (ratio < 4)
+            ratio = 2;
+        else if (ratio < 8)
+            ratio = 4;
+    }
+
+    if (vuxRealTime > vuxDeadReconTime)
+        ratio = 0;
+
+    SetOnlineTimeCompression(ratio);
+
+    uint32_t tmpTime = vuxGameTime + delta * gameCompressionRatio;
+
+    if (vuxRealTime < vuxDeadReconTime)
+    {
+        int compress = targetGameCompressionRatio;
+
+        if (compress > 4)
+            compress = 4;
+
+        vuxTargetGameTime = vuxTargetGameTime + real_delta * compress; // dead-recon the host's clock
+    }
+
+    if (FalconLocalSession->GetFlyState() not_eq FLYSTATE_FLYING and gCompressTillTime and tmpTime > gLaunchTime + 1000)
+    {
+        if (vuxGameTime < gCompressTillTime)
+            tmpTime = gCompressTillTime;
+        else
+            tmpTime = vuxGameTime;
+    }
+
+    vuxGameTime = tmpTime;
+    lastStartTime = vuxRealTime;
+
+    if (s_dbg)
+    {
+        static DWORD s_last = 0;
+
+        if (vuxRealTime - s_last >= 5000)
+        {
+            s_last = vuxRealTime;
+            fprintf(stderr, "[mpclock] client step: game=%u target=%u y=%d hostRatio=%d -> ratio=%d gameComp=%d deadrecon_in=%dms lastTiming=%ums ago\n",
+                    (unsigned)vuxGameTime, (unsigned)vuxTargetGameTime, y, targetGameCompressionRatio, ratio,
+                    gameCompressionRatio, (int)(vuxDeadReconTime - vuxRealTime), (unsigned)(vuxRealTime - lastTimingMessage));
+            fflush(stderr);
+        }
+    }
+
+    return true;
+}
 #endif
 
 void ResyncTimes();

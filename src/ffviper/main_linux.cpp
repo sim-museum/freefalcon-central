@@ -1603,10 +1603,19 @@ static bool init_sdl(bool fullscreen) {
     }
     // Note: Not using RESIZABLE for now to avoid potential issues
 
+    /* MP-2INST (2026-09-26): FF_WINPOS=x,y places the window. Two instances on one box must sit on
+       different monitors -- a fully covered XWayland window is throttled to 1 frame/s, which stalls
+       the covered peer's sim and reads exactly like a multiplayer sync defect (BoB EPIC M S9). */
+    int ffWinX = SDL_WINDOWPOS_CENTERED, ffWinY = SDL_WINDOWPOS_CENTERED;
+    if (const char* wp = getenv("FF_WINPOS")) {
+        int wx, wy;
+        if (sscanf(wp, "%d,%d", &wx, &wy) == 2) { ffWinX = wx; ffWinY = wy; }
+        fprintf(stderr, "[vid] FF_WINPOS=%d,%d\n", ffWinX, ffWinY);
+    }
     g_SDLWindow = SDL_CreateWindow(
         WINDOW_TITLE,
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
+        ffWinX,
+        ffWinY,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
         windowFlags
@@ -3932,6 +3941,10 @@ static void main_loop(void) {
                     extern uint32_t lastStartTime;
                     extern uint32_t gCompressTillTime;
                     const DWORD MAX_TD = 500;  // MAX_TIME_DELTA
+                    /* MP-CLOCK-1: a remote client takes its clock from the host's timing
+                       messages, as the original sim Loop did behind the UI. */
+                    extern bool FF_RemoteClientTimeStep(void);
+                    if (FF_RemoteClientTimeStep()) goto ff_clock_done;
                     vuxRealTime = GetTickCount();
                     DWORD tdelta = (DWORD)(vuxRealTime - lastStartTime);
                     if (tdelta > MAX_TD) tdelta = MAX_TD;
@@ -3942,6 +3955,7 @@ static void main_loop(void) {
                         vuxGameTime = gCompressTillTime;
                     lastStartTime = vuxRealTime;
                 }
+            ff_clock_done:
                 ThreadManager::sim_signal_campaign();
             }
         }
