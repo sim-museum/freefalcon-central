@@ -22209,3 +22209,10 @@ camera X/Y/Z pos` warnings); c13 was clean (0 warnings, no crash, flew to the en
 and altimeter no longer crash on it, but a NaN run is not flyable. Single-player gate after all of this:
 `ff_validate sp_ia2` REAL CONTENT, 0 crashes, 0 camera warnings. Next: print af x/y/z and the entity position at ChangeOwner/MakeLocal on the joiner.
 Dogfight is not affected (e7: 0 warnings). Workaround for two PCs: have the host take a flight too.
+
+**DELIVERY 260926 verified:** `~/Documents/260926/FreeFalcon-x86_64-260926.AppImage` (3,349,510,648 bytes vs
+3,346,541,048 for the 260923 control; sha256 `0d517118...c7365a3` in SHA256SUMS), packed by
+`~/appimage-build/build_ff.sh` + appimagetool under `flock ~/.pack.lock` / `MemoryMax=8G`. Its FFViper is
+md5-identical to the dev build of 45ba5af9 (title `[45ba5af9]`, fix markers present). Launched once on
+the installed tree (`FF_GAMEDATA=~/.local/share/freefalcon/FreeFalcon6`, `FF_MP_CONNECT=2934`):
+`[MPCONNECT] ... Online=1`, `UI_Startup() complete`, main menu 92 % non-black, no crash.
