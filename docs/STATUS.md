@@ -22216,3 +22216,35 @@ Dogfight is not affected (e7: 0 warnings). Workaround for two PCs: have the host
 md5-identical to the dev build of 45ba5af9 (title `[45ba5af9]`, fix markers present). Launched once on
 the installed tree (`FF_GAMEDATA=~/.local/share/freefalcon/FreeFalcon6`, `FF_MP_CONNECT=2934`):
 `[MPCONNECT] ... Online=1`, `UI_Startup() complete`, main menu 92 % non-black, no crash.
+
+## 🔲 BACKLOG — TERRAIN-SEAM-1 and PIT-GAP-1 (PO, 2026-09-28): terrain distance bands and open cockpit side panels
+
+**Priority:** after multiplayer, which the PO has put first ("continue until all multiplayer functionality in
+ma, bob and ff is functional and working on linux").
+
+**TERRAIN-SEAM-1: compare FF terrain with the gold-standard terrain.** PO, verbatim: *"ff terrain has three
+bands - near, which is correct, then a seam, then intermediate, which has a different shade of color, then a
+visible seam, then distant, which is diffuse and again has a different shade of color. In gold standard wine
+free falcon, there are no seams, and there may be other differences."*
+* Symptom: the near band is right. Then a seam, then an intermediate band in a different shade, then a second
+  visible seam, then a diffuse distant band in yet another shade. Wine FF shows one continuous surface.
+* Oracles: the Wine video golds in `~/gold standard/free falcon/` (260808 set, `260915_missile_threat.mp4`,
+  `260915_refuel.mp4`, `260922_wine_ff_recon_missile_acmi_view.mp4`), read with `tools/gold_video.sh`, and
+  1024×768 like-for-like captures of the same TE and view.
+* First questions, measured rather than reasoned:
+  1. Do the band edges sit at the terrain LOD level boundaries?
+  2. Does each level take a different texture set or mip level (near textured, intermediate a lower-res or
+     untextured tile colour, distant fog-blended)?
+  3. Does our fog/haze colour or distance differ from Wine's? GOLDMATCH-FF-2 already recorded that the gold's
+     haze is heavier.
+* Then an inventory of any other terrain differences against the gold.
+
+**PIT-GAP-1: open side panels in the 3D cockpit.** PO, verbatim: *"there are open side panels in the ff 3D
+cockpit; you can see the terrain through these panels; this may be present in the 2D cockpit as well, though
+not as obvious."*
+* Symptom: terrain shows through the cockpit side panels, where the gold's pit is solid.
+* Check both pits:
+  * the 3D pit: missing or back-face-culled side-console polygons, a winding/cull-mode difference, or a depth
+    or alpha test discarding them;
+  * the 2D pit: chroma-key or alpha holes in the panel art (see the BLUE-1 / chroma-key history above).
+* Compare views looking left and right with the Wine gold's.
