@@ -807,9 +807,30 @@ void AircraftClass::MakeNonPlayerVehicle()
 void AircraftClass::MakeLocal(void)
 {
     SimVehicleClass::MakeLocal();
+#ifdef FF_LINUX
+    /* MP-NAN-1 trace: a joiner takes ownership of an aircraft the host built; this is the only
+       place its airframe is seeded from the (remote) entity state. */
+    static int s_dbg = -1;
+    if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_MPMSG") ? 1 : 0;
+    if (s_dbg)
+        fprintf(stderr, "[mpnan] MakeLocal %08x BEFORE: pos=(%.1f,%.1f,%.1f) ypr=(%.3f,%.3f,%.3f) delta=(%.1f,%.1f,%.1f) onGround=%d majorFrame=%.4f lastUpd=%u game=%u\n",
+                (unsigned)Id().num_, XPos(), YPos(), ZPos(), Yaw(), Pitch(), Roll(), XDelta(), YDelta(), ZDelta(), OnGround() ? 1 : 0,
+                (double)SimLibMajorFrameTime, (unsigned)LastUpdateTime(), (unsigned)vuxGameTime);
+#endif
     af->RemoteUpdate();
+#ifdef FF_LINUX
+    if (s_dbg)
+        fprintf(stderr, "[mpnan] MakeLocal %08x after RemoteUpdate: af=(%.1f,%.1f,%.1f) gndN=(%.3f,%.3f,%.3f) gmma=%.3f mu=%.3f sigma=%.3f r=%.3f vt=%.1f\n",
+                (unsigned)Id().num_, (double)af->x, (double)af->y, (double)af->z, af->gndNormal.x, af->gndNormal.y, af->gndNormal.z,
+                (double)af->gmma, (double)af->mu, (double)af->sigma, (double)af->r, (double)af->vt);
+#endif
     DBrain()->ResetTaxiState();
     af->Reinit();
+#ifdef FF_LINUX
+    if (s_dbg)
+        fprintf(stderr, "[mpnan] MakeLocal %08x after Reinit: af=(%.1f,%.1f,%.1f) gmma=%.3f mu=%.3f vt=%.1f alpha=%.3f\n",
+                (unsigned)Id().num_, (double)af->x, (double)af->y, (double)af->z, (double)af->gmma, (double)af->mu, (double)af->vt, (double)af->alpha);
+#endif
 }
 
 void AircraftClass::MakeRemote(void)

@@ -505,6 +505,25 @@ void SimulationDriver::Cycle()
 
     elapsedTime = vuxGameTime - lastRealTime;
     curFlyState = FalconLocalSession->GetFlyState();
+#ifdef FF_LINUX
+    /* MP-NAN-1 (measured r4: the joiner's first sim frame had SimLibMajorFrameTime = 293.3 s).
+       On Windows the sim loop ran behind the UI and kept lastRealTime current; the port idles it, so
+       a MP joiner -- whose clock follows the host's through the whole load -- enters the sim with
+       lastRealTime minutes stale and integrates its freshly-owned jet over one 5-minute step. That is
+       the NaN/garbage ownship (c11 altimeter stack smash, c12 54k "Bad action camera"). A flying
+       step longer than 10 s is never a frame: resync instead of integrating it.
+       FF_NO_FRAMESTEP_CLAMP=1 reverts. */
+    {
+        static int s_off = -1;
+        if (s_off < 0) s_off = getenv("FF_NO_FRAMESTEP_CLAMP") ? 1 : 0;
+        if ( not s_off and elapsedTime > 10000 and (curFlyState == FLYSTATE_FLYING or curFlyState == FLYSTATE_WAITING))
+        {
+            fprintf(stderr, "[mpnan] sim step of %ld ms (lastRealTime stale) -- resynced to one frame\n", (long)elapsedTime);
+            lastRealTime = vuxGameTime - 50;
+            elapsedTime = 50;
+        }
+    }
+#endif
     RefreshVoiceFreqs();//me123
 
     // FF_LINUX: env-gated heartbeat - issue #14

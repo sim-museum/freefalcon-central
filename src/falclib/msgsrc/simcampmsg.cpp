@@ -170,7 +170,24 @@ int FalconSimCampMessage::Process(uchar autodisp)
             break;
 
         case simcampDeaggregateFromData:
+#ifdef FF_LINUX
+            /* MPHOST-SIM-1: a short/garbled deaggregation record throws out of memcpychk; say so
+               instead of letting the unit end up half-built with no trace. */
+            try
+            {
+                ent->DeaggregateFromData(dataBlock.data, dataBlock.size);
+            }
+            catch (...)
+            {
+                fprintf(stderr, "[mpdeag] DeaggregateFromData unit %08x THREW (size=%d) -- record did not decode\n",
+                        (unsigned)EntityId().num_, (int)dataBlock.size);
+            }
+            if (getenv("FF_DEBUG_MPMSG") and ent->IsFlight())
+                fprintf(stderr, "[mpdeag] after DeaggregateFromData flight %08x agg=%d comps=%d\n", (unsigned)EntityId().num_,
+                        ent->IsAggregate() ? 1 : 0, ent->GetComponents() ? (int)ent->GetComponents()->Count() : -1);
+#else
             ent->DeaggregateFromData(dataBlock.data, dataBlock.size);
+#endif
             break;
 
         case simcampChangeOwnerFromData:

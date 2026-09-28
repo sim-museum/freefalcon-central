@@ -774,10 +774,16 @@ void SimulationLoopControl::Loop(void)
         switch (currentMode)
         {
             case StartRunningGraphics:
+#ifdef FF_LINUX
+                /* MP-NAN-1: the Loop idled through the load, so lastRealTime can be minutes stale
+                   (always, for a MP joiner); the first frame starts NOW. */
+                SimDriver.lastRealTime = vuxGameTime;
+#else
                 if ( not SimDriver.lastRealTime)
                 {
                     SimDriver.lastRealTime = vuxGameTime;
                 }
+#endif
 #ifdef FF_LINUX
                 // Acquire GL context on this thread (the Loop thread) for rendering.
                 // StartLoop released it before setting currentMode = StartRunningGraphics.

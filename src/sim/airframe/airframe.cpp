@@ -768,6 +768,13 @@ void AirframeClass::Init(int idx)
 
             groundZ = OTWDriver.GetGroundLevel(x, y, &gndNormal);
             float mag = (float)sqrt(gndNormal.x * gndNormal.x + gndNormal.y * gndNormal.y + gndNormal.z * gndNormal.z);
+#ifdef FF_LINUX
+            // MP-NAN-1: never normalise a zero/non-finite vector into NaN.
+            if ( not (mag > 1e-6f and mag < 1e6f))
+            {
+                gndNormal.x = 0.0f; gndNormal.y = 0.0f; gndNormal.z = 1.0f; mag = 1.0f;
+            }
+#endif
             gndNormal.x /= mag;
             gndNormal.y /= mag;
             gndNormal.z /= mag;

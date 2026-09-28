@@ -1,4 +1,5 @@
 #include "stdhdr.h"
+#include <cmath>
 #include "aircrft.h"
 #include "missile.h"
 #include "misslist.h"
@@ -56,6 +57,30 @@ void AircraftClass::DoWeapons()
        The other player can then shoot us with a boresight AIM-9 exactly as a person would ('D',
        then the pickle) -- the launch, the missile, the hit, the damage and the debrief are all the
        production path; only our position is scripted. Stops as soon as we are hit or dead. */
+    /* MP-NAN-1 watchdog: report the first frame the player's aircraft state is not finite, with the
+       frame before it, so the term that goes bad first is named. FF_DEBUG_MPMSG=1. */
+    if (af and this == SimDriver.GetPlayerAircraft() and getenv("FF_DEBUG_MPMSG"))
+    {
+        static int s_bad = 0, s_n = 0;
+        static float s_prev[8];
+        float cur[8] = { XPos(), YPos(), ZPos(), (float)af->x, (float)af->z, (float)af->vt, (float)af->gmma, (float)af->mu };
+        bool ok = true;
+        for (int i = 0; i < 8; i++) if ( not std::isfinite(cur[i])) ok = false;
+        if ( not ok and s_bad < 3)
+        {
+            s_bad++;
+            fprintf(stderr, "[mpnan] PLAYER NaN #%d after %d good frames: pos=(%g,%g,%g) af.x=%g af.z=%g vt=%g gmma=%g mu=%g | prev pos=(%g,%g,%g) af.x=%g af.z=%g vt=%g gmma=%g mu=%g local=%d onGround=%d gndN=(%g,%g,%g) alpha=%g beta=%g\n",
+                    s_bad, s_n, cur[0], cur[1], cur[2], cur[3], cur[4], cur[5], cur[6], cur[7],
+                    s_prev[0], s_prev[1], s_prev[2], s_prev[3], s_prev[4], s_prev[5], s_prev[6], s_prev[7],
+                    IsLocal() ? 1 : 0, OnGround() ? 1 : 0, af->gndNormal.x, af->gndNormal.y, af->gndNormal.z,
+                    (double)af->alpha, (double)af->beta);
+        }
+        if (ok) { s_n++; for (int i = 0; i < 8; i++) s_prev[i] = cur[i]; }
+        if (s_n == 1 or s_n == 300)
+            fprintf(stderr, "[mpnan] player ok frame %d pos=(%.0f,%.0f,%.1f) vt=%.1f local=%d onGround=%d\n", s_n, cur[0], cur[1], cur[2], cur[5],
+                    IsLocal() ? 1 : 0, OnGround() ? 1 : 0);
+    }
+
     if (af and this == SimDriver.GetPlayerAircraft())
     {
         static int s_on = -1;
@@ -106,6 +131,10 @@ void AircraftClass::DoWeapons()
                     float nz = lead->ZPos() - s_ft * (float)sin(pitch);
                     af->x = nx; af->y = ny; af->z = nz;
                     SetPosition(nx, ny, nz);
+                    /* publish the lead's velocity and attitude as ours, so both sides' dead reckoning of
+                       this jet follows the same track as the lead (a formation, not a teleport) */
+                    SetDelta(lead->XDelta(), lead->YDelta(), lead->ZDelta());
+                    SetYPR(lead->Yaw(), lead->Pitch(), lead->Roll());
                     static DWORD s_log = 0;
                     if (GetTickCount() - s_log > 2000)
                     {
@@ -281,7 +310,46 @@ void AircraftClass::DoWeapons()
 
     if (Guns)
     {
+#ifdef FF_LINUX
+        int ffRoundsBefore = Guns->numRoundsRemaining;
+#endif
         Guns->Exec(&fireFlag, dmx, &platformAngles, targetList, not isDigital);
+#ifdef FF_LINUX
+        /* MP-DMG-1 gun trace (FF_DEBUG_MPMSG=1): per second while the player's trigger is down --
+           rounds fired, and where the remote player's jet is relative to our nose. */
+        if (this == SimDriver.GetPlayerAircraft() and (fireFlag or GunFire or fireGun) and getenv("FF_DEBUG_MPMSG"))
+        {
+            static DWORD s_last = 0;
+            static int s_fired = 0;
+            s_fired += ffRoundsBefore - Guns->numRoundsRemaining;
+            if (GetTickCount() - s_last > 1000)
+            {
+                s_last = GetTickCount();
+                SimBaseClass* tgt = NULL;
+                VuSessionsIterator sit(FalconLocalGame);
+                for (FalconSessionEntity* se = (FalconSessionEntity*)sit.GetFirst(); se; se = (FalconSessionEntity*)sit.GetNext())
+                {
+                    if (se == FalconLocalSession) continue;
+                    FalconEntity* pe = (FalconEntity*)se->GetPlayerEntity();
+                    if (pe and pe->IsSim() and not pe->IsLocal()) { tgt = (SimBaseClass*)pe; break; }
+                }
+                int inList = 0;
+                for (SimObjectType* o = targetList; o; o = o->next) if (tgt and o->BaseData() == tgt) inList = 1;
+                float dx = 0, dy = 0, dz = 0, fwd = 0, side = 0, up = 0;
+                if (tgt)
+                {
+                    dx = tgt->XPos() - XPos(); dy = tgt->YPos() - YPos(); dz = tgt->ZPos() - ZPos();
+                    fwd = dmx[0][0] * dx + dmx[0][1] * dy + dmx[0][2] * dz;
+                    side = dmx[1][0] * dx + dmx[1][1] * dy + dmx[1][2] * dz;
+                    up = dmx[2][0] * dx + dmx[2][1] * dy + dmx[2][2] * dz;
+                }
+                fprintf(stderr, "[mpgun] fireFlag=%d GunFire=%d fireGun=%d arm=%d rounds=%d firedSoFar=%d tgt=%08x inTargetList=%d body(fwd=%.0f side=%.0f down=%.0f)\n",
+                        fireFlag, (int)GunFire, (int)fireGun, (int)Sms->MasterArm(), Guns->numRoundsRemaining, s_fired,
+                        tgt ? (unsigned)tgt->Id().num_ : 0, inList, fwd, side, up);
+                fflush(stderr);
+            }
+        }
+#endif
 
         if (fireFlag)
         {

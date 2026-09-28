@@ -1919,6 +1919,11 @@ int UnitClass::Reaggregate(FalconSessionEntity* session)
         return 0;
     }
 
+    if (getenv("FF_DEBUG_MPMSG") and IsFlight() and TheCampaign.IsOnline())
+        fprintf(stderr, "[mpdeag] host Reaggregate flight %08x (session %p playerEnt=%p playerFlight=%p hasPlayers=%d)\n",
+                (unsigned)Id().num_, (void*)session, session ? (void*)session->GetPlayerEntity() : NULL,
+                session ? (void*)session->GetPlayerFlight() : NULL, IsSetFalcFlag(FEC_HASPLAYERS) ? 1 : 0);
+
     // Record the current state here, and determine what we have remaining
     RecordCurrentState(NULL, TRUE);
 
@@ -2440,6 +2445,10 @@ void UnitClass::DeaggregateFromData(VU_BYTE* data, long size)
 //void UnitClass::ReaggregateFromData (int size, uchar* data)
 void UnitClass::ReaggregateFromData(VU_BYTE *data, long size)
 {
+    if (getenv("FF_DEBUG_MPMSG") and IsFlight())
+        fprintf(stderr, "[mpdeag] RECV ReaggregateFromData flight %08x local=%d agg=%d comps=%d\n", (unsigned)Id().num_,
+                IsLocal() ? 1 : 0, IsAggregate() ? 1 : 0, GetComponents() ? (int)GetComponents()->Count() : -1);
+
     if (IsLocal() or IsAggregate())
         return;
 

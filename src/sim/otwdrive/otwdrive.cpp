@@ -3232,7 +3232,15 @@ void OTWDriverClass::InitViewpoint()
        owned the context: SIGSEGV in libGL (ff_s7i_peerB.log). Before the sim thread owns GL there is
        no viewpoint to build; callers get ground 0 until OTWDriver.Enter runs, as on the host. */
     extern bool g_simOwnsGLContext;
-    if (!viewPoint && !g_simOwnsGLContext)
+    /* MP-GLTHREAD-1 (r5: SIGSEGV in libGL on a campaign joiner). "The sim thread owns GL" is not
+       "THIS thread owns GL": the joiner's VU dispatch thread builds the host's aircraft
+       (DeaggregateFromData -> AircraftClass::Init -> GetGroundLevel) at the very moment the sim
+       thread has just taken the context in OTWDriver.Enter. Only the context's own thread may
+       build the viewpoint. FF_NO_GLTHREAD_FIX=1 reverts to the old test. */
+    extern bool FF_ThisThreadOwnsGL(void);
+    static int s_oldTest = -1;
+    if (s_oldTest < 0) s_oldTest = getenv("FF_NO_GLTHREAD_FIX") ? 1 : 0;
+    if (!viewPoint && (s_oldTest ? !g_simOwnsGLContext : !FF_ThisThreadOwnsGL()))
     {
         static int s_said = 0;
         if (s_said++ < 3)
@@ -3492,9 +3500,21 @@ float OTWDriverClass::GetGroundLevel(float x, float y, Tpoint* normal)
     float bestRet = 0.0f;
     int bestLod = 10; // @TODO use MAXLOD
     // best normal and current one
+#ifdef FF_LINUX
+    /* MP-NAN-1: these were two `new Tpoint` per call -- never deleted (a leak on every ground query,
+       many per frame) and never initialised. When no viewpoint answers (a joiner taking ownership of
+       its aircraft before its own terrain viewpoint is ready), the caller got heap garbage as the
+       ground normal; AirframeClass::RemoteUpdate normalises it and a zero/garbage vector becomes NaN
+       in gmma/mu and then the whole position. Default to the flat-ground normal tviewpnt uses. */
+    Tpoint ffBestN = { 0.0f, 0.0f, 1.0f }, ffCurN = { 0.0f, 0.0f, 1.0f };
+    Tpoint
+    *bestNormal = (normal == NULL) ? NULL : &ffBestN,
+     *cNormal = (normal == NULL) ? NULL : &ffCurN;
+#else
     Tpoint
     *bestNormal = (normal == NULL) ? NULL : new Tpoint,
      *cNormal = (normal == NULL) ? NULL : new Tpoint;
+#endif
     // x1 = x2;
 #define COPYNORMAL(x1, x2) do { if (x1){ *x1 = *x2; } } while (0)
 

@@ -592,6 +592,12 @@ void FF_PushKeyEvent(int dikCode, bool isDown) {
 }
 
 // Pop keyboard events from the buffer (called from sim thread's OnSimKeyboardInput)
+/* MP-GLTHREAD-1: true only on the thread that has the game's GL context current. */
+bool FF_ThisThreadOwnsGL(void)
+{
+    return g_GLContext and SDL_GL_GetCurrentContext() == g_GLContext;
+}
+
 int FF_PopKeyEvents(DIDEVICEOBJECTDATA* outBuf, int maxEvents) {
     std::lock_guard<std::mutex> lock(g_keyEventMutex);
     int count = 0;
