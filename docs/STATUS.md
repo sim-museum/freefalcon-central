@@ -22428,3 +22428,12 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
   (`campaign/*.tac`, ~14 incl. "Sink the Kuz" and the naval templates). Acceptance per TE: loads, reaches
   the cockpit, no crash, assertion count recorded; plus host-only `[abop]` cancellations at load for the
   mission TEs (a TE that cancels its own flights is data, not a defect — record which).
+* **FF-MANUAL-1 — new FF manual (PO, 2026-10-01, this session; same item in ma/bob).** Draw from all docs
+  under `~/sgl/SAT` (`DOC/F4AFManual.pdf` — well written, mostly applies to FF but not entirely; the FF
+  documentation file — scatterbrained organization and some objectionable content, use as a source only;
+  `DOC/*.md`, `Additional Documentation`, `GettingStartedGuide.pdf`). Every keyboard command must come from
+  the program's own files (the shipped `.key` files and the callback table in source), not from stale docs;
+  where the docs disagree with the program, the program wins and the difference is noted.
+* **FF-KEYMAP-1 — FF keyboard map (PO, 2026-10-01; same item in ma/bob).** Generated from the actual key
+  file the game loads plus the callback names in source: key → command → what it does, grouped by system.
+  Acceptance: every binding in the loaded key file appears, and no entry is taken only from a document.
