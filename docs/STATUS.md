@@ -22447,3 +22447,9 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
 * **FF-KEYMAP-1 — FF keyboard map (PO, 2026-10-01; same item in ma/bob).** Generated from the actual key
   file the game loads plus the callback names in source: key → command → what it does, grouped by system.
   Acceptance: every binding in the loaded key file appears, and no entry is taken only from a document.
+* **FF-KEYPANEL-1 (found 2026-10-01 by FF-KEYMAP-1) — the port's Shift+Numpad panel keys collide
+  with DMS.** `src/ffviper/main_linux.cpp` ~2282 sets `g_requestedPanel` on Shift+Num8/4/6/2 and then
+  still posts the key, which `config/keystrokes.key` binds to `SimDMSUp/Left/Down` and `OTWStepMFD2`
+  (DMS right). A keyboard DMS press therefore also flips the 2-D cockpit panel. Options: drop the
+  port shortcut (the key file already has panel keys), or move it to a free chord. Check: one
+  Shift+Num8 press in the 2-D pit logs a DMS action and no panel change. ~2 pt; PO call on which way.
