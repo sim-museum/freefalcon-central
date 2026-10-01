@@ -228,7 +228,8 @@ section.
 **Scenario missions.** Included TEs: "Sink the Kuz", "Fly the BlackBird", "Havin' Fun Strike", "The
 Pits – Blue Aircraft", and naval templates ("Naval Ops – Modern / ODS / Vietnam", "Naval East / Yellow
 Sea", "Rogue Navy"). The naval templates place carrier groups with most of the flyable naval aircraft;
-they are the place to practise carrier operations before a campaign.
+they are the place to practise carrier operations before a campaign. A template starts with an **empty flight list**: plan a
+package on a carrier squadron (Add Package, as in the Mission Builder below) before there is anything to fly.
 
 > **A TE's own data can cancel flights.** In *Havin' Fun Strike* the US and South Korea are set as
 > separate teams at war, with the bases South Korean, so the game cancels the US flights as it loads.

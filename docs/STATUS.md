@@ -22441,6 +22441,15 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
   **Training half ✅ (2026-10-01, current build):** `scripts/qa/te-sweep.sh 1 34` → **34/34 reach the
   sim (`RunningGraphics`), 0 crashes**, 2–8 assertion lines each (`~/ff-gates/tesweep1.txt`). Mission half:
   `scripts/qa/te-mission-sweep.sh` (host-only; flight row 2 — row 1 is often an airborne AWACS).
+  **Mission half ✅ (2026-10-01, `~/ff-gates/temission1.txt`): all 11 listed TEs load with 0 crashes.**
+  Cockpit reached (`RenderFirstFrame`, flight row 2) in Auto Save, Fly the BlackBird, Havin' Fun Strike,
+  Sink the Kuz, The Pits – Blue Aircraft. Flights cancelled at load (`[abop]`, TE data): Havin' Fun 26,
+  The Pits 30, others 0. The six naval templates (Naval East/Yellow Sea, Naval Ops Modern/ODS/Vietnam,
+  Rogue Navy) load with an **empty flight list** (`ui_0008` in `~/ff-gates/temdiag0`): they deploy carrier
+  groups and squadrons but schedule no flights — the player must plan a package (that is what a template
+  is), so "no cockpit" there is data, not a defect. `te_new.tac` is not in the list (row 11 empty).
+  **FF-TESWEEP-1 done: 34/34 training + 11/11 mission TEs load crash-free; every TE with a flyable flight
+  reaches the cockpit.**
 * **FF-MANUAL-1 — new FF manual (PO, 2026-10-01, this session; same item in ma/bob).** Draw from all docs
   under `~/sgl/SAT` (`DOC/F4AFManual.pdf` — well written, mostly applies to FF but not entirely; the FF
   documentation file — scatterbrained organization and some objectionable content, use as a source only;

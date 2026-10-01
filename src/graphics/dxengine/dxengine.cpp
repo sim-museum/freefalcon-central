@@ -1599,6 +1599,30 @@ void CDXEngine::DrawObject(ObjectInstance *objInst, D3DXMATRIX *RotMatrix, const
     float MaxLODRange;
     int LODused;
     CurrentLOD = objInst->ParentObject->ChooseLOD(LODRange , &LODused, &MaxLODRange);
+#ifdef FF_LINUX
+    // FF_LINUX (PIT-GAP-1): FF_DEBUG_PITLODS=1 lists each distinct (object, chosen LOD) drawn in pit
+    // mode with its range and LOD count -- a far LOD chosen for the cockpit would drop the lower
+    // consoles exactly the way PIT-GAP-1 looks (pass 3 showed the pit never submits those panels).
+    if (m_PitMode)
+    {
+        static int ffPL = -1; if (ffPL == -1) ffPL = getenv("FF_DEBUG_PITLODS") ? 1 : 0;
+        if (ffPL)
+        {
+            static long seenK[256]; static int nK = 0;
+            long key = ((long)objInst->id << 8) | (LODused & 0xff);
+            bool have = false;
+            for (int q = 0; q < nK; q++) if (seenK[q] == key) { have = true; break; }
+            if (!have && nK < 256)
+            {
+                seenK[nK++] = key;
+                fprintf(stderr, "[PITLOD] obj=%d lodUsed=%d/%d range=%.2f max=%.2f bias=%.3f model=%u\n",
+                        objInst->id, LODused, (int)objInst->ParentObject->nLODs, LODRange, MaxLODRange,
+                        m_LODBiasCx, CurrentLOD ? ((DxDbHeader*)CurrentLOD->root ? ((DxDbHeader*)CurrentLOD->root)->Id : 0u) : 0u);
+                fflush(stderr);
+            }
+        }
+    }
+#endif
 
     // if not a lod persent, end here
     if ( not CurrentLOD) return;
