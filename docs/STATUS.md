@@ -22562,6 +22562,28 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
 
 ## 🔲 BACKLOG (PO, 2026-10-01) — to be worked this session
 
+* **FUNC-SWEEP-FF — exercise the functionality nobody tested (PO 2026-10-01: "I do not want the user to
+  exercise some overlooked functionality and have it not work or lead to a crash").** ✅ in dev, NOT in the AppImage.
+  * **Menu crawl** (`scripts/qa/ui-crawl.py`, FF_DUMP_UI-driven, a fresh launch per click path, depth 2): TacRef,
+    Logbook, ACMI, Setup, Comms, Theater, Exit — **449 paths, 0 crashes**, 1 intended exit (Exit→OK), 1 benign
+    assert (`controltab.cpp:2033`, Controllers tab: an axis bar absent from the advanced window; non-fatal).
+  * **In-flight all-keys sweep** (`scripts/qa/ff-keysweep.sh`: every binding in config/keystrokes.key pressed once,
+    Instant Action) found **four crash classes, all fixed and re-verified by the same sweep**:
+    1. `3e001121` Lights-Test (Shift+T) in the virtual cockpit after the jet is killed — NULL player aircraft.
+    2. `3ec82acb` Ctrl+X, 0 (OTWToggleAutoScale → ToggleFullScreen) tore the display down on the SIM thread
+       (Windows routes it to the main thread). Now posted to the main loop; shares F11's SDL toggle, which now
+       uses real FULLSCREEN at the window size (FULLSCREEN_DESKTOP drew 1024x768 in a corner of 1920x1080).
+       **PO eye needed: does fullscreen fill the monitor?** `FF_FULLSCREEN_DESKTOP=1` = old behaviour.
+    3. `2efbe858` "Set object density" mutated featureList under its own iterator (SetDetail) — snapshot walk.
+    4. `be2291d8` keys after EJECT: 6 handlers dereferenced the NULL player aircraft (enumerated in one flight
+       with test-only `FF_KEYSWEEP_SURVIVE=1`); 13 unguarded conditions + 2 branches guarded.
+  * Coverage: live flight (invincible) all 489 events; after eject all bindings; pause / freeze / Esc-exit-menu-E
+    held-back keys in their own flight. No crash in any. The sweep's earlier stops were the game behaving
+    correctly (the jet crashed unattended → exit menu → a later `E` press ended the flight; `-test-ia`'s 120 s
+    auto-exit, now `FF_TEST_IA_EXIT_SEC`).
+  * Not yet crawled: the IA, Dogfight, TE and Campaign screens' sub-dialogs (those flows were covered by
+    earlier gates and this session's TE sweeps, not by the click crawler).
+
 * **FF-EDITOR-1 — mission editor / builder.** Build a Tactical Engagement from scratch in the game's own
   editor (TE → new: `te_new.tac`), save it, reload it, and fly it. Acceptance: a saved `.tac` appears in the
   TE list, reloads with the flights it was given, and one of them reaches the cockpit.
