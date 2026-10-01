@@ -22414,3 +22414,12 @@ seat): t12 the joiner receives its team's flights (AWACS + 2 Naval Strike); t13 
 selected but the old seat click (95,340 lands between the two slots); **t14: the joiner takes the lead
 seat, enters 3-D (`RenderFirstFrame`), 0 crashes either side, and its 300 s frame is the F-16 cockpit on
 the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for TE.)
+
+## 🔲 BACKLOG (PO, 2026-10-01) — to be worked this session
+
+* **FF-EDITOR-1 — mission editor / builder.** Build a Tactical Engagement from scratch in the game's own
+  editor (TE → new: `te_new.tac`), save it, reload it, and fly it. Acceptance: a saved `.tac` appears in the
+  TE list, reloads with the flights it was given, and one of them reaches the cockpit.
+* **FF-JDAM-1 — the JDAM TE.** Training mission `campaign/SAVE/32 JDAMs.trn`. Acceptance: it loads, the
+  player's jet carries JDAMs, release is possible and the bombs reach the target area (ACMI or `[mpgun]`-
+  style trace), with no crash.
