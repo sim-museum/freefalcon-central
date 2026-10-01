@@ -22248,3 +22248,18 @@ not as obvious."*
     or alpha test discarding them;
   * the 2D pit: chroma-key or alpha holes in the panel art (see the BLUE-1 / chroma-key history above).
 * Compare views looking left and right with the Wine gold's.
+
+## MP-TEJOIN-1 (Opus 5.5, 2026-09-30) — a TE joiner gets only part of the host's units: its flight list shows one AWACS
+
+**Symptom (two instances, "Havin' Fun Strike", `~/ff-gates/mp26/crun.sh tN hostmap te`):** the host lists
+~11 flights and a TAKEOFF button; the joiner lists only MONGO1 (AWACS, already at Ingress) and has no
+TAKEOFF, for the whole run (t2 screenshots, t3/t4 traces).
+**Measured (t4, `FF_DEBUG_MISSIONLIST=1` on both peers):** both peers are on **team 1** (not a team-pick
+problem). The host's mission list considers team-1 flights 4047, 4051…4081 (14+); the joiner's considers
+only 4047 from team 1, plus team-2 flights 4088…4109. **Flights 4051–4081 never exist on the joiner.**
+The host decodes 89 units from the `.tac`; the joiner decodes ONE unit blob of **70** from the host.
+**Where to look next:** `EncodeUnitData` (camplib/unit.cpp) sends only units whose VU owner is the
+host session and that are not dead — so 19 units fail one of those, or were not yet in `AllUnitList`
+when the joiner's request was encoded. `FF_DEBUG_UNITDATA=1` (host) now prints the encode count and
+each skipped unit with the failing test. **Next pass: one t-run with
+`EXTRA_A_ENV=FF_DEBUG_UNITDATA=1`.** Rotated out at the 4-sprint cap.

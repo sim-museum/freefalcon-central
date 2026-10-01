@@ -421,6 +421,20 @@ C_Mission *MakeMissionItem(C_TreeList *tree, Flight element)
     Package package;
     WayPoint wp;
 
+    // MP-TEJOIN-1 trace: which flights does this machine consider for its mission list, and which
+    // filter drops each one (FF_DEBUG_MISSIONLIST=1; first 300 lines).
+    static int dbgML = -1, dbgMLn = 0;
+    if (dbgML < 0) dbgML = getenv("FF_DEBUG_MISSIONLIST") ? 1 : 0;
+    if (dbgML and element and dbgMLn < 300)
+    {
+        dbgMLn++;
+        fprintf(stderr, "[missionlist] flt camp=%d final=%d owner=%d myteam=%d parent=%p tactical=%d sq=%d mysq=%d\n",
+                (int)element->GetCampID(), element->Final() ? 1 : 0, (int)element->GetOwner(), (int)FalconLocalSession->GetTeam(),
+                (void*)element->GetUnitParent(), (TheCampaign.Flags bitand CAMP_TACTICAL) ? 1 : 0,
+                (int)element->GetUnitSquadronID(), (int)FalconLocalSession->GetPlayerSquadronID());
+        fflush(stderr);
+    }
+
     if ( not element->Final())
         return(NULL);
 
