@@ -174,6 +174,23 @@ int SMSClass::DropBomb(int allowRipple)
             }
 
             theBomb->gpsz = OTWDriver.GetGroundLevel(theBomb->gpsx, theBomb->gpsy);
+
+            // FF_LINUX (FF-JDAM-1): FF_DEBUG_JDAM=1 logs where a released bomb was told
+            // to go, to compare with its [MSLEND] impact position.
+            if (getenv("FF_DEBUG_JDAM"))
+            {
+                fprintf(stderr, "[JDAM] release gps=%d jsow=%d mode=%s sbc=%d aim=(%.0f,%.0f,%.0f) own=(%.0f,%.0f,%.0f) "
+                        "range=%.0fft\n",
+                        theBomb->IsSetBombFlag(BombClass::IsGPS) ? 1 : 0,
+                        theBomb->IsSetBombFlag(BombClass::IsJSOW) ? 1 : 0,
+                        ((AircraftClass*)ownship)->GetSMS()->JDAMtargeting == SMSBaseClass::TOO ? "TOO" : "PB",
+                        ((AircraftClass*)ownship)->JDAMsbc ? 1 : 0,
+                        theBomb->gpsx, theBomb->gpsy, theBomb->gpsz,
+                        ownship->XPos(), ownship->YPos(), ownship->ZPos(),
+                        (float)sqrt((theBomb->gpsx - ownship->XPos()) * (theBomb->gpsx - ownship->XPos()) +
+                                    (theBomb->gpsy - ownship->YPos()) * (theBomb->gpsy - ownship->YPos())));
+                fflush(stderr);
+            }
         }
 
 

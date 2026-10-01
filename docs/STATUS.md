@@ -22423,6 +22423,16 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
 * **FF-JDAM-1 — the JDAM TE.** Training mission `campaign/SAVE/32 JDAMs.trn`. Acceptance: it loads, the
   player's jet carries JDAMs, release is possible and the bombs reach the target area (ACMI or `[mpgun]`-
   style trace), with no crash.
+  **Pass 1 (2026-10-01, 4 runs, `~/ff-gates/jdam1..4`): release + guidance + impact ✅, target hit not
+  shown.** Row 32 loads, no crash in 4 runs. `FF_TEST_BOMB=60,62` selects station 3 (weaponId 258,
+  stype 4 = `STYPE_BOMB_GPS`) and both bombs leave; both reach the ground (`[MSLEND] endCode=11
+  BombImpact`, `_mk84` effect). The new `FF_DEBUG_JDAM=1` trace (bombsms.cpp) shows the bombs **are
+  guided**. Bomb 2's aim is 17 NM out, and its impact lies on the release→aim line (dy/dx −0.379 vs
+  −0.377), short of the aim (out of energy from 24 kft). Bomb 1 was released with `aim=(0,0,0)`: there
+  was no ground designation yet (PB mode with no `JDAMsbc` falls back to the TOO/`groundDesignate`
+  branch), so it glided toward the map origin. That is harness-reachable only: the forced pickle
+  bypasses the release consent a player gets. **Open:** a hit on the TE's own target needs a designated
+  target (FCR/TGP or a PB target list), which the scaffold cannot set yet.
 * **FF-TESWEEP-1 — test every TE (PO, 2026-10-01, this session).** Both lists: the 34 training TEs
   (`scripts/qa/te-sweep.sh`, Korea forced, rows 1–34) and every mission TE in the TE list
   (`campaign/*.tac`, ~14 incl. "Sink the Kuz" and the naval templates). Acceptance per TE: loads, reaches
