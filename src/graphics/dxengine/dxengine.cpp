@@ -2027,6 +2027,9 @@ void CDXEngine::FlushObjects(void)
             {
                 float pitNear = 0.1f;
                 float pitFar = 100.0f;
+                // PIT-GAP-1 experiment: FF_PIT_NEAR=<v> -- are the missing lower panels near-clipped?
+                { static float s_pn = -1.0f; if (s_pn < 0.0f) { const char* e = getenv("FF_PIT_NEAR"); s_pn = e ? (float)atof(e) : 0.0f; }
+                  if (s_pn > 0.0f) pitNear = s_pn; }
                 D3DXMATRIX pitProj = Projection;  // Copy scene projection (preserves Flip+FOV)
                 pitProj._13 = pitFar / (pitFar - pitNear);
                 pitProj._43 = -pitNear * pitFar / (pitFar - pitNear);
@@ -2135,6 +2138,12 @@ void CDXEngine::FlushObjects(void)
                 }
                 if (ffExitSolid)
                     DrawSolidSurfaces();
+                // PIT-GAP-1 experiment: the pit's ALPHA surfaces are deferred to m_AlphaStack and
+                // drawn at the end of FlushBuffers under the WORLD projection (near plane far beyond
+                // the pit's 0.1) -- so the nearest cockpit panels would be clipped away. Flush them
+                // here, under the pit projection, with FF_PIT_EXIT_ALPHA=1.
+                if (getenv("FF_PIT_EXIT_ALPHA"))
+                    DrawAlphaSurfaces();
             }
             AppliedState = OldState;
             // FF_LINUX (PIT-1): this clear discards the world depth built up

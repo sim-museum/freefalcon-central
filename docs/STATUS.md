@@ -22342,3 +22342,19 @@ Retro applied (log state before knobs; weather now printed in `[OTW.Setup] … w
 * **Next pass:** is GL fog applied to the multitexture terrain draws? `[TERRAIN_DIAG]` (otw.cpp ~1309)
   prints GL_FOG/ALPHA/BLEND per frame; then fog colour/start/end vs `haze_start/haze_depth`; score with
   the row profile above (the measure to beat: B at row 552 ≈118, hue G−R ≈ +25).
+
+## PIT-GAP-1 pass 2 (Opus 5.5, 2026-10-01) — REPRODUCED: lower 3D-pit panels missing; six render causes ruled out
+
+Retro applied: a systematic per-pixel "hole map" instead of eyeballed regions (pass 1 misread the canopy
+view as a hole). Gold 3D pit `missile_threat.mp4` 397 s (crop 1024×763 at 527,317) vs ours
+`~/ff-gates/pitgap1/vc100.bmp`: pixels saturated (outside) in ours but neutral (cockpit) in the gold.
+* **Holes:** the lower consoles **beside both knees** (≈x 180–250 and 780–850, y 700–760) and the strip
+  **under the centre gauges** (≈x 420–470, y 600–620): grey panels in the gold, **the sea shows through
+  in ours** (mean ≈(15,36,50)). This is the PO's "open side panels".
+* **Ruled out, each by one run measuring those three regions (all unchanged):** culling (already NONE),
+  `FF_PIT_OPAQUE=1` (alpha test + blend off), `FF_PIT_NEAR=0.01` (pit near plane), `FF_PIT_NO_STENCIL=1`,
+  `FF_PIT_EXIT_ALPHA=1` (flush the deferred alpha stack at pit exit under the pit projection).
+* **So the panels' fragments are never produced** — geometry not submitted (model parts/switches/LOD),
+  or overwritten by something drawn after the pit.
+* **Next pass:** `FF_DEBUG_ORDER=1` (what draws after pit exit), `FF_DEBUG_PIT_SURF=1` (surfaces drawn in
+  pit mode), and one frame over LAND — if the holes then show terrain, the geometry is absent.
