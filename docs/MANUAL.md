@@ -236,9 +236,11 @@ package on a carrier squadron (Add Package, as in the Mission Builder below) bef
 > The flight list then shows almost nothing to fly. That is the scenario's data, not a fault. *Sink
 > the Kuz* is a reliable choice.
 
-**Building a mission (Mission Builder)**
-1. **Tactical Engagement → Mission Builder** (a new engagement starts with you on the US/blue team).
-2. Right-click the map to show targets, for example *Installations*, and zoom with **+**.
+**Building a mission (Mission Builder)** (verified on this build, 2026-10-01)
+1. **Tactical Engagement → SAVED tab → NEW**. The NEW, EDIT and DELETE tabs exist only on SAVED. A new
+   engagement opens on the team **Setup** screen, with you on the US/blue team.
+2. **Right-click the map** for *Map options*: Recon, Add Flight, **Add Package**, Add Battalion, unit and
+   installation filters, Names. Zoom with **+**.
 3. **Add Package**, then click the target.
 4. Lock the take-off time (padlock icon green), then **New** to add a flight: type F-16C-52, role
    Strike.
@@ -247,8 +249,9 @@ package on a carrier squadron (Add Package, as in the Mission Builder below) bef
    The **Briefing** fills itself in.
 7. To add opposition, switch teams with the **Team Selector**, advance the clock until your flight is
    en route, and **Add Flight** an intercept against it.
-8. Set **Teams** and **Victory Conditions** (points per objective), then save. Saved engagements
-   appear in the Saved list.
+8. Set **Teams** and **Victory Conditions** (points per objective), then **SAVE**. Type a name in the
+   field under the file list and press SAVE. The engagement then appears in the SAVED list, and committing
+   it there flies it like any other TE.
 
 When you only *play* a TE, you can plan packages and give ground orders, but you cannot add units or
 edit teams and victory conditions.

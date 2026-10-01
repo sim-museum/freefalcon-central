@@ -22548,6 +22548,13 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
   `849,750@66` (package OK → the package shows on the map) · `536,750@72` (SAVE → SAVE ENGAGEMENT dialog:
   file list, name field ≈x316–516 y586, SAVE button ≈536,540). **Pass 3:** click the name field, type a name
   with `FF_UI_TYPE`, SAVE; RESCUE out; SAVED tab → the new file in the list → commit → flight → fly.
+  **Pass 3 ✅ (2026-10-01): FF-EDITOR-1 DONE.** Same script + `400,586@76` (name field), `FF_UI_TYPE=ffeditor1@78`,
+  `536,540@82` (SAVE) → `campaign/SAVE/ffeditor1.tac` (+ `.frc`, `.his`) written, 0 crashes (`~/ff-gates/editor10`);
+  RESCUE → SAVED tab lists **ffeditor1** (row index 7, between Auto Save and Fly the BlackBird). Reload + fly:
+  `TE_FROW=85 scripts/qa/te-mission-sweep.sh 7 7` → loads, `3D=1`, 0 crashes, frame = F-16 cockpit on the runway
+  (`~/ff-gates/editor11/te-7.bmp`). Acceptance met (saved `.tac` in the list, reloads with its flight, cockpit
+  reached). ⚠ The test file sits in the PO's data tree and shifts the TE list below it by one row
+  (Fly the BlackBird is now index 8); delete `campaign/SAVE/ffeditor1.*` to restore the old row numbers.
 * **FF-JDAM-1 — the JDAM TE.** Training mission `campaign/SAVE/32 JDAMs.trn`. Acceptance: it loads, the
   player's jet carries JDAMs, release is possible and the bombs reach the target area (ACMI or `[mpgun]`-
   style trace), with no crash.
