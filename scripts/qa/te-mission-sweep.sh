@@ -15,9 +15,10 @@ mkdir -p "$OUT"
 cd "$GAMEDATA" || exit 1
 for idx in $(seq "${1:-0}" "${2:-11}"); do
     y=$(( 111 + idx * 17 ))
-    seat=${TE_SEAT:-215,340}
+    seat=${TE_SEAT:-160,340}
+    frow=${TE_FROW:-98}
     log=$OUT/te-$idx.log
-    ( export FF_UI_CLICK="674,748@10;212,16@16;170,${y}@24;824,748@32;562,748@40;110,85@60;${seat}@66;976,750@168"
+    ( export FF_UI_CLICK="674,748@10;212,16@16;170,${y}@24;824,748@32;562,748@40;110,${frow}@60;${seat}@66;976,750@168"
       export FF_DEBUG_STARTCAMP=1 FF_DEBUG_ABOP=1 FF_SIM_SCREENSHOT="215:$OUT/te-$idx.bmp"
       timeout -k 5 -s INT 230 "$BIN" -d "$GAMEDATA" -w > "$log" 2>&1 )
     name=$(grep -a "StartReadCampFile: type" "$log" | head -1 | sed "s/.*filename='//;s/'.*//")
