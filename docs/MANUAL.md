@@ -252,6 +252,28 @@ they are the place to practise carrier operations before a campaign.
 When you only *play* a TE, you can plan packages and give ground orders, but you cannot add units or
 edit teams and victory conditions.
 
+**The training missions** (Korea theatre; all 34 load and reach the cockpit on this build, 2026-10-01):
+
+| # | Mission | # | Mission |
+|---|---|---|---|
+| 01 | Basic Handling | 18 | A-G Radar Modes |
+| 02 | Takeoff | 19 | Bombs with CCRP |
+| 03 | Max Turn at Corner | 20 | Bombs with CCIP |
+| 04 | Max Turn Above Corner | 21 | Bombs With Dive-Toss |
+| 05 | Max Turn Below Corner | 22 | 20mm Cannon (A-G) |
+| 06 | Min Altitude Split S | 23 | Rockets |
+| 07 | High-Speed Over Top | 24 | Mavericks |
+| 08 | Low-Speed Over Top | 25 | Laser-Guided Bombs |
+| 09 | Landing Final Approach | 26 | HARMs |
+| 10 | Instrument Landing | 27 | Refueling |
+| 11 | Flameout Landing | 28 | Missile Threat |
+| 12 | Nav and Timing | 29 | Offensive BFM |
+| 13 | A-A Radar Modes | 30 | Defensive BFM |
+| 14 | 20mm Cannon (A-A) | 31 | Head-on BFM |
+| 15 | AIM-9 Sidewinder | 32 | JDAMs |
+| 16 | AIM-120 AMRAAM | 33 | F-18 Carrier Takeoff |
+| 17 | AIM-7 Sparrow | 34 | F-18 Carrier Landing |
+
 ---
 
 ## 8. Campaign

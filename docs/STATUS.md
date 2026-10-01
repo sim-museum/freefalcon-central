@@ -22438,6 +22438,9 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
   (`campaign/*.tac`, ~14 incl. "Sink the Kuz" and the naval templates). Acceptance per TE: loads, reaches
   the cockpit, no crash, assertion count recorded; plus host-only `[abop]` cancellations at load for the
   mission TEs (a TE that cancels its own flights is data, not a defect — record which).
+  **Training half ✅ (2026-10-01, current build):** `scripts/qa/te-sweep.sh 1 34` → **34/34 reach the
+  sim (`RunningGraphics`), 0 crashes**, 2–8 assertion lines each (`~/ff-gates/tesweep1.txt`). Mission half:
+  `scripts/qa/te-mission-sweep.sh` (host-only; flight row 2 — row 1 is often an airborne AWACS).
 * **FF-MANUAL-1 — new FF manual (PO, 2026-10-01, this session; same item in ma/bob).** Draw from all docs
   under `~/sgl/SAT` (`DOC/F4AFManual.pdf` — well written, mostly applies to FF but not entirely; the FF
   documentation file — scatterbrained organization and some objectionable content, use as a source only;
