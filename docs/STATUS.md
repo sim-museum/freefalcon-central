@@ -22391,3 +22391,16 @@ Retro applied: recovered the ACMI-orbit recipe (`tools/ff_validate.sh acmi_all_o
 * **Remaining lead:** the haze is the engine's per-vertex fog alpha (specular A from MPR/otw.cpp), so the
   shade difference is in how that alpha is computed per render state (haze_start/haze_depth vs state
   thresholds in otw.cpp ~1830–1960), not in the GL mapping.
+
+## PIT-GAP-1 pass 3 (Opus 5.5, 2026-10-01) — the pit pass never draws the lower panels
+
+Retro applied: test "never drawn vs painted over" before more fragment-state knobs.
+* `FF_PIT_EXIT_FREEZE=1` (new: colour writes masked from pit exit to the next BeginScene): the MFD
+  contents drawn after the pit disappear (control region (12,16,11)→(16,16,16)), the three hole regions
+  are unchanged → **nothing drawn after the pit covers them; the pit pass never writes those pixels.**
+* `FF_PIT_ALL_SWITCHES=1` (new: every SWITCH/XSWITCH in pit mode takes its first branch): unchanged. This
+  only tests branch 0, so "behind a switch" is weakened, not excluded.
+* With culling/alpha/blend/near/stencil/deferred-alpha (pass 2) also excluded, the panel geometry is
+  **not submitted**. **Next pass:** LOD selection for the cockpit model in pit mode (a far-LOD cockpit
+  without lower consoles would look exactly like this) — log the distinct LodIDs drawn while
+  `m_PitMode` and their parent's LOD table; then switch values per branch.

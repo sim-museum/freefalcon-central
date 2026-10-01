@@ -645,8 +645,11 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_EnumTextureFormats(IDirect3DDevice7* Th
     return D3D_OK;
 }
 
+int g_ffPitFreeze = 0;   // PIT-GAP-1 FF_PIT_EXIT_FREEZE experiment (set at pit exit)
+void FF_PitFreezeBegin(void) { glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE); g_ffPitFreeze = 1; }
 static HRESULT STDMETHODCALLTYPE D3D7Dev_BeginScene(IDirect3DDevice7* This) {
     D3D7Device* dev = (D3D7Device*)This;
+    if (g_ffPitFreeze) { glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE); g_ffPitFreeze = 0; }
     D3DGL_LOG("BeginScene");
 
     if (dev->inScene) return D3DERR_SCENE_IN_SCENE;

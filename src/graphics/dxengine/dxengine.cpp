@@ -1494,6 +1494,10 @@ void CDXEngine::SWITCHManage()
     BYTE *LastAddr = m_NODE.BYTE;
 
     if (m_NODE.DOF->Type == XSWITCH) Value = compl Value;
+    // PIT-GAP-1 experiment: FF_PIT_ALL_SWITCHES=1 draws every switch branch in pit mode -- are the
+    // missing lower panels behind a switch whose value the port never sets?
+    { static int s_all = -1; if (s_all < 0) s_all = getenv("FF_PIT_ALL_SWITCHES") ? 1 : 0;
+      if (s_all and m_PitMode) Value = 0xFFFFFFFF; }
 
     // Traverse the Switch Items
     while (m_NODE.DOF->SwitchNumber == SWNumber and (m_NODE.DOF->Type == SWITCH or m_NODE.DOF->Type == XSWITCH))
@@ -2144,6 +2148,14 @@ void CDXEngine::FlushObjects(void)
                 // here, under the pit projection, with FF_PIT_EXIT_ALPHA=1.
                 if (getenv("FF_PIT_EXIT_ALPHA"))
                     DrawAlphaSurfaces();
+            }
+            // PIT-GAP-1 experiment: FF_PIT_EXIT_FREEZE=1 masks colour writes from pit exit until the next
+            // BeginScene -- if the lower-panel holes then show cockpit, something drawn AFTER the pit was
+            // painting over them; if they stay, the pit never drew them.
+            if (getenv("FF_PIT_EXIT_FREEZE"))
+            {
+                extern void FF_PitFreezeBegin(void);
+                FF_PitFreezeBegin();
             }
             AppliedState = OldState;
             // FF_LINUX (PIT-1): this clear discards the world depth built up
