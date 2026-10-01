@@ -22405,6 +22405,23 @@ Retro applied: test "never drawn vs painted over" before more fragment-state kno
   without lower consoles would look exactly like this) — log the distinct LodIDs drawn while
   `m_PitMode` and their parent's LOD table; then switch values per branch.
 
+## PIT-GAP-1 pass 5 (Opus 5.5, 2026-10-01) — fog and emissive excluded; the green is not the batch's texture
+
+Retro: pass 4's lead (fog) is one decisive A/B; verify the knob actually acts before reading a null.
+* `FF_PIT_NOFOG=1` (new, dxengine.cpp: FOGENABLE off for the pit pass, restored at pit exit) — the three hole
+  regions are **identical to the pixel** with and without (A (37,57,38), B (60,78,62), C (38,59,38)); the probe
+  under the knob shows the pit draw with `fog=0`, still writing green that varies per frame. **Fog excluded.**
+* `FF_DUMP_GLTEX=29` — the texture bound at the start of that 192-vertex batch (glTex 29, 1600×1200) is the
+  **2-D panel art** (front panel, chroma-blue surround); at the hole positions the art is dark panel, not green.
+* `FF_NO_VTX_EMISSIVE=1` — dims everything (control gauge (30,29,30)→(18,17,17)) but the holes stay green
+  (B (60,78,62)→(28,46,30)): **emissive is not the hue source.**
+* With blend, alpha test and fog all off, a green that changes every frame like terrain must come from a
+  **texture**: most likely the hole primitives switch to a different texture inside the batch (the probe only
+  names the texture bound at batch start) — a live render target holding the outside view would look exactly
+  like "seeing the ground through the panel". **Pass 6, first run:** log every texture bound within the pit
+  batches that cover the probe pixel (per-primitive or per-surface `SelectTexture` inside the batch) and dump
+  that texture; then check its index against `objInst->TextureSet × nTexsPerBank` (texture-set/bank indexing).
+
 ## TERRAIN-SEAM-1 pass 4 (Opus 5.5, 2026-10-01) — the near terrain gets NO haze by construction; onset scales with view distance
 
 Retro: pass 3 chased the GL fog mapping (measured fine twice) and lost time to re-captures whose camera did

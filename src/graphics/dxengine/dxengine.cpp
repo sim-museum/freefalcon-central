@@ -2093,6 +2093,14 @@ void CDXEngine::FlushObjects(void)
             float Start = 5.0f;
             m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGSTART, *(DWORD*)&Start);
 #ifdef FF_LINUX
+            // FF_LINUX (PIT-GAP-1 pass 5): FF_PIT_NOFOG=1 turns fog off for the whole pit pass (restored at
+            // pit exit) -- tests whether the "open panels" are pit geometry fogged to the horizon colour.
+            { static int s_nf = -1; if (s_nf < 0) s_nf = getenv("FF_PIT_NOFOG") ? 1 : 0;
+              extern DWORD g_ffPitSavedFog; extern int g_ffPitFogSaved;
+              if (s_nf) { m_pD3DD->GetRenderState(D3DRENDERSTATE_FOGENABLE, &g_ffPitSavedFog); g_ffPitFogSaved = 1;
+                          m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGENABLE, FALSE); } }
+#endif
+#ifdef FF_LINUX
             // FF_LINUX: For pit rendering, use the same Projection as the scene
             // but with tighter near/far planes for cockpit-scale geometry.
             //
@@ -2270,6 +2278,10 @@ void CDXEngine::FlushObjects(void)
             // Restore Fog
             float Start = 0.0f;
             m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGSTART, *(DWORD*)&Start);
+#ifdef FF_LINUX
+            { extern DWORD g_ffPitSavedFog; extern int g_ffPitFogSaved;
+              if (g_ffPitFogSaved) { m_pD3DD->SetRenderState(D3DRENDERSTATE_FOGENABLE, g_ffPitSavedFog); g_ffPitFogSaved = 0; } }
+#endif
 
 #ifdef FF_LINUX
             { extern int g_FF_PitModeActive; g_FF_PitModeActive = 0; }
@@ -3041,4 +3053,9 @@ void CDXEngine::PopMatrixEx(D3DXMATRIX *NewState)
     PopMatrix(NewState);
 }
 
+#endif
+
+#ifdef FF_LINUX
+DWORD g_ffPitSavedFog = 0;
+int g_ffPitFogSaved = 0;
 #endif
