@@ -22405,6 +22405,31 @@ Retro applied: test "never drawn vs painted over" before more fragment-state kno
   without lower consoles would look exactly like this) — log the distinct LodIDs drawn while
   `m_PitMode` and their parent's LOD table; then switch values per branch.
 
+## TERRAIN-SEAM-1 pass 4 (Opus 5.5, 2026-10-01) — the near terrain gets NO haze by construction; onset scales with view distance
+
+Retro: pass 3 chased the GL fog mapping (measured fine twice) and lost time to re-captures whose camera did
+not match the gold; this pass measured the engine's own per-vertex fog alpha instead (no image needed).
+* `FF_DEBUG_HAZE=1` (new, otw.cpp `ComputeVertexColor` daytime path — note the first attempt sat in the
+  **NVG** branch, which day flight never runs): histogram of terrain fog alpha (1 = clear) over 400k vertices,
+  IA flight. `PERSPECTIVE_RANGE=6000`, `haze_start=52463 ft (8.6 NM) = far_clip×0.1`, haze end `0.6×far_clip`
+  = 314782 ft, `hazed=1`.
+  | band | vertices | mean dist | alpha |
+  |---|---|---|---|
+  | fore (<6000 ft) | 10.8k | 3.2 kft | all 1 |
+  | **near (6000 ft – 8.6 NM)** | **153.6k** | **27 kft** | **all 1 — zero haze** |
+  | mid (haze ramp) | 175.8k | 141 kft | spread 0…1 |
+  | far | 59.8k | 429 kft | all <0.2 |
+* Why the near band is clear: range haze only starts at `haze_start`; valley haze applies only to terrain
+  below 1000 ft (`GetValleyFog` works: 0.291 at 20 kft, z −200) and this scene's near terrain is
+  4277–6226 ft high. So nearly all terrain the player looks at is unhazed **by the engine's own rule**.
+* `far_clip = viewpoint->GetMaxRange() × 0.707` (otw.cpp:236): the haze onset is proportional to the
+  terrain view distance (pilot file: 160 → far_clip 524638 ft / 86 NM).
+* **Lead for pass 5:** the gold may simply have been recorded with a shorter view distance, which pulls
+  the haze in. One run: ours at a reduced terrain distance (check the knob actually changes `far_clip` —
+  pass 1 found `FF_TERRAIN_DIST` a no-op at 160) against the gold frame; if the tint appears, this is a
+  settings difference, not a render defect. Also read the gold run's `[OTW.Setup]`/player options if a log
+  of it exists.
+
 ## PIT-GAP-1 pass 4 (Opus 5.5, 2026-10-01) — the "holes" ARE drawn: the pit panel comes out fog-coloured
 
 Retro: pass 3 spent its runs on fragment-state knobs; this pass measured what is submitted first.

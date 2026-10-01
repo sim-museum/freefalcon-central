@@ -2105,6 +2105,40 @@ void RenderOTW::ComputeVertexColor(TerrainVertex *vert, Tpost *post, float dista
     vert->g = g;
     vert->b = b;
     vert->a = alpha;
+#ifdef FF_LINUX
+        // FF_LINUX (TERRAIN-SEAM-1 pass 4): FF_DEBUG_HAZE=1 -- histogram of the terrain fog alpha (1 = clear,
+        // 0 = fully hazed) by render band and distance, over the first 400k vertices, printed once.
+        {
+            static int s_h = -1; if (s_h < 0) s_h = getenv("FF_DEBUG_HAZE") ? 1 : 0;
+            static long cnt[4][6], n = 0; static double dsum[4];
+            if (s_h && n < 400000)
+            {
+                int band = (distance < PERSPECTIVE_RANGE) ? 0 : (distance < haze_start) ? 1 :
+                           (distance < haze_start + haze_depth) ? 2 : 3;
+                int bk = (alpha >= 0.999f) ? 5 : (int)(alpha * 5.0f);
+                if (bk < 0) bk = 0; if (bk > 4 && alpha < 0.999f) bk = 4;
+                cnt[band][bk]++; dsum[band] += distance;
+                { static float zmin = 1e9f, zmax = -1e9f; static long below = 0;
+                  if (band == 1) { if (post->z < zmin) zmin = post->z; if (post->z > zmax) zmax = post->z;
+                                   if (post->z > -1000.0f) below++; }
+                  if (n == 399999) fprintf(stderr, "[HAZE] near-band post->z min=%.0f max=%.0f  (z>-1000 i.e. below 1000ft: %ld)  valley(dist=20000,z=-200)=%.3f\n",
+                                           zmin, zmax, below, GetValleyFog(20000.0f, -200.0f)); }
+                if (++n == 400000)
+                {
+                    const char* nm[4] = {"fore(<persp)", "near(<haze_start)", "mid(haze)", "far(>haze end)"};
+                    fprintf(stderr, "[HAZE] PERSPECTIVE_RANGE=%.0f haze_start=%.0f haze_end=%.0f hazed=%d\n",
+                            (float)PERSPECTIVE_RANGE, haze_start, haze_start + haze_depth, (int)hazed);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        long tot = 0; for (int k = 0; k < 6; k++) tot += cnt[i][k];
+                        fprintf(stderr, "[HAZE] %-18s n=%7ld meanDist=%8.0f  a<.2:%ld .2-.4:%ld .4-.6:%ld .6-.8:%ld .8-1:%ld a=1:%ld\n",
+                                nm[i], tot, tot ? dsum[i] / tot : 0.0, cnt[i][0], cnt[i][1], cnt[i][2], cnt[i][3], cnt[i][4], cnt[i][5]);
+                    }
+                    fflush(stderr);
+                }
+            }
+        }
+#endif
 
 #ifdef FF_LINUX
     {
