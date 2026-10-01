@@ -6066,49 +6066,34 @@ void FlightClass::ReadDirty(VU_BYTE **stream, long *rem)
 
 ///////////////////////////////////////////////////////////////////////////////
 // sfr: @todo WTF does this have to do with FlightClass?? Should be in Objective class
+// MP-TEJOIN-1: the host cancels its TE flights because this says FALSE -- name the reason
+// (FF_DEBUG_ABOP=1). The original body is now ff_AirbaseOperationalWhy.
+static int ff_AirbaseOperationalWhy(FlightClass* f, Objective airbase, const char** why)
+{
+    *why = "ok";
+    if (airbase == NULL) { *why = "airbase NULL"; return FALSE; }
+    if (airbase->IsUnit()) return TRUE;
+    if ( not airbase->IsObjective()) { *why = "not objective"; return FALSE; }
+    if (( not f->IsHelicopter()) and (airbase->brain == NULL)) { *why = "no ATC brain"; return FALSE; }
+    if (airbase->brain and airbase->brain->NumOperableRunways() == 0) { *why = "0 operable runways"; return FALSE; }
+    if ( not GetRoE(airbase->GetTeam(), f->GetTeam(), ROE_AIR_USE_BASES)) { *why = "RoE"; return FALSE; }
+    return TRUE;
+}
+
 int FlightClass::AirbaseOperational(Objective airbase)
 {
-    if (airbase == NULL)
+    const char* why;
+    int r = ff_AirbaseOperationalWhy(this, airbase, &why);
+    if ( not r and getenv("FF_DEBUG_ABOP"))
     {
-        return FALSE;//me123
+        int at = airbase ? (int)airbase->GetTeam() : -1, mt = (int)GetTeam();
+        int st = (at >= 0 and at < NUM_TEAMS and TeamInfo[at] and mt < NUM_TEAMS) ? (int)TeamInfo[at]->stance[mt] : -1;
+        int rs = (mt < NUM_TEAMS and TeamInfo[mt] and at >= 0 and at < NUM_TEAMS) ? (int)TeamInfo[mt]->stance[at] : -1;
+        fprintf(stderr, "[abop] flight camp=%d team=%d airbase=%d (team %d) -> FALSE: %s  stance[%d->%d]=%d rev=%d (0none 1allied 2friendly 3neutral 4hostile 5war)\n",
+                (int)GetCampID(), mt, airbase ? (int)airbase->GetCampID() : -1, at, why, at, mt, st, rs);
+        fflush(stderr);
     }
-
-    //JPO - to be operational, it must
-    // exist, be an objective, have serviceable runways
-    // and be owned by the same team as us.
-    if (airbase->IsUnit())
-    {
-        // JB carrier
-        return TRUE;
-    }
-
-    if (airbase == NULL or not airbase->IsObjective())
-    {
-        return FALSE;
-    }
-
-    //if ( not IsHelicopter() and (airbase->brain == NULL or airbase->brain->NumOperableRunways() <= 0))
-    //return FALSE;  Cobra test
-    if (( not IsHelicopter()) and (airbase->brain == NULL))
-    {
-        return FALSE;
-    }
-
-    if (airbase->brain)
-    {
-        if (airbase->brain->NumOperableRunways() == 0)
-        {
-            return FALSE;
-        }
-    }
-
-    //if (airbase->GetTeam() not_eq GetTeam())
-    if ( not GetRoE(airbase->GetTeam(), GetTeam(), ROE_AIR_USE_BASES))
-    {
-        return FALSE;
-    }
-
-    return TRUE;
+    return r;
 }
 
 // 2002-02-25 ADDED BY S.G. FlightClass needs to have a combat class like aircrafts.

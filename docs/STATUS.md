@@ -22297,3 +22297,23 @@ each skipped unit with the failing test. **Next pass: one t-run with
   Pit culling is already NONE (`FF_PIT_CULL` default 0).
 * **Next pass:** ask the PO for the view/attitude (or a screenshot) where the panels look open; numpad-4
   left spin at 1.2 s barely moved the view — use a longer hold to look left.
+
+## MP-TEJOIN-1 pass 2 (Opus 5.5, 2026-10-01) — the 18 missing flights are CANCELLED BY THE HOST at TE load (RoE: their base is "enemy")
+
+Retro applied: every hop traced in one run, prediction stated first (the ownership prediction was WRONG,
+which is what moved this on). Runs t5–t8 (`~/ff-gates/mp26/crun.sh tN hostmap te`):
+* t5 `FF_DEBUG_UNITDATA`: the 18 team-1 flights (4051–4086) are skipped with `ownerMatch=1 dead=1` —
+  the host owns them, they are already DEAD when the joiner's data is encoded.
+* t6 `FF_DEBUG_DEATH` (backtrace via addr2line): all 18 die at one camp-time, before any join, on the
+  campaign thread: `UpdateRealUnits → FlightClass::MoveUnit (flight.cpp:758) → CancelFlight →
+  RegroupFlight → KillUnit`. The host's mission list still shows them (stale UI items).
+* t7 `FF_DEBUG_ABOP` (new: names why `AirbaseOperational` is FALSE): **RoE** — every one is a team-1
+  flight based at an airbase of **team 2** (815/817/819/820/825/866).
+* t8: `stance[2->1]=5 rev=5` — teams 1 and 2 are at **War**. (team.cpp's TE "everyone at War"
+  defaults are only for data version < 41; this is 73, so stances come from the file.)
+**So it is not a multiplayer defect** — a single-player host loses the same flights at load. Two
+readings remain: (a) the country→team mapping puts these airbases' country in the wrong team (port
+bug: check `member[]` read / `GetTeam(country)` for the owners of 819/820), or (b) the TE data really is
+like this. **Next pass:** print each cancelled flight's airbase OWNER COUNTRY and the team that
+country maps to; compare with the TE's team setup screen (the game's own UI) and, if possible, the
+Wine gold TE list.

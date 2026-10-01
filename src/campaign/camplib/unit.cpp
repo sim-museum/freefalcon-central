@@ -6148,9 +6148,11 @@ int EncodeUnitData(VU_BYTE **stream, FalconSessionEntity *owner)
                 count++;
             }
             else if (getenv("FF_DEBUG_UNITDATA"))   // MP-TEJOIN-1: which units does the joiner NOT get, and why
-                fprintf(stderr, "[unitdata] encode skips camp=%d flight=%d team=%d dead=%d ownerMatch=%d\n",
+                fprintf(stderr, "[unitdata] encode skips camp=%d flight=%d team=%d dead=%d ownerMatch=%d owner=%lu:%lu me=%lu:%lu\n",
                         (int)cur->GetCampID(), cur->IsFlight() ? 1 : 0, (int)cur->GetOwner(), cur->IsDead() ? 1 : 0,
-                        (not owner or cur->OwnerId() == ownerid) ? 1 : 0);
+                        (not owner or cur->OwnerId() == ownerid) ? 1 : 0,
+                        (unsigned long)cur->OwnerId().creator_, (unsigned long)cur->OwnerId().num_,
+                        (unsigned long)ownerid.creator_, (unsigned long)ownerid.num_);
 
             cur = GetNextUnit(&myit);
         }
