@@ -22405,6 +22405,26 @@ Retro applied: test "never drawn vs painted over" before more fragment-state kno
   without lower consoles would look exactly like this) — log the distinct LodIDs drawn while
   `m_PitMode` and their parent's LOD table; then switch values per branch.
 
+## TERRAIN-SEAM-1 pass 5 (Opus 5.5, 2026-10-01) — most of the missing haze is the view-distance SETTING
+
+Retro: pass 4's lead was a settings difference; verify the knob moves `far_clip`, then compare on bands.
+* `FF_TERRAIN_DIST=80`: `far_clip` 524638 → **262319**, haze_start 52463 → **26232 ft (4.3 NM)**; the haze
+  histogram scales with it (the knob works; pass 1's "no-op" was only that the pilot file already says 160).
+* ACMI orbit captures at 160 and 80 (`~/ff-gates/seam5/orb_d160|d80.png`). ⚠ `gold260923/acmi_all_orb.png`
+  is **our own** 09-23 capture, not the gold — and our d80 run reproduces it to within a few levels
+  (136,171,193 vs 135,169,190), i.e. that capture ran at an effective distance of ~80. The real gold is
+  `gold260922/t300.png` cropped (239,180)-(1007,756) (camera differs, so only band means compare):
+  | band of frame | GOLD | ours d160 | ours d80 |
+  |---|---|---|---|
+  | 55–70 % (horizon haze) | (146,183,212) | (114,135,144) | **(135,169,190)** |
+  | 70–85 % (mid terrain) | (76,101,91) | (77,82,59) | (83,85,70) |
+  | 85–100 % (near) | (52,54,48) | (59,72,52) | (60,59,46) |
+* **Conclusion:** at the gold's (default-like) view distance our horizon haze matches the gold closely; the
+  "olive/grey, no haze" look is largely the 160 setting pushing haze out to 8.6 NM — engine behaviour, not a
+  port defect. **Residual:** mid-terrain hue — gold greener (G−R +25) than ours (+2..+5). Next pass: pin the
+  orbit camera to the gold's (pass 3 note) at distance 80 and compare the terrain textures themselves
+  (texture set / season), before touching any fog code.
+
 ## PIT-GAP-1 pass 5 (Opus 5.5, 2026-10-01) — fog and emissive excluded; the green is not the batch's texture
 
 Retro: pass 4's lead (fog) is one decisive A/B; verify the knob actually acts before reading a null.
