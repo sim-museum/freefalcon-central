@@ -1,6 +1,7 @@
 // FFViper Linux main entry point
 // Creates SDL2 window, OpenGL context, and initializes the game
 
+#include <setjmp.h>
 #include <sys/stat.h>
 #include <cstdio>
 
@@ -1418,7 +1419,12 @@ static void signal_handler(int sig) {
 }
 
 // FF_LINUX: SIGSEGV/SIGFPE handler with backtrace for crash diagnosis
+// FUNC-SWEEP-FF test-only: FF_KEYSWEEP_SURVIVE=1 lets setupinp.cpp's CallFunc catch a SIGSEGV inside ONE
+// key handler (siglongjmp back), log it and carry on, so one all-keys flight enumerates every crashing
+// handler instead of stopping at the first. Never set in normal play.
+__thread sigjmp_buf* g_ffKeyJmp = nullptr;
 static void crash_signal_handler(int sig) {
+    if (sig == SIGSEGV && g_ffKeyJmp) { sigjmp_buf* j = g_ffKeyJmp; g_ffKeyJmp = nullptr; siglongjmp(*j, 1); }
     const char *signame = (sig == SIGSEGV) ? "SIGSEGV" : (sig == SIGFPE) ? "SIGFPE" : (sig == SIGABRT) ? "SIGABRT" : "UNKNOWN";
     fprintf(stderr, "\n=== CRASH: %s (signal %d) ===\n", signame, sig);
 
@@ -1427,6 +1433,7 @@ static void crash_signal_handler(int sig) {
     backtrace_symbols_fd(frames, nframes, STDERR_FILENO);
 
     fprintf(stderr, "=== END BACKTRACE ===\n");
+    signal(sig, SIG_DFL);   // a crash outside a key handler still ends the process (survive mode drops SA_RESETHAND)
     fflush(stderr);
 
     // Re-raise with default handler
@@ -1462,7 +1469,11 @@ static void setup_signal_handlers() {
     sigemptyset(&crash_sa.sa_mask);
     crash_sa.sa_flags = SA_RESETHAND;  // One-shot to avoid infinite loops
 
-    sigaction(SIGSEGV, &crash_sa, nullptr);
+    {   // FUNC-SWEEP-FF: survive mode keeps the SIGSEGV handler armed (see g_ffKeyJmp)
+        struct sigaction segv_sa = crash_sa;
+        if (getenv("FF_KEYSWEEP_SURVIVE")) segv_sa.sa_flags = 0;
+        sigaction(SIGSEGV, &segv_sa, nullptr);
+    }
     sigaction(SIGFPE, &crash_sa, nullptr);
     sigaction(SIGABRT, &crash_sa, nullptr);
 }

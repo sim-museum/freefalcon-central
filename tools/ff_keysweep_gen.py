@@ -20,13 +20,15 @@ rows = [m for m in rows if m.group(1) in first] + [m for m in rows if m.group(1)
 for m in rows:
     func, _, _, key, mod, pk, pm, _, desc = m.groups()
     key, mod, pk, pm = (int(x, 16) for x in (key, mod, pk, pm))
-    if key == 0xFFFFFFFF or func in HOLD: continue
+    if key == 0xFFFFFFFF or (func in HOLD and func not in first): continue
     nb += 1
-    if nb <= skip: continue
+    if nb <= skip and func not in first: continue
     if pk == 0xFFFFFFFF:       # radio menu entry: open the menu key, then digit 1
         ev.append('%s0x%02X@%.1f+150' % (mods(mod), key, t)); ev.append('0x02@%.1f+150' % (t + 0.25))
     elif pk != 0:
         ev.append('%s0x%02X@%.1f+150' % (mods(pm), pk, t)); ev.append('%s0x%02X@%.1f+150' % (mods(mod), key, t + 0.25))
+    elif func in first:          # FIRST keys are HELD (eject needs a long press)
+        ev.append('%s0x%02X@%.1f+2500' % (mods(mod), key, t)); t += 3.0
     else:
         ev.append('%s0x%02X@%.1f+150' % (mods(mod), key, t))
     mp.append('%.1f\t%s\t%s' % (t, func, desc))

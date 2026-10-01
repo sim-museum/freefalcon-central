@@ -1832,7 +1832,7 @@ void SimToggleInvincible(unsigned long, int state, void*)
     if (FalconLocalGame and not FalconLocalGame->rules.InvulnerableOn())
         return;
 
-    if (state bitand KEY_DOWN)
+    if ((state bitand KEY_DOWN) and SimDriver.GetPlayerAircraft())   // FUNC-SWEEP-FF: NULL after eject/death
     {
         if (PlayerOptions.InvulnerableOn())
         {
@@ -3125,6 +3125,7 @@ void OTWSelectSatelliteMode(unsigned long, int state, void*)
  not FalconLocalGame->rules.ExternalViewOn() and SimDriver.GetPlayerAircraft()->OnGround() and 
             g_bExtViewOnGround) and \
         (state bitand KEY_DOWN) and \
+        (SimDriver.GetPlayerAircraft()) and \
         (SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP)))
         OTWDriver.SetOTWDisplayMode(OTWDriverClass::ModeSatellite);
 }
@@ -3298,7 +3299,7 @@ void OTWStepHudContrastUp(unsigned long, int state, void*)
 
 void OTWToggleEyeFly(unsigned long, int state, void*)
 {
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP)) // 2002-02-15 MODIFIED BY S.G. ToggleEyeFly brings you to another AC and can crash when you're ejected since your class isn't AircraftClass anymore
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP)) // 2002-02-15 MODIFIED BY S.G. ToggleEyeFly brings you to another AC and can crash when you're ejected since your class isn't AircraftClass anymore
         OTWDriver.ToggleEyeFly();
 }
 
@@ -3464,7 +3465,7 @@ void OTWCheckSix(unsigned long, int, void*)
 //JAM 08Nov03 - Can CTD? DOES CTD
 void OTWStateStep(unsigned long, int state, void*)
 {
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP)) // 2002-02-15 MODIFIED BY S.G. ToggleEyeFly brings you to another AC and can crash when you're ejected since your class isn't AircraftClass anymore
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP)) // 2002-02-15 MODIFIED BY S.G. ToggleEyeFly brings you to another AC and can crash when you're ejected since your class isn't AircraftClass anymore
         OTWDriver.EyeFlyStateStep();
 }
 
@@ -3495,7 +3496,7 @@ void SuperCruise(unsigned long, int state, void*)
 // 2000-11-10 FUNCTION ADDED BY S.G. TO HANDLE THE 'driftCO' switch
 void SimDriftCO(unsigned long, int state, void*)
 {
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP)) // 2002-02-15 MODIFIED BY S.G. Only valid when not ejected
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP)) // 2002-02-15 MODIFIED BY S.G. Only valid when not ejected
     {
         TheHud->CycleDriftCOSwitch();
 
@@ -3515,7 +3516,7 @@ void SimDriftCOOn(unsigned long, int state, void*)
     if ( not g_bRealisticAvionics)
         return;
 
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP)) // 2002-02-15 MODIFIED BY S.G. Only valid when not ejected
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP)) // 2002-02-15 MODIFIED BY S.G. Only valid when not ejected
     {
         TheHud->SetDriftCOSwitch(HudClass::DRIFT_CO_ON);
 
@@ -3529,7 +3530,7 @@ void SimDriftCOOff(unsigned long, int state, void*)
     if ( not g_bRealisticAvionics)
         return;
 
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP)) // 2002-02-15 MODIFIED BY S.G. Only valid when not ejected
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP)) // 2002-02-15 MODIFIED BY S.G. Only valid when not ejected
     {
         TheHud->SetDriftCOSwitch(HudClass::DRIFT_CO_OFF);
 
@@ -4093,7 +4094,7 @@ void SoundOff(unsigned long, int state, void*)
 /////////////// Vince's Cockpit Stuff /////////////////
 void SimHsiCourseInc(unsigned long, int state, void*)
 {
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
     {
         OTWDriver.pCockpitManager->mpHsi->IncState(CPHsi::HSI_STA_CRS_STATE);
         //int val = (int)(OTWDriver.pCockpitManager->mpHsi->GetValue(CPHsi::HSI_VAL_DESIRED_CRS)/36.0f)+1;
@@ -4106,7 +4107,7 @@ void SimHsiCourseInc(unsigned long, int state, void*)
 
 void SimHsiCourseDec(unsigned long, int state, void*)
 {
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
     {
         OTWDriver.pCockpitManager->mpHsi->DecState(CPHsi::HSI_STA_CRS_STATE);
         //int val = (int)(OTWDriver.pCockpitManager->mpHsi->GetValue(CPHsi::HSI_VAL_DESIRED_CRS)/36.0f)+1;
@@ -4119,7 +4120,7 @@ void SimHsiCourseDec(unsigned long, int state, void*)
 
 void SimHsiHeadingInc(unsigned long, int state, void*)
 {
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
     {
         OTWDriver.pCockpitManager->mpHsi->IncState(CPHsi::HSI_STA_HDG_STATE);
         //int val = (int)(OTWDriver.pCockpitManager->mpHsi->GetValue(CPHsi::HSI_VAL_DESIRED_HEADING)/36.0f)+1;
@@ -4132,7 +4133,7 @@ void SimHsiHeadingInc(unsigned long, int state, void*)
 
 void SimHsiHeadingDec(unsigned long, int state, void*)
 {
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
     {
         OTWDriver.pCockpitManager->mpHsi->DecState(CPHsi::HSI_STA_HDG_STATE);
         //int val = (int)(OTWDriver.pCockpitManager->mpHsi->GetValue(CPHsi::HSI_VAL_DESIRED_HEADING)/36.0f)+1;
@@ -4146,7 +4147,7 @@ void SimHsiHeadingDec(unsigned long, int state, void*)
 // MD -- 20040118: adding commands to increment/decrement HSI values by one degree at a time
 void SimHsiCrsIncBy1(unsigned long, int state, void*)
 {
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
     {
         OTWDriver.pCockpitManager->mpHsi->IncState(CPHsi::HSI_STA_CRS_STATE, 1.0F);
         //int val = (int)(OTWDriver.pCockpitManager->mpHsi->GetValue(CPHsi::HSI_VAL_DESIRED_CRS)/36.0f)+1;
@@ -4159,7 +4160,7 @@ void SimHsiCrsIncBy1(unsigned long, int state, void*)
 
 void SimHsiCrsDecBy1(unsigned long, int state, void*)
 {
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
     {
         OTWDriver.pCockpitManager->mpHsi->DecState(CPHsi::HSI_STA_CRS_STATE, 1.0F);
         //int val = (int)(OTWDriver.pCockpitManager->mpHsi->GetValue(CPHsi::HSI_VAL_DESIRED_CRS)/36.0f)+1;
@@ -4172,7 +4173,7 @@ void SimHsiCrsDecBy1(unsigned long, int state, void*)
 
 void SimHsiHdgIncBy1(unsigned long, int state, void*)
 {
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
     {
         OTWDriver.pCockpitManager->mpHsi->IncState(CPHsi::HSI_STA_HDG_STATE, 1.0F);
         //int val = (int)(OTWDriver.pCockpitManager->mpHsi->GetValue(CPHsi::HSI_VAL_DESIRED_HEADING)/36.0f)+1;
@@ -4185,7 +4186,7 @@ void SimHsiHdgIncBy1(unsigned long, int state, void*)
 
 void SimHsiHdgDecBy1(unsigned long, int state, void*)
 {
-    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
+    if (state bitand KEY_DOWN and SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP))   // 2002-02-15 MODIFIED BY S.G. Any cockpit stuff is valid only if the player hasn't ejected... Vince, you should know better than this ;-)
     {
         OTWDriver.pCockpitManager->mpHsi->DecState(CPHsi::HSI_STA_HDG_STATE, 1.0F);
         //int val = (int)(OTWDriver.pCockpitManager->mpHsi->GetValue(CPHsi::HSI_VAL_DESIRED_HEADING)/36.0f)+1;
@@ -8016,7 +8017,7 @@ void SimParkingBrakeToggle(unsigned long val, int state, void *)
     if (SimDriver.GetPlayerAircraft() and SimDriver.GetPlayerAircraft()->IsSetFlag(MOTION_OWNSHIP) and (state bitand KEY_DOWN))
         SimDriver.GetPlayerAircraft()->af->TogglePB();
 
-    if (OTWDriver.GetVirtualCockpit())
+    if (OTWDriver.GetVirtualCockpit() and SimDriver.GetPlayerAircraft())   // FUNC-SWEEP-FF: NULL after eject
     {
         if (SimDriver.GetPlayerAircraft()->af->PBON == TRUE)
             OTWDriver.GetVirtualCockpit()->SetSwitchMask(COMP_3DPIT_PARK_BRAKE, 2);

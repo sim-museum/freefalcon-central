@@ -1,3 +1,4 @@
+#include <setjmp.h>
 #include "stdhdr.h"
 #include "commands.h"
 #include "inpFunc.h"
@@ -383,6 +384,29 @@ CallFunc(InputFunctionType theFunc, unsigned long val, int state, void* pButton)
     // {
     // if (TrainingScript->IsCapturing())
     // TrainingScript->CaptureCommand(theFunc, NULL);
+#ifdef FF_LINUX
+    static int ffSurvive = -1;
+    if (ffSurvive < 0) ffSurvive = getenv("FF_KEYSWEEP_SURVIVE") ? 1 : 0;
+    if (ffSurvive)
+    {
+        extern __thread sigjmp_buf* g_ffKeyJmp;
+        static sigjmp_buf jb;
+        if (sigsetjmp(jb, 1) == 0)
+        {
+            g_ffKeyJmp = &jb;
+            theFunc(val, state, pButton);
+            g_ffKeyJmp = nullptr;
+        }
+        else
+        {
+            g_ffKeyJmp = nullptr;
+            fprintf(stderr, "[KEYSURVIVE] handler SIGSEGV: dik=0x%lx state=0x%x func_off=0x%lx\n", val, state,
+                    (unsigned long)((char*)theFunc - (char*)&CallFunc));
+            fflush(stderr);
+        }
+        return;
+    }
+#endif
     theFunc(val, state, pButton);
     // }
 }
