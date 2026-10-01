@@ -22405,7 +22405,7 @@ Retro applied: test "never drawn vs painted over" before more fragment-state kno
   without lower consoles would look exactly like this) — log the distinct LodIDs drawn while
   `m_PitMode` and their parent's LOD table; then switch values per branch.
 
-## PIT-GAP-1 pass 6 (Opus 5.5, 2026-10-01) — ROOT CAUSE FOUND (mechanism): GL texture name 29 is shared
+## PIT-GAP-1 pass 6 (Opus 5.5, 2026-10-01) — ⚠ RETRACTED by pass 7: "GL texture name 29 is shared" was time-mismatched evidence
 
 Retro: pass 5 left "the green is a texture"; measure which texture and whose image it really holds.
 * The hole green appears in the 2-D panel art only at the **radar scope** (x400–600, y750–900 of 1600×1200).
@@ -22423,6 +22423,24 @@ Retro: pass 5 left "the green is a texture"; measure which texture and whose ima
   surface pointer + size (the uploader of the 1600×1200 image after B was issued 29 is the stale holder);
   then fix at the source (clear `glTexture` when a surface's name is queued for delete / stop the stale
   surface uploading). Check: the three hole regions turn panel-grey and `[GLNAME]` shows no foreign upload.
+
+## PIT-GAP-1 pass 7 (Opus 5.5, 2026-10-01) — pass 6 retracted; the pit texture is complete and green-free
+
+Retro: pass 6 joined a texture dump and a texture binding taken at DIFFERENT moments. Measure both at the draw.
+* `FF_DEBUG_GLNAME=<n>` (follow one name, uncapped; `=1` keeps the capped ≤120 sweep) + an upload log at every
+  `glTexImage2D`/`glCompressedTexImage2D` site: name 29 = 32×32 (freed) → 1600×1200 2-D art (uploaded, freed at the
+  switch to the 3-D pit) → **512×512 bank 2046, uploaded (DXT) and never overwritten afterwards.**
+* `[PIXPROBE-TX]` (new: bound texture's real state at each probed draw): in the pit pass the hole draw binds
+  **29 = 512×512 DXT3 (0x83f2), complete (mips to level 9 = 1×1), trilinear.** The 1600×1200 samples of 29
+  (intfmt RGBA, 251 of them) are all from the **2-D pit period** at the start of the IA flight — which is
+  when pass 5's `FF_DUMP_GLTEX` fired. **So pass 6's "shared name / stale holder" mechanism is wrong.**
+* Pit textures 2046/2048/2044/2065 decoded (Pillow): **0.0–0.1 % green texels.** A complete, green-free
+  texture is bound, blend/alpha-test/fog are off, yet the draw writes frame-varying green.
+* **Pass 8, first run:** the texture-stage combine state at that draw (`GL_TEXTURE_ENV_MODE`/combine
+  sources and the D3D `COLOROP`/`COLORARG` for stage 0) — if the stage selects the vertex/lit colour instead of
+  modulating the texture (e.g. a SELECTARG2 or DISABLE mapping), the lower-panel surfaces render as lit
+  material only; then the material/light colours explain the green. Also log the vertex diffuse/specular
+  of that batch (the pit bakes colour into specular).
 
 ## TERRAIN-SEAM-1 pass 5 (Opus 5.5, 2026-10-01) — most of the missing haze is the view-distance SETTING
 

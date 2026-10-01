@@ -209,11 +209,22 @@ static std::vector<GLuint> g_DeferredFboDeletes;
 // FF_LINUX (PIT-GAP-1 pass 6): FF_DEBUG_GLNAME=1 -- log a surface freeing its GL texture name and that name
 // being issued again, so a stale reference (a handle still pointing at a freed surface, whose name was
 // reissued to another image) shows up as "freed by P ... reissued to Q".
-static int ff_glname_dbg() { static int s = -1; if (s < 0) s = getenv("FF_DEBUG_GLNAME") ? 1 : 0; return s; }
+static int ff_glname_dbg() { static int s = -1; if (s < 0) { const char* e = getenv("FF_DEBUG_GLNAME"); s = e ? (atoi(e) > 1 ? atoi(e) : 1) : 0; } return s; }
+// FF_DEBUG_GLNAME=1 logs names <=120 (capped); FF_DEBUG_GLNAME=<n> (n>1) follows only name n, uncapped.
+static bool ff_glname_want(unsigned name) { int d = ff_glname_dbg(); return d == 1 ? (name > 0 && name <= 120) : (d > 1 && (int)name == d); }
 static void ff_glname_log(const char* what, GLuint name, const void* surf, int w, int h) {
-    if (!ff_glname_dbg() || name == 0 || name > 120) return;
-    static int n = 0; if (n++ > 400) return;
+    if (!ff_glname_want(name)) return;
+    static int n = 0; if (ff_glname_dbg() == 1 && n++ > 400) return;
     fprintf(stderr, "[GLNAME] %s name=%u surf=%p %dx%d\n", what, name, surf, w, h); fflush(stderr);
+}
+static void ff_glname_upload(const char* site, const void* surf, unsigned surfName, int w, int h) {
+    if (!ff_glname_dbg()) return;
+    GLint bound = 0; glGetIntegerv(GL_TEXTURE_BINDING_2D, &bound);
+    if (!ff_glname_want((unsigned)bound)) return;
+    static int n = 0; if (ff_glname_dbg() == 1 && n++ > 300) return;
+    fprintf(stderr, "[GLNAME] upload@%s bound=%d surf=%p surf->glTexture=%u %dx%d%s\n", site, (int)bound, surf, surfName,
+            w, h, ((unsigned)bound != surfName) ? "  <-- BOUND NAME != SURFACE'S NAME" : "");
+    fflush(stderr);
 }
 static void FF_DeleteGLObjects(GLuint tex, GLuint fbo) {
     // FF_LINUX: ALWAYS defer to the next frame-boundary drain, even on the GL-owning
@@ -768,6 +779,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This,
             if (!newTarget->glTexture) {
                 glGenTextures(1, &newTarget->glTexture); ff_glname_log("issued", newTarget->glTexture, newTarget, newTarget->width, newTarget->height);
                 glBindTexture(GL_TEXTURE_2D, newTarget->glTexture);
+                ff_glname_upload("L780", newTarget, newTarget->glTexture, newTarget->width, newTarget->height);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, newTarget->width, newTarget->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -2075,6 +2087,17 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
         fprintf(stderr, "[PIXPROBE-ST] stencil en=%d func=0x%x ref=%d bufVal=%d depthTest=%d zwrite=%d\n",
                 (int)stEn, (unsigned)stFn, (int)stRef, (int)stVal,
                 (int)glIsEnabled(GL_DEPTH_TEST), ({GLboolean dm; glGetBooleanv(GL_DEPTH_WRITEMASK,&dm); (int)dm;}));
+        { /* PIT-GAP-1 pass 7: the bound texture's actual state at this draw (deleted/incomplete -> untextured) */
+          GLint bt = 0, tw = 0, th = 0, tif = 0, minf = 0, maxl = 0;
+          glGetIntegerv(GL_TEXTURE_BINDING_2D, &bt);
+          glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &tw);
+          glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &th);
+          glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &tif);
+          glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &minf);
+          glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, &maxl);
+          GLint w1 = 0, w9 = 0; glGetTexLevelParameteriv(GL_TEXTURE_2D, 1, GL_TEXTURE_WIDTH, &w1); glGetTexLevelParameteriv(GL_TEXTURE_2D, 9, GL_TEXTURE_WIDTH, &w9);
+          fprintf(stderr, "[PIXPROBE-TX] bound=%d isTexture=%d level0=%dx%d level1w=%d level9w=%d intfmt=0x%x minFilter=0x%x maxLevel=%d\n",
+                  (int)bt, (int)glIsTexture((GLuint)bt), (int)tw, (int)th, (int)w1, (int)w9, (unsigned)tif, (unsigned)minf, (int)maxl); }
         GLfloat l0cut = 0, l0att0 = 0, l0att1 = 0, l0att2 = 0;
         glGetLightfv(GL_LIGHT0, GL_SPOT_CUTOFF, &l0cut);
         glGetLightfv(GL_LIGHT0, GL_CONSTANT_ATTENUATION, &l0att0);
@@ -3381,6 +3404,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
             if (surf->dxtFormat != 0 && surf->dxtDataSize > 0) {
                 // DXT compressed texture upload
                 // DXT1/3/5 alpha is already baked into the compressed data
+                ff_glname_upload("L3393", surf, surf->glTexture, surf->width, surf->height);
                 glCompressedTexImage2D(GL_TEXTURE_2D, 0, surf->dxtFormat,
                                        surf->width, surf->height, 0,
                                        surf->dxtDataSize, surf->pixelData);
@@ -3454,6 +3478,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
                     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
                 }
 
+                ff_glname_upload("L3466", surf, surf->glTexture, surf->width, surf->height);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surf->width, surf->height, 0,
                              format, type, surf->pixelData);
 
@@ -6497,6 +6522,7 @@ void FF_PresentPrimarySurface() {
     }
 
     // Upload surface data to texture (BGRA format, 32-bit)
+    ff_glname_upload("L6509", surf, surf->glTexture, surf->width, surf->height);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surf->width, surf->height, 0,
                  GL_BGRA, GL_UNSIGNED_BYTE, surf->pixelData);
 
@@ -7571,6 +7597,7 @@ static HRESULT STDMETHODCALLTYPE DD7_CreateSurface(IDirectDraw7* This, LPDDSURFA
 
         // Allocate initial texture storage
         if (surf->dxtFormat == 0) {
+            ff_glname_upload("L7583", surf, surf->glTexture, surf->width, surf->height);
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surf->width, surf->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         } else {
             // FF_LINUX: Pre-allocate compressed texture storage with zeros.
@@ -7578,6 +7605,7 @@ static HRESULT STDMETHODCALLTYPE DD7_CreateSurface(IDirectDraw7* This, LPDDSURFA
             // data upload, preventing undefined behavior if it's used before upload.
             surf->AllocatePixelBuffer();
             if (surf->pixelData && surf->dxtDataSize > 0) {
+                ff_glname_upload("L7590", surf, surf->glTexture, surf->width, surf->height);
                 glCompressedTexImage2D(GL_TEXTURE_2D, 0, surf->dxtFormat,
                                        surf->width, surf->height, 0,
                                        surf->dxtDataSize, surf->pixelData);
