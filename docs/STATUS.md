@@ -22263,3 +22263,21 @@ host session and that are not dead — so 19 units fail one of those, or were no
 when the joiner's request was encoded. `FF_DEBUG_UNITDATA=1` (host) now prints the encode count and
 each skipped unit with the failing test. **Next pass: one t-run with
 `EXTRA_A_ENV=FF_DEBUG_UNITDATA=1`.** Rotated out at the 4-sprint cap.
+
+## TERRAIN-SEAM-1 pass 1 (Opus 5.5, 2026-09-30) — the three bands are measured; two knobs ruled out
+
+* **Bands measured** (ACMI orbit capture `~/ff-gates/gold260923/acmi_all_orb.png`, row profile of colour
+  and texture energy): near rows tex 8–20 (full texture), intermediate tex 5–7, far tex 1.5–4 with a hue
+  jump to blue-green at its edge — the PO's description exactly.
+* **Mechanism candidates in code:** `LastNearTexLOD=2 LastFarTexLOD=4 NumLevels=6` ([OTW.Setup]); LOD ≤2
+  draws TheTerrTextures (H/M/L sets), LOD 3–4 the 32×32 DXT1 `fartiles` atlas (otwdraw.cpp), and
+  per-vertex state is chosen by DISTANCE vs haze (`state_far` = untextured STATE_GOURAUD beyond
+  haze_start+haze_depth, otw.cpp ~1830/1950).
+* **Ruled out:** `FF_TERRAIN_FAR_TEXTURED=1` (far state → mid state): profile unchanged (terrain1 vs
+  terrain2). `FF_TERRAIN_DIST`: the pilot file already carries **DispTerrainDist=160, MaxTerrainLevel=0**
+  (`[terrainopt]`), so the "doubled" run was a no-op.
+* ⚠ **Trap:** terrain3 LOOKED like the gold (cloud-textured sky, longer view) — that was run-to-run
+  **weather**, not the knob. Any next capture must pin weather/time and log it before comparing.
+* **Next pass:** pin weather (the TE's own, logged); like-for-like TE-09 frame vs `gold_video.sh landing`
+  at a level attitude; then test the near→far texture-set switch (LOD 2/3) by colour of the same ground
+  in `fartiles` vs the H/M/L tile, using the game's own loader.

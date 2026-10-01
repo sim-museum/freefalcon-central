@@ -494,6 +494,12 @@ void RenderOTW::SetupStates(void)
             state_near = STATE_LANDSCAPE_GOURAUD;
             state_mid = STATE_LANDSCAPE_GOURAUD;
         }
+
+        // TERRAIN-SEAM-1 experiment: FF_TERRAIN_FAR_TEXTURED=1 draws the far band (beyond haze
+        // start+depth) with the mid state instead of untextured STATE_GOURAUD, to test whether the
+        // distant band's different shade is that state change.
+        if (getenv("FF_TERRAIN_FAR_TEXTURED"))
+            state_far = state_mid;
     }
 }
 //JAM

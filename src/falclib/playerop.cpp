@@ -214,6 +214,11 @@ int PlayerOptionsClass::LoadOptions(_TCHAR* filename)
      }
     */
 
+    // TERRAIN-SEAM-1: print the terrain-range options this pilot file carries, and let
+    // FF_TERRAIN_DIST=<km> override the range at which terrain texture sets switch.
+    if (const char* e = getenv("FF_TERRAIN_DIST")) DispTerrainDist = (float)atof(e);
+    fprintf(stderr, "[terrainopt] DispTerrainDist=%.1f DispMaxTerrainLevel=%d\n", DispTerrainDist, DispMaxTerrainLevel);
+    fflush(stderr);
     DisplayOptions.LoadOptions();
     FalconLocalSession->SetBubbleRatio(BubbleRatio());
     ApplyOptions();
