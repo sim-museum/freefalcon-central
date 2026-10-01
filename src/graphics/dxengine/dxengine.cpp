@@ -1426,6 +1426,9 @@ void CDXEngine::DOF(void)
 // ********************************
 // * the DOF MANAGEMENT Function  *
 // ********************************
+#ifdef FF_LINUX
+static bool g_ffPitSolidDrain = false;  // PIT-GAP-1: true while draining the pit's solid surfaces at pit exit
+#endif
 void CDXEngine::DOFManage()
 {
 
@@ -1946,6 +1949,16 @@ inline void CDXEngine::DrawNode(ObjectInstance *objInst, DWORD LightOwner, DWORD
             }
 
             // Solid Surfaces are deferred to another Draw
+#ifdef FF_LINUX
+            // FF_LINUX (PIT-GAP-1 pass 8): FF_PIT_SOLID_NOW=1 draws pit-mode vertex-colour (solid) surfaces at once
+            // instead of deferring them to m_SolidStack -- tests whether the deferred drain runs after the pit
+            // projection is replaced, losing the grey backing panels behind the translucent textured layer.
+            if (m_NODE.SURFACE->dwFlags.b.VColor and m_PitMode)
+            {
+                static int s_sn = -1; if (s_sn < 0) s_sn = getenv("FF_PIT_SOLID_NOW") ? 1 : 0;
+                if (s_sn) { DrawSurface(); break; }
+            }
+#endif
             if (m_NODE.SURFACE->dwFlags.b.VColor)
             {
 #ifdef STAT_DX_ENGINE
@@ -2259,7 +2272,15 @@ void CDXEngine::FlushObjects(void)
                     }
                 }
                 if (ffExitSolid)
+                {
+#ifdef FF_LINUX
+                    g_ffPitSolidDrain = true;
+#endif
                     DrawSolidSurfaces();
+#ifdef FF_LINUX
+                    g_ffPitSolidDrain = false;
+#endif
+                }
                 // PIT-GAP-1 experiment: the pit's ALPHA surfaces are deferred to m_AlphaStack and
                 // drawn at the end of FlushBuffers under the WORLD projection (near plane far beyond
                 // the pit's 0.1) -- so the nearest cockpit panels would be clipped away. Flush them
@@ -2618,11 +2639,23 @@ void CDXEngine::DrawSolidSurfaces(void)
     int solidSurfCount = 0;
 #endif
 
+#ifdef FF_LINUX
+    // FF_LINUX (PIT-GAP-1 fix): the pit pass is drawn with culling OFF on Linux (its projection mirrors the
+    // winding relative to D3D -- see the pit-entry/PIT-1 code). The pit's solid (vertex-colour) surfaces are
+    // drained here at pit exit, and forcing CW culled exactly the faces the eye sees: the grey backing panels
+    // beside the knees and under the gauges vanished and the ground showed through ("open side panels").
+    // While draining pit solids, keep culling off. FF_PIT_SOLID_CULLCW=1 restores the old forced CW.
+    if (g_ffPitSolidDrain and not getenv("FF_PIT_SOLID_CULLCW"))
+        m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_NONE);
+    else
+#endif
+    {
 #ifndef DEBUG_ENGINE
     m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, D3DCULL_CW);
 #else
     m_pD3DD->SetRenderState(D3DRENDERSTATE_CULLMODE, (m_bCullEnable) ? D3DCULL_CW : D3DCULL_NONE);
 #endif
+    }
     m_pD3DD->SetRenderState(D3DRENDERSTATE_ZWRITEENABLE, TRUE);
 
 

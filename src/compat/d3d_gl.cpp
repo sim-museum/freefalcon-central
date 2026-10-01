@@ -2096,6 +2096,26 @@ static void FF_ProbePixel(const char* where, DWORD fvf, DWORD nVerts,
           glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &minf);
           glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, &maxl);
           GLint w1 = 0, w9 = 0; glGetTexLevelParameteriv(GL_TEXTURE_2D, 1, GL_TEXTURE_WIDTH, &w1); glGetTexLevelParameteriv(GL_TEXTURE_2D, 9, GL_TEXTURE_WIDTH, &w9);
+          GLint envMode = 0, cRGB = 0, s0 = 0, s1 = 0, o0 = 0, aRGBscale = 0; GLfloat rgbScale = 0;
+          glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &envMode);
+          glGetTexEnviv(GL_TEXTURE_ENV, GL_COMBINE_RGB, &cRGB);
+          glGetTexEnviv(GL_TEXTURE_ENV, GL_SRC0_RGB, &s0); glGetTexEnviv(GL_TEXTURE_ENV, GL_SRC1_RGB, &s1);
+          glGetTexEnviv(GL_TEXTURE_ENV, GL_OPERAND0_RGB, &o0); glGetTexEnvfv(GL_TEXTURE_ENV, GL_RGB_SCALE, &rgbScale);
+          (void)aRGBscale;
+          for (int li = 0; li < 8; li++) {
+              if (!glIsEnabled(GL_LIGHT0 + li)) continue;
+              GLfloat d[4], a[4], pos[4];
+              glGetLightfv(GL_LIGHT0 + li, GL_DIFFUSE, d); glGetLightfv(GL_LIGHT0 + li, GL_AMBIENT, a); glGetLightfv(GL_LIGHT0 + li, GL_POSITION, pos);
+              fprintf(stderr, "[PIXPROBE-LIGHT] L%d diff=(%.2f,%.2f,%.2f) amb=(%.2f,%.2f,%.2f) pos=(%.2f,%.2f,%.2f,%.0f)\n",
+                      li, d[0], d[1], d[2], a[0], a[1], a[2], pos[0], pos[1], pos[2], pos[3]);
+          }
+          { GLfloat ma[4], md[4], me[4], gam[4];
+            glGetMaterialfv(GL_FRONT, GL_AMBIENT, ma); glGetMaterialfv(GL_FRONT, GL_DIFFUSE, md); glGetMaterialfv(GL_FRONT, GL_EMISSION, me);
+            glGetFloatv(GL_LIGHT_MODEL_AMBIENT, gam);
+            fprintf(stderr, "[PIXPROBE-MAT] amb=(%.2f,%.2f,%.2f) diff=(%.2f,%.2f,%.2f) emis=(%.2f,%.2f,%.2f) globalAmb=(%.2f,%.2f,%.2f) colorMaterial=%d\n",
+                    ma[0], ma[1], ma[2], md[0], md[1], md[2], me[0], me[1], me[2], gam[0], gam[1], gam[2], (int)glIsEnabled(GL_COLOR_MATERIAL)); }
+          fprintf(stderr, "[PIXPROBE-TXENV] envMode=0x%x combineRGB=0x%x src0=0x%x src1=0x%x op0=0x%x rgbScale=%.1f tex2Denabled=%d\n",
+                  (unsigned)envMode, (unsigned)cRGB, (unsigned)s0, (unsigned)s1, (unsigned)o0, rgbScale, (int)glIsEnabled(GL_TEXTURE_2D));
           fprintf(stderr, "[PIXPROBE-TX] bound=%d isTexture=%d level0=%dx%d level1w=%d level9w=%d intfmt=0x%x minFilter=0x%x maxLevel=%d\n",
                   (int)bt, (int)glIsTexture((GLuint)bt), (int)tw, (int)th, (int)w1, (int)w9, (unsigned)tif, (unsigned)minf, (int)maxl); }
         GLfloat l0cut = 0, l0att0 = 0, l0att1 = 0, l0att2 = 0;

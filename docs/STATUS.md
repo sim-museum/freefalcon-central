@@ -22424,6 +22424,30 @@ Retro: pass 5 left "the green is a texture"; measure which texture and whose ima
   then fix at the source (clear `glTexture` when a surface's name is queued for delete / stop the stale
   surface uploading). Check: the three hole regions turn panel-grey and `[GLNAME]` shows no foreign upload.
 
+## PIT-GAP-1 ✅ FIXED (pass 8, Opus 5.5, 2026-10-01) — pit solid surfaces were culled at the pit-exit drain
+
+Retro: pass 7 left "complete, green-free texture writes green". Re-reading the probe: before AND after colours
+are both terrain-green (after ≈ 0.85 × before) — the textured layer is translucent over whatever is behind it;
+the probe snapshots blend state after the draw, so its `blend=0` was the restored state, not the draw's.
+* `[PIXPROBE-TXENV]`/`-LIGHT`/`-MAT` (new): stage 0 is a normal MODULATE (texture × primary), the light is
+  white-grey (0.74 / amb 0.25), material white via COLOR_MATERIAL — none of it green or frame-varying.
+* The pit model also has **untextured vertex-colour (solid) surfaces** (`[PITTEX] texIdx=-2 vcolor=1`) — the grey
+  backing panels. Solids are deferred to `m_SolidStack` and drained at pit exit; `[ORDER]`: **15 solids** waiting.
+* `FF_PIT_SOLID_NOW=1` (new diagnostic: draw pit solids immediately) → holes A/B/C turn neutral grey
+  (37,37,37)/(97,97,97)/(42,42,42), control unchanged.
+* **Root cause:** `CDXEngine::DrawSolidSurfaces()` forces `CULLMODE = CW`. The Linux pit pass is drawn with
+  culling **off** (its projection mirrors the winding relative to D3D), so draining the pit's solids under CW
+  culled exactly the faces facing the eye → the backing panels vanished and the terrain showed through the
+  translucent textured layer — the PO's "open side panels".
+* **Fix (dxengine.cpp):** the pit-exit drain sets `g_ffPitSolidDrain`, and `DrawSolidSurfaces` keeps culling
+  NONE while it is set. `FF_PIT_SOLID_CULLCW=1` reverts.
+* **Verified (`~/ff-gates/pitgapfix`):** fix A=(37,37,37) B=(97,97,97) C=(42,42,42) vs revert A=(37,57,38)
+  B=(59,77,61) C=(37,59,37), control equal, 0 crashes both arms; side-by-side image shows grey panels where the
+  ground was. Regression: Sink the Kuz (TE index 10) 3-D pit on the runway still draws the tarmac (PIT-1 intact),
+  0 crashes. **Awaiting the PO's eye on a real flight.**
+* Lessons: passes 6–7 chased textures because the probe's state snapshot is post-draw; measure state INSIDE the
+  draw, and when a colour looks like "the world behind", test the opaque layer that should hide it.
+
 ## PIT-GAP-1 pass 7 (Opus 5.5, 2026-10-01) — pass 6 retracted; the pit texture is complete and green-free
 
 Retro: pass 6 joined a texture dump and a texture binding taken at DIFFERENT moments. Measure both at the draw.
