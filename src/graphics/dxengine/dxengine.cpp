@@ -1481,6 +1481,33 @@ void CDXEngine::SWITCHManage()
     //Consistency check
     if ( not m_TheObjectInstance->SwitchValues)
     {
+#ifdef FF_LINUX
+        // FF_LINUX (PIT-GAP-1 pass 4): with no SwitchValues the WHOLE switch subtree is skipped -- branch 0
+        // included -- before FF_PIT_ALL_SWITCHES is ever consulted, so pass 3 never tested this case.
+        // FF_DEBUG_PITSW=1 lists each (object, switch) skipped this way in pit mode;
+        // FF_PIT_NOSWVAL_DRAW=1 draws branch 0 of such switches instead of skipping them.
+        if (m_PitMode)
+        {
+            static int s_dbg = -1, s_draw = -1;
+            if (s_dbg < 0) { s_dbg = getenv("FF_DEBUG_PITSW") ? 1 : 0; s_draw = getenv("FF_PIT_NOSWVAL_DRAW") ? 1 : 0; }
+            if (s_dbg)
+            {
+                static long seen[256]; static int n = 0;
+                long key = ((long)m_TheObjectInstance->id << 12) | (m_NODE.DOF->SwitchNumber & 0xfff);
+                bool have = false;
+                for (int q = 0; q < n; q++) if (seen[q] == key) { have = true; break; }
+                if (!have && n < 256)
+                {
+                    seen[n++] = key;
+                    fprintf(stderr, "[PITSW] obj=%d switch=%u branch=%u size=%u: no SwitchValues -> subtree skipped%s\n",
+                            m_TheObjectInstance->id, (unsigned)m_NODE.DOF->SwitchNumber, (unsigned)m_NODE.DOF->SwitchBranch,
+                            (unsigned)m_NODE.DOF->dwDOFTotalSize, s_draw ? " (FF_PIT_NOSWVAL_DRAW: drawing branch 0)" : "");
+                    fflush(stderr);
+                }
+            }
+            if (s_draw and m_NODE.DOF->SwitchBranch == 0) { PushMatrix(&AppliedState); return; }
+        }
+#endif
         // If no switches then skip the switch
         m_NODE.BYTE += m_NODE.DOF->dwDOFTotalSize;
         //and return
@@ -1925,6 +1952,32 @@ inline void CDXEngine::DrawNode(ObjectInstance *objInst, DWORD LightOwner, DWORD
 
 #endif
 
+#ifdef FF_LINUX
+            // FF_LINUX (PIT-GAP-1 pass 4): FF_DEBUG_PITSLOT=1 lists each pit-mode slot that draws nothing
+            // because it is out of range or has no child attached -- a cockpit part hung on a slot the
+            // port never fills would leave exactly a hole.
+            if (m_PitMode)
+            {
+                static int s_ps = -1; if (s_ps < 0) s_ps = getenv("FF_DEBUG_PITSLOT") ? 1 : 0;
+                if (s_ps)
+                {
+                    static long seen[256]; static int n = 0;
+                    bool bad = (m_NODE.SLOT->SlotNr >= objInst->ParentObject->nSlots) ||
+                               !objInst->SlotChildren || !objInst->SlotChildren[m_NODE.SLOT->SlotNr];
+                    long key = ((long)objInst->id << 8) | (m_NODE.SLOT->SlotNr & 0xff) | (bad ? (1L << 40) : 0);
+                    bool have = false;
+                    for (int q = 0; q < n; q++) if (seen[q] == key) { have = true; break; }
+                    if (!have && n < 256)
+                    {
+                        seen[n++] = key;
+                        fprintf(stderr, "[PITSLOT] obj=%d slot=%u nSlots=%d child=%s\n", objInst->id,
+                                (unsigned)m_NODE.SLOT->SlotNr, (int)objInst->ParentObject->nSlots,
+                                bad ? "NONE (draws nothing)" : "attached");
+                        fflush(stderr);
+                    }
+                }
+            }
+#endif
             if (m_NODE.SLOT->SlotNr >= objInst->ParentObject->nSlots) break;
 
             {

@@ -22405,6 +22405,28 @@ Retro applied: test "never drawn vs painted over" before more fragment-state kno
   without lower consoles would look exactly like this) — log the distinct LodIDs drawn while
   `m_PitMode` and their parent's LOD table; then switch values per branch.
 
+## PIT-GAP-1 pass 4 (Opus 5.5, 2026-10-01) — the "holes" ARE drawn: the pit panel comes out fog-coloured
+
+Retro: pass 3 spent its runs on fragment-state knobs; this pass measured what is submitted first.
+* `FF_DEBUG_PITLODS=1` (new): every pit-mode object draws its finest LOD (`lodUsed=0`, range 0) —
+  **far-LOD hypothesis false.**
+* `FF_DEBUG_PITSW=1` / `FF_PIT_NOSWVAL_DRAW=1` (new): `SWITCHManage` skips a whole switch subtree when the
+  instance has no `SwitchValues` (before `FF_PIT_ALL_SWITCHES` is consulted, so pass 3 never covered it) —
+  **0 such skips in pit mode** (frame confirmed to be the 3-D pit).
+* `FF_DEBUG_PITSLOT=1` (new): the pit model (obj 2402) has 9 slots, 3 and 5 empty — but those slots are
+  **weapon stations** (`CockAttachWeapons`: slot = station−1), not panels. Red herring.
+* **`FF_PROBE_PIXEL=215,730` (a hole pixel, beside the left knee): it IS written in pit mode by the cockpit
+  model itself** (lod 4105, 192-vert batch, tex 29, fvf 0x1d2 = XYZ|NORMAL|DIFFUSE|SPECULAR|TEX1,
+  blend off, alpha test off) — and the written colour is grass-green and changes every frame
+  (0x2a4927…0x355034). An opaque, lit panel cannot do that unless **fog** colours it: the draw has GL fog on,
+  linear 5→200 (the engine's "No Fog into the pit" FOGSTART=5).
+* **Lead for pass 5:** these XYZ draws use GL fog with `GL_FOG_COORD_SRC = FRAGMENT_DEPTH`, i.e. |z_eye|.
+  This engine's view space is **x-forward** (`clip_w = sim_x`), so GL's eye z is the vertical axis, not the
+  range D3D7 vertex fog uses — panels well below the eye would fog by their height offset. First run:
+  disable GL fog for pit-mode XYZ draws (opt-in knob) and re-measure the three hole regions; if they turn
+  grey, compute the fog coordinate as eye-space range (or the x component) instead. Check the world's XYZ
+  object draws for the same error (relevant to TERRAIN-SEAM-1's missing haze).
+
 ## MP-TEJOIN-1 ✅ (pass 4, 2026-10-01) — TE multiplayer join reaches the joiner's cockpit
 
 Host-only survey (`FF_DEBUG_ABOP=1`): "Fly the BlackBird" (TE list row y=230) and "Sink the Kuz" (y=264)
