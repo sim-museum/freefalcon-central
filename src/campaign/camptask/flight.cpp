@@ -6089,8 +6089,25 @@ int FlightClass::AirbaseOperational(Objective airbase)
         int at = airbase ? (int)airbase->GetTeam() : -1, mt = (int)GetTeam();
         int st = (at >= 0 and at < NUM_TEAMS and TeamInfo[at] and mt < NUM_TEAMS) ? (int)TeamInfo[at]->stance[mt] : -1;
         int rs = (mt < NUM_TEAMS and TeamInfo[mt] and at >= 0 and at < NUM_TEAMS) ? (int)TeamInfo[mt]->stance[at] : -1;
-        fprintf(stderr, "[abop] flight camp=%d team=%d airbase=%d (team %d) -> FALSE: %s  stance[%d->%d]=%d rev=%d (0none 1allied 2friendly 3neutral 4hostile 5war)\n",
-                (int)GetCampID(), mt, airbase ? (int)airbase->GetCampID() : -1, at, why, at, mt, st, rs);
+        static int dumped = 0;   // once: the runtime team table this decision was made against
+        if ( not dumped)
+        {
+            dumped = 1;
+            for (int t = 0; t < NUM_TEAMS; t++)
+            {
+                if ( not TeamInfo[t]) { fprintf(stderr, "[abop] team[%d] NULL\n", t); continue; }
+                fprintf(stderr, "[abop] team[%d] cteam=%d stance=", t, (int)TeamInfo[t]->cteam);
+                for (int u = 0; u < NUM_TEAMS; u++) fprintf(stderr, "%d", (int)TeamInfo[t]->stance[u]);
+                fprintf(stderr, " members=");
+                for (int c = 0; c < NUM_COUNS; c++) if (TeamInfo[t]->member[c]) fprintf(stderr, "%d,", c);
+                fprintf(stderr, "\n");
+            }
+        }
+        int fc = (int)GetOwner(), ac = airbase ? (int)airbase->GetOwner() : -1;
+        fprintf(stderr, "[abop] flight camp=%d team=%d airbase=%d (team %d) -> FALSE: %s  stance[%d->%d]=%d rev=%d (0none 1allied 2friendly 3neutral 4hostile 5war)"
+                        "  country flight=%d->team %d airbase=%d->team %d\n",
+                (int)GetCampID(), mt, airbase ? (int)airbase->GetCampID() : -1, at, why, at, mt, st, rs,
+                fc, (int)::GetTeam((Control)fc), ac, ac >= 0 ? (int)::GetTeam((Control)ac) : -1);
         fflush(stderr);
     }
     return r;

@@ -22358,3 +22358,18 @@ view as a hole). Gold 3D pit `missile_threat.mp4` 397 s (crop 1024×763 at 527,3
   or overwritten by something drawn after the pit.
 * **Next pass:** `FF_DEBUG_ORDER=1` (what draws after pit exit), `FF_DEBUG_PIT_SURF=1` (surfaces drawn in
   pit mode), and one frame over LAND — if the holes then show terrain, the geometry is absent.
+
+## MP-TEJOIN-1 pass 3 (Opus 5.5, 2026-10-01) — NOT A PORT DEFECT: the TE's own data cancels those flights
+
+Retro applied: host-only runs (`camp2.sh` with `B_SECS=1`, TE clicks), ~3 min instead of ~9.
+* t9: the 18 cancelled flights are **country 1 (US) → team 1**, their airbases **country 2 (ROK) → team 2**.
+* t10 runtime table / t11 `FF_DEBUG_TEAMS` (new: each team **as read by LoadTeams**): "Havin' Fun Strike"
+  has 3 teams — 0 {}, 1 {US}, 2 {ROK} — with stance **War** between 1 and 2, identical as-read and at
+  runtime. No DPRK team at all.
+* Airbase ownership: on a fresh TE start `LoadObjectiveDeltas` skips deltas by design (savefile ==
+  Scenario → "KCK Temporary: reset dirty flags and return", original code), so bases keep the base
+  ownership (ROK). With the TE's own War stance, `AirbaseOperational` → RoE → `CancelFlight` is the
+  ORIGINAL game's rule applied to this mission's data; Wine would cancel them too.
+* **So the MP TE join is behaving correctly** — it sends every live flight; this mission leaves team 1
+  only the airborne AWACS. **Next pass:** pick a TE whose team-1 flights survive load (`FF_DEBUG_ABOP=1`
+  host-only: zero `[abop]` lines) and re-run `crun.sh tN hostmap te` for joiner TAKEOFF.

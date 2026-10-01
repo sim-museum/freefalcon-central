@@ -319,6 +319,14 @@ TeamClass::TeamClass(FILE *file) :
     fread(&firstCommander, sizeof(short), 1, file);
     fread(&firstWingman, sizeof(short), 1, file);
     fread(&lastWingman, sizeof(short), 1, file);
+    if (getenv("FF_DEBUG_TEAMS"))   // MP-TEJOIN-1: the team table AS READ from the file
+    {
+        fprintf(stderr, "[teams] file: who=%d cteam=%d stance=", (int)who, (int)cteam);
+        for (int u = 0; u < NUM_TEAMS; u++) fprintf(stderr, "%d", (int)stance[u]);
+        fprintf(stderr, " members=");
+        for (int c = 0; c < NUM_COUNS; c++) if (member[c]) fprintf(stderr, "%d,", c);
+        fprintf(stderr, " (dataver %d)\n", (int)gCampDataVersion); fflush(stderr);
+    }
 
     playerRating = 0.0F;
     lastPlayerMission = 0;
@@ -1655,9 +1663,13 @@ int LoadTeams(char* scenario)
     teamManagerDIndex += VU_LAST_ENTITY_TYPE;
 
     if ((fp = OpenCampFile(scenario, "tea", "rb")) == NULL)
+    {
+        if (getenv("FF_DEBUG_TEAMS")) { fprintf(stderr, "[teams] LoadTeams(%s): no tea section -> AddNewTeams\n", scenario); fflush(stderr); }
         return 0;
+    }
 
     fread(&teams, sizeof(short), 1, fp);
+    if (getenv("FF_DEBUG_TEAMS")) { fprintf(stderr, "[teams] LoadTeams(%s): %d teams\n", scenario, (int)teams); fflush(stderr); }
 
     if (teams > NUM_TEAMS)
         teams = NUM_TEAMS;
