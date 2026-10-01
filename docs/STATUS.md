@@ -22442,6 +22442,16 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
 * **FF-EDITOR-1 — mission editor / builder.** Build a Tactical Engagement from scratch in the game's own
   editor (TE → new: `te_new.tac`), save it, reload it, and fly it. Acceptance: a saved `.tac` appears in the
   TE list, reloads with the flights it was given, and one of them reaches the cockpit.
+  **Pass 1 (2026-10-01): TE → SAVED → NEW crashed (SIGSEGV) — FIXED; the Mission Builder now opens.**
+  Backtrace: `TACNewCB → ActivateTacMissionBuilder → RebuildFrontList` (`camplist.cpp:920`,
+  `FrontList->Purge()` on NULL). `tactical_mission::load()` sends `FM_LOAD_CAMPAIGN` with `SendMessageA`,
+  which Windows runs **synchronously**; the compat `SendMessageA` posts it to the game queue, so the
+  builder ran before the campaign (and its lists) existed. Fix: `FF_PumpLoadCampaignNow()`
+  (main_linux.cpp, the handler factored into `FF_HandleLoadCampaignMsg`) runs the queued load at once;
+  `TACNewCB` and `TACEditCB` call it after `tactical_edit_mission()`. TE *play* paths are untouched.
+  Verified `~/ff-gates/editor3`: log shows the synchronous dispatch → `LoadCampaign() returned 1` →
+  `JOIN_SUCCEEDED`, 0 crashes, builder screen (team setup, map, Mission Builder / Victory Conditions /
+  Save / ATO toolbar). **Next:** add a package + flight, Save, reload from SAVED, fly.
 * **FF-JDAM-1 — the JDAM TE.** Training mission `campaign/SAVE/32 JDAMs.trn`. Acceptance: it loads, the
   player's jet carries JDAMs, release is possible and the bombs reach the target area (ACMI or `[mpgun]`-
   style trace), with no crash.

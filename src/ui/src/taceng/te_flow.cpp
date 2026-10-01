@@ -303,6 +303,11 @@ static void TACNewCB(long, short hittype, C_Base *control)
 #endif
         tactical_edit_mission(current_tactical_mission);
 
+#ifdef FF_LINUX
+    // FF-EDITOR-1: load() SendMessage'd FM_LOAD_CAMPAIGN, which Windows runs synchronously; the builder
+    // below needs the loaded campaign (FrontList etc.), so run the queued load now.
+    { extern bool FF_PumpLoadCampaignNow(); FF_PumpLoadCampaignNow(); }
+#endif
     gMainHandler->EnableWindowGroup(control->GetGroup());
     ActivateTacMissionBuilder();
     gSelectedTeam = 1;
@@ -341,6 +346,11 @@ static void TACEditCB(long ID, short hittype, C_Base *control)
 #endif
         tactical_edit_mission(current_tactical_mission);
 
+#ifdef FF_LINUX
+    // FF-EDITOR-1: load() SendMessage'd FM_LOAD_CAMPAIGN, which Windows runs synchronously; the builder
+    // below needs the loaded campaign (FrontList etc.), so run the queued load now.
+    { extern bool FF_PumpLoadCampaignNow(); FF_PumpLoadCampaignNow(); }
+#endif
     gMainHandler->EnableWindowGroup(control->GetGroup());
     ActivateTacMissionBuilder();
     gSelectedTeam = 1;

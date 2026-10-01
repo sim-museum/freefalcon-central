@@ -2598,6 +2598,83 @@ static void QueuePendingMessage(UINT msg, WPARAM wParam, LPARAM lParam) {
 }
 
 // Process game messages (FM_* messages from falcuser.h)
+// FF_LINUX: the FM_LOAD_CAMPAIGN handler, factored out so FF_PumpLoadCampaignNow() can run it
+// synchronously -- see that function.
+static void FF_HandleLoadCampaignMsg(LPARAM lParam)
+{
+                fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN received (type=%ld)\n", (long)lParam);
+                // FF_LINUX: Paint the screen black before the (multi-second)
+                // campaign decode that runs on this (main) thread, which would
+                // otherwise leave a white screen until OTWDriver::Enter() shows
+                // the loading splash. The main thread still owns the GL context
+                // here. (FF_LoadingClear is a no-op if we don't own it.)
+                { extern void FF_LoadingClear(); FF_LoadingClear(); }
+                // For non-campaign/TE types, use "Instant" as campaign file
+                if ((FalconGameType)lParam != game_Campaign &&
+                    (FalconGameType)lParam != game_TacticalEngagement) {
+                    strcpy(gUI_CampaignFile, "Instant");
+                }
+                fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Calling TheCampaign.LoadCampaign()...\n");
+                int retval;
+                // FF_LINUX: A desynced/incompatible save (e.g. some Tactical
+                // Engagement missions whose unit data overruns the decode buffer)
+                // makes memcpychk throw InvalidBufferException (std::out_of_range).
+                // On Windows this was swallowed by SEH; on Linux an uncaught throw
+                // calls std::terminate -> SIGABRT. Catch it and fail the load
+                // gracefully (return to the menu) instead of crashing.
+                try {
+                    retval = TheCampaign.LoadCampaign((FalconGameType)lParam, gUI_CampaignFile);
+                } catch (const std::exception& e) {
+                    fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: LoadCampaign threw (%s) - failing load gracefully\n", e.what());
+                    // The throw unwinds past the (recursive) campCritical leaves in
+                    // Decode/LoadCampaign, leaving this thread holding it N deep.
+                    // Drain it so the campaign thread doesn't deadlock later.
+                    extern int F4CheckHasCriticalSection(F4CSECTIONHANDLE*);
+                    while (campCritical && F4CheckHasCriticalSection(campCritical))
+                        CampLeaveCriticalSection();
+                    retval = 0;
+                }
+                fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: LoadCampaign() returned %d\n", retval);
+                /* GOLDVID-FF-2 S9: with the TE loaded, dump every entity's name and map position
+                   (FF_DUMP_UNITS=1, default-off) so a cockpit contact can be matched against the
+                   real SAM coordinates instead of against a briefing's cardinal direction. */
+                if (retval) ff_dump_campaign_units();
+                if (retval) {
+                    fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_SUCCEEDED\n");
+                    QueuePendingMessage(FM_JOIN_SUCCEEDED, 0, 0);
+                } else {
+                    fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_FAILED\n");
+                    QueuePendingMessage(FM_JOIN_FAILED, 0, 0);
+                }
+}
+
+// FF_LINUX (FF-EDITOR-1): Windows SendMessage(FM_LOAD_CAMPAIGN) is SYNCHRONOUS -- the campaign is
+// loaded when it returns. The compat SendMessageA posts it to this queue instead, so code written to
+// run after the load ran before it: TE -> SAVED -> NEW called ActivateTacMissionBuilder() ->
+// RebuildFrontList() with FrontList still NULL and crashed (SIGSEGV, camplist.cpp:920). Callers that
+// depend on the load having happened call this right after the send: it removes the queued
+// FM_LOAD_CAMPAIGN and runs its handler now, on the calling (main) thread. Returns true if one ran.
+bool FF_PumpLoadCampaignNow()
+{
+    bool found = false;
+    GameMessage m{};
+    {
+        std::lock_guard<std::mutex> lock(g_messageMutex);
+        std::queue<GameMessage> rest;
+        while (!g_messageQueue.empty()) {
+            GameMessage q = g_messageQueue.front(); g_messageQueue.pop();
+            if (!found && q.message == FM_LOAD_CAMPAIGN) { m = q; found = true; continue; }
+            rest.push(q);
+        }
+        g_messageQueue.swap(rest);
+    }
+    if (found) {
+        fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN dispatched synchronously (SendMessage semantics)\n");
+        FF_HandleLoadCampaignMsg(m.lParam);
+    }
+    return found;
+}
+
 bool ProcessGameMessages() {
     // First, process pending messages that were queued during previous processing
     if (!g_pendingMessages.empty()) {
@@ -2730,53 +2807,8 @@ bool ProcessGameMessages() {
             // Campaign loading / joining / shutdown
             // =========================================================
             case FM_LOAD_CAMPAIGN:
-            {
-                fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN received (type=%ld)\n", (long)msg.lParam);
-                // FF_LINUX: Paint the screen black before the (multi-second)
-                // campaign decode that runs on this (main) thread, which would
-                // otherwise leave a white screen until OTWDriver::Enter() shows
-                // the loading splash. The main thread still owns the GL context
-                // here. (FF_LoadingClear is a no-op if we don't own it.)
-                { extern void FF_LoadingClear(); FF_LoadingClear(); }
-                // For non-campaign/TE types, use "Instant" as campaign file
-                if ((FalconGameType)msg.lParam != game_Campaign &&
-                    (FalconGameType)msg.lParam != game_TacticalEngagement) {
-                    strcpy(gUI_CampaignFile, "Instant");
-                }
-                fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Calling TheCampaign.LoadCampaign()...\n");
-                int retval;
-                // FF_LINUX: A desynced/incompatible save (e.g. some Tactical
-                // Engagement missions whose unit data overruns the decode buffer)
-                // makes memcpychk throw InvalidBufferException (std::out_of_range).
-                // On Windows this was swallowed by SEH; on Linux an uncaught throw
-                // calls std::terminate -> SIGABRT. Catch it and fail the load
-                // gracefully (return to the menu) instead of crashing.
-                try {
-                    retval = TheCampaign.LoadCampaign((FalconGameType)msg.lParam, gUI_CampaignFile);
-                } catch (const std::exception& e) {
-                    fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: LoadCampaign threw (%s) - failing load gracefully\n", e.what());
-                    // The throw unwinds past the (recursive) campCritical leaves in
-                    // Decode/LoadCampaign, leaving this thread holding it N deep.
-                    // Drain it so the campaign thread doesn't deadlock later.
-                    extern int F4CheckHasCriticalSection(F4CSECTIONHANDLE*);
-                    while (campCritical && F4CheckHasCriticalSection(campCritical))
-                        CampLeaveCriticalSection();
-                    retval = 0;
-                }
-                fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: LoadCampaign() returned %d\n", retval);
-                /* GOLDVID-FF-2 S9: with the TE loaded, dump every entity's name and map position
-                   (FF_DUMP_UNITS=1, default-off) so a cockpit contact can be matched against the
-                   real SAM coordinates instead of against a briefing's cardinal direction. */
-                if (retval) ff_dump_campaign_units();
-                if (retval) {
-                    fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_SUCCEEDED\n");
-                    QueuePendingMessage(FM_JOIN_SUCCEEDED, 0, 0);
-                } else {
-                    fprintf(stderr, "[FM] FM_LOAD_CAMPAIGN: Queueing FM_JOIN_FAILED\n");
-                    QueuePendingMessage(FM_JOIN_FAILED, 0, 0);
-                }
+                FF_HandleLoadCampaignMsg(msg.lParam);
                 break;
-            }
 
             case FM_JOIN_SUCCEEDED:
                 fprintf(stderr, "[FM] FM_JOIN_SUCCEEDED received\n");
