@@ -397,6 +397,19 @@ void FalconDisplayConfiguration::ToggleFullScreen(void)
     ShiAssert(::GetCurrentThreadId() == GetWindowThreadProcessId(appWin, NULL)); // Make sure this is called by the main thread
 #endif
 
+#if defined(FF_LINUX) && !defined(_FORCE_MAIN_THREAD)
+    // FUNC-SWEEP-FF (key sweep SIGSEGV): Windows routes this to the MAIN thread (SendMessage above);
+    // here _FORCE_MAIN_THREAD is off, so the in-flight key OTWToggleAutoScale (Ctrl+X, 0) ran
+    // LeaveMode/DestroyWindow/MakeWindow/EnterMode on the SIM thread mid-frame and crashed in
+    // DD7_SetDisplayMode. Hand it to the main loop instead, which toggles the SDL window exactly as
+    // F11 does. FF_FULLSCREEN_LEGACY=1 restores the old (crashing) direct path for A/B.
+    if ( not getenv("FF_FULLSCREEN_LEGACY"))
+    {
+        PostGameMessage(FM_DISP_TOGGLE_FULLSCREEN, 0, 0);
+        return;
+    }
+#endif
+
     LeaveMode();
     DestroyWindow(appWin);
 	displayFullScreen ? displayFullScreen = false : displayFullScreen = true;

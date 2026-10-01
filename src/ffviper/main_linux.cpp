@@ -165,6 +165,22 @@ extern char FalconUIArtThrDirectory[];
 
 // Global SDL objects - these replace Windows HWND etc.
 SDL_Window* g_SDLWindow = nullptr;
+// FUNC-SWEEP-FF: one fullscreen toggle for F11 and the game's FM_DISP_TOGGLE_FULLSCREEN (main thread only).
+static void FF_ToggleFullscreenSDL(void)
+{
+    if (!g_SDLWindow) return;
+    // FULLSCREEN_DESKTOP hands the sim a desktop-sized drawable it does not scale into (measured: 1024x768
+    // frame in the corner of 1920x1080). Real FULLSCREEN at the window's own size keeps the drawable at the
+    // game's resolution and lets the display/compositor scale it. FF_FULLSCREEN_DESKTOP=1 = old behaviour.
+    Uint32 fsFlag = getenv("FF_FULLSCREEN_DESKTOP") ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
+    Uint32 flags = SDL_GetWindowFlags(g_SDLWindow);
+    int rc = SDL_SetWindowFullscreen(g_SDLWindow, (flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) ? 0 : fsFlag);
+    int ww = 0, wh = 0, dw = 0, dh = 0; SDL_GetWindowSize(g_SDLWindow, &ww, &wh); SDL_GL_GetDrawableSize(g_SDLWindow, &dw, &dh);
+    SDL_DisplayMode dm; int dmok = SDL_GetWindowDisplayMode(g_SDLWindow, &dm);
+    fprintf(stderr, "[fullscreen] rc=%d %s -> flags=0x%x window=%dx%d drawable=%dx%d mode=%dx%d%s\n", rc,
+            (flags & (SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP)) ? "leave" : "enter",
+            SDL_GetWindowFlags(g_SDLWindow), ww, wh, dw, dh, dmok == 0 ? dm.w : 0, dmok == 0 ? dm.h : 0, rc ? SDL_GetError() : "");
+}
 SDL_GLContext g_GLContext = nullptr;
 
 // FF_LINUX: ShiAssert control globals
@@ -2270,13 +2286,7 @@ static void handle_sdl_events(void) {
                     PostGameMessage(FM_LOAD_CAMPAIGN, 0, game_InstantAction);
                 }
                 if (event.key.keysym.sym == SDLK_F11) {
-                    // Toggle fullscreen
-                    Uint32 flags = SDL_GetWindowFlags(g_SDLWindow);
-                    if (flags & SDL_WINDOW_FULLSCREEN_DESKTOP) {
-                        SDL_SetWindowFullscreen(g_SDLWindow, 0);
-                    } else {
-                        SDL_SetWindowFullscreen(g_SDLWindow, SDL_WINDOW_FULLSCREEN_DESKTOP);
-                    }
+                    FF_ToggleFullscreenSDL();   // shared with the game's own toggle (FM_DISP_TOGGLE_FULLSCREEN)
                 }
                 // Shift+Numpad: cockpit panel switching (sim mode only)
                 if (!doUI && (event.key.keysym.mod & KMOD_SHIFT)) {
@@ -2855,6 +2865,11 @@ bool ProcessGameMessages() {
                 break;
             }
 
+            case FM_DISP_TOGGLE_FULLSCREEN:
+                // FUNC-SWEEP-FF: FalconDisplayConfiguration::ToggleFullScreen posts this from the sim thread
+                fprintf(stderr, "[FM] FM_DISP_TOGGLE_FULLSCREEN -> SDL window toggle\n");
+                FF_ToggleFullscreenSDL();
+                break;
             case FM_SHUTDOWN_CAMPAIGN:
                 fprintf(stderr, "[FM] FM_SHUTDOWN_CAMPAIGN received\n");
                 ShutdownCampaign();

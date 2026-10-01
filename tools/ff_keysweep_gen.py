@@ -11,11 +11,13 @@ def mods(m): return ('S' if m & 1 else '') + ('C' if m & 2 else '') + ('A' if m 
 t = float(sys.argv[2]) if len(sys.argv) > 2 else 25.0
 step = float(sys.argv[3]) if len(sys.argv) > 3 else 0.6
 ev, mp = [], []
+first = [f for f in os.environ.get('FIRST', '').split(',') if f]   # press these first (e.g. SimToggleInvincible)
 skip = int(os.environ.get('SKIP', '0'))   # resume after a flight ended: drop the first N bindings
 nb = 0
-for raw in open(sys.argv[1], encoding='latin-1'):
-    m = LINE.match(raw.strip())
-    if not m: continue
+rows = [LINE.match(r.strip()) for r in open(sys.argv[1], encoding='latin-1')]
+rows = [m for m in rows if m]
+rows = [m for m in rows if m.group(1) in first] + [m for m in rows if m.group(1) not in first]
+for m in rows:
     func, _, _, key, mod, pk, pm, _, desc = m.groups()
     key, mod, pk, pm = (int(x, 16) for x in (key, mod, pk, pm))
     if key == 0xFFFFFFFF or func in HOLD: continue
