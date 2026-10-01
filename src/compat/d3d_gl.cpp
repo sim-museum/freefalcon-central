@@ -206,6 +206,15 @@ static std::mutex g_DeferredGLDeleteMutex;
 static std::vector<GLuint> g_DeferredTextureDeletes;
 static std::vector<GLuint> g_DeferredFboDeletes;
 
+// FF_LINUX (PIT-GAP-1 pass 6): FF_DEBUG_GLNAME=1 -- log a surface freeing its GL texture name and that name
+// being issued again, so a stale reference (a handle still pointing at a freed surface, whose name was
+// reissued to another image) shows up as "freed by P ... reissued to Q".
+static int ff_glname_dbg() { static int s = -1; if (s < 0) s = getenv("FF_DEBUG_GLNAME") ? 1 : 0; return s; }
+static void ff_glname_log(const char* what, GLuint name, const void* surf, int w, int h) {
+    if (!ff_glname_dbg() || name == 0 || name > 120) return;
+    static int n = 0; if (n++ > 400) return;
+    fprintf(stderr, "[GLNAME] %s name=%u surf=%p %dx%d\n", what, name, surf, w, h); fflush(stderr);
+}
 static void FF_DeleteGLObjects(GLuint tex, GLuint fbo) {
     // FF_LINUX: ALWAYS defer to the next frame-boundary drain, even on the GL-owning
     // thread. Deleting a texture immediately mid-frame can pull it out from under a
@@ -289,6 +298,7 @@ struct D3D7Surface : public IDirectDrawSurface7 {
     }
 
     ~D3D7Surface() {
+        ff_glname_log("freed", glTexture, this, width, height);
         // FF_LINUX: GL objects may be released from non-GL threads
         if (fboId || glTexture) {
             FF_DeleteGLObjects(glTexture, fboId);
@@ -756,7 +766,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetRenderTarget(IDirect3DDevice7* This,
 
             // Ensure the surface has a GL texture
             if (!newTarget->glTexture) {
-                glGenTextures(1, &newTarget->glTexture);
+                glGenTextures(1, &newTarget->glTexture); ff_glname_log("issued", newTarget->glTexture, newTarget, newTarget->width, newTarget->height);
                 glBindTexture(GL_TEXTURE_2D, newTarget->glTexture);
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, newTarget->width, newTarget->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -3345,7 +3355,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_SetTexture(IDirect3DDevice7* This, DWOR
         // This handles the case where DD7_CreateSurface was called on a thread
         // without a GL context (the GL calls fail silently, leaving glTexture=0).
         if (surf->glTexture == 0 && surf->width > 0 && surf->height > 0) {
-            glGenTextures(1, &surf->glTexture);
+            glGenTextures(1, &surf->glTexture); ff_glname_log("issued", surf->glTexture, surf, surf->width, surf->height);
             if (surf->glTexture) {
                 glBindTexture(GL_TEXTURE_2D, surf->glTexture);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -6400,7 +6410,7 @@ void FF_PresentPrimarySurface() {
 
     // Create texture if needed
     if (!surf->glTexture) {
-        glGenTextures(1, &surf->glTexture);
+        glGenTextures(1, &surf->glTexture); ff_glname_log("issued", surf->glTexture, surf, surf->width, surf->height);
         GLenum err = glGetError();
         if (err != GL_NO_ERROR) {
             return;
@@ -7552,7 +7562,7 @@ static HRESULT STDMETHODCALLTYPE DD7_CreateSurface(IDirectDraw7* This, LPDDSURFA
 
     // Create OpenGL texture if this is a texture surface
     if (surf->caps & DDSCAPS_TEXTURE) {
-        glGenTextures(1, &surf->glTexture);
+        glGenTextures(1, &surf->glTexture); ff_glname_log("issued", surf->glTexture, surf, surf->width, surf->height);
         glBindTexture(GL_TEXTURE_2D, surf->glTexture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -8080,4 +8090,14 @@ static int ff_dump_dds_texture_impl(struct D3D7Surface* sf, const char* path)
     fflush(stderr);
     glBindTexture(GL_TEXTURE_2D, (GLuint)prev);
     return ok;
+}
+
+// FF_LINUX (PIT-GAP-1 pass 6): the GL texture name and size behind a surface, for traces in engine code
+// that cannot see D3D7Surface.
+unsigned FF_SurfaceGLTex(void* surf, int* w, int* h)
+{
+    D3D7Surface* s = (D3D7Surface*)surf;
+    if (!s) { if (w) *w = 0; if (h) *h = 0; return 0; }
+    if (w) *w = (int)s->width; if (h) *h = (int)s->height;
+    return s->glTexture;
 }

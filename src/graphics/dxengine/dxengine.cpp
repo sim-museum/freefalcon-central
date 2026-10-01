@@ -1899,6 +1899,39 @@ inline void CDXEngine::DrawNode(ObjectInstance *objInst, DWORD LightOwner, DWORD
 
             if (m_NODE.SURFACE->dwFlags.b.Texture and m_NODE.SURFACE->TexID[0] not_eq -1) m_TexID = m_TexUsed[m_NODE.SURFACE->TexID[0]];
             else m_TexID = -1;
+#ifdef FF_LINUX
+            // FF_LINUX (PIT-GAP-1 pass 6): FF_DEBUG_PITTEX=1 -- each distinct (surface TexID index -> bank texture)
+            // the pit-mode objects use, with the surface's flags; a lower-panel surface resolving to the wrong
+            // texture would sample the panel art at the wrong place (the hole green is the radar-scope art).
+            if (m_PitMode)
+            {
+                static int s_pt = -1; if (s_pt < 0) s_pt = getenv("FF_DEBUG_PITTEX") ? 1 : 0;
+                if (s_pt)
+                {
+                    static long seen[256]; static int n = 0;
+                    long idx = m_NODE.SURFACE->dwFlags.b.Texture ? (long)m_NODE.SURFACE->TexID[0] : -2;
+                    long key = ((long)m_TheObjectInstance->id << 20) ^ ((idx & 0xffff) << 4) ^ (long)(m_NODE.SURFACE->dwFlags.b.Alpha | (m_NODE.SURFACE->dwFlags.b.VColor << 1));
+                    bool have = false;
+                    for (int q = 0; q < n; q++) if (seen[q] == key) { have = true; break; }
+                    if (!have && n < 256)
+                    {
+                        seen[n++] = key;
+                        extern unsigned FF_SurfaceGLTex(void*, int*, int*);
+                        unsigned gl = 0; int tw = 0, th = 0;
+                        if ((int)m_TexID >= 0)
+                        {
+                            TextureHandle* th_ = (TextureHandle*)TheTextureBank.GetHandle(m_TexID);
+                            if (th_) gl = FF_SurfaceGLTex((void*)th_->m_pDDS, &tw, &th);
+                        }
+                        fprintf(stderr, "[PITTEX] obj=%d texIdx=%ld -> bankTex=%ld glTex=%u %dx%d surf=%p alpha=%d vcolor=%d\n",
+                                m_TheObjectInstance->id, idx, (long)m_TexID, gl, tw, th,
+                                ((int)m_TexID >= 0 && TheTextureBank.GetHandle(m_TexID)) ? (void*)((TextureHandle*)TheTextureBank.GetHandle(m_TexID))->m_pDDS : NULL,
+                                (int)m_NODE.SURFACE->dwFlags.b.Alpha, (int)m_NODE.SURFACE->dwFlags.b.VColor);
+                        fflush(stderr);
+                    }
+                }
+            }
+#endif
 
 
             // Alpha Surfaces are deferred to another Draw

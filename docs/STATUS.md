@@ -22405,6 +22405,25 @@ Retro applied: test "never drawn vs painted over" before more fragment-state kno
   without lower consoles would look exactly like this) — log the distinct LodIDs drawn while
   `m_PitMode` and their parent's LOD table; then switch values per branch.
 
+## PIT-GAP-1 pass 6 (Opus 5.5, 2026-10-01) — ROOT CAUSE FOUND (mechanism): GL texture name 29 is shared
+
+Retro: pass 5 left "the green is a texture"; measure which texture and whose image it really holds.
+* The hole green appears in the 2-D panel art only at the **radar scope** (x400–600, y750–900 of 1600×1200).
+* `FF_DEBUG_PITTEX=1` (new): the pit model (obj 2402) uses 10 bank textures — 2046, 2048, 2065, 2044, 914, 913,
+  912, 11, 3400, 3406 (all 512²–2048² DDS in `terrdata/objects/KoreaOBJ`; **none is 1600×1200**). Texture
+  index 0 = bank **2046 → GL name 29, surface 512×512**.
+* But GL name 29, dumped while the pit draws, holds the **1600×1200 2-D cockpit art** — two images, one name.
+* `FF_DEBUG_GLNAME=1` (new, d3d_gl.cpp: logs every texture-name issue and surface free, names ≤120):
+  `issued 29 → 32×32 surf; freed` · `issued 29 → 1600×1200 surf A (2-D art); freed A` · `issued 29 → 512×512
+  surf B (= bank 2046)`. So 29 legitimately belongs to B, **yet the art ends up in it**: some other surface
+  object still holds glTexture=29 (A's copy, or a freed-but-still-used A) and re-uploads the 1600×1200 pixels
+  into it, overwriting the pit's texture 2046 — which is why the lower panels (texture 2046) sample the art
+  at their own UVs and land on the radar-scope green. **This is the PO's "open side panels".**
+* **Pass 7 (decisive, then fix):** log every `glTexImage2D`/compressed upload to name 29 with the uploading
+  surface pointer + size (the uploader of the 1600×1200 image after B was issued 29 is the stale holder);
+  then fix at the source (clear `glTexture` when a surface's name is queued for delete / stop the stale
+  surface uploading). Check: the three hole regions turn panel-grey and `[GLNAME]` shows no foreign upload.
+
 ## TERRAIN-SEAM-1 pass 5 (Opus 5.5, 2026-10-01) — most of the missing haze is the view-distance SETTING
 
 Retro: pass 4's lead was a settings difference; verify the knob moves `far_clip`, then compare on bands.
