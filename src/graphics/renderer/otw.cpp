@@ -238,8 +238,8 @@ void RenderOTW::Setup(ImageBuffer *imageBuffer, RViewPoint *vp)
     // Set the default sky and haze properties
     SetDitheringMode(TRUE);
 #ifdef FF_LINUX
-    fprintf(stderr, "[OTW.Setup] LastNearTexLOD=%d LastFarTexLOD=%d NumLevels=%d\n",
-            TheMap.LastNearTexLOD(), TheMap.LastFarTexLOD(), TheMap.NumLevels());
+    fprintf(stderr, "[OTW.Setup] LastNearTexLOD=%d LastFarTexLOD=%d NumLevels=%d weather=%d (TERRAIN-SEAM-1: log it, it changes per run)\n",
+            TheMap.LastNearTexLOD(), TheMap.LastFarTexLOD(), TheMap.NumLevels(), realWeather ? (int)realWeather->weatherCondition : -1);
     fflush(stderr);
 #endif
     SetTerrainTextureLevel(TheMap.LastNearTexLOD());

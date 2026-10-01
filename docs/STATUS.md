@@ -22317,3 +22317,28 @@ bug: check `member[]` read / `GetTeam(country)` for the owners of 819/820), or (
 like this. **Next pass:** print each cancelled flight's airbase OWNER COUNTRY and the team that
 country maps to; compare with the TE's team setup screen (the game's own UI) and, if possible, the
 Wine gold TE list.
+
+## TERRAIN-SEAM-1 pass 2 (Opus 5.5, 2026-10-01) — like-for-like with the gold: our TEXTURED terrain lacks the haze tint
+
+Retro applied (log state before knobs; weather now printed in `[OTW.Setup] … weather=`).
+* `m_texMode` is forced to TEX_MODE_DDS on every path → multitexture states always; not a difference.
+* `FF_TERRAIN_NEAR_LOD` (move the near/far texture split) is **invalid**: LOD≥3 posts carry far-atlas
+  texIDs, the near DB crashes on them (`TextureDB::Request`, terrtex.cpp:665). Removed.
+* TE-09 cannot give a like-for-like frame (our AP is banking where the gold flies level); the `ia` gold is
+  dawn. **The pair that works:** gold `~/ff-gates/gold260922/t300.png` (ACMI internal camera; crop
+  (239,180)-(1007,756) of the 1440 px desktop, resize to 1024×768) vs ours `gold260923/acmi_all_orb.png`.
+  Sky rows 300–468 agree within ~5/255, so the views match. Row profile (x 40–700):
+
+  | row | gold rgb / texture | ours rgb / texture |
+  |---|---|---|
+  | 504 | (137,170,191) 0.8 | (111,139,142) 1.6 |
+  | 552 | ( 91,117,118) 1.7 | ( 97,106, 94) 4.7 |
+  | 576 | ( 83,107,100) 1.9 | ( 83, 83, 71) 9.9 |
+  | 696 | ( 86,105, 79) 4.3 | ( 65, 66, 48) 17.5 |
+
+  Gold: green-blue all the way down, detail rising smoothly. Ours: hue drops to olive/grey and texture
+  detail jumps 1.9→9.9 within rows 540–576 — the seam. **Our textured terrain gets far less of the blue
+  haze than the gold's,** so it meets the hazed far band at a hard edge.
+* **Next pass:** is GL fog applied to the multitexture terrain draws? `[TERRAIN_DIAG]` (otw.cpp ~1309)
+  prints GL_FOG/ALPHA/BLEND per frame; then fog colour/start/end vs `haze_start/haze_depth`; score with
+  the row profile above (the measure to beat: B at row 552 ≈118, hue G−R ≈ +25).
