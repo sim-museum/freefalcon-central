@@ -22501,6 +22501,14 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
   (≈760,462), Add Battalion, Installations…, Show Packages, Names. ATO (610,749) opens an empty Air Tasking
   Order. **Next pass:** right-click → Add Package → click a target → Add Package window → New (flight) → OK;
   Save (536,749) under a new name; reload from SAVED; commit; fly.
+  **Pass 2 (2026-10-01, `~/ff-gates/editor7..9`, 0 crashes): package + flight built, Save dialog reached.**
+  Working click script (UI coords, `FF_UI_CLICK`): `674,748@10;212,14@16;362,14@22` (TE→SAVED→NEW) ·
+  `700,400@40r` (map right-click) · `760,462@44` (Add Package) · `650,270@50` (target: a unit icon in the North
+  → ADD PACKAGE window: type/target/flights/priority, takeoff 9:02, TOT 9:30) · `646,750@56` (NEW → ADD FLIGHT:
+  F-16CJ Blk 52, DCA, Mandumi Airbase, size 2, Rookie, status Takeoff) · `535,438@62` (flight OK) ·
+  `849,750@66` (package OK → the package shows on the map) · `536,750@72` (SAVE → SAVE ENGAGEMENT dialog:
+  file list, name field ≈x316–516 y586, SAVE button ≈536,540). **Pass 3:** click the name field, type a name
+  with `FF_UI_TYPE`, SAVE; RESCUE out; SAVED tab → the new file in the list → commit → flight → fly.
 * **FF-JDAM-1 — the JDAM TE.** Training mission `campaign/SAVE/32 JDAMs.trn`. Acceptance: it loads, the
   player's jet carries JDAMs, release is possible and the bombs reach the target area (ACMI or `[mpgun]`-
   style trace), with no crash.
