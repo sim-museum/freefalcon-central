@@ -1,3 +1,4 @@
+#include <vector>
 #include <string.h>
 #include "graphics/include/tod.h"
 #include "graphics/include/renderow.h"
@@ -1549,8 +1550,29 @@ void OTWDriverClass::SetDetail(int newlevel)
     if (oldlevel == newlevel)
         return;
 
+#ifdef FF_LINUX
+    // FUNC-SWEEP-FF (key sweep SIGSEGV, "Set object density"): the loop below Remove()s the current
+    // object from featureList -- and AddToFeatureList()s into it -- while a VuListIterator walks that
+    // same std::list; erase() invalidates the iterator and GetNext() then reads a freed node. Walk a
+    // SNAPSHOT instead, held as VuEntityBin references so nothing is freed mid-loop. Same order, each
+    // feature visited once. FF_SETDETAIL_LIVE_WALK=1 restores the original walk for A/B.
+    std::vector<VuEntityBin> ffSnap;
+    bool ffSnapOn = not getenv("FF_SETDETAIL_LIVE_WALK");
+    size_t ffSnapIdx = 0;
+    if (ffSnapOn)
+    {
+        VuListIterator snapWalker(SimDriver.featureList);
+        for (VuEntity* e = snapWalker.GetFirst(); e; e = snapWalker.GetNext())
+            ffSnap.push_back(VuEntityBin(e));
+    }
+#endif
     VuListIterator featureWalker(SimDriver.featureList);
+#ifdef FF_LINUX
+    theObject = ffSnapOn ? (ffSnap.empty() ? NULL : (SimFeatureClass*)ffSnap[0].get())
+                         : (SimFeatureClass*)featureWalker.GetFirst();
+#else
     theObject = (SimFeatureClass*)featureWalker.GetFirst();
+#endif
 
     while (theObject)
     {
@@ -1583,6 +1605,11 @@ void OTWDriverClass::SetDetail(int newlevel)
             }
         }
 
+#ifdef FF_LINUX
+        if (ffSnapOn)
+            theObject = (++ffSnapIdx < ffSnap.size()) ? (SimFeatureClass*)ffSnap[ffSnapIdx].get() : NULL;
+        else
+#endif
         theObject = (SimFeatureClass*)featureWalker.GetNext();
     }
 
