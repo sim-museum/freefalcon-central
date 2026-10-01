@@ -22281,3 +22281,19 @@ each skipped unit with the failing test. **Next pass: one t-run with
 * **Next pass:** pin weather (the TE's own, logged); like-for-like TE-09 frame vs `gold_video.sh landing`
   at a level attitude; then test the near→far texture-set switch (LOD 2/3) by colour of the same ground
   in `fartiles` vs the H/M/L tile, using the game's own loader.
+
+## PIT-GAP-1 pass 1 (Opus 5.5, 2026-09-30) — NOT reproduced yet; three views compared, one knob ruled out
+
+* **Gold 3D-pit frame found:** `260915_missile_threat.mp4` at 397 s (client crop `crop=1024:763:527:317`;
+  the `views` clip has no 3D pit, only 2D pit / HUD / externals).
+* **2D pit** (gold `views` 15 s vs ours TE-09 60 s): screen-edge strips show the outside in BOTH — the
+  pit art does not reach the edges in the gold either. No difference.
+* **3D pit, forward** (gold 397 s vs `~/ff-gates/pitgap1/vc100.bmp`): outside visible at the same places
+  on both sides (down to y≈680 at the right edge). Only difference: the lower-right panel is near-black in
+  the gold (21,21,22) and mid-grey in ours (64,67,68).
+* **3D pit, looking right** (`FF_SIM_KEY` numpad-6 hold, `pitgap2/vcR.bmp`): the sea in the lower right
+  is ABOVE the black side rail — canopy view, not a hole. (I first read it as a gap; corrected.)
+* **Ruled out:** `FF_PIT_OPAQUE=1` (alpha test + blending off for every pit draw) — frame identical.
+  Pit culling is already NONE (`FF_PIT_CULL` default 0).
+* **Next pass:** ask the PO for the view/attitude (or a screenshot) where the panels look open; numpad-4
+  left spin at 1.2 s barely moved the view — use a longer hold to look left.

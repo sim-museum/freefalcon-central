@@ -2907,6 +2907,14 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
     static int s_pitTexReplace = -1;
     if (s_pitTexReplace == -1) s_pitTexReplace = getenv("FF_PIT_TEX_REPLACE") ? 1 : 0;
     bool pitReplaceVB = false;
+    // PIT-GAP-1 experiment: FF_PIT_OPAQUE=1 draws every pit primitive with alpha test AND blending
+    // off, to test whether the "open side panels" are texels discarded/blended away rather than
+    // missing polygons (culling is already NONE in the pit).
+    {
+        static int s_pitOpaque = -1;
+        if (s_pitOpaque < 0) s_pitOpaque = getenv("FF_PIT_OPAQUE") ? 1 : 0;
+        if (s_pitOpaque && g_FF_PitModeActive && !isXYZRHW) { glDisable(GL_ALPHA_TEST); glDisable(GL_BLEND); }
+    }
     if (s_pitTexReplace && g_FF_PitModeActive && !isXYZRHW && (fvf & D3DFVF_NORMAL) && texCount > 0) {
         glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
         pitReplaceVB = true;
