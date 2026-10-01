@@ -22373,3 +22373,21 @@ Retro applied: host-only runs (`camp2.sh` with `B_SECS=1`, TE clicks), ~3 min in
 * **So the MP TE join is behaving correctly** — it sends every live flight; this mission leaves team 1
   only the airborne AWACS. **Next pass:** pick a TE whose team-1 flights survive load (`FF_DEBUG_ABOP=1`
   host-only: zero `[abop]` lines) and re-run `crun.sh tN hostmap te` for joiner TAKEOFF.
+
+## TERRAIN-SEAM-1 pass 3 (Opus 5.5, 2026-10-01) — fog path audited; two hypotheses measured false
+
+Retro applied: recovered the ACMI-orbit recipe (`tools/ff_validate.sh acmi_all_orb -m ui -t 90 -r 96 -c
+<clicks in ~/ff-gates/gold260923/acmi_all_orb.out> -e FF_DEBUG_ACMI=1`) so changes can be re-captured.
+* `[TERRAIN_DIAG]` (unconditional, first 3 frames): GL fog linear, coord = FRAG_DEPTH, 0→80000.
+* **H1 "textured terrain draws have no specular, so fog is dropped" — FALSE.** `FF_DEBUG_RHWFOG=1`:
+  ~1.4 M fogged XYZRHW draws carry specular, ~1 k do not.
+* **H2 "D3D7 table fog (W-based) should take precedence over specular-alpha vertex fog" — not active
+  here:** the engine sets FOGTABLEMODE LINEAR twice early, then NONE; at every terrain draw it is 0
+  (`tableFogState=0`). An emulation (fog coord = 1/rhw when table fog is on) is in d3d_gl.cpp as
+  **opt-in `FF_TABLEFOG=1`** — correct D3D7 semantics for LinearFog weather, unproven visually.
+* ⚠ A fresh orbit re-capture (`~/ff-gates/seam3`) does NOT reproduce the old frame's camera (the horizon
+  sits ~30 rows lower), so the pass-2 gold pair is like-for-like only with the OLD capture. Before the next
+  attempt, pin the replay time/camera of the re-capture.
+* **Remaining lead:** the haze is the engine's per-vertex fog alpha (specular A from MPR/otw.cpp), so the
+  shade difference is in how that alpha is computed per render state (haze_start/haze_depth vs state
+  thresholds in otw.cpp ~1830–1960), not in the GL mapping.

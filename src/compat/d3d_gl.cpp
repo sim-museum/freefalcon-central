@@ -1250,6 +1250,21 @@ extern "C" void FF_SetRunwayDepthBias(int enable)
 //  - If SPECULARENABLE, the vertex SPECULAR RGB is added after texturing.
 //    This is how the MPR terrain renderer applies haze. We map it onto
 //    GL_COLOR_SUM + glSecondaryColor (handled in the vertex loops).
+// TERRAIN-SEAM-1: D3D7 TABLE fog. When the engine sets FOGTABLEMODE (TheDXEngine.LinearFog():
+// linear, FOGSTART 0, FOGEND = LinearFogEnd), D3D7 fogs pre-transformed vertices by eye distance W
+// = 1/rhw, IN PREFERENCE TO the specular-alpha vertex fog. Using the vertex fog instead gave each
+// terrain render state its own haze. OPT-IN with FF_TABLEFOG=1: in the fair-weather capture the engine
+// had FOGTABLEMODE=NONE at every terrain draw, so this could not be shown to change anything yet.
+static int g_ffTableFog = 0;      // FOGTABLEMODE != NONE
+static int g_ffRHWFogUseW = 0;    // set by FF_BeginRHWFog for the current draw
+static inline float FF_RHWFogCoord(const unsigned char* vertex, DWORD specular)
+{
+    if (g_ffRHWFogUseW) {
+        float rhw = ((const float*)vertex)[3];
+        return rhw > 0.0f ? 1.0f / rhw : 0.0f;
+    }
+    return 1.0f - (float)(specular >> 24) / 255.0f;
+}
 typedef struct {
     GLboolean fogWasEnabled;
     GLboolean usingFogCoord;
@@ -1262,6 +1277,37 @@ static void FF_BeginRHWFog(FFRHWFogState* s, int fvfHasSpecular)
     s->fogWasEnabled = glIsEnabled(GL_FOG);
     s->usingFogCoord = GL_FALSE;
     if (!s->fogWasEnabled) return;
+    // TERRAIN-SEAM-1: count fogged XYZRHW draws with and without a specular fog factor --
+    // without one, fog is dropped here entirely (D3D7 would still apply TABLE fog from W).
+    {
+        static int dbg = -1; static unsigned long nSpec = 0, nNoSpec = 0;
+        if (dbg < 0) dbg = getenv("FF_DEBUG_RHWFOG") ? 1 : 0;
+        if (dbg) {
+            if (fvfHasSpecular) nSpec++; else nNoSpec++;
+            if (((nSpec + nNoSpec) % 20000) == 0) {
+                GLint tm = 0; (void)tm;
+                fprintf(stderr, "[RHWFOG] fogged XYZRHW draws: with specular=%lu WITHOUT=%lu  tableFogState=%d\n", nSpec, nNoSpec, g_ffTableFog);
+                fflush(stderr);
+            }
+        }
+    }
+    g_ffRHWFogUseW = 0;
+    {
+        static int noTable = -1;   // OPT-IN (FF_TABLEFOG=1): correct D3D7 precedence, but unproven on a visible case
+        if (noTable < 0) noTable = getenv("FF_TABLEFOG") ? 0 : 1;
+        if (fvfHasSpecular && g_ffTableFog && !noTable) {
+            // keep the D3D FOGSTART/FOGEND/mode already in GL state; feed W as the fog coordinate
+            glGetIntegerv(GL_FOG_MODE, &s->mode);
+            glGetIntegerv(GL_FOG_COORD_SRC, &s->coordSrc);
+            glGetFloatv(GL_FOG_START, &s->start);
+            glGetFloatv(GL_FOG_END, &s->end);
+            glFogi(GL_FOG_COORD_SRC, GL_FOG_COORD);
+            glFogCoordf(0.0f);
+            s->usingFogCoord = GL_TRUE;
+            g_ffRHWFogUseW = 1;
+            return;
+        }
+    }
     if (!fvfHasSpecular) { glDisable(GL_FOG); return; }
     glGetIntegerv(GL_FOG_MODE, &s->mode);
     glGetIntegerv(GL_FOG_COORD_SRC, &s->coordSrc);
@@ -1277,6 +1323,7 @@ static void FF_BeginRHWFog(FFRHWFogState* s, int fvfHasSpecular)
 
 static void FF_EndRHWFog(const FFRHWFogState* s)
 {
+    g_ffRHWFogUseW = 0;
     if (!s->fogWasEnabled) { glDisable(GL_FOG); return; }
     glEnable(GL_FOG);
     if (s->usingFogCoord) {
@@ -1549,7 +1596,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitive(IDirect3DDevice7* 
         if (dwVertexTypeDesc & D3DFVF_SPECULAR) {
             DWORD specular = *(const DWORD*)(vertex + offset);
             if (isXYZRHW) {
-                glFogCoordf(1.0f - (float)(specular >> 24) / 255.0f);
+                glFogCoordf(FF_RHWFogCoord((const unsigned char*)vertex, specular));
             }
             // Lit draws: specular RGB = per-vertex emissive (issue #12)
             FF_SetVertexEmissive(&emissiveDIP, specular);
@@ -3125,7 +3172,7 @@ static HRESULT STDMETHODCALLTYPE D3D7Dev_DrawIndexedPrimitiveVB(IDirect3DDevice7
             DWORD specular = *(const DWORD*)(vertex + offset);
             // Submit for XYZRHW screen draws (not FBO instrument rendering)
             if (isXYZRHW && !restoredViewportVB) {
-                glFogCoordf(1.0f - (float)(specular >> 24) / 255.0f);
+                glFogCoordf(FF_RHWFogCoord((const unsigned char*)vertex, specular));
             }
             // Lit draws: specular RGB = per-vertex emissive (issue #12)
             FF_SetVertexEmissive(&emissiveVB, specular);
@@ -4091,6 +4138,11 @@ void D3D7Device::ApplyRenderState(D3DRENDERSTATETYPE state, DWORD value) {
 
         case D3DRENDERSTATE_FOGVERTEXMODE:
         case D3DRENDERSTATE_FOGTABLEMODE:
+            if (state == D3DRENDERSTATE_FOGTABLEMODE) {
+                g_ffTableFog = (value != D3DFOG_NONE);
+                static int nSet = 0;
+                if (nSet < 6 && getenv("FF_DEBUG_RHWFOG")) { nSet++; fprintf(stderr, "[RHWFOG] FOGTABLEMODE <- %lu\n", (unsigned long)value); fflush(stderr); }
+            }
             switch (value) {
                 case D3DFOG_NONE: break;
                 case D3DFOG_LINEAR: glFogi(GL_FOG_MODE, GL_LINEAR); break;
@@ -5188,7 +5240,7 @@ void D3D7Device::DrawVertices(D3DPRIMITIVETYPE primType, DWORD fvf, const void* 
         if (fvf & D3DFVF_SPECULAR) {
             DWORD specular = *(const DWORD*)(vertex + offset);
             if (isXYZRHW) {
-                glFogCoordf(1.0f - (float)(specular >> 24) / 255.0f);
+                glFogCoordf(FF_RHWFogCoord((const unsigned char*)vertex, specular));
             }
             // Lit draws: specular RGB = per-vertex emissive (issue #12)
             FF_SetVertexEmissive(&emissiveDV, specular);
