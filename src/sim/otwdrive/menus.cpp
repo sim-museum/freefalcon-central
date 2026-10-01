@@ -487,6 +487,7 @@ void OTWDriverClass::Timeout(void)
 
 void OTWDriverClass::ExitMenu(unsigned long i)
 {
+    if (getenv("FF_DEBUG_EXITMENU")) fprintf(stderr, "[EXITMENU] ExitMenu(0x%lx) inMenu=%d caller=%p\n", i, InExitMenu() ? 1 : 0, __builtin_return_address(0));
     if (i == DIK_ESCAPE)
     {
         SetExitMenu(FALSE);
@@ -614,6 +615,7 @@ extern bool clickableMouseMode; // Retro 15Feb2004
 
 void OTWDriverClass::SetExitMenu(int newVal)
 {
+    if (getenv("FF_DEBUG_EXITMENU")) fprintf(stderr, "[EXITMENU] SetExitMenu(%d) caller=%p\n", newVal, __builtin_return_address(0));
     static bool lastclickablepitmode = clickableMouseMode;
 
     if (newVal == TRUE)
@@ -701,6 +703,7 @@ void OTWDriverClass::ChangeExitMenu(int newVal)
 
 void OTWDriverClass::StartExitMenuCountdown(void)
 {
+    if (getenv("FF_DEBUG_EXITMENU")) fprintf(stderr, "[EXITMENU] StartExitMenuCountdown caller=%p\n", __builtin_return_address(0));
     exitMenuTimer = vuxRealTime + EXITMENU_POPUP_TIME;
 }
 

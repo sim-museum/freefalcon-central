@@ -10880,6 +10880,13 @@ void SimMalIndLights(unsigned long val, int state, void *)
 
     if (OTWDriver.GetVirtualCockpit())
     {
+#ifdef FF_LINUX
+        // FUNC-SWEEP-FF (key sweep SIGSEGV): after the player's jet is killed the exit menu is up and
+        // GetPlayerAircraft() is NULL, but this branch dereferenced it unguarded -- the branch below
+        // already checks. Lights-Test (Shift+T) in the virtual cockpit after dying crashed the game.
+        if ( not SimDriver.GetPlayerAircraft())
+            return;
+#endif
         if (SimDriver.GetPlayerAircraft()->TestLights == TRUE)
             SimDriver.GetPlayerAircraft()->TestLights = FALSE;
         else

@@ -4077,8 +4077,13 @@ static void main_loop(void) {
             }
 
             // Auto-exit after 15 seconds to test the exit flow
+            // FUNC-SWEEP-FF: FF_TEST_IA_EXIT_SEC=<n> moves the auto-exit (default 120 s) so a long
+            // scripted flight (scripts/qa/ff-keysweep.sh presses ~450 keys) is not cut short.
             static bool autoExitTriggered = false;
-            if (simElapsed >= 120000 && !autoExitTriggered) {
+            static Uint32 s_autoExitMs = 0;
+            if (!s_autoExitMs) { const char* ae = getenv("FF_TEST_IA_EXIT_SEC");
+                                 s_autoExitMs = (ae && atoi(ae) > 0) ? (Uint32)atoi(ae) * 1000u : 120000u; }
+            if (simElapsed >= s_autoExitMs && !autoExitTriggered) {
                 autoExitTriggered = true;
                 fprintf(stderr, "[AUTO_TEST] Triggering auto-exit after 15 seconds...\n");
                 fflush(stderr);
@@ -4409,16 +4414,28 @@ static void main_loop(void) {
         if (!doUI) {
             static int s_keyInit = 0;
             static bool s_simEntryLatched = false;
-            static struct { int dik; int mods[3]; int nMods; Uint32 atMs; Uint32 holdMs; int phase; Uint32 downAt; } s_keys[16];
+            // FUNC-SWEEP-FF: capacity 16 -> 1024 so one flight can press every bound key in turn.
+            static struct { int dik; int mods[3]; int nMods; Uint32 atMs; Uint32 holdMs; int phase; Uint32 downAt; } s_keys[1024];
             static int s_nKeys = 0;
             static Uint32 s_simKeyStart = 0;
             if (!s_keyInit) {
                 s_keyInit = 1;
                 const char* e = getenv("FF_SIM_KEY");
+                // FUNC-SWEEP-FF: FF_SIM_KEY=@<file> reads the same ';'-separated list from a file.
+                static char s_keyFileBuf[65536];
+                if (e && e[0] == '@') {
+                    FILE* kf = fopen(e + 1, "r");
+                    size_t nr = kf ? fread(s_keyFileBuf, 1, sizeof(s_keyFileBuf) - 1, kf) : 0;
+                    if (kf) fclose(kf);
+                    s_keyFileBuf[nr] = 0;
+                    for (size_t q = 0; q < nr; q++) if (s_keyFileBuf[q] == '\n' || s_keyFileBuf[q] == '\r') s_keyFileBuf[q] = ';';
+                    fprintf(stderr, "[FF_SIM_KEY] read %zu bytes from %s\n", nr, e + 1);
+                    e = s_keyFileBuf;
+                }
                 if (e) {
-                    char buf[256];
+                    static char buf[65536];
                     strncpy(buf, e, sizeof(buf) - 1); buf[sizeof(buf) - 1] = 0;
-                    for (char* tok = strtok(buf, ";"); tok && s_nKeys < 16; tok = strtok(NULL, ";")) {
+                    for (char* tok = strtok(buf, ";"); tok && s_nKeys < 1024; tok = strtok(NULL, ";")) {
                         unsigned dik; float at; unsigned hold = 250;
                         // FF_LINUX (AVIONICS-1): optional modifier prefix S/C/A.
                         // config/keystrokes.key gives every binding a modifier
