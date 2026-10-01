@@ -22451,7 +22451,14 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
   `TACNewCB` and `TACEditCB` call it after `tactical_edit_mission()`. TE *play* paths are untouched.
   Verified `~/ff-gates/editor3`: log shows the synchronous dispatch → `LoadCampaign() returned 1` →
   `JOIN_SUCCEEDED`, 0 crashes, builder screen (team setup, map, Mission Builder / Victory Conditions /
-  Save / ATO toolbar). **Next:** add a package + flight, Save, reload from SAVED, fly.
+  Save / ATO toolbar). Explored (`~/ff-gates/editor4..6`, UI coords 1024×768): TE screen opens on Training —
+  NEW/EDIT/DELETE exist only on the SAVED tab (SAVED 212,14 → NEW 362,14). Builder bottom bar: Setup ≈221,
+  Mission Builder ≈349, Victory Conditions ≈440, Save ≈536, ATO ≈610, OOB ≈682 (y 749). The four left icons
+  on Setup are territory tools (Clear Territory / Clear All / Undo), not package tools. **Packages come from
+  the map's right-click menu**: right-click (700,400) → "Map options": Recon, Add Flight, **Add Package**
+  (≈760,462), Add Battalion, Installations…, Show Packages, Names. ATO (610,749) opens an empty Air Tasking
+  Order. **Next pass:** right-click → Add Package → click a target → Add Package window → New (flight) → OK;
+  Save (536,749) under a new name; reload from SAVED; commit; fly.
 * **FF-JDAM-1 — the JDAM TE.** Training mission `campaign/SAVE/32 JDAMs.trn`. Acceptance: it loads, the
   player's jet carries JDAMs, release is possible and the bombs reach the target area (ACMI or `[mpgun]`-
   style trace), with no crash.
