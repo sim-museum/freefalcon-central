@@ -22423,3 +22423,8 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
 * **FF-JDAM-1 — the JDAM TE.** Training mission `campaign/SAVE/32 JDAMs.trn`. Acceptance: it loads, the
   player's jet carries JDAMs, release is possible and the bombs reach the target area (ACMI or `[mpgun]`-
   style trace), with no crash.
+* **FF-TESWEEP-1 — test every TE (PO, 2026-10-01, this session).** Both lists: the 34 training TEs
+  (`scripts/qa/te-sweep.sh`, Korea forced, rows 1–34) and every mission TE in the TE list
+  (`campaign/*.tac`, ~14 incl. "Sink the Kuz" and the naval templates). Acceptance per TE: loads, reaches
+  the cockpit, no crash, assertion count recorded; plus host-only `[abop]` cancellations at load for the
+  mission TEs (a TE that cancels its own flights is data, not a defect — record which).
