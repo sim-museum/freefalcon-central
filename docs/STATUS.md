@@ -22404,3 +22404,13 @@ Retro applied: test "never drawn vs painted over" before more fragment-state kno
   **not submitted**. **Next pass:** LOD selection for the cockpit model in pit mode (a far-LOD cockpit
   without lower consoles would look exactly like this) — log the distinct LodIDs drawn while
   `m_PitMode` and their parent's LOD table; then switch values per branch.
+
+## MP-TEJOIN-1 ✅ (pass 4, 2026-10-01) — TE multiplayer join reaches the joiner's cockpit
+
+Host-only survey (`FF_DEBUG_ABOP=1`): "Fly the BlackBird" (TE list row y=230) and "Sink the Kuz" (y=264)
+cancel **zero** flights at load (vs 18 in "Havin' Fun Strike"). Two-instance `crun.sh tN hostmap te` with
+`TE_ROW=264 TE_JROW=98 TE_SEAT=160,340` (new crun knobs: host's TE row, joiner's flight row, joiner's
+seat): t12 the joiner receives its team's flights (AWACS + 2 Naval Strike); t13 with the strike flight
+selected but the old seat click (95,340 lands between the two slots); **t14: the joiner takes the lead
+seat, enters 3-D (`RenderFirstFrame`), 0 crashes either side, and its 300 s frame is the F-16 cockpit on
+the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for TE.)
