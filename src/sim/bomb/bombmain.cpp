@@ -216,6 +216,16 @@ void BombClass::Init()
 
 #endif
     ReadInput(dataIdx);
+#ifdef FF_LINUX
+    // FF-JDAM-1 pass 3: does this bomb's aux dataset give it any glide? (JSOWs get g_fJDAMLift; others use data)
+    if (getenv("FF_DEBUG_BOMBDATA"))
+    {
+        static int nL = 0;
+        if (nL++ < 12) { fprintf(stderr, "[BOMBDATA]   after ReadInput(dataIdx=%d): auxData=%p JDAMLift=%.2f gps=%d jsow=%d\n",
+                                 dataIdx, (void*)auxData, auxData ? auxData->JDAMLift : -1.f,
+                                 (flags bitand IsGPS) ? 1 : 0, (flags bitand IsJSOW) ? 1 : 0); fflush(stderr); }
+    }
+#endif
 
     LauInit(); // MLR 3/5/2004 -
 

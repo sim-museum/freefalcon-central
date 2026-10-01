@@ -22621,6 +22621,15 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
   for its aux dataset and `JDAMLift` (BOMB-1 found dataIdx 0 → "default" dataset for Mk-82/84; a JDAM on the
   default set would get JDAMLift 0 → ballistic everywhere — a data-loading defect, not geometry). Then one
   release from altitude (hold altitude with `FF_TEST_LEVEL`-style hook or release early but at ≤4 NM).
+  **Pass 3 (2026-10-01): the JDAM has glide data; the remaining shortfall is release geometry.** `FF_DEBUG_BOMBDATA=1`
+  (now also prints JDAMLift after `ReadInput`): GBU-31 (`GB35P`, type 2409) → dataset **42**, `JDAMLift = 20.0`, impact
+  effect `_mk84` — not the default dataset. The GPS guidance applies it every frame (`newzdelta = ZDelta −
+  JDAMLift·dt·cos(pitch)`, bombmain.cpp ~937), cutting effective gravity on the descent. So the bombs are not
+  ballistic by data; the forced hook releases outside the in-range envelope a pilot would wait for (the unflown jet
+  sinks to ~6 kft). Original-code oddity noted (not a port bug): `static float maxenergy` (bombmain.cpp ~932) is
+  initialised once by the FIRST GPS bomb in the process and caps every later JDAM's horizontal speed. **Status:**
+  load, release, guidance, glide data and impact verified; a target hit needs a real in-envelope release (a held
+  altitude/level hook for the player, or a PO flight) — parked.
 * **FF-TESWEEP-1 — test every TE (PO, 2026-10-01, this session).** Both lists: the 34 training TEs
   (`scripts/qa/te-sweep.sh`, Korea forced, rows 1–34) and every mission TE in the TE list
   (`campaign/*.tac`, ~14 incl. "Sink the Kuz" and the naval templates). Acceptance per TE: loads, reaches
