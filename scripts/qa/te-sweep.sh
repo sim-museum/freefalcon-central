@@ -6,7 +6,7 @@ set -u
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export DISPLAY=:0
 GAMEDATA="$HOME/sgl/SAT/freeFalcon/WP/drive_c/FreeFalcon6"
-BIN=$REPO/build-relg/src/ffviper/FFViper
+BIN=${BIN:-$REPO/build-relg/src/ffviper/FFViper}
 pgrep -f mutter-x11-frames >/dev/null || { setsid /usr/libexec/mutter-x11-frames >/dev/null 2>&1 & sleep 1; }
 cd "$GAMEDATA" || exit 1
 FIRST=${1:-1}
