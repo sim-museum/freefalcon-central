@@ -22586,6 +22586,17 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
   branch), so it glided toward the map origin. That is harness-reachable only: the forced pickle
   bypasses the release consent a player gets. **Open:** a hit on the TE's own target needs a designated
   target (FCR/TGP or a PB target list), which the scaffold cannot set yet.
+  **Pass 2 (2026-10-01, `~/ff-gates/jdam5..8`, 0 crashes): aim mechanics explained; bombs still fall short.**
+  `[JDAM]` now also logs the PB target (`tgtnum`, `JDAMtgtPos`, `JDAMsbc` + its position). Findings: (1) the
+  trace's `aim` is the **next** bomb's (the aim is written to the bomb being readied, then the PB target steps),
+  so the first bomb released by the forced hook never had an aim — a scaffold artefact (the hook pickles 2 s
+  after selecting the weapon); (2) the PB targets are real objects (`sbc` position = briefed `tgtPos`, e.g.
+  (1713539,997946)); (3) the unflown jet descends steadily (24 kft → 5.8 kft by t≈350 s). Releases: t=170 at
+  9.6 NM / 17 kft → 42 kft short; t=356 at **5.0 NM / 5.8 kft → impact 19 040 ft short**, i.e. only ~9.7 kft of
+  travel — about ballistic. **Lead for pass 3:** check whether the GBU-31 has any glide: `FF_DEBUG_BOMBDATA=1`
+  for its aux dataset and `JDAMLift` (BOMB-1 found dataIdx 0 → "default" dataset for Mk-82/84; a JDAM on the
+  default set would get JDAMLift 0 → ballistic everywhere — a data-loading defect, not geometry). Then one
+  release from altitude (hold altitude with `FF_TEST_LEVEL`-style hook or release early but at ≤4 NM).
 * **FF-TESWEEP-1 — test every TE (PO, 2026-10-01, this session).** Both lists: the 34 training TEs
   (`scripts/qa/te-sweep.sh`, Korea forced, rows 1–34) and every mission TE in the TE list
   (`campaign/*.tac`, ~14 incl. "Sink the Kuz" and the naval templates). Acceptance per TE: loads, reaches

@@ -179,6 +179,13 @@ int SMSClass::DropBomb(int allowRipple)
             // to go, to compare with its [MSLEND] impact position.
             if (getenv("FF_DEBUG_JDAM"))
             {
+                {
+                    AircraftClass* ac_ = (AircraftClass*)ownship;
+                    fprintf(stderr, "[JDAM]   tgtnum(after step)=%d tgtPos=(%.0f,%.0f,%.0f) sbc=%p sbcPos=(%.0f,%.0f,%.0f) groundDesignate=(%.0f,%.0f)\n",
+                            (int)ac_->JDAMtgtnum, ac_->JDAMtgtPos.x, ac_->JDAMtgtPos.y, ac_->JDAMtgtPos.z, (void*)ac_->JDAMsbc,
+                            ac_->JDAMsbc ? ac_->JDAMsbc->XPos() : 0.f, ac_->JDAMsbc ? ac_->JDAMsbc->YPos() : 0.f, ac_->JDAMsbc ? ac_->JDAMsbc->ZPos() : 0.f,
+                            ownship->GetFCC()->groundDesignateX, ownship->GetFCC()->groundDesignateY);
+                }
                 fprintf(stderr, "[JDAM] release gps=%d jsow=%d mode=%s sbc=%d aim=(%.0f,%.0f,%.0f) own=(%.0f,%.0f,%.0f) "
                         "range=%.0fft\n",
                         theBomb->IsSetBombFlag(BombClass::IsGPS) ? 1 : 0,
