@@ -22562,6 +22562,12 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
 
 ## 🔲 BACKLOG (PO, 2026-10-01) — to be worked this session
 
+* **FF-TEMP-1 — multiplayer versions of every Tactical Engagement mission (PO 2026-10-02: "use the ff mission
+  editor to make multiplayer versions of all TE missions").** Use the game's own TE editor (FF-EDITOR-1 recipe:
+  SAVED tab -> NEW/EDIT, add player slots / flights, SAVE) to produce an MP-capable copy of each training and
+  mission TE; acceptance: each copy listed, hostable, and flown by two instances (host + joiner reach the 3-D),
+  0 crashes. Queued behind MA/BoB MA-MPQS-1 lone missions.
+
 * **FUNC-SWEEP-FF — exercise the functionality nobody tested (PO 2026-10-01: "I do not want the user to
   exercise some overlooked functionality and have it not work or lead to a crash").** ✅ in dev, NOT in the AppImage.
   * **Menu crawl** (`scripts/qa/ui-crawl.py`, FF_DUMP_UI-driven, a fresh launch per click path, depth 2): TacRef,
