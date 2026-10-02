@@ -22581,8 +22581,10 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
     held-back keys in their own flight. No crash in any. The sweep's earlier stops were the game behaving
     correctly (the jet crashed unattended → exit menu → a later `E` press ended the flight; `-test-ia`'s 120 s
     auto-exit, now `FF_TEST_IA_EXIT_SEC`).
-  * Not yet crawled: the IA, Dogfight, TE and Campaign screens' sub-dialogs (those flows were covered by
-    earlier gates and this session's TE sweeps, not by the click crawler).
+  * **Second crawl (2026-10-02): Instant Action, Dogfight, Tactical Engagement, Campaign** — 449 paths, depth 2,
+    **0 crashes, 0 exits**. 5 rows raise asserts with no UI dump: those clicks (ctrl 2000000/2000001) launch a
+    flight, so the run ends in 3D; the asserts are the known non-fatal render checks (context.cpp:4166,
+    texbank.cpp:356, otwlist.cpp). Campaign hit the 450-run cap at 218 paths (sampled, not exhaustive).
 
 * **FF-EDITOR-1 — mission editor / builder.** Build a Tactical Engagement from scratch in the game's own
   editor (TE → new: `te_new.tac`), save it, reload it, and fly it. Acceptance: a saved `.tac` appears in the
