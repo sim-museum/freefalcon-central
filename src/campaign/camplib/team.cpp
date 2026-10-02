@@ -72,6 +72,9 @@ extern int gCampDataVersion;
 extern int g_nNoPlayerPlay; // JB 010926
 
 TeamClass* TeamInfo[NUM_TEAMS] = { 0 };
+#ifdef FF_LINUX
+static unsigned char ffTeamFromMaster[NUM_TEAMS] = { 0 };   // FF-TEMP-1: teams the master sent us (FF_SlaveSettleTeams)
+#endif
 short teamManagerDIndex;
 
 char *CampGetNext(FILE* fptr);
@@ -202,6 +205,15 @@ TeamClass::TeamClass(VU_BYTE **stream, long *rem)
     // Start reading the shit
     memcpychk(&who, stream, sizeof(Team), rem);
     ShiAssert(TeamInfo[who] and TeamInfo[who]->share_.id_ == share_.id_)
+#ifdef FF_LINUX
+    if (who >= 0 and who < NUM_TEAMS) ffTeamFromMaster[who] = 1;
+    if (getenv("FF_DEBUG_TEAMS"))
+    {
+        fprintf(stderr, "[teams] stream team who=%d local TeamInfo=%p idmatch=%d\n", (int)who, (void*)TeamInfo[who],
+                (TeamInfo[who] and TeamInfo[who]->share_.id_ == share_.id_) ? 1 : 0);
+        fflush(stderr);
+    }
+#endif
 
     memcpychk(&cteam, stream, sizeof(Team), rem);
     ShiAssert((cteam > 0 or who == 0) and cteam < NUM_TEAMS);
@@ -1100,6 +1112,16 @@ int TeamClass::Handle(VuFullUpdateEvent *event)
     // WARNING: we don't guarentee receipt of the managers
     flags or_eq TEAM_UPDATED;
 
+#ifdef FF_LINUX
+    if (who >= 0 and who < NUM_TEAMS) ffTeamFromMaster[who] = 1;
+    if (getenv("FF_DEBUG_TEAMS"))   // FF-TEMP-1: which team updates a joiner gets, and which it still waits for
+    {
+        fprintf(stderr, "[teams] full update for team who=%d; waiting on:", (int)who);
+        for (int i = 0; i < NUM_TEAMS; i++)
+            if (TeamInfo[i] and not (TeamInfo[i]->flags bitand TEAM_UPDATED)) fprintf(stderr, " %d", i);
+        fprintf(stderr, "\n"); fflush(stderr);
+    }
+#endif
     // Mark team data as received if we have all the teams.
     for (int i = 0; i < NUM_TEAMS; i++)
     {
@@ -1629,6 +1651,44 @@ void RemoveTeam(int teamNum)
         vuDatabase->Remove(TeamInfo[teamNum]);
     }
 }
+
+#ifdef FF_LINUX
+/* FF-TEMP-1: a joining peer builds its teams from te_new, then asks the master for TEAM_DATA and waits until
+   EVERY local TeamInfo slot has been updated. When the hosted TE's team set differs from te_new's (training
+   TEs: host teams 0,1; te_new teams 0,1,2) that never happens: the master's team 1 arrives under another VU id
+   (InsertionCallback swaps it into TeamInfo[1], but a created entity never gets TEAM_UPDATED) and te_new's
+   team 2 is never sent at all -- the joiner sits on "Waiting for Data" for good. The master sends its teams
+   before every other join block (VC is last), so once TEAM_DATA is the only need left, the master's teams have
+   all arrived: adopt every team the master sent (stream create or full update -- ffTeamFromMaster), drop te_new
+   placeholders it never sent. Called by CampaignClass::GotJoinData; FF_NO_TEAM_SETTLE=1 reverts. */
+void FF_ResetTeamsFromMaster(void) { memset(ffTeamFromMaster, 0, sizeof(ffTeamFromMaster)); }
+
+void FF_SlaveSettleTeams(void)
+{
+    const int dbg = getenv("FF_DEBUG_TEAMS") ? 1 : 0;
+
+    for (int i = 0; i < NUM_TEAMS; i++)
+    {
+        TeamClass *t = TeamInfo[i];
+
+        if ( not t)
+            continue;
+
+        if ( not ffTeamFromMaster[i])
+        {
+            if (dbg) fprintf(stderr, "[teams] settle: team %d is a te_new placeholder the master never sent -> removed\n", i);
+            RemoveTeam(i);
+        }
+        else if ( not (t->flags bitand TEAM_UPDATED))
+        {
+            if (dbg) fprintf(stderr, "[teams] settle: team %d came from the master -> adopted\n", i);
+            t->flags or_eq TEAM_UPDATED;
+        }
+    }
+
+    TheCampaign.Flags and_eq compl CAMP_NEED_TEAM_DATA;
+}
+#endif
 
 // Cleans up the team stuff.
 void RemoveTeams()

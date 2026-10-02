@@ -481,6 +481,14 @@ void FalconSessionEntity::SetPlayerFlight(FlightClass* ent)
     {
         return;
     }
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_PLAYERFLT"))   // FF-TEMP-1: which flight each session's player takes
+    {
+        fprintf(stderr, "[playerflt] session %s local=%d -> flight camp=%d ac=%d\n", GetPlayerCallsign() ? GetPlayerCallsign() : "?",
+                IsLocal() ? 1 : 0, ent ? (int)((Unit)ent)->GetCampID() : -1, ent ? ((Unit)ent)->GetTotalVehicles() : 0);
+        fflush(stderr);
+    }
+#endif
 
     CampEnterCriticalSection();
     SetDirty();
@@ -701,6 +709,13 @@ void FalconSessionEntity::SetAircraftNum(uchar an)
 
 void FalconSessionEntity::SetPilotSlot(uchar ps)
 {
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_PLAYERFLT"))
+    {
+        fprintf(stderr, "[playerflt] session %s local=%d -> pilot slot %d\n", GetPlayerCallsign() ? GetPlayerCallsign() : "?", IsLocal() ? 1 : 0, (int)ps);
+        fflush(stderr);
+    }
+#endif
     // MonoPrint ("SetPilotSlot\n");
     SetDirty();
     pilotSlot = ps;

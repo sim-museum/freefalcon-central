@@ -962,6 +962,9 @@ int CampaignClass::JoinCampaign(FalconGameType gametype, FalconGameEntity *game)
         else
         {
             need_from_master = CAMP_NEED_WEATHER bitor CAMP_NEED_PERSIST bitor CAMP_NEED_PRIORITIES bitor CAMP_NEED_OBJ_DELTAS bitor CAMP_NEED_TEAM_DATA bitor CAMP_NEED_UNIT_DATA bitor CAMP_NEED_VC;
+#ifdef FF_LINUX
+            { extern void FF_ResetTeamsFromMaster(void); FF_ResetTeamsFromMaster(); }   // FF-TEMP-1: a fresh join
+#endif
             need_from_all = 0;
             // need_from_all = CAMP_NEED_ENTITIES;
             Flags or_eq need_from_master bitor need_from_all;
@@ -1027,6 +1030,18 @@ int CampaignClass::StartRemoteCampaign(FalconGameEntity *game)
 void CampaignClass::GotJoinData(void)
 {
     ulong still_needed = Flags bitand CAMP_NEED_MASK;
+
+#ifdef FF_LINUX
+    {   // FF-TEMP-1: see FF_SlaveSettleTeams (team.cpp) -- a TE whose teams differ from te_new's never completes.
+        extern void FF_SlaveSettleTeams(void);
+
+        if ((Flags bitand CAMP_SLAVE) and still_needed == CAMP_NEED_TEAM_DATA and not getenv("FF_NO_TEAM_SETTLE"))
+        {
+            FF_SlaveSettleTeams();
+            still_needed = Flags bitand CAMP_NEED_MASK;
+        }
+    }
+#endif
 
     MonoPrint("Got Join data Still needed = %x\n", still_needed);
 
