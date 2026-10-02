@@ -22692,3 +22692,17 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
   (DMS right). A keyboard DMS press therefore also flips the 2-D cockpit panel. Options: drop the
   port shortcut (the key file already has panel keys), or move it to a free chord. Check: one
   Shift+Num8 press in the 2-D pit logs a DMS action and no panel change. ~2 pt; PO call on which way.
+
+## PO EPICS (2026-10-02) — "for a game to be popular in the modern era, it must allow multiplayer in basically all of its game functionality"
+Queued behind FF-TEMP-1; one item at a time, each split into ~8-pt sprints with a stated check before work starts.
+* **EPIC-MA-RED — single-player Red campaign (MA only).** The player commands the Communist side against the Spring
+  Offensive, reacting to UN raids the way BoB's RAF campaign reacts to Luftwaffe raids. Default: the UN AI flies the
+  historical strategy; a Preferences option switches it to the Spring Offensive tutorial strategies (as BoB's
+  Luftwaffe strategy setting does).
+* **EPIC-MP-CAMPAIGN — multiplayer campaigns in MA and BoB, the way Falcon's are:** many human players, joining
+  either side, in a running campaign.
+* **EPIC-MATCHMAKER — an iGOR-style matchmaker for all three games (MA, BoB, FF).** Players start games on a
+  matchmaker website and join games other people started over the internet. The user supplies the site's URL, so
+  anyone can run their own. The site serves a "Serious Games Week" collection (like Serious Games Lab, Linux-native
+  games only). You can start a game only in the category for the current day of the week in your own time zone, so
+  players rotate through all seven categories. The site does not promote a single game.
