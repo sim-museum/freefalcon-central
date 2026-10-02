@@ -652,6 +652,15 @@ void UI_Refresher::RemoveMapItem()
 
 void UI_Refresher::AddATOItem(CampEntity entity)
 {
+#ifdef FF_LINUX
+    {   /* FF-TEMP-1: which entities reach the ATO, and do they pass Final()? */
+        static int s_dbg = -1;
+        if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_ATOTREE") ? 1 : 0;
+        if (s_dbg and (entity->IsPackage() or entity->IsFlight()))
+            fprintf(stderr, "[atotree] AddATOItem camp=%d %s final=%d team=%d\n", (int)entity->GetCampID(),
+                    entity->IsPackage() ? "package" : "flight", ((Unit)entity)->Final() ? 1 : 0, (int)entity->GetTeam());
+    }
+#endif
     if (entity->IsPackage() and ((Package)entity)->Final())
     {
         Package_ = AddPackagetoATO((Package)entity);

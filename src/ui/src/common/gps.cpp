@@ -351,6 +351,20 @@ void GlobalPositioningSystem::Update()
         if (F4IsBadReadPtr(entity, sizeof(CampEntity)))
             continue;
 
+#ifdef FF_LINUX
+        {   /* FF-TEMP-1: every package the GPS walks, and the state the ATO gates read. */
+            static int s_dbg = -1, s_n = 0;
+            if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_ATOTREE") ? 1 : 0;
+            if (s_dbg and entity->IsPackage() and s_n < 200)
+            {
+                s_n++;
+                UI_Refresher *r = (UI_Refresher*)GPS_Hash->Find(entity->GetCampID());
+                fprintf(stderr, "[atotree] gps pkg camp=%d dead=%d inactive=%d final=%d refresher=%p allowed=0x%lx gpsAllowed=0x%lx\n",
+                        (int)entity->GetCampID(), entity->IsDead() ? 1 : 0, ((Unit)entity)->Inactive() ? 1 : 0,
+                        ((Unit)entity)->Final() ? 1 : 0, (void*)r, r ? (long)r->GetAllowed() : -1L, (long)Allowed_);
+            }
+        }
+#endif
         if ( not entity->IsDead())
         {
             cur = (UI_Refresher*)GPS_Hash->Find(entity->GetCampID());
@@ -404,6 +418,39 @@ void GlobalPositioningSystem::Update()
         entity = GetNextEntity(&iter);
     }
 
+#ifdef FF_LINUX
+    {   /* FF-TEMP-1: what this walk saw (one line per Update while FF_DEBUG_ATOTREE is set; first 40). */
+        static int s_dbg = -1, s_n = 0;
+        if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_ATOTREE") ? 1 : 0;
+        if (s_dbg and s_n < 40)
+        {
+            s_n++;
+            int nall = 0, nflt = 0, npkg = 0;
+            VuListIterator it2(AllCampList);
+            for (CampEntity e = GetFirstEntity(&it2); e; e = GetNextEntity(&it2))
+            { nall++; if (e->IsFlight()) nflt++; if (e->IsPackage()) npkg++; }
+            int nair = 0, nairpkg = 0, nunit = 0;
+            { VuListIterator it4(AllCampList);
+              for (CampEntity e = GetFirstEntity(&it4); e; e = GetNextEntity(&it4)) if (e->IsUnit()) nunit++; }
+            VuListIterator it3(AllAirList);
+            for (CampEntity e = GetFirstEntity(&it3); e; e = GetNextEntity(&it3))
+            {
+                nair++; if (e->IsPackage()) nairpkg++;
+                if (s_n <= 3)
+                {
+                    Unit u = (Unit)e; Unit par = u->GetUnitParent();
+                    fprintf(stderr, "[atotree]   air camp=%d class=%d domain=%d type=%d flight=%d pkg=%d parent=%p(camp %d) inDB=%d vuState=%d\n",
+                            (int)e->GetCampID(), (int)e->EntityType()->classInfo_[VU_CLASS], (int)e->EntityType()->classInfo_[VU_DOMAIN],
+                            (int)e->EntityType()->classInfo_[VU_TYPE], e->IsFlight() ? 1 : 0, e->IsPackage() ? 1 : 0,
+                            (void*)par, par ? (int)par->GetCampID() : -1, vuDatabase->Find(e->Id()) ? 1 : 0, (int)e->VuState());
+                }
+            }
+            fprintf(stderr, "[atotree]   AllCampList units=%d\n", nunit);
+            fprintf(stderr, "[atotree] gps update: AllCampList all=%d flights=%d packages=%d | AllAirList all=%d packages=%d allowed=0x%lx\n",
+                    nall, nflt, npkg, nair, nairpkg, (long)Allowed_);
+        }
+    }
+#endif
     GPS_Hash->RemoveOld();
 
     if (MisTree_ and (Flags bitand _GPS_RESORT_MISSION_))

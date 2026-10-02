@@ -22576,12 +22576,17 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
     * **not missions:** the six "--" naval templates (no flights), Auto Save, ffeditor1 (test), te_new (blank).
   * Editor: a TE copied to `campaign/SAVE/!edit.tac` sorts to SAVED row 0 (y 111); SAVED tab buttons NEW 362,16 ·
     **EDIT 437,16** · DELETE 512,16. EDIT opens the builder on it (0 crashes).
-  * **Blocker for "edit the player's flight size": the editor's ATO is EMPTY.** ATO (610,749) shows no packages, also
-    with SHOW ALL PACKAGES; `ATO_ALL_TREE` (1234000) dumps 0 wide x 34, and `FF_DEBUG_ATOTREE=1` (ctree.cpp) prints
-    **no row at all** — the tree is never laid out with items. FF-EDITOR-1 saw the same ("opens an empty Air Tasking
-    Order"). The map shows no flight icons either (a flight on the ground may sit under its airbase icon). Package →
-    EDIT_PACKAGE_FLIGHT → TAC_FLIGHT_SIZE is the editor's own path to resize a flight, and it starts from that ATO
-    (or a map icon's popup). Suspects: `gATOAll` NULL/stale in the editor (AddPackagetoATO returns on it) — unmeasured.
+  * ~~Blocker: the editor's ATO is EMPTY~~ — **WRONG, retracted (pass 2, same day).** The SAVED-list click at x=170
+    missed "!edit" (rows hit-test on their TEXT; a 5-letter name ends near x=140), so EDIT ran with no TE selected and
+    `TACEditCB` fell back to NEW → **te_new**, which has no flights. FF-EDITOR-1's "empty ATO" was the same te_new.
+    `FF_DEBUG_ATOTREE=1` (gps.cpp/urefresh.cpp/ato.cpp/ctree.cpp) proved it: on te_new AllAirList holds one squadron,
+    0 flights/packages; clicking the text (115,111) loads `!edit` → ATO lists "Training · Cowboy1 · 1 F-16CJ".
+  * **The real constraint (game data, not port):** in the training TEs the flight's package is **not Final and owned
+    by team 0** (`[atotree] AddATOItem camp=71 package final=0 team=0`), so the ATO shows the flight but not its
+    package, and the package menu (PACKAGE_POP: *Show Flights* → Package window → Edit Flight → TAC_FLIGHT_SIZE) is
+    unreachable. The flight's own menu (AIRUNIT_MENU) has Recon / Add Flight / Add Package / Add Battalion / Add VC /
+    Status / Delete / Set Owner — no resize. *Add Flight* on the player's flight opens ADD FLIGHT with that flight as
+    the target, "start at target" (te_units.cpp tactical_add_flight).
 
 * **FUNC-SWEEP-FF — exercise the functionality nobody tested (PO 2026-10-01: "I do not want the user to
   exercise some overlooked functionality and have it not work or lead to a crash").** ✅ in dev, NOT in the AppImage.

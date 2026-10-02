@@ -36,6 +36,7 @@ private:
     GlobalPositioningSystem *Owner_;
 
 public:
+    long GetAllowed() const { return Allowed_; } // FF-TEMP-1 trace
     C_Mission *Mission_;
     MAPICONLIST *MapItem_;
     C_ATO_Package *Package_;

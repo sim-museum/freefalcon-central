@@ -606,6 +606,21 @@ C_ATO_Package *AddPackagetoATO(Package FltPkg)
     MissionTypeEnum mistype;
     short AtoMiss;
     C_Text *txt;
+#ifdef FF_LINUX
+    {   /* FF-TEMP-1: the TE editor's ATO tree stays empty -- say which gate each package stops at. */
+        static int s_dbg = -1;
+        if (s_dbg < 0) s_dbg = getenv("FF_DEBUG_ATOTREE") ? 1 : 0;
+        if (s_dbg and FltPkg)
+        {
+            Flight f0 = (Flight)FltPkg->GetFirstUnitElement();
+            fprintf(stderr, "[atotree] AddPackagetoATO pkg camp=%d team=%d final=%d gATOAll=%p (id %ld parent=%p) edit=%d local=%d lead=%p mission=%d\n",
+                    (int)FltPkg->GetCampID(), (int)FltPkg->GetTeam(), FltPkg->Final() ? 1 : 0, (void*)gATOAll,
+                    gATOAll ? gATOAll->GetID() : -1L, gATOAll ? (void*)gATOAll->GetParent() : NULL,
+                    (TheCampaign.Flags bitand CAMP_TACTICAL_EDIT) ? 1 : 0, (int)FalconLocalSession->GetTeam(),
+                    (void*)f0, f0 ? (int)f0->GetUnitMission() : -1);
+        }
+    }
+#endif
 
     if ( not FltPkg)
         return(NULL);
