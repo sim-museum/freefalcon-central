@@ -866,6 +866,16 @@ long C_TreeList::CalculateTreePositions(TREELIST *top, long offx, long offy)
 
             if (width > treew_)
                 treew_ = width;
+#ifdef FF_LINUX
+            {   /* FF-TEMP-1: the editor's ATO tree (ATO_ALL_TREE 1234000) dumps as 0 wide; print each row. */
+                static int s_dbgAto = -1;
+                if (s_dbgAto < 0) s_dbgAto = getenv("FF_DEBUG_ATOTREE") ? 1 : 0;
+                if (s_dbgAto and GetID() == 1234000)
+                    fprintf(stderr, "[atotree] item id=%ld ctype=%d xy=%ld,%ld wh=%ldx%ld treew=%ld state=%d child=%d\n",
+                            current->Item_->GetID(), (int)current->Item_->_GetCType_(), current->Item_->GetX(), current->Item_->GetY(),
+                            current->Item_->GetW(), current->Item_->GetH(), treew_, (int)current->state_, current->Child ? 1 : 0);
+            }
+#endif
 
             if (current->state_ and current->Child)
                 offy = CalculateTreePositions(current->Child, offx + xoffset_, offy);

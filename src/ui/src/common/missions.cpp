@@ -413,6 +413,29 @@ UI_Refresher *FindMissionItem(Flight flight)
 
 C_Mission *MakeMissionItem(C_TreeList *tree, Flight element)
 {
+    // FF-TEMP-1 inventory (FF_DEBUG_TEINV=1): once per process, every flight in the loaded engagement --
+    // team (owner), size, aircraft type, mission -- so a TE's multiplayer capacity per team can be read off
+    // one host-only launch.
+    static int dbgInv = -1;
+    if (dbgInv < 0) dbgInv = getenv("FF_DEBUG_TEINV") ? 1 : 0;
+    if (dbgInv == 1)
+    {
+        dbgInv = 2;
+        VuListIterator invit(AllAirList);
+        for (Unit u = (Unit)invit.GetFirst(); u; u = (Unit)invit.GetNext())
+        {
+            if ( not u->IsFlight())
+                continue;
+            VehicleClassDataType *vc = (VehicleClassDataType *)Falcon4ClassTable[u->GetVehicleID(0)].dataPtr;
+            fprintf(stderr, "[teinv] flt camp=%d team=%d final=%d ac=%d type=%s mission=%d myteam=%d tactical=%d\n",
+                    (int)u->GetCampID(), (int)u->GetOwner(), u->Final() ? 1 : 0, u->GetTotalVehicles(),
+                    vc ? vc->Name : "?", (int)u->GetUnitMission(), (int)FalconLocalSession->GetTeam(),
+                    (TheCampaign.Flags bitand CAMP_TACTICAL) ? 1 : 0);
+        }
+        fprintf(stderr, "[teinv] end\n");
+        fflush(stderr);
+    }
+
     C_Mission *mission;
     C_Window *win;
     _TCHAR buffer[200];
