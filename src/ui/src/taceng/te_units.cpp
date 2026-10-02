@@ -2290,6 +2290,14 @@ void tactical_make_flight(long ID, short hittype, C_Base *control)
             }
         }
 
+#ifdef FF_LINUX
+        if (getenv("FF_DEBUG_TEMAKE"))   // FF-TEMP-1: why ADD FLIGHT's OK can leave the window open
+        {
+            fprintf(stderr, "[temake] make_flight ac_type=%ld scampid=%ld urec=%p squadron=%p inDB=%d\n", (long)ac_type, (long)scampid,
+                    (void*)urec, (void*)squadron, urec ? (vuDatabase->Find(urec->GetID()) ? 1 : 0) : -1);
+            fflush(stderr);
+        }
+#endif
         if ( not squadron)
             return;
 
@@ -2299,6 +2307,9 @@ void tactical_make_flight(long ID, short hittype, C_Base *control)
         if (lbox)
             num_vehicles = lbox->GetTextID();
 
+#ifdef FF_LINUX
+        if (getenv("FF_DEBUG_TEMAKE") and not num_vehicles) { fprintf(stderr, "[temake] flight size reads 0\n"); fflush(stderr); }
+#endif
         if ( not num_vehicles)
             return;
 
@@ -2327,6 +2338,14 @@ void tactical_make_flight(long ID, short hittype, C_Base *control)
             start_at = lbox->GetTextID();
 
         tid = GetClassID(DOMAIN_AIR, CLASS_UNIT, TYPE_FLIGHT, squadron->GetSType(), squadron->GetSPType(), 0, 0, 0);
+#ifdef FF_LINUX
+        if (getenv("FF_DEBUG_TEMAKE") and not tid)
+        {
+            fprintf(stderr, "[temake] no flight class for squadron stype=%d sptype=%d (num_vehicles=%d)\n",
+                    (int)squadron->GetSType(), (int)squadron->GetSPType(), num_vehicles);
+            fflush(stderr);
+        }
+#endif
 
         if ( not tid)
             return;
@@ -2347,6 +2366,14 @@ void tactical_make_flight(long ID, short hittype, C_Base *control)
 
         // Add the new flight
         new_flight = NewFlight(tid, new_package, squadron);
+#ifdef FF_LINUX
+        if (getenv("FF_DEBUG_TEMAKE"))
+        {
+            fprintf(stderr, "[temake] NewFlight tid=%d (stype=%d sptype=%d) num_vehicles=%d -> %p\n", (int)tid,
+                    (int)squadron->GetSType(), (int)squadron->GetSPType(), num_vehicles, (void*)new_flight);
+            fflush(stderr);
+        }
+#endif
 
         if ( not new_flight)
             return;
@@ -2446,6 +2473,15 @@ void tactical_make_flight(long ID, short hittype, C_Base *control)
 
         mis.flags or_eq REQF_ALLOW_ERRORS bitor REQF_TE_MISSION;
         error = new_flight->BuildMission(&mis);
+#ifdef FF_LINUX
+        if (getenv("FF_DEBUG_TEMAKE"))
+        {
+            fprintf(stderr, "[temake] BuildMission -> %d (mission=%d aircraft=%d start_at=%d target=%p tx,ty=%d,%d tot=%lu now=%lu flights=%d)\n",
+                    (int)error, (int)mis.mission, (int)mis.aircraft, start_at, (void*)target, (int)mis.tx, (int)mis.ty,
+                    (unsigned long)mis.tot, (unsigned long)TheCampaign.CurrentTime, flights);
+            fflush(stderr);
+        }
+#endif
 
         if (error not_eq PRET_SUCCESS)
         {
