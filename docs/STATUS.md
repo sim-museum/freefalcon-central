@@ -22605,9 +22605,9 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
     the rerun passed (one run — the crash may be intermittent, so a pass is not proof by itself).
   * **Acceptance** (`scripts/qa/te-mp-verify.sh`: probe the mission tree for row ids, host takes the player's
     flight, joiner the escort, both via the lead-seat click 6108; `[playerflt]` proves who sits where):
-    **29/30 PASS** — both peers in 3D in their own flights, joined, 0 crashes (verify2 + verify3; 33 needed
-    A_SECS=640). **Fly the BlackBird MP:** joiner flies; the host sits on the launch countdown (its SR-71 takes
-    off >5 real minutes later and an online clock does not compress) — game behaviour, long run pending.
+    **30/30 PASS** — both peers in 3D in their own flights, joined, 0 crashes (verify2 + verify3 + verify5; 33
+    needed A_SECS=640). **Fly the BlackBird MP:** the host waits on the launch countdown (its SR-71 takes off
+    ~15 real minutes in; an online clock does not compress) — game behaviour; with A_SECS=1150 it enters 3D.
   * Harness lessons: rows hit-test on text; seats are taken only by a hitting seat click (else the first row's
     flight); `FF_DUMP_UI` lists tree rows by flight camp id. Not covered: 35 AN-2 Basic (not on the Korea
     training list); PvP (joiner on the enemy team) not tested.
