@@ -2358,7 +2358,9 @@ SfxClass::Start(void)
 
             // if we've got a base obj, store it's vistype in user for
             // later reconstruction
-            if (baseObj)
+            // FF-TEMP-1: in a two-player TE the host SIGSEGV'd here while recording ACMI -- the effect's base
+            // object (a remote aircraft) had no drawable yet. Record it like an effect with no base object.
+            if (baseObj and baseObj->drawPointer)
             {
                 acmiMoveSfx.data.user = ((DrawableBSP *)baseObj->drawPointer)->GetID();
             }

@@ -22587,6 +22587,30 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
     unreachable. The flight's own menu (AIRUNIT_MENU) has Recon / Add Flight / Add Package / Add Battalion / Add VC /
     Status / Delete / Set Owner — no resize. *Add Flight* on the player's flight opens ADD FLIGHT with that flight as
     the target, "start at target" (te_units.cpp tactical_add_flight).
+  **Pass 3 (2026-10-02, PO chose "escort flight via the editor"): 30 MP TEs made and flown two-player.**
+  * **Recipe** (`scripts/qa/te-mp-make.sh`, the game's own editor): stage the TE as `!edit.tac` → EDIT → ATO →
+    right-click the player's flight → Add Flight (role HAVCAP on that flight, status Target) → Squadron **New**
+    → Size **3** → OK → SAVE as **"<TE> MP"**. Result: the player's flight + a 3-ship escort = 4 seats.
+    Made: training 01, 03–15, 17–19, 22–25, 27–34 + Fly the BlackBird (30). Every make reports
+    `[temake] BuildMission -> 3`, 0 crashes. Files: `~/ff-crawl/campaign/SAVE/* MP.tac` (+.frc/.his) — **not**
+    in the PO's tree or the AppImage yet (PO's call).
+  * **"New" squadron:** several training TEs' own squadron has sptype 255 → no flight class → ADD FLIGHT's OK
+    silently did nothing (`FF_DEBUG_TEMAKE`). Game data, not port.
+  * **Defect fixed — MP TE join hung on "Waiting for Data"** (`581ac4b8`): the joiner builds teams from te_new
+    and waited for every local team; with a different team set (training: host 0,1 vs te_new 0,1,2) it never
+    completed. `FF_SlaveSettleTeams` adopts the teams the master sent and drops te_new placeholders once
+    TEAM_DATA is the last need (`FF_NO_TEAM_SETTLE=1` reverts). Sink the Kuz (matching teams) still joins.
+  * **Defect fixed — host SIGSEGV in `SfxClass::Start`** (sfx.cpp, ACMI moving-sfx record dereferenced a NULL
+    `baseObj->drawPointer` — a remote aircraft with no drawable yet), seen once in 12 Nav and Timing MP. Guarded;
+    the rerun passed (one run — the crash may be intermittent, so a pass is not proof by itself).
+  * **Acceptance** (`scripts/qa/te-mp-verify.sh`: probe the mission tree for row ids, host takes the player's
+    flight, joiner the escort, both via the lead-seat click 6108; `[playerflt]` proves who sits where):
+    **29/30 PASS** — both peers in 3D in their own flights, joined, 0 crashes (verify2 + verify3; 33 needed
+    A_SECS=640). **Fly the BlackBird MP:** joiner flies; the host sits on the launch countdown (its SR-71 takes
+    off >5 real minutes later and an online clock does not compress) — game behaviour, long run pending.
+  * Harness lessons: rows hit-test on text; seats are taken only by a hitting seat click (else the first row's
+    flight); `FF_DUMP_UI` lists tree rows by flight camp id. Not covered: 35 AN-2 Basic (not on the Korea
+    training list); PvP (joiner on the enemy team) not tested.
 
 * **FUNC-SWEEP-FF — exercise the functionality nobody tested (PO 2026-10-01: "I do not want the user to
   exercise some overlooked functionality and have it not work or lead to a crash").** ✅ in dev, NOT in the AppImage.
