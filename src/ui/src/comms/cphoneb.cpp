@@ -108,7 +108,11 @@ void PhoneBook::Save(char *filename)
 
     while (cur)
     {
-        count++;
+        if (cur->ID < LISTED_ID0)  // matchmaker entries are not the player's
+        {
+            count++;
+        }
+
         cur = cur->Next;
     }
 
@@ -131,6 +135,12 @@ void PhoneBook::Save(char *filename)
 
     while (cur)
     {
+        if (cur->ID >= LISTED_ID0)
+        {
+            cur = cur->Next;
+            continue;
+        }
+
         // save description
         fwrite(cur->url, MAX_URL_SIZE, 1, ofp);
         // save ports
@@ -158,6 +168,8 @@ void PhoneBook::Add(_TCHAR *desc, unsigned short lp, unsigned short rp)
     newph->ID = tmpID;
     _tcsncpy(newph->url, desc, MAX_URL_SIZE - 1);
     newph->url[MAX_URL_SIZE] = 0;
+    newph->localPort = lp;     // these were never stored: every saved entry wrote uninitialised ports
+    newph->remotePort = rp;
     newph->Next = NULL;
 
     // tail insert
@@ -176,6 +188,58 @@ void PhoneBook::Add(_TCHAR *desc, unsigned short lp, unsigned short rp)
         }
 
         cur->Next = newph;
+    }
+}
+
+void PhoneBook::AddListed(const _TCHAR *host, unsigned short lp, unsigned short rp)
+{
+    long id = LISTED_ID0;
+
+    while (FindID(id))
+    {
+        id++;
+    }
+
+    PHONEBOOK *newph = new PHONEBOOK;
+    newph->ID = id;
+    _tcsncpy(newph->url, host, MAX_URL_SIZE - 1);
+    newph->url[MAX_URL_SIZE] = 0;
+    newph->localPort = lp;
+    newph->remotePort = rp;
+    newph->Next = NULL;
+
+    PHONEBOOK **tail = &Root_;
+
+    while (*tail)
+    {
+        tail = &(*tail)->Next;
+    }
+
+    *tail = newph;
+}
+
+void PhoneBook::RemoveListed()
+{
+    PHONEBOOK **pp = &Root_;
+
+    while (*pp)
+    {
+        if ((*pp)->ID >= LISTED_ID0)
+        {
+            PHONEBOOK *dead = *pp;
+            *pp = dead->Next;
+
+            if (Current_ == dead)
+            {
+                Current_ = NULL;
+            }
+
+            delete dead;
+        }
+        else
+        {
+            pp = &(*pp)->Next;
+        }
     }
 }
 

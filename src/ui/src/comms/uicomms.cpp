@@ -83,8 +83,15 @@ void UIComms::SetCallback(int game, void (*rtn)(short, VU_ID, VU_ID))
         Callback_[game] = rtn;
 }
 
+// EPIC-MATCHMAKER: a player who goes online LISTENING (no remote address) is a host other players can reach;
+// list them on the Serious Games Week matchmaker while online.
+extern "C" void sgw_announce_start(const char *game, int port, const char *title);
+extern "C" void sgw_announce_stop(void);
+static int sgwListenPort = 0;
+
 void UIComms::StartComms(ComDataClass *ComData)
 {
+    sgwListenPort = (ComData and ComData->ip_address == 0) ? ComData->localPort : 0;
     InitCommsStuff(ComData);
 }
 
@@ -101,6 +108,13 @@ void UIComms::StartCommsDoneCB(int success)
 
         Online_ = TRUE;
         TheCampaign.SetOnlineStatus(1);
+
+        if (sgwListenPort)
+        {
+            char title[64];
+            snprintf(title, sizeof(title), "%s", LogBook.Callsign());
+            sgw_announce_start("ff", sgwListenPort, title);
+        }
     }
     else
     {
@@ -134,6 +148,8 @@ void UIComms::SetStatsFile(char *filename)
 
 void UIComms::StopComms()
 {
+    sgw_announce_stop();   // EPIC-MATCHMAKER
+
     //sfr: send a message to everyone saying were out
     VuSessionEvent *vuse = new VuSessionEvent(vuLocalSessionEntity.get(), VU_SESSION_CLOSE, vuGlobalGroup);
     vuse->RequestReliableTransmit();

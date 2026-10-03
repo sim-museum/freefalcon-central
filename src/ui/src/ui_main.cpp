@@ -1661,6 +1661,7 @@ int UI_Startup()
         gPlayerBook = new PhoneBook;
         gPlayerBook->Setup();
         gPlayerBook->Load("phonebkn.da2");
+        { extern int FF_SgwSyncPhonebook(); FF_SgwSyncPhonebook(); }   // EPIC-MATCHMAKER: start the background list refresh
     }
 
     // THESE 2 LINES ARE VERY VERY Important

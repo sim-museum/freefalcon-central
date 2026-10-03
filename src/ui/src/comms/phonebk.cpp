@@ -1,3 +1,5 @@
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <windows.h>
 #include "f4vu.h"
 #include "chandler.h"
@@ -235,8 +237,54 @@ void Phone_Select_CB(long ID, short hittype, C_Base *)
 
 // called to show list of address in window
 // each address is a button
+// EPIC-MATCHMAKER: the hosts the player's Serious Games Week matchmaker lists for FreeFalcon, as phonebook entries.
+// The list is refreshed in the background (sgw_link.cpp); each redraw of the phonebook replaces the listed entries.
+extern "C" int sgw_hosts(const char *game, struct sockaddr_in *out, int max);
+extern "C" int sgw_configured(void);
+
+int FF_SgwSyncPhonebook()
+{
+    if ( not gPlayerBook or not sgw_configured())
+    {
+        return 0;
+    }
+
+    struct sockaddr_in hosts[16];
+    int n = sgw_hosts("ff", hosts, 16);
+    unsigned short lp = 2934;      // this player's own port: their first saved entry's, else FreeFalcon's default
+
+    for (PHONEBOOK *e = gPlayerBook->GetFirst(); e; e = gPlayerBook->GetNext())
+    {
+        if (e->ID < PhoneBook::LISTED_ID0 and e->localPort)
+        {
+            lp = e->localPort;
+            break;
+        }
+    }
+
+    if (getenv("FF_MP_LOCALPORT"))
+    {
+        lp = (unsigned short)atoi(getenv("FF_MP_LOCALPORT"));
+    }
+
+    gPlayerBook->RemoveListed();
+
+    for (int i = 0; i < n; i++)
+    {
+        gPlayerBook->AddListed(inet_ntoa(hosts[i].sin_addr), lp, ntohs(hosts[i].sin_port));
+    }
+
+    if (n or getenv("SGW_TRACE"))
+    {
+        fprintf(stderr, "[sgw] phonebook: %d FreeFalcon host(s) from the matchmaker\n", n);
+    }
+
+    return n;
+}
+
 void CopyPBToWindow(long ID, long Client)
 {
+    FF_SgwSyncPhonebook();
     C_Window *win;
     C_Button *btn = NULL;
     PHONEBOOK *entry;
@@ -361,6 +409,28 @@ void FF_MpAutoConnect()
     localData.localPort = (unsigned short)atoi(lp);
     localData.remotePort = (unsigned short)(rp ? atoi(rp) : 0);
     localData.ip_address = (host and *host) ? ComAPIGetIP(host) : 0;
+
+    // EPIC-MATCHMAKER test path: host "sgw" = the first host the matchmaker lists (the list the phonebook shows;
+    // this runs at boot, before the UI has made the phonebook), waiting up to 30 s for the background refresh
+    if (host and not strcmp(host, "sgw"))
+    {
+        struct sockaddr_in hs[16];
+        int n = 0;
+
+        for (int t = 0; t < 60 and not (n = sgw_hosts("ff", hs, 16)); t++)
+        {
+            Sleep(500);
+        }
+
+        if (n)
+        {
+            localData.ip_address = ComAPIGetIP(inet_ntoa(hs[0].sin_addr));
+            localData.remotePort = ntohs(hs[0].sin_port);
+        }
+
+        fprintf(stderr, "[sgw] FF_MP_CONNECT via matchmaker: %s:%u\n", n ? inet_ntoa(hs[0].sin_addr) : "(none listed)",
+                n ? (unsigned)ntohs(hs[0].sin_port) : 0u);
+    }
 
     if ( not gUICommsQ)
     {

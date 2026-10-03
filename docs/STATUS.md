@@ -22756,3 +22756,25 @@ Queued behind FF-TEMP-1; one item at a time, each split into ~8-pt sprints with 
   anyone can run their own. The site serves a "Serious Games Week" collection (like Serious Games Lab, Linux-native
   games only). You can start a game only in the category for the current day of the week in your own time zone, so
   players rotate through all seven categories. The site does not promote a single game.
+
+## EPIC-MATCHMAKER — FreeFalcon (2026-10-03)
+* **The Serious Games Week matchmaker** lives in `~/sgweek` (`server.py`, `sgw.py`). FreeFalcon is the Saturday
+  category ("Modern air combat").
+* **`src/ui/src/comms/sgw_link.cpp`** is shared verbatim with MA and BoB. It is inert unless the player configured a
+  matchmaker (`SGW_URL` / `~/.config/sgweek/url`).
+* **Hosting:** a player who goes online *listening* (no remote IP) is announced under their callsign, and withdrawn on
+  StopComms (`uicomms.cpp`).
+* **Joining:** the hosts the matchmaker lists appear in the Comms **phonebook**.
+  - IDs from 100000; refreshed on every redraw and at load.
+  - Never saved to `phonebkn.da2`.
+  - Local port: the player's first saved entry's, else 2934.
+* **Fixed on the way:** `PhoneBook::Add` never stored the entry's ports, so every saved phonebook entry wrote
+  uninitialised ports.
+* **Test path:** `FF_MP_CONNECT=<lp>:<rp>:sgw` joins the first listed host. The harness gained `XENV`,
+  `A_CONNECT` and `B_CONNECT`.
+* **Measured** (`te-mp-two.sh`, TE 01 MP, joiner `B_CONNECT=2944:1:sgw`, a deliberately wrong remote port):
+  - the joiner connected to `127.0.0.1:2934`, taken from the matchmaker;
+  - host3D=1, join3D=1, joined=1, 0 crashes;
+  - the joiner's phonebook showed 1 listed host.
+* **First attempt crashed the joiner:** auto-connect runs at boot, before the phonebook exists. That path now reads the
+  list directly.

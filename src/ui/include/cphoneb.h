@@ -42,6 +42,11 @@ public:
     void Add(_TCHAR *desc, unsigned short localPort, unsigned short remotePort);
     // remove an entry from list
     void Remove(long ID);
+    // EPIC-MATCHMAKER: entries the Serious Games Week matchmaker lists. They take IDs from LISTED_ID0 up, are
+    // replaced on every refresh and are never saved to the player's phonebook file.
+    enum { LISTED_ID0 = 100000 };
+    void AddListed(const _TCHAR *host, unsigned short localPort, unsigned short remotePort);
+    void RemoveListed();
     // remove all entries from list
     void RemoveAll();
     // returns an entry
