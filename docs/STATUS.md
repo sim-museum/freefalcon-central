@@ -22608,6 +22608,12 @@ the runway.** (crun's `takeoff=` counts a campaign-only trace, so it reads 0 for
     **30/30 PASS** — both peers in 3D in their own flights, joined, 0 crashes (verify2 + verify3 + verify5; 33
     needed A_SECS=640). **Fly the BlackBird MP:** the host waits on the launch countdown (its SR-71 takes off
     ~15 real minutes in; an online clock does not compress) — game behaviour; with A_SECS=1150 it enters 3D.
+  * **DELIVERY 261002:** `~/Documents/261002/FreeFalcon-x86_64-261002.AppImage` (3,372,370,424 bytes, sha256
+    `5c9a8377...beae141e` in SHA256SUMS), packed by `~/appimage-build/build_ff.sh` + `appimagetool/AppRun` (it is an
+    extracted directory, not a binary) under `flock ~/.pack.lock` / `MemoryMax=8G`. Bundled FFViper md5-identical to
+    the dev build (b1f1197a…), 30 MP TEs in the bundled campaign/SAVE, smoke launch on `FF_GAMEDATA=~/ff-crawl`:
+    `UI_Startup() complete`, 0 crashes. An existing install (`~/.local/share/freefalcon`, `.installed`) does NOT
+    receive new data from a new AppImage — the MP files must be copied there by hand.
   * Harness lessons: rows hit-test on text; seats are taken only by a hitting seat click (else the first row's
     flight); `FF_DUMP_UI` lists tree rows by flight camp id. Not covered: 35 AN-2 Basic (not on the Korea
     training list); PvP (joiner on the enemy team) not tested.
