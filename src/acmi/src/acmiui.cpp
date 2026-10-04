@@ -850,6 +850,7 @@ static void ffRetireImportedFlt(const char *fltPath)
 #endif
 }
 
+void ff_acmitext_rename_for_tape(const char* fltname, const char* vhsname);   /* ff_acmitext.cpp */
 void ACMI_ImportFile(void)
 {
     // FF_LINUX: a .flt is only complete once recording STOPS. Importing while the
@@ -937,6 +938,7 @@ void ACMI_ImportFile(void)
 
                     if (_ok)
                     {
+                        ff_acmitext_rename_for_tape(fltname, fname);   // REPLAY-LAB-1: the text twin follows the tape
                         ffRetireImportedFlt(fltname);
                     }
                 }

@@ -8,6 +8,7 @@ set(ACMI_SOURCES
     src/acmitape.cpp
     src/acmiui.cpp
     src/acmiview.cpp
+    src/ff_acmitext.cpp
     # These are inline implementation files that are #included from headers, not standalone sources
     # src/include/acmcminl.cpp
     # src/include/acmtpinl.cpp

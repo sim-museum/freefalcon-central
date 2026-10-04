@@ -23,6 +23,37 @@
 //#include "simlib.h"
 //#include "otwdrive.h"
 #include "playerop.h"
+#include "acmihash.h"
+
+#ifdef FF_LINUX
+/* REPLAY-LAB-1 S3: Tacview text written alongside the .flt (ff_acmitext.cpp) */
+void ff_acmitext_start(const char* fltname);
+void ff_acmitext_stop(void);
+int ff_acmitext_known(long uid);
+void ff_acmitext_pos(char kind, double time, long uid, int type, float x, float y, float z, float yaw, float pitch,
+                     float roll, const char* label, long color, int is_player);
+
+/* first sighting of an ACMI id: its callsign and team colour from the ID table, and whether it is the player */
+static void ff_acmitext_describe(long uid, const char** label, long* color, int* is_player)
+{
+    *label = NULL; *color = 0; *is_player = 0;
+    if ( not ACMIIDTable) return;
+    ACMI_HASHNODE* node = NULL; unsigned long idx = 0;
+    for (long ok = ACMIIDTable->GetFirst(&node, &idx); ok and node; ok = ACMIIDTable->GetNext(&node, &idx))
+        if (node->Index == uid) { *label = node->label; *color = node->color; break; }
+    SimMoverClass* pl = SimDriver.GetPlayerEntity();
+    if (pl and ACMIIDTable->Find(pl->Id()) == uid) *is_player = 1;
+}
+
+static void ff_acmitext_tee(char kind, ACMIRecHeader* hdr, ACMIGenPositionData* d)
+{
+    const char* label = NULL; long color = 0; int is_player = 0;
+    if ( not ff_acmitext_known(d->uniqueID))
+        ff_acmitext_describe(d->uniqueID, &label, &color, &is_player);
+    ff_acmitext_pos(kind, hdr->time, d->uniqueID, d->type, d->x, d->y, d->z, d->yaw, d->pitch, d->roll, label, color,
+                    is_player);
+}
+#endif
 
 
 // the global recorder
@@ -266,6 +297,9 @@ ACMIRecorder::StartRecording(void)
 
     if (_fd)
     {
+#ifdef FF_LINUX
+        ff_acmitext_start(fname);
+#endif
         // initialize the bytes written
         _bytesWritten = 0.0f;
 
@@ -285,6 +319,9 @@ ACMIRecorder::StartRecording(void)
 void
 ACMIRecorder::StopRecording(void)
 {
+#ifdef FF_LINUX
+    ff_acmitext_stop();
+#endif
     long i, count;
     unsigned long idx;
     ACMI_HASHNODE *rec;
@@ -510,6 +547,9 @@ ACMIRecorder::MissilePositionRecord(ACMIMissilePositionRecord *recp)
 
     recp->hdr.type = (BYTE)ACMIRecMissilePosition;
     // recp->hdr.time = (float)(vuxGameTime/1000) + OTWDriver.todOffset;
+#ifdef FF_LINUX
+    ff_acmitext_tee('M', &recp->hdr, &recp->data);
+#endif
 
     // FIX *(recp->data.label) = NULL;
 
@@ -699,6 +739,9 @@ ACMIRecorder::AircraftPositionRecord(ACMIAircraftPositionRecord *recp)
 
     recp->hdr.type = (BYTE)ACMIRecAircraftPosition;
     // recp->hdr.time = (float)(vuxGameTime/1000) + OTWDriver.todOffset;
+#ifdef FF_LINUX
+    ff_acmitext_tee('A', &recp->hdr, &recp->data);
+#endif
 
     if ( not fwrite(recp, sizeof(ACMIAircraftPositionRecord), 1, _fd))
     {

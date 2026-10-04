@@ -113,6 +113,13 @@ extern bool g_bAllHaveIFF; // Cobra - Give all aircraft IFF interrogator
 //MI
 #include "playerrwr.h"
 #include "commands.h"
+#ifdef FF_LINUX
+#include "acmihash.h"
+extern "C" int ff_acmitext_active(void);
+int ff_acmitext_div(void);
+void ff_acmitext_pos(char kind, double time, long uid, int type, float x, float y, float z, float yaw, float pitch,
+                     float roll, const char* label, long color, int is_player);
+#endif
 extern bool g_bINS;
 extern bool g_bNewEngineSounds;
 
@@ -2222,6 +2229,18 @@ int AircraftClass::Exec(void)
         }
 
         // ACMI Output
+#ifdef FF_LINUX
+        /* REPLAY-LAB-1: the Tacview text twin samples every Nth frame, not just the .flt's every 16th; the .flt is
+           untouched. An object enters the text file once the 16-frame path below has registered it. */
+        if (gACMIRec.IsRecording() and ff_acmitext_active() and (SimLibFrameCount bitand 0x0000000f) != 0 and
+            (SimLibFrameCount % ff_acmitext_div()) == 0 and ACMIIDTable)
+        {
+            ACMI_HASHNODE* node = ACMIIDTable->Get(Id());
+            if (node)
+                ff_acmitext_pos('A', SimLibElapsedTime * MSEC_TO_SEC + OTWDriver.todOffset, node->Index, Type(),
+                                XPos(), YPos(), ZPos(), Yaw(), Pitch(), Roll(), NULL, 0, 0);
+        }
+#endif
         if (gACMIRec.IsRecording() and (SimLibFrameCount bitand 0x0000000f) == 0)
         {
             airPos.hdr.time = SimLibElapsedTime * MSEC_TO_SEC + OTWDriver.todOffset;
