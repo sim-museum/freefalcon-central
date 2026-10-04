@@ -121,7 +121,7 @@ void ff_acmitext_pos(char kind, double time, long uid, int type, float x, float 
     if (not g_txt)
         return;
     if (time != g_lastT) {
-        fprintf(g_txt, "#%.2f\r\n", time);
+        fprintf(g_txt, "#%.3f\r\n", time);   /* ms: 10 ms rounding was a few %% of speed at 10 Hz */
         g_lastT = time;
     }
     float lat = 0, lon = 0;
