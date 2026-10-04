@@ -67,7 +67,7 @@ extern "C" void sgw_announce_start(const char* game, int port, const char* title
 	shq(b, sizeof b, sgw_bin());
 	snprintf(cmd, sizeof cmd, "%s announce --game %s --port %d --title %s 2>&1 | sed 's/^/[sgw] /' >&2", b, game, port, t);
 	g_announce = popen(cmd, "w");
-	fprintf(stderr, "[sgw] announcing %s session \"%s\" on UDP %d (%s)\n", game, title ? title : "", port, g_announce ? "started" : "failed");
+	fprintf(stderr, "[sgw] announcing %s session \"%s\" on UDP %d via %s (%s)\n", game, title ? title : "", port, sgw_bin(), g_announce ? "started" : "failed");
 }
 
 extern "C" void sgw_announce_stop(void)

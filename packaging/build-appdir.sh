@@ -18,6 +18,10 @@ DENY='^(libGL\.|libGLX|libGLdispatch|libEGL|libOpenGL|libdrm|libgbm|libc\.|libm\
 rm -rf "$APPDIR"
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib"
 cp "$BIN" "$APPDIR/usr/bin/FFViper"
+# EPIC-MATCHMAKER: the Serious Games Week matchmaker client (sgweek/sgw.py, stdlib Python 3) the game runs to announce
+# and find sessions. SGW_SRC overrides; without it the game falls back to ~/sgweek/sgw.py, then `sgw` on PATH.
+SGW_SRC="${SGW_SRC:-$HOME/sgweek/sgw.py}"
+if [ -f "$SGW_SRC" ]; then install -m 0755 "$SGW_SRC" "$APPDIR/usr/bin/sgw"; else echo "note: $SGW_SRC not found -- AppDir has no sgw"; fi
 
 echo ">> bundling libraries (excluding host-provided)..."
 n=0
@@ -36,6 +40,7 @@ export LD_LIBRARY_PATH="$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
 # Game data is not bundled (not redistributable). Provide it via $FF_DATA_DIR or -d.
 DATA="${FF_DATA_DIR:-}"
 if [ -n "$DATA" ]; then set -- -d "$DATA" -w "$@"; fi
+export APPDIR="${APPDIR:-$HERE}"   # the games find the matchmaker client at $APPDIR/usr/bin/sgw
 exec "$HERE/usr/bin/FFViper" "$@"
 EOF
 chmod +x "$APPDIR/AppRun"
