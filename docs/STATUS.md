@@ -5167,6 +5167,12 @@ the *rendered terrain mesh* uses, and therefore whether the visible gap is the
 runway following the accurate surface while the mesh draws the coarse one. That
 needs either a mesh-height probe at a fixed point or an observed touchdown.
 
+**CORRECTED 2026-10-04 (REPLAY-LAB-1 S5): TE-09 DOES land itself with the AI pilot.** With
+`FF_AP_MODE=0` (APIntelligent -> CombatAP) and A pressed at 5 s, the AI flew the approach, flared and touched
+down 166 s later (75.3 m/s, 1.76 m/s sink), rolled out on 340.0 and taxied -- recorded and measured by replaylab.
+The "does not land itself" below was true only under the persisted APNormal (attitude hold). So the touchdown
+case is NOT blocked on the PO: `FF_AP_MODE=0 FF_SIM_KEY="0x1e@5"` with tools/ff_landap_approach.sh, SECS=600.
+
 **Blocked on the PO for the touchdown case**: TE-09 starts airborne and the
 aircraft does not land itself, so the half-submerged-on-landing geometry cannot
 be captured by the scripted harness. Four scripted approach frames show the jet
