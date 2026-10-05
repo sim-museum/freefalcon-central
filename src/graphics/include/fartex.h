@@ -99,6 +99,8 @@ protected:
 
     void HSVtoRGB(float *r, float *g, float *b, float h, float s, float v);
     void RGBtoHSV(float r, float g, float b, float *h, float *s, float *v);
+    void SeasonShiftRGB(float *r, float *g, float *b);   // TERRAIN-SEAM-1: the palette path's season branches
+    void SeasonShiftDXT1(BYTE *bits, DWORD size);        // ...applied to DXT1 endpoints (DDS far tiles)
 
 public:
     // Current light level (0.0 to 1.0)

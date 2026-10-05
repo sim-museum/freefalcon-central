@@ -22822,3 +22822,16 @@ geometry was never one a pilot would choose. This pass handed the jet to the gam
   position (1713539,997946). 0 crashes (3 known non-fatal asserts: texbank IsValidIndex, context nVerts).
 * Acceptance met: loads, carries JDAMs, release, the bombs reach -- and hit -- the target. The FF_TEST_BOMB
   shortfall was release geometry, as pass 3 concluded.
+
+
+## TERRAIN-SEAM-1 pass 7 (Opus 5.5, 2026-10-05) — autumn made consistent across the near and far bands
+
+PO, after pass 6: "make autumn consistent across both bands". In DDS mode the far tiles are read raw from
+`farTiles.dds` (**DXT1**; the file has no `DDS ` magic, so its header fields sit 4 bytes early) and never pass the
+palette loop that applies the season. Fix (`fartex.cpp`): `FarTexDB::SeasonShiftRGB` holds the palette loop's
+season branches (verbatim copy), and `SeasonShiftDXT1` applies them to the two 565 endpoints of every block as
+a far tile is read. If the shifted endpoints change order, they are swapped and the indices remapped so each
+block keeps its 4-colour/3-colour mode. Summer (season 0) is untouched. `FF_NO_FAR_SEASON=1` reverts.
+**Verified** (~/ff-crawl, pilot Season=1, pass-6 orbit recipe, FF_TERRAIN_DIST=80, `~/…/seam7`): the control
+shows a green far strip above the brown near terrain, while the fix continues the brown to the horizon.
+Horizon-band G−R +34 -> +29; near bands unchanged (+1/−1 -> +0/−1).

@@ -647,6 +647,131 @@ void FarTexDB::Release(TextureID texID)
 }
 
 // This function reads texel data from disk. Only the requested resolution level.
+/* TERRAIN-SEAM-1 (2026-10-05): in DDS mode the far tiles are read raw from farTiles.dds (DXT1) and never pass
+   the palette loop where the season is applied, so in autumn the near band went brown and the far band stayed
+   green -- a colour step at the seam. The season branches below are the palette loop's own (copied verbatim),
+   applied to the two 565 endpoints of every DXT1 block as the tile is read; the block's interpolated colours
+   follow. FF_NO_FAR_SEASON=1 reverts. */
+void FarTexDB::SeasonShiftRGB(float *r, float *g, float *b)
+{
+    float h, s, v;
+            if (ff_season() == 1) //Autumn
+            {
+                if ( not (((*r) == (*g) and (*g) == (*b)) or (*g) < 60 or ((*r) + (*g) + (*b)) / 3 > 225)) //Not Greyscale / green / not very bright
+                {
+                    RGBtoHSV(*r, *g, *b, &h, &s, &v);
+
+                    if (h >= 30 and h <= 165)  //Green
+                    {
+                        //h *= 0.6f; // min27 (yellow/orange/terracota/brown)
+                        h = h * 0.33f + 15; //Shift to brown
+                        s *= 1.2f; //more saturated (intenser brown, just mudy green otherwise
+                        v *= 0.9f; //darker
+                    }
+                    else if ( not (v > 0.9 and s > 0.9)) //Not a strong green, but neither very bright
+                    {
+                        s *= 0.9f; //less saturated
+                        v *= 0.85f; //darken a bit
+                    }
+
+                    if (s > 255) s = 255;
+
+                    if (h > 255) h = 255;
+
+                    HSVtoRGB(r, g, b, h, s, v);
+                }
+            }
+            else if (ff_season() == 2) //Winter
+            {
+                if ( not ((*r) == (*g) and (*r) == (*b)) or (*g) < 60) //(((*r)+(*g)+(*b))/3)>225) //or ((*r) == 255 and (*g) == 255))) //Greyscale //or pure color
+                {
+                    RGBtoHSV(*r, *g, *b, &h, &s, &v);
+
+                    if ( not (s <= 0.2 or h == -1))  //If Not Greyscale
+                    {
+                        if (h >= 45 and h <= 150) //If Green
+                        {
+                            s = 0;
+                            v = 255; //Make white
+                        }
+                    }
+                    else
+                    {
+                        v *= 1.3f; //Make brighter
+                    }
+
+                    //else if (v<=200) v *= 0.9f; //Greyscale, but not white: darken a bit (to increase contrast)
+                    //else if (v>=200) v *= 1.2f; //bright...make even brighter
+
+                    //if (s==0 and v < 240) v *= 0.85f; //Greyscale, but not white: darken a bit (to increase contrast)
+                    //if (s>230) s = 255; //bright...make even brighter
+                    if (v > 255) v = 255;
+
+                    HSVtoRGB(r, g, b, h, s, v);
+                }
+            }
+            else if (ff_season() == 3) //Spring
+            {
+                RGBtoHSV(*r, *g, *b, &h, &s, &v);
+
+                if ( not (s <= 0.1 or h == -1))  //Not Greyscale
+                {
+                    if (h >= 45 and h <= 160) //Green
+                    {
+                        s *= 0.8f;
+                        v *= 1.2f;
+                    }
+
+                    if (s > 255) s = 255;
+
+                    if (v > 255) v = 255;
+
+                    HSVtoRGB(r, g, b, h, s, v);
+                }
+            }
+}
+
+static WORD ff_pack565(float r, float g, float b)
+{
+    int R = (int)(r * 31.0f / 255.0f + 0.5f), G = (int)(g * 63.0f / 255.0f + 0.5f), B = (int)(b * 31.0f / 255.0f + 0.5f);
+    if (R < 0) R = 0; if (R > 31) R = 31; if (G < 0) G = 0; if (G > 63) G = 63; if (B < 0) B = 0; if (B > 31) B = 31;
+    return (WORD)((R << 11) | (G << 5) | B);
+}
+
+void FarTexDB::SeasonShiftDXT1(BYTE *bits, DWORD size)
+{
+    static int off = -1;
+    if (off < 0) off = getenv("FF_NO_FAR_SEASON") ? 1 : 0;
+    int season = ff_season();
+    if (off or season < 1 or season > 3 or not bits) return;
+    for (DWORD o = 0; o + 8 <= size; o += 8)
+    {
+        WORD *c = (WORD *)(bits + o);
+        DWORD *idx = (DWORD *)(bits + o + 4);
+        WORD n[2];
+        for (int k = 0; k < 2; k++)
+        {
+            float r = ((c[k] >> 11) & 31) * 255.0f / 31.0f, g = ((c[k] >> 5) & 63) * 255.0f / 63.0f, b = (c[k] & 31) * 255.0f / 31.0f;
+            SeasonShiftRGB(&r, &g, &b);
+            n[k] = ff_pack565(r, g, b);
+        }
+        bool four = c[0] > c[1];       /* DXT1: c0 > c1 = 4 colours, else 3 colours + transparent */
+        if (four)
+        {
+            if (n[0] < n[1]) { WORD t = n[0]; n[0] = n[1]; n[1] = t; *idx ^= 0x55555555u; }  /* 0<->1, 2<->3 */
+            else if (n[0] == n[1]) { if (n[0] > 0) n[1] = n[0] - 1; else n[0] = 1; *idx = 0; } /* keep 4-colour mode */
+        }
+        else if (n[0] > n[1])
+        {
+            WORD t = n[0]; n[0] = n[1]; n[1] = t;
+            DWORD v = *idx, w = 0;   /* 3-colour mode: swap indices 0<->1, keep 2 (mid) and 3 (transparent) */
+            for (int p = 0; p < 16; p++) { DWORD i = (v >> (2 * p)) & 3; if (i < 2) i ^= 1; w |= i << (2 * p); }
+            *idx = w;
+        }
+        c[0] = n[0]; c[1] = n[1];
+    }
+}
+
 void FarTexDB::Load(DWORD offset, bool forceNoDDS)
 {
     // FF_LINUX: IsReady() is literally 'texArray != NULL', and ShiAssert does NOT
@@ -690,6 +815,10 @@ void FarTexDB::Load(DWORD offset, bool forceNoDDS)
             sprintf(message, "%s: Couldn'd read far texture image %0d.", string, offset);
             ShiError(message);
         }
+#ifdef FF_LINUX
+        else
+            SeasonShiftDXT1(texArray[offset].bits, linearSize);   /* TERRAIN-SEAM-1: the far band gets the season too */
+#endif
     }
     else
     {
