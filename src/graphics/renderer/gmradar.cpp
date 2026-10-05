@@ -784,17 +784,16 @@ void RenderGMRadar::DrawBlip(DrawableObject* drawable, float GainScale, bool Sha
            buildings draw at colorMean 8.7-56.3 of 255 in ONE pixel (rMean never exceeds 0.4 px, so
            the r > 1.0 branch below never adds the other three points), while the aggregated
            objectives they replace draw a 2x2 block at full 255 -- about 46x the light per building.
-           FF_GM_FEATURE_INTENSITY=<0-255> applies the same floor here so the PO can judge the two
-           pictures. DEFAULT OFF: the arithmetic is upstream and identical on Windows, and the gold
-           library still holds no Wine capture of the GM scope, so this is a judgement to be put to
-           the PO, not a silent correction. */
+           FF_GM_FEATURE_INTENSITY=<0-255> sets the floor. DEFAULT 200 since 2026-10-05: the PO judged the
+           shipped/floor-on picture pair (~/Documents/261005/GMOBJ-1_gm_pair.png) and turned it on. The
+           arithmetic is upstream and identical on Windows; FF_GM_FEATURE_INTENSITY=0 restores it. */
         {
             static int s_floor = -2;
 
             if (s_floor == -2)
             {
                 const char *e = getenv("FF_GM_FEATURE_INTENSITY");
-                s_floor = e ? atoi(e) : 0;
+                s_floor = e ? atoi(e) : 200;
                 if (s_floor < 0) s_floor = 0;
                 if (s_floor > 255) s_floor = 255;
             }
