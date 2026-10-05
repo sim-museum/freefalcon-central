@@ -22835,3 +22835,13 @@ block keeps its 4-colour/3-colour mode. Summer (season 0) is untouched. `FF_NO_F
 **Verified** (~/ff-crawl, pilot Season=1, pass-6 orbit recipe, FF_TERRAIN_DIST=80, `~/…/seam7`): the control
 shows a green far strip above the brown near terrain, while the fix continues the brown to the horizon.
 Horizon-band G−R +34 -> +29; near bands unchanged (+1/−1 -> +0/−1).
+
+
+### GMOBJ-1 S5 (Opus 5.5, 2026-10-05) — the picture pair for the PO's decision
+
+The gm-radar-repro key recipe left GM within a second on the HARM TE: S0x53 (Shift+Del) is SimICPAG, the A-G master
+mode, which already puts the FCR in GM; the F2 that followed stepped GM -> GMT (and further keys -> SEA). With
+`FF_SIM_KEY='S0x53@15'` alone the radar stays in GM (mode 14) for the whole flight. Pair captured on ~/ff-crawl,
+HARM TE (row 26), FF_AP_MODE=1, at 90/150/210 s: shipped vs `FF_GM_FEATURE_INTENSITY=200`
+(`~/Documents/261005/GMOBJ-1_gm_pair.png`). Shipped: a few dim single-pixel returns that thin out on the approach.
+Floor on: the target group shows as bright clusters at the cursor. Default stays OFF until the PO chooses.
