@@ -1,5 +1,24 @@
 # FreeFalcon multiplayer (Linux port)
 
+**Status (2026-10-04, AppImage 261004):** Dogfight, campaign and Tactical Engagement multiplayer reach a shared
+3-D flight with two instances on one PC. There are multiplayer copies of the Tactical Engagements: 30 "<TE> MP"
+missions were made with the game's own editor, with player seats added, and each was flown two-player (30/30,
+FF-TEMP-1). **They exist only in the test copy (`~/ff-crawl/campaign/SAVE/*MP*`):** they are not in your install
+or the AppImage, because copying them into your tree changes your data. That's your call: copy them into
+`campaign/SAVE/` to get them under Tactical Engagement → SAVED. Games are found through the squeak matchmaker (below). Two
+PCs have not been retested since 2026-09-19.
+
+## Finding games: squeak (the Serious Games Week matchmaker)
+
+* Once per PC: `sgw url http://<matchmaker-host>:8090`. The AppImage carries its own `sgw`;
+  `pipx install git+https://github.com/sim-museum/squeak` puts one on your PATH.
+* **Host:** go online in the Comms window *without* a remote address, and the session is listed.
+* **Joiner:** the hosts the matchmaker lists appear in the Comms phonebook. Pick one and Connect.
+* A game is listed only on its day (Saturday for FreeFalcon, in your own time zone); on other days the game still
+  hosts normally. `SGW_OFF=1` disables the matchmaker hooks.
+
+## 2026-09-28 status (kept for its defect table)
+
 **Status (2026-09-28):** two-PC discovery, join, dogfight team select and a shared 3-D flight with
 weapons were confirmed by the PO on 2026-09-19. Two of the three defects that test found are fixed and
 measured on one box with two instances (`scripts/qa/mp-dogfight.sh`); the third is the HUD FLIR (Shift+H).
@@ -44,4 +63,5 @@ lock/release/flags/damage/RegisterHit lines), `FF_DEBUG_MPCLOCK=1` (`[mpclock]` 
 
 ## Not known
 
-* More than two players; internet play (no NAT traversal); the same flight taken by two players.
+* More than two players; internet play (no NAT traversal: the host must accept UDP 2934 from outside); the same
+  flight taken by two players.
