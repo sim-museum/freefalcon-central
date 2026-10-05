@@ -70,6 +70,7 @@ extern int F4CommsMTU;  // More of Unz and Boosters stuff
 #define F4COMMS_ERROR_MULTICAST_NOT_AVAILABLE -3
 #define F4COMMS_ERROR_FAILED_TO_CREATE_GAME -4
 #define F4COMMS_ERROR_COULDNT_CONNECT_TO_SERVER -5
+#define F4COMMS_ERROR_DIFFERENT_BUILD -20 // backlog 28: the other side runs a different build (text: ff_build_mismatch_text)
 
 class ComDataClass;
 

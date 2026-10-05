@@ -237,11 +237,19 @@ void CommsErrorDialog(long TitleID, long MessageID, void (*OKCB)(long, short, C_
     }
 }
 
+#ifdef FF_LINUX
+extern "C" char ff_build_mismatch_text[400];   /* backlog 28: set by comms/udp.c */
+void AreYouSure(long TitleID, _TCHAR *text, void (*OkCB)(long, short, C_Base*), void (*CancelCB)(long, short, C_Base*));
+void CloseWindowCB(long ID, short hittype, C_Base *control);
+#endif
 void UI_CommsErrorMessage(WORD error)
 {
     long messageid = 0;
 
-    switch (error)
+    /* The F4COMMS_ERROR_* codes are NEGATIVE ints but arrive as a WORD, so `switch (error)` compared 65531 with -5 and
+       every error case (no TCP/UDP/multicast, couldn't create the game or reach the server) was unreachable -- those
+       dialogs never showed. Compare as the signed 16-bit value they were sent as. (Found 2026-10-05, backlog 28.) */
+    switch ((short)error)
     {
         case F4COMMS_CONNECTED:
             messageid = TXT_COMMS_CONNECTED;
@@ -270,6 +278,13 @@ void UI_CommsErrorMessage(WORD error)
         case F4COMMS_PENDING:
             messageid = TXT_COMMS_PENDING;
             break;
+#ifdef FF_LINUX
+        case F4COMMS_ERROR_DIFFERENT_BUILD:   /* backlog 28: the reason text comes from the comms layer */
+            /* AYS_WIN exists on every screen; COMMLINK_WIN only once the Comms screen's windows are loaded, so a
+               joiner on the Dogfight/Campaign/TE "Online" tab would see nothing (measured). */
+            AreYouSure(TXT_COMMS_TITLE, ff_build_mismatch_text, CloseWindowCB, NULL);
+            return;
+#endif
     }
 
     if (messageid)

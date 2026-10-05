@@ -112,6 +112,7 @@ extern void CampaignPreloadSuccess(int remote);
 extern void CampaignAutoSave(FalconGameType type);
 extern char gUI_CampaignFile[];
 extern void UI_CommsErrorMessage(WORD error);
+extern "C" int ff_build_mismatch_take(void);   /* backlog 28: comms/udp.c */
 extern int gameCompressionRatio;
 extern DogfightClass SimDogfight;
 extern void StartCampaignGame(int local, int game_type);
@@ -4021,6 +4022,11 @@ static void main_loop(void) {
                 }
             ff_clock_done:
                 ThreadManager::sim_signal_campaign();
+            }
+            /* backlog 28: a different-build notice arrived -- show its reason in the comms dialog */
+            {
+                if (doUI && gMainHandler && ff_build_mismatch_take())
+                    UI_CommsErrorMessage(static_cast<WORD>(F4COMMS_ERROR_DIFFERENT_BUILD));
             }
         }
 

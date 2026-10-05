@@ -702,6 +702,15 @@ int ComUDPSendDummy(com_API_handle c, unsigned long ip, unsigned short port)
            );
 }
 
+/* Backlog 28 (2026-10-05): when a packet arrives from a different build (another world name), the receiver drops it
+   and answers once every few seconds with a NOTICE -- the header's world name set to "!WM!", then its own world name
+   and build -- so the side that was ignored learns why instead of seeing an empty game list. The notice is itself
+   ignored by every older build (it fails their world-name check). The main loop shows the text in the comms dialog. */
+char ff_build_mismatch_text[400];
+volatile int ff_build_mismatch_pending = 0;
+int ff_build_mismatch_take(void) { if (!ff_build_mismatch_pending) return 0; ff_build_mismatch_pending = 0; return 1; }
+static const char FF_WM_MARK[4] = { '!', 'W', 'M', '!' };
+
 int ComUDPGet(com_API_handle c)
 {
 
@@ -883,6 +892,29 @@ int ComUDPGet(com_API_handle c)
                 cudp->lastsenderid = ((ComAPIHeader *)cudp->recv_buffer.buf)->id;
 
 
+#ifdef FF_LINUX
+                if (memcmp(((ComAPIHeader *)cudp->recv_buffer.buf)->gamename, FF_WM_MARK, 4) == 0)
+                {
+                    /* a notice: the sender runs a different build than ours */
+                    static int ff_wm_seen = 0;
+                    if (!ff_wm_seen++)
+                    {
+                        char theirs[70] = "";
+                        int pl = bytesRecvd - (int)sizeof(ComAPIHeader) - 4;
+                        unsigned char* ip = (unsigned char*)&cudp->lastsender;
+                        const char* ours = getenv("SGW_BUILD");
+                        if (pl > 0) { if (pl > 64) pl = 64; memcpy(theirs, cudp->recv_buffer.buf + sizeof(ComAPIHeader) + 4, pl); theirs[pl] = 0; }
+                        fprintf(stderr, "[comms] Different builds: the game at %u.%u.%u.%u runs %s and you run %s. Both "
+                                "players need the same build of FreeFalcon.\n", ip[0], ip[1], ip[2], ip[3],
+                                theirs[0] ? theirs : "an unknown build", (ours && *ours) ? ours : "an unknown build");
+                        /* the dialog holds about four lines of 24 characters: keep every wrapped line short */
+                        snprintf(ff_build_mismatch_text, sizeof ff_build_mismatch_text, "Build mismatch\nHost: %s\nYou: %s",
+                                 theirs[0] ? theirs : "unknown", (ours && *ours) ? ours : "unknown");
+                        ff_build_mismatch_pending = 1;
+                    }
+                    continue;
+                }
+#endif
                 // check gamename
                 if (strncmp(((ComAPIHeader *)cudp->recv_buffer.buf)->gamename, ((ComAPIHeader *)cudp->send_buffer.buf)->gamename, GAME_NAME_LENGTH) == 0)
                 {
@@ -903,6 +935,27 @@ int ComUDPGet(com_API_handle c)
                 {
                     /* Backlog 28: a different world name means a different build (or a different game) -- the
                        packet is dropped as before, and the player is told once why the other side is silent. */
+                    /* answer the sender with a notice, at most every 3 s */
+                    static DWORD ff_wm_last = 0;
+                    DWORD now = GetTickCount();
+                    if (now - ff_wm_last > 3000)
+                    {
+                        char note[sizeof(ComAPIHeader) + 4 + 64];
+                        const char* ours = getenv("SGW_BUILD");
+                        int bl = (ours && *ours) ? (int)strlen(ours) : 0;
+                        struct sockaddr_in to;
+                        if (bl > 64) bl = 64;
+                        memset(note, 0, sizeof note);
+                        memcpy(((ComAPIHeader *)note)->gamename, FF_WM_MARK, 4);
+                        memcpy(note + sizeof(ComAPIHeader), ((ComAPIHeader *)cudp->send_buffer.buf)->gamename, 4);
+                        if (bl) memcpy(note + sizeof(ComAPIHeader) + 4, ours, bl);
+                        memset(&to, 0, sizeof to);
+                        to.sin_family = AF_INET;
+                        to.sin_addr.s_addr = cudp->lastsender;
+                        to.sin_port = cudp->lastsenderport;
+                        CAPI_sendto(cudp->send_sock, note, (int)sizeof(ComAPIHeader) + 4 + bl, 0, (struct sockaddr*)&to, sizeof to);
+                        ff_wm_last = now;
+                    }
                     static int ff_world_warned = 0;
                     if (!ff_world_warned++)
                     {
