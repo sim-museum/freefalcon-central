@@ -5,13 +5,13 @@
 missions were made with the game's own editor, with player seats added, and each was flown two-player (30/30,
 FF-TEMP-1). **They exist only in the test copy (`~/ff-crawl/campaign/SAVE/*MP*`):** they are not in your install
 or the AppImage, because copying them into your tree changes your data. That's your call: copy them into
-`campaign/SAVE/` to get them under Tactical Engagement → SAVED. Games are found through the squeak matchmaker (below). Two
+`campaign/SAVE/` to get them under Tactical Engagement → SAVED. Games are found through the Serious Games Week matchmaker (below). Two
 PCs have not been retested since 2026-09-19.
 
-## Finding games: squeak (the Serious Games Week matchmaker)
+## Finding games: the Serious Games Week matchmaker
 
 * Once per PC: `sgw url http://<matchmaker-host>:8090`. The AppImage carries its own `sgw`;
-  `pipx install git+https://github.com/sim-museum/squeak` puts one on your PATH.
+  `pipx install git+https://github.com/sim-museum/serious-games-week` puts one on your PATH.
 * **Host:** go online in the Comms window *without* a remote address, and the session is listed.
 * **Joiner:** the hosts the matchmaker lists appear in the Comms phonebook. Pick one and Connect.
 * A game is listed only on its day (Saturday for FreeFalcon, in your own time zone); on other days the game still
