@@ -1,7 +1,7 @@
 /* src/ui/src/comms/sgw_link.cpp -- the game's side of the Serious Games Week matchmaker (EPIC-MATCHMAKER, 2026-10-03).
  *
- * The matchmaker is an iGOR-style website the PLAYER chooses ($SGW_URL or ~/.config/sgweek/url). The game talks to
- * it through the `sgw` client (sgweek/sgw.py), never directly:
+ * The matchmaker is an iGOR-style website the PLAYER chooses ($SGW_URL or ~/.config/sgw/url). The game talks to
+ * it through the `sgw` client (serious-games-week/sgw.py), never directly:
  *   hosting  -> `sgw announce --game <id> --port <udp> --title <session>` runs for as long as the session; its stdin
  *               is a pipe the game holds, so the listing is withdrawn when the session closes or the game exits.
  *               The matchmaker refuses a game outside the player's day-of-week category (sgw exits 3); the game
@@ -10,7 +10,7 @@
  * The list is refreshed in a background thread every 10 s, so the menus never wait on the network.
  * Shared verbatim with MA and BoB (their SRC/compat/sgw_link.cpp); FreeFalcon feeds listed hosts into the Comms
  * phonebook (phonebk.cpp) and announces a listening player (uicomms.cpp). The game id is a parameter.
- * Finding sgw: $SGW_BIN, else $APPDIR/usr/bin/sgw (AppImage), else ~/sgweek/sgw.py, else `sgw` on PATH.
+ * Finding sgw: $SGW_BIN, else $APPDIR/usr/bin/sgw (AppImage), else ~/serious-games-week/sgw.py, else `sgw` on PATH.
  * SGW_OFF=1 disables everything here. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,7 +30,7 @@ static const char* sgw_bin(void)
 	const char* e = getenv("SGW_BIN");
 	if (e && *e) snprintf(path, sizeof path, "%s", e);
 	else if (getenv("APPDIR") && (snprintf(path, sizeof path, "%s/usr/bin/sgw", getenv("APPDIR")), access(path, X_OK) == 0)) {}
-	else if (getenv("HOME") && (snprintf(path, sizeof path, "%s/sgweek/sgw.py", getenv("HOME")), access(path, R_OK) == 0)) {}
+	else if (getenv("HOME") && (snprintf(path, sizeof path, "%s/serious-games-week/sgw.py", getenv("HOME")), access(path, R_OK) == 0)) {}
 	else snprintf(path, sizeof path, "sgw");
 	return path;
 }
@@ -40,8 +40,13 @@ extern "C" int sgw_configured(void)
 	if (getenv("SGW_OFF")) return 0;
 	if (getenv("SGW_URL") && *getenv("SGW_URL")) return 1;
 	char p[512];
-	snprintf(p, sizeof p, "%s/.config/sgweek/url", getenv("HOME") ? getenv("HOME") : "");
-	FILE* f = fopen(p, "r"); if (!f) return 0;
+	snprintf(p, sizeof p, "%s/.config/sgw/url", getenv("HOME") ? getenv("HOME") : "");
+	FILE* f = fopen(p, "r");
+	if (!f) {	/* read-only fallback for setups made before 2026-10-05 */
+		snprintf(p, sizeof p, "%s/.config/sgweek/url", getenv("HOME") ? getenv("HOME") : "");
+		f = fopen(p, "r");
+	}
+	if (!f) return 0;
 	int c = fgetc(f); fclose(f);
 	return c != EOF && c != '\n';
 }
