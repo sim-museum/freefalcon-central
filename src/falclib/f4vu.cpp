@@ -142,6 +142,23 @@ extern const char* FREE_FALCON_VERSION;
     // strcpy(tmpStr, "F552"); //  according to REVISOR this will allow connections to 1.08 servers. we'll see
     //strcpy(tmpStr, "E109newmp"); //me123 we are not interested in 108 conections anymore since they'll ctd us
     strcpy(tmpStr, g_strWorldName);
+#ifdef FF_LINUX
+    /* Backlog 28 (2026-10-05): the 4-character world name is in every packet header, and the comms layer drops
+       packets whose name differs -- the mechanism the comment above was written for. With $SGW_BUILD (the git
+       commit the AppImage stamps) it is derived from the build, so two different builds never talk, whether they
+       met through the Serious Games Week matchmaker or a typed address. Printable characters only: the check is
+       strncmp, so a zero byte would end the comparison early. */
+    if (const char* b = getenv("SGW_BUILD"))
+        if (*b)
+        {
+            unsigned int h = 2166136261u;
+            for (const char* p = b; *p; p++) { h ^= (unsigned char)*p; h *= 16777619u; }
+            static const char A[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+            for (int i = 0; i < 4; i++) { tmpStr[i] = A[h % 62]; h /= 62; }
+            tmpStr[4] = 0;
+            fprintf(stderr, "[comms] world name %s, from build %s\n", tmpStr, b);
+        }
+#endif
 
     vuxWorldName = new char[strlen(tmpStr) + 1];
     strcpy(vuxWorldName, tmpStr);

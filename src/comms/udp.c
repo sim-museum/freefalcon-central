@@ -898,6 +898,21 @@ int ComUDPGet(com_API_handle c)
                     //take header out
                     return bytesRecvd - sizeof(ComAPIHeader);
                 }
+#ifdef FF_LINUX
+                else
+                {
+                    /* Backlog 28: a different world name means a different build (or a different game) -- the
+                       packet is dropped as before, and the player is told once why the other side is silent. */
+                    static int ff_world_warned = 0;
+                    if (!ff_world_warned++)
+                    {
+                        unsigned char* ip = (unsigned char*)&cudp->lastsender;
+                        fprintf(stderr, "[comms] ignoring %u.%u.%u.%u: it runs a different build of FreeFalcon "
+                                "(world %.4s, ours %.4s). Both players need the same build.\n", ip[0], ip[1], ip[2], ip[3],
+                                ((ComAPIHeader *)cudp->recv_buffer.buf)->gamename, ((ComAPIHeader *)cudp->send_buffer.buf)->gamename);
+                    }
+                }
+#endif
             }
         }
         else
