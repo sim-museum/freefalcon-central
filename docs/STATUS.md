@@ -22805,3 +22805,20 @@ lighting), and the palette code had the answer: `TextureDB::StoreMPRPalette` hue
   bands blend (`side_by_side.png`). Original engine behaviour, not a port defect.
 * **PO choice:** Season = Summer in Setup -> Graphics, or ask for autumn to be made consistent across bands (shift
   the DDS far tiles, or exempt the near tiles). Not changed here.
+
+
+## FF-JDAM-1 pass 4 (Opus 5.5, 2026-10-04) — DONE: the AI pilot delivers all four JDAMs onto the target features
+
+Retro: passes 1-3 forced the release with FF_TEST_BOMB from an unflown jet sinking to ~6 kft, so the release
+geometry was never one a pilot would choose. This pass handed the jet to the game's own AI pilot instead
+(`FF_AP_MODE=0` + A, as REPLAY-LAB-1 S5 did for landings) and let it fly the strike.
+* Recipe (scratch install ~/ff-crawl, never the PO tree):
+  `FF_UI_CLICK="574,750@12;225,171@18;896,743@24;677,748@36;140,638@42;824,750@48;973,750@J3"` (Korea theater,
+  TE, row 32 = y 94+32*17, x 140 -- x 205 is the list's dead band) `FF_AP_MODE=0 FF_SIM_KEY="0x1e@5"`
+  `FF_DEBUG_MSLEND=1 FF_DEBUG_JDAM=1 FF_DEBUG_BOMBTGT=1`.
+* Result: four GBU-31 (wIndex 2409, stype 4 GPS) released by the AI; every one ends with **endCode 10 =
+  FeatureImpact** (a hit on a feature, not BombImpact = ground), `_gp2000_impact` effects, at (1713499,997961),
+  (1713233,998907), (1714035,998260), (1713921,997746) -- 43, ~1010, ~590, ~430 ft from the briefed target
+  position (1713539,997946). 0 crashes (3 known non-fatal asserts: texbank IsValidIndex, context nVerts).
+* Acceptance met: loads, carries JDAMs, release, the bombs reach -- and hit -- the target. The FF_TEST_BOMB
+  shortfall was release geometry, as pass 3 concluded.
