@@ -22784,3 +22784,24 @@ Queued behind FF-TEMP-1; one item at a time, each split into ~8-pt sprints with 
   - the joiner's phonebook showed 1 listed host.
 * **First attempt crashed the joiner:** auto-connect runs at boot, before the phonebook exists. That path now reads the
   list directly.
+
+
+## TERRAIN-SEAM-1 pass 6 (Opus 5.5, 2026-10-04) — the residual hue AND the band colour step are the AUTUMN season setting
+
+Retro: passes 1-5 compared camera-matched screenshots; this pass split the colour pipeline instead (texture vs
+lighting), and the palette code had the answer: `TextureDB::StoreMPRPalette` hue-shifts greens by `PlayerOptions.Season`.
+* Both installs' `config/Viper.pop` (byte 48; offset validated by SimAutopilotType=2 at 68) say **Season = 1, autumn**.
+* New `FF_SEASON=<0..3>` override (terrtex.cpp, fartex.cpp; `[StoreMPRPalette] ... season=N (pilot M)`). A/B on
+  ~/ff-crawl, same ACMI orbit recipe, FF_TERRAIN_DIST=80 (`~/ff-gates/seam6/`):
+  | band | autumn | summer (FF_SEASON=0) | gold |
+  |---|---|---|---|
+  | horizon 55-70 % | G-R +34 | +34 | +37 |
+  | mid 70-85 % | **+2** (82,84,68) | **+18** (81,99,80) | **+25** (76,101,91) |
+  | near 85-100 % | -2 | +11 | +2 |
+  The gold was rendered with the summer palette.
+* **The band seam:** `FarTexDB::SetLightLevel` skips the palette (and season) path in DDS mode
+  (`if (m_texMode != TEX_MODE_DDS)`, fartex.cpp:294), while the near tiles are paletted .pcx and always shifted. In
+  autumn the near terrain turns brown and the DDS far band stays green: a colour step between bands. In summer the
+  bands blend (`side_by_side.png`). Original engine behaviour, not a port defect.
+* **PO choice:** Season = Summer in Setup -> Graphics, or ask for autumn to be made consistent across bands (shift
+  the DDS far tiles, or exempt the near tiles). Not changed here.

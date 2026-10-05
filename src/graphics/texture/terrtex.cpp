@@ -27,6 +27,15 @@ extern void ReadDTXnFile(unsigned long count, void * buffer);
 extern void WriteDTXnFile(unsigned long count, void *buffer);
 
 #include "falclib/include/playerop.h"
+
+/* TERRAIN-SEAM-1: FF_SEASON=<0..3> overrides the pilot's season (0 summer, 1 autumn, 2 winter, 3 spring) for A/B
+   captures; the terrain palettes are hue-shifted by season. */
+static int ff_season(void)
+{
+    static int s = -2;
+    if (s == -2) { const char* e = getenv("FF_SEASON"); s = e ? atoi(e) : -1; }
+    return s >= 0 ? s : PlayerOptions.Season;
+}
 #ifdef FF_LINUX
 extern "C" void FF_SurfaceGLInfo(IDirectDrawSurface7 *s, unsigned *glTex, int *dirty);   /* TERRAIN-1 S5 bind probe (d3d_gl.cpp) */
 #endif
@@ -422,8 +431,8 @@ void TextureDB::StoreMPRPalette(SetEntry *pSet)
     // FF_LINUX DIAG: Print lightColor once
     static int lcPrintCount = 0;
     if (lcPrintCount < 3) {
-        fprintf(stderr, "[StoreMPRPalette] lightColor=(%.3f, %.3f, %.3f) lightLevel=%.3f\n",
-            lightColor.r, lightColor.g, lightColor.b, lightLevel);
+        fprintf(stderr, "[StoreMPRPalette] lightColor=(%.3f, %.3f, %.3f) lightLevel=%.3f season=%d (pilot %d)\n",
+            lightColor.r, lightColor.g, lightColor.b, lightLevel, ff_season(), PlayerOptions.Season);
         lcPrintCount++;
     }
 
@@ -460,7 +469,7 @@ void TextureDB::StoreMPRPalette(SetEntry *pSet)
 
         // 0:Summer, 1:Fall, 2:Winter, 3:Spring
 
-        if (PlayerOptions.Season == 1) //Autumn
+        if (ff_season() == 1) //Autumn
         {
             if ( not ((tmpR == tmpG and tmpG == tmpB) or tmpG < 60 or (tmpR + tmpG + tmpB) / 3 > 225)) //Not Greyscale / green / not very bright
             {
@@ -486,7 +495,7 @@ void TextureDB::StoreMPRPalette(SetEntry *pSet)
                 HSVtoRGB(&tmpR, &tmpG, &tmpB, h, s, v);
             }
         }
-        else if (PlayerOptions.Season == 2) //Winter
+        else if (ff_season() == 2) //Winter
         {
             if ( not (tmpR == tmpG and tmpR == tmpB) or tmpG < 60) //((tmpR+tmpG+tmpB)/3)>225) //or (tmpR == 255 and tmpG == 255))) //Greyscale //or pure color
             {
@@ -515,7 +524,7 @@ void TextureDB::StoreMPRPalette(SetEntry *pSet)
                 HSVtoRGB(&tmpR, &tmpG, &tmpB, h, s, v);
             }
         }
-        else if (PlayerOptions.Season == 3) //Spring
+        else if (ff_season() == 3) //Spring
         {
             RGBtoHSV(tmpR, tmpG, tmpB, &h, &s, &v);
 

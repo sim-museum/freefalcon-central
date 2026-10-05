@@ -28,6 +28,15 @@ extern void WriteDTXnFile(unsigned long count, void *buffer);
 
 #include "falclib/include/playerop.h"
 
+/* TERRAIN-SEAM-1: FF_SEASON=<0..3> overrides the pilot's season (0 summer, 1 autumn, 2 winter, 3 spring) for A/B
+   captures; the terrain palettes are hue-shifted by season. */
+static int ff_season(void)
+{
+    static int s = -2;
+    if (s == -2) { const char* e = getenv("FF_SEASON"); s = e ? atoi(e) : -1; }
+    return s >= 0 ? s : PlayerOptions.Season;
+}
+
 #ifdef USE_SH_POOLS
 MEM_POOL gFartexMemPool;
 #endif
@@ -304,7 +313,7 @@ void FarTexDB::SetLightLevel(void)
 
             // 0:Summer, 1:Fall, 2:Winter, 3:Spring
 
-            if (PlayerOptions.Season == 1) //Autumn
+            if (ff_season() == 1) //Autumn
             {
                 if ( not ((tmpR == tmpG and tmpG == tmpB) or tmpG < 60 or (tmpR + tmpG + tmpB) / 3 > 225)) //Not Greyscale / green / not very bright
                 {
@@ -330,7 +339,7 @@ void FarTexDB::SetLightLevel(void)
                     HSVtoRGB(&tmpR, &tmpG, &tmpB, h, s, v);
                 }
             }
-            else if (PlayerOptions.Season == 2) //Winter
+            else if (ff_season() == 2) //Winter
             {
                 if ( not (tmpR == tmpG and tmpR == tmpB) or tmpG < 60) //((tmpR+tmpG+tmpB)/3)>225) //or (tmpR == 255 and tmpG == 255))) //Greyscale //or pure color
                 {
@@ -359,7 +368,7 @@ void FarTexDB::SetLightLevel(void)
                     HSVtoRGB(&tmpR, &tmpG, &tmpB, h, s, v);
                 }
             }
-            else if (PlayerOptions.Season == 3) //Spring
+            else if (ff_season() == 3) //Spring
             {
                 RGBtoHSV(tmpR, tmpG, tmpB, &h, &s, &v);
 
