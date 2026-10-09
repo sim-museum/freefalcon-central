@@ -22880,3 +22880,7 @@ Two PCs on the LAN (host 192.168.254.14, guest this PC). **Worked:** Dogfight. L
   show "Viper entered" twice, "hello_from_host" and "hi_from_client"; 0 crashes. The Dogfight game screen itself
   has no chat window (the PO typed in the main screen's COMMS chat, host log clicks in window 60014).
   - 🔲 Follow-up: both default callsigns are "Viper", so chat lines and player rows cannot be told apart.
+  - Regression, campaign join + takeoff with forwarding: r5 the guest's flight "NEVER arrived" (host never sent the
+    deaggregated 2-aircraft flight; the known one-PC MPHOST-SIM-1 intermittent), r7 PASS (renders, 4-aircraft
+    flight); control without forwarding r6 PASS. The only message forwarded in these runs was FM_RECEIVE_CHAT (the
+    automatic "( is commiting now )" line). Logged as the harness intermittent, not the forwarding.
