@@ -22865,8 +22865,11 @@ Two PCs on the LAN (host 192.168.254.14, guest this PC). **Worked:** Dogfight. L
   - **Fix (ui_comms.cpp):** each game row shows whose it is -- `Viper's Game (192.168.254.14)`, or `(yours)` for a
     game you host. Display only; `FF_NO_GAME_ADDRESS=1` reverts. VU keeps the address in host byte order
     (first build showed 1.0.0.127). Measured: r4b row `Viper's Game (127.0.0.1)`. "(yours)" not yet seen on screen.
-* 🔲 **MP2-FF-2 — stale panels over the campaign tabs** (same frames): the mission list and clock/map stay
-  drawn over NEW/SAVED/ONLINE.
+* 🅿️ **MP2-FF-2 — stale panels over the campaign tabs** (PO video 17:00:18 on): the mission list and clock/map stay
+  drawn over NEW/SAVED/ONLINE. Not reproduced in 2 runs (`~/ff-gates/mp26/mp2ff2_r*`): the guest joins the host's
+  Dogfight, leaves it (EXIT twice), Campaign -> NEW -> COMMIT -> OK starts its own campaign cleanly (type 4, the
+  priorities screen). The PO's guest log stops at start-up (86 lines), so its clicks are unknown; FF logs every
+  click ([LBUTTONDOWN]) by default -- PARKED until a complete guest log from the next two-PC test.
 * ✅ **MP2-FF-3 — multiplayer chat did not work (PO, 2026-10-08). Fixed: received lines were thrown away.**
   New `[chat]` traces (FF_DEBUG_MPCOMMS) showed every line SENT and RECEIVED (`[chat] tx` / `[chat] rx`), but the
   receiver's window showed only its own line. `ReceiveChatString` posts FM_RECEIVE_CHAT for the window loop to display
