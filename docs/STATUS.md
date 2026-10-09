@@ -22856,5 +22856,5 @@ Two PCs on the LAN (host 192.168.254.14, guest this PC). **Worked:** Dogfight. L
   Reproduce two-instance on this PC with tracing, then fix. MULTIPLAYER.md wrongly calls the tab "JOIN".
 * 🔲 **MP2-FF-2 — stale panels over the campaign tabs** (same frames): the mission list and clock/map stay
   drawn over NEW/SAVED/ONLINE.
-* 🔲 **MP2-FF-3 — chat did not work (PO, 2026-10-08)** in the Dogfight that otherwise worked. Find where the
+* 🔲 **MP2-FF-3 — multiplayer chat between players on different PCs did not work (PO, 2026-10-08),** both ways, in the Dogfight that otherwise worked. Find where the
   message stops: send, transport, receive or display.
