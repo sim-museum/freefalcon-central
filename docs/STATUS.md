@@ -22845,3 +22845,14 @@ mode, which already puts the FCR in GM; the F2 that followed stepped GM -> GMT (
 HARM TE (row 26), FF_AP_MODE=1, at 90/150/210 s: shipped vs `FF_GM_FEATURE_INTENSITY=200`
 (`~/Documents/261005/GMOBJ-1_gm_pair.png`). Shipped: a few dim single-pixel returns that thin out on the approach.
 Floor on: the target group shows as bright clusters at the cursor. Default stays OFF until the PO chooses.
+
+## MPTEST-2 — the PO's first two-PC test of the 261005b AppImage (2026-10-08)
+Two PCs on the LAN (host 192.168.254.14, guest this PC). **Worked:** Dogfight. Logs and videos:
+`~/Documents/261008/` (`261008_16_42_ff_host.log`, `261008_16_45_ff_join_2.log`, `261008_17_05_ff_guest.mp4`,
+`261008_ff_multiplayer.mp4`). PO rule: fix the root cause, durably.
+* 🔲 **MP2-FF-1 — the guest cannot find a campaign the host has started** (new campaigns; `save0` in the
+  host log is the first new-campaign scenario). Guest video 17:01: the ONLINE tab shows no game list, only
+  the mission-list and clock/map panels. No `FF_DEBUG_MPCOMMS` on either side, so the logs are silent.
+  Reproduce two-instance on this PC with tracing, then fix. MULTIPLAYER.md wrongly calls the tab "JOIN".
+* 🔲 **MP2-FF-2 — stale panels over the campaign tabs** (same frames): the mission list and clock/map stay
+  drawn over NEW/SAVED/ONLINE.
