@@ -3011,6 +3011,19 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
                     ShiftStates or_eq _SHIFT_DOWN_;
 
             Ascii = AsciiChar(Key, ShiftStates);
+#ifdef FF_LINUX
+            /* FF-TEXT-1 (2026-10-09): the scan-code table is a fixed US layout, so on a German, French or Nordic keyboard
+               letters typed into a field came out at the US positions and accented letters not at all. While an edit box
+               has the keyboard, its characters now come from the OS text input instead (WM_CHAR below, posted by
+               main_linux.cpp from SDL_TEXTINPUT); the key itself still reaches the box as a key press (backspace,
+               arrows, Enter). Hotkeys outside edit boxes keep Key_Chart. FF_NO_TEXTINPUT=1 reverts. */
+            {
+                static int s_noText = -1;
+                if (s_noText < 0) s_noText = getenv("FF_NO_TEXTINPUT") ? 1 : 0;
+                if ( not s_noText and Ascii >= 32 and CurWindow_ and CurWindow_->EditBoxHasFocus())
+                    Ascii = 0;
+            }
+#endif
 
             /* MP-1: what the UI actually receives for a keystroke. The PO cannot type into ANY
                field; this line says whether that is because no key arrives, because the scancode
@@ -3057,6 +3070,13 @@ long C_Handler::EventHandler(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPar
             /////////////////
             break;
 
+#ifdef FF_LINUX
+        case WM_CHAR:   /* FF-TEXT-1: one Latin-1 character from the OS text input, for the focused edit box only */
+            retval = 0;
+            if (CurWindow_ and CurWindow_->EditBoxHasFocus() and wParam >= 32 and wParam <= 0xff)
+                CurWindow_->CheckKeyboard(0, (unsigned char)wParam, 0, 1);
+            break;
+#endif
             /* case WM_CHAR: // NOLONGER USED
              retval=0;
              if(OldInputMessage())

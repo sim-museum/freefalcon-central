@@ -22887,3 +22887,15 @@ Two PCs on the LAN (host 192.168.254.14, guest this PC). **Worked:** Dogfight. L
     deaggregated 2-aircraft flight; the known one-PC MPHOST-SIM-1 intermittent), r7 PASS (renders, 4-aircraft
     flight); control without forwarding r6 PASS. The only message forwarded in these runs was FM_RECEIVE_CHAT (the
     automatic "( is commiting now )" line). Logged as the harness intermittent, not the forwarding.
+
+
+## FF-TEXT-1 (2026-10-09, backlog 31) -- typing follows the player's keyboard layout; accented letters work
+The Linux build keeps a fixed US `Key_Chart` (BuildAscii's VkKeyScan/MapVirtualKey shims are stubs), and UI text came
+from scan codes through it: on a German/French/Nordic keyboard letters landed on US positions and accented letters were
+lost -- in callsigns, chat and game names. Now: SDL_TEXTINPUT (the OS's text, layout-aware) -> Latin-1 -> WM_CHAR
+(main_linux.cpp, SDL_StartTextInput at window creation), routed to ui95's C_Handler, which gives it to the focused
+C_EditBox only; while an edit box has focus the scan-code path sends no character (keys still arrive: backspace,
+arrows, Enter). Hotkeys outside edit boxes keep Key_Chart. FF_UI_TYPE now posts key-down, text, key-up per UTF-8
+character, like a real keyboard. `FF_NO_TEXTINPUT=1` reverts.
+Measured (`~/ff-gates/mp26/fftext_r1`, main-screen chat, two copies): "café_für_søren" / "hej_ærø" sent and received
+intact; the chat windows show é, ü, ø. ⚠️ The chat font draws æ like a plain "a" (font coverage; the bytes are right).

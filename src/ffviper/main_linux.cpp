@@ -1660,6 +1660,8 @@ static bool init_sdl(bool fullscreen) {
         return false;
     }
 
+    SDL_StartTextInput();   /* FF-TEXT-1: layout-aware text for edit boxes (SDL_TEXTINPUT -> WM_CHAR) */
+
     // Set mainAppWnd to a pseudo-handle (the SDL window pointer cast)
     mainAppWnd = (HWND)g_SDLWindow;
     mainMenuWnd = mainAppWnd;
@@ -2276,6 +2278,19 @@ static long FF_KeyLParam(int dikCode)
     return lp;
 }
 
+/* FF-TEXT-1: one UTF-8 character -> Latin-1 (the UI's text is 8-bit); 0 if it has no Latin-1 form. *len = bytes. */
+static unsigned FF_Utf8ToLatin1(const unsigned char* t, int* len)
+{
+    unsigned cp; int n;
+    if (*t < 0x80) { cp = *t; n = 1; }
+    else if ((*t & 0xE0) == 0xC0 && (t[1] & 0xC0) == 0x80) { cp = ((t[0] & 0x1Fu) << 6) | (t[1] & 0x3Fu); n = 2; }
+    else if ((*t & 0xF0) == 0xE0) { cp = 0; n = (t[1] && t[2]) ? 3 : 1; }
+    else if ((*t & 0xF8) == 0xF0) { cp = 0; n = (t[1] && t[2] && t[3]) ? 4 : 1; }
+    else { cp = 0; n = 1; }
+    *len = n;
+    return ((cp >= 32 && cp < 127) || (cp >= 0xA0 && cp <= 0xFF)) ? cp : 0;
+}
+
 static void handle_sdl_events(void) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -2421,6 +2436,17 @@ static void handle_sdl_events(void) {
                         int scaledX = x * 1024 / WINDOW_WIDTH;
                         int scaledY = y * 768 / WINDOW_HEIGHT;
                         PostGameMessage(WM_MOUSEMOVE, 0, MAKELPARAM(scaledX, scaledY));
+                    }
+                }
+                break;
+
+            case SDL_TEXTINPUT:
+                /* FF-TEXT-1: the OS's text for a keystroke, in the player's own layout. Latin-1 characters go to the
+                   UI as WM_CHAR (the focused edit box takes them; see ui95 chandler.cpp). */
+                if (doUI && !getenv("FF_NO_TEXTINPUT")) {
+                    for (const unsigned char* t = (const unsigned char*)event.text.text; *t; ) {
+                        int n = 1; unsigned c = FF_Utf8ToLatin1(t, &n); t += n;
+                        if (c) PostGameMessage(WM_CHAR, c, 0);
                     }
                 }
                 break;
@@ -3158,6 +3184,7 @@ bool ProcessGameMessages() {
             case WM_MOUSEMOVE:
             case WM_KEYDOWN:
             case WM_KEYUP:
+            case WM_CHAR:   /* FF-TEXT-1 */
             /* MAPWHEEL-1 (2026-09-22): the wheel now reaches this queue (SDL_MOUSEWHEEL and the scripted
                FF_UI_CLICK "W" form both post WM_MOUSEWHEEL), but this switch had no case for it, so it
                fell to `default` and was dropped -- measured: three wheel posts over the TE map, three
@@ -3577,11 +3604,16 @@ static void render_frame(void) {
                     if (s_types[ti].fired || el < s_types[ti].atMs) continue;
                     s_types[ti].fired = 1;
                     fprintf(stderr, "[FF_UI_TYPE] typing \"%s\" at %ums\n", s_types[ti].text, el);
-                    for (const char* c = s_types[ti].text; *c; c++) {
+                    /* FF-TEXT-1: a real keystroke is key-down, the OS's text, key-up -- post all three, walking the text
+                       as UTF-8 (a character with no US key, such as an umlaut, is text only). */
+                    for (const unsigned char* uc = (const unsigned char*)s_types[ti].text; *uc; ) {
+                        int ulen = 1; unsigned text = FF_Utf8ToLatin1(uc, &ulen);
+                        char c = (char)*uc; uc += ulen;
                         int dik = 0, shift = 0;
-                        FF_AsciiToDIK(*c, &dik, &shift);
+                        if (ulen == 1) FF_AsciiToDIK(c, &dik, &shift);
                         if (!dik) {
-                            fprintf(stderr, "[FF_UI_TYPE]   no DIK for '%c' -- skipped\n", *c);
+                            if (text && !getenv("FF_NO_TEXTINPUT")) { PostGameMessage(WM_CHAR, text, 0); continue; }
+                            fprintf(stderr, "[FF_UI_TYPE]   no DIK and no text for a character -- skipped\n");
                             continue;
                         }
                         if (shift) {
@@ -3589,6 +3621,7 @@ static void render_frame(void) {
                             PostGameMessage(WM_KEYDOWN, DIK_LSHIFT, FF_KeyLParam(DIK_LSHIFT));
                         }
                         PostGameMessage(WM_KEYDOWN, dik, FF_KeyLParam(dik));
+                        if (text && c != '\r' && c != '\n' && !getenv("FF_NO_TEXTINPUT")) PostGameMessage(WM_CHAR, text, 0);
                         PostGameMessage(WM_KEYUP,   dik, FF_KeyLParam(dik) | (1L << 31));
                         if (shift) {
                             PostGameMessage(WM_KEYUP, DIK_LSHIFT, FF_KeyLParam(DIK_LSHIFT) | (1L << 31));

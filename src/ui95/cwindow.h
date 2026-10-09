@@ -435,6 +435,13 @@ public:
 
     // Keyboard Support Routines
     BOOL CheckKeyboard(unsigned char DKScanCode, unsigned char Ascii, unsigned char ShiftStates, long RepeatCount); // Called whenever a key is pressed
+#ifdef FF_LINUX
+    /* FF-TEXT-1: an edit box has the keyboard -- its characters then come from the OS text input (layout-aware). */
+    BOOL EditBoxHasFocus()
+    {
+        return CurControl_ != NULL and dynamic_cast<C_EditBox*>(CurControl_) != NULL;
+    }
+#endif
     BOOL CheckHotKeys(unsigned char DKScanCode, unsigned char Ascii, unsigned char ShiftStates, long RepeatCount); // Called whenever a key is pressed bitand CheckKeyboard returned FALSE
     void SetControl(long ID); // Called when mouse is used over this control
     void SetPrevControl(); // Called when SHIFT bitand TAB are pressed
