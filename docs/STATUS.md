@@ -22899,3 +22899,6 @@ arrows, Enter). Hotkeys outside edit boxes keep Key_Chart. FF_UI_TYPE now posts 
 character, like a real keyboard. `FF_NO_TEXTINPUT=1` reverts.
 Measured (`~/ff-gates/mp26/fftext_r1`, main-screen chat, two copies): "café_für_søren" / "hej_ærø" sent and received
 intact; the chat windows show é, ü, ø. ⚠️ The chat font draws æ like a plain "a" (font coverage; the bytes are right).
+Then through the REAL SDL_TEXTINPUT handler (FF_UI_TYPE now pushes SDL text events; Enter as its own entry, since
+the hook's key posts overtake the SDL queue): "Grüße_Zürich" intact both ways; "zażółć" -> "zaó" -- letters outside
+Latin-1 (Polish ż ł ć, Greek, Cyrillic) are dropped, as designed: the game's text is 8-bit (fftext_r3).

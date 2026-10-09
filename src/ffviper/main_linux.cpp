@@ -3612,7 +3612,9 @@ static void render_frame(void) {
                         int dik = 0, shift = 0;
                         if (ulen == 1) FF_AsciiToDIK(c, &dik, &shift);
                         if (!dik) {
-                            if (text && !getenv("FF_NO_TEXTINPUT")) { PostGameMessage(WM_CHAR, text, 0); continue; }
+                            if (text) { { SDL_Event tev; memset(&tev, 0, sizeof(tev)); tev.type = SDL_TEXTINPUT;   /* through the REAL handler */
+                              for (int k = 0; k < ulen && k < 4; k++) tev.text.text[k] = (char)uc[k - ulen];
+                              SDL_PushEvent(&tev); } continue; }
                             fprintf(stderr, "[FF_UI_TYPE]   no DIK and no text for a character -- skipped\n");
                             continue;
                         }
@@ -3621,7 +3623,9 @@ static void render_frame(void) {
                             PostGameMessage(WM_KEYDOWN, DIK_LSHIFT, FF_KeyLParam(DIK_LSHIFT));
                         }
                         PostGameMessage(WM_KEYDOWN, dik, FF_KeyLParam(dik));
-                        if (text && c != '\r' && c != '\n' && !getenv("FF_NO_TEXTINPUT")) PostGameMessage(WM_CHAR, text, 0);
+                        if (text && c != '\r' && c != '\n') { SDL_Event tev; memset(&tev, 0, sizeof(tev)); tev.type = SDL_TEXTINPUT;   /* through the REAL handler */
+                              for (int k = 0; k < ulen && k < 4; k++) tev.text.text[k] = (char)uc[k - ulen];
+                              SDL_PushEvent(&tev); }
                         PostGameMessage(WM_KEYUP,   dik, FF_KeyLParam(dik) | (1L << 31));
                         if (shift) {
                             PostGameMessage(WM_KEYUP, DIK_LSHIFT, FF_KeyLParam(DIK_LSHIFT) | (1L << 31));
