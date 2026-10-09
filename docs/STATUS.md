@@ -22854,6 +22854,17 @@ Two PCs on the LAN (host 192.168.254.14, guest this PC). **Worked:** Dogfight. L
   host log is the first new-campaign scenario). Guest video 17:01: the ONLINE tab shows no game list, only
   the mission-list and clock/map panels. No `FF_DEBUG_MPCOMMS` on either side, so the logs are silent.
   Reproduce two-instance on this PC with tracing, then fix. MULTIPLAYER.md wrongly calls the tab "JOIN".
+  - **Findings (2026-10-08, 5 two-copy runs, `~/ff-gates/mp26/mp2ff_r*`):** the join itself works. Guest connected
+    FIRST, waiting on ONLINE while the host creates its campaign (the PO's order): the game arrives, JOIN_SUCCEEDED,
+    the guest takes off and renders (r1, r4). What the PO's guest video shows instead (17:00:14-16): COMMIT on
+    **NEW** -> the game-settings window -> OK, i.e. it **started a campaign of its own**, then opened ONLINE. Causes:
+    (1) MULTIPLAYER.md named a "JOIN" tab that does not exist (fixed: ONLINE, and "not NEW"); (2) both callsigns were
+    the default `viper`, so both games were "Viper's Game" (r2: each side's database holds two identical names);
+    (3) its own campaign's mission list and clock panels stayed drawn over the selector (MP2-FF-2), covering exactly
+    the rows where the ONLINE list draws.
+  - **Fix (ui_comms.cpp):** each game row shows whose it is -- `Viper's Game (192.168.254.14)`, or `(yours)` for a
+    game you host. Display only; `FF_NO_GAME_ADDRESS=1` reverts. VU keeps the address in host byte order
+    (first build showed 1.0.0.127). Measured: r4b row `Viper's Game (127.0.0.1)`. "(yours)" not yet seen on screen.
 * 🔲 **MP2-FF-2 — stale panels over the campaign tabs** (same frames): the mission list and clock/map stay
   drawn over NEW/SAVED/ONLINE.
 * 🔲 **MP2-FF-3 — multiplayer chat between players on different PCs did not work (PO, 2026-10-08),** both ways, in the Dogfight that otherwise worked. Find where the

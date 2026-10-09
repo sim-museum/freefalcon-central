@@ -1375,6 +1375,36 @@ static void TrimPlayerTree(C_TreeList *tree, TREELIST *branch)
     }
 }
 
+#ifdef FF_LINUX
+#include <arpa/inet.h>
+/* MP2-FF-1 (PO two-PC test, 2026-10-08): every player's callsign defaults to "Viper", so every game is "Viper's
+   Game" -- the PO's guest saw its own campaign and the host's under the same name. A game row now says whose it
+   is: the host's network address (the address the joiner typed to connect) or "yours". Display only; the game's
+   name is unchanged. FF_NO_GAME_ADDRESS=1 reverts. */
+static const _TCHAR *GameListLabel(VuGameEntity *game, char *label, size_t size)
+{
+    static int s_off = -1;
+    if (s_off < 0) s_off = getenv("FF_NO_GAME_ADDRESS") ? 1 : 0;
+    _TCHAR *name = game->GameName();
+    if (s_off or not name)
+        return name;
+    VuSessionEntity *owner = (VuSessionEntity*)vuDatabase->Find(game->OwnerId());
+    if (vuLocalSessionEntity and game->OwnerId() == vuLocalSessionEntity->Id())
+        snprintf(label, size, "%s (yours)", name);
+    else if (owner and owner->IsSession() and owner->GetAddress().ip)
+    {
+        struct in_addr a;
+        a.s_addr = htonl((uint32_t)owner->GetAddress().ip);	/* VU keeps the address in host byte order (measured: "1.0.0.127") */
+        snprintf(label, size, "%s (%s)", name, inet_ntoa(a));
+    }
+    else
+        return name;
+    return label;	/* the caller registers it with gStringMgr only when a row's text changes */
+}
+#else
+#define GameListLabel(g, l, n) ((g)->GameName())
+#endif
+
 static TREELIST *AddGameToList(VuGameEntity *game, TREELIST *parent, C_TreeList *tree)
 {
     C_Button *btn;
@@ -1382,7 +1412,8 @@ static TREELIST *AddGameToList(VuGameEntity *game, TREELIST *parent, C_TreeList 
     VU_ID *tmpID;
     _TCHAR *name;
 
-    name = game->GameName();
+    char labelbuf[160];
+    name = gStringMgr->GetText(gStringMgr->AddText(GameListLabel(game, labelbuf, sizeof(labelbuf))));
 
     btn = new C_Button;
     btn->Setup(C_DONT_CARE, C_TYPE_CUSTOM, 0, 0);
@@ -1486,10 +1517,13 @@ void UpdateGameTreeBranch(long branchid, VuGameEntity *game, C_TreeList *tree, T
 
             if (btn)
             {
-                if (strcmp(game->GameName(), btn->GetText(C_STATE_0)))
+                char labelbuf[160];
+                const _TCHAR *label = GameListLabel(game, labelbuf, sizeof(labelbuf));
+
+                if (strcmp(label, btn->GetText(C_STATE_0)))
                 {
-                    btn->SetText(C_STATE_0, gStringMgr->GetText(gStringMgr->AddText(game->GameName())));
-                    btn->SetText(C_STATE_1, gStringMgr->GetText(gStringMgr->AddText(game->GameName())));
+                    btn->SetText(C_STATE_0, gStringMgr->GetText(gStringMgr->AddText(label)));
+                    btn->SetText(C_STATE_1, gStringMgr->GetText(gStringMgr->AddText(label)));
                 }
             }
         }
