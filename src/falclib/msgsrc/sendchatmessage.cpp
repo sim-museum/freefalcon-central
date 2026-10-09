@@ -73,6 +73,11 @@ int UI_SendChatMessage::Process(uchar autodisp)
     if (autodisp)
         return 0;
 
+#ifdef FF_LINUX
+    if (getenv("FF_DEBUG_MPCOMMS"))	/* MP2-FF-3 */
+        fprintf(stderr, "[chat] rx from %lu.%lu: \"%s\"\n", (unsigned long)dataBlock.from.creator_,
+                (unsigned long)dataBlock.from.num_, dataBlock.message ? (char*)dataBlock.message : "(null)");
+#endif
     ReceiveChatString(dataBlock.from, (_TCHAR *)dataBlock.message);
     return 0;
 }

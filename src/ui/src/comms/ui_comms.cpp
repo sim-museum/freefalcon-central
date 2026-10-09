@@ -1107,6 +1107,13 @@ void SendChatStringCB(long, short hittype, C_Base *control)
     C_Player *plyr;
     UI_SendChatMessage *chat;
 
+#ifdef FF_LINUX
+    static int s_chatDbg = -1;
+    if (s_chatDbg < 0) s_chatDbg = getenv("FF_DEBUG_MPCOMMS") ? 1 : 0;
+    if (s_chatDbg and hittype == DIK_RETURN)	/* MP2-FF-3: where does a chat line stop? */
+        fprintf(stderr, "[chat] Enter: online=%d People=%p text=\"%s\"\n", (gCommsMgr and gCommsMgr->Online()) ? 1 : 0,
+                (void*)People, (control and ((C_EditBox *)control)->GetText()) ? ((C_EditBox *)control)->GetText() : "(null)");
+#endif
     if (hittype not_eq DIK_RETURN or control == NULL or not gCommsMgr->Online())
         return;
 
@@ -1124,8 +1131,17 @@ void SendChatStringCB(long, short hittype, C_Base *control)
             {
                 FalconSessionEntity *session = (FalconSessionEntity*) vuDatabase->Find(plyr->GetVUID());
 
+#ifdef FF_LINUX
+                if (s_chatDbg)
+                    fprintf(stderr, "[chat] row \"%s\" state=%d session=%p local=%d\n", plyr->GetName() ? "?" : "?",
+                            (int)plyr->GetState(), (void*)session, session == FalconLocalSession ? 1 : 0);
+#endif
                 if (session and session not_eq FalconLocalSession)
                 {
+#ifdef FF_LINUX
+                    if (s_chatDbg) fprintf(stderr, "[chat] tx to session %lu.%lu\n",
+                                           (unsigned long)session->Id().creator_, (unsigned long)session->Id().num_);
+#endif
                     chat = new UI_SendChatMessage(FalconNullId, session);
 
                     chat->dataBlock.from = FalconLocalSessionId;

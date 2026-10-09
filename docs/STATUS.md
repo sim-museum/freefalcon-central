@@ -22867,5 +22867,16 @@ Two PCs on the LAN (host 192.168.254.14, guest this PC). **Worked:** Dogfight. L
     (first build showed 1.0.0.127). Measured: r4b row `Viper's Game (127.0.0.1)`. "(yours)" not yet seen on screen.
 * 🔲 **MP2-FF-2 — stale panels over the campaign tabs** (same frames): the mission list and clock/map stay
   drawn over NEW/SAVED/ONLINE.
-* 🔲 **MP2-FF-3 — multiplayer chat between players on different PCs did not work (PO, 2026-10-08),** both ways, in the Dogfight that otherwise worked. Find where the
-  message stops: send, transport, receive or display.
+* ✅ **MP2-FF-3 — multiplayer chat did not work (PO, 2026-10-08). Fixed: received lines were thrown away.**
+  New `[chat]` traces (FF_DEBUG_MPCOMMS) showed every line SENT and RECEIVED (`[chat] tx` / `[chat] rx`), but the
+  receiver's window showed only its own line. `ReceiveChatString` posts FM_RECEIVE_CHAT for the window loop to display
+  (winmain.cpp FalconMessageHandler -> ProcessChatStr), and the Linux loop (main_linux.cpp) had no case for it -- it
+  fell into `default:` and was dropped, on one PC or two. **26 FM_ messages** the Windows handler serves were missing;
+  the 19 UI/campaign ones (chat, boot player, game full, match in progress, rules, remote logbook, flight cancelled,
+  aircraft destroyed, game over, campaign over/event, attack warning, airbase attack/disabled, campaign map, WP list,
+  squadron rebased/recalled, tacref) now go to that same handler, which is linked into the binary. Left out:
+  display modes, movies, render start, window focus. `FF_NO_FM_FORWARD=1` reverts. Also `FF_UI_TYPE` can press
+  Enter (`\r`). Measured (`~/ff-gates/mp26/mp2ff3_d5`, chat window from the main screen, both online): both windows
+  show "Viper entered" twice, "hello_from_host" and "hi_from_client"; 0 crashes. The Dogfight game screen itself
+  has no chat window (the PO typed in the main screen's COMMS chat, host log clicks in window 60014).
+  - 🔲 Follow-up: both default callsigns are "Viper", so chat lines and player rows cannot be told apart.

@@ -2256,6 +2256,7 @@ extern "C" SHORT FF_GetAsyncKeyState(int vKey)
 extern "C" void FF_AsciiToDIK(char c, int *dik, int *shift)
 {
     *dik = 0; *shift = 0;
+    if (c == '\r' or c == '\n') { *dik = DIK_RETURN; return; }   /* MP2-FF-3: FF_UI_TYPE can press Enter */
     for (int i = 1; i < 256; i++) {
         if (Key_Chart[i].Ascii[0] == (uchar)c) { *dik = i; *shift = 0; return; }
     }
@@ -3184,6 +3185,43 @@ bool ProcessGameMessages() {
                     gMainHandler->EventHandler(NULL, msg.message, msg.wParam, msg.lParam);
                 }
                 break;
+            /* MP2-FF-3 (PO two-PC test, 2026-10-08): chat "did not work". It was sent and received ([chat] tx/rx), but
+               the receiver posts FM_RECEIVE_CHAT for the window loop to display, and this loop had no case for it:
+               every incoming line fell into default and was dropped. 26 FM_ messages FalconMessageHandler (winmain.cpp,
+               linked into this binary) handles on Windows were missing here; these 19 are UI/campaign logic and go to
+               that same handler. Left out: display modes, movies, render start and window focus (Win32-only).
+               FF_NO_FM_FORWARD=1 reverts. */
+            case FM_RECEIVE_CHAT:
+            case FM_BOOT_PLAYER:
+            case FM_GAME_FULL:
+            case FM_MATCH_IN_PROGRESS:
+            case FM_UPDATE_RULES:
+            case FM_REMOTE_LOGBOOK:
+            case FM_PLAYER_FLIGHT_CANCELED:
+            case FM_PLAYER_AIRCRAFT_DESTROYED:
+            case FM_OPEN_GAME_OVER_WIN:
+            case FM_CAMPAIGN_OVER:
+            case FM_CAMPAIGN_EVENT:
+            case FM_ATTACK_WARNING:
+            case FM_AIRBASE_ATTACK:
+            case FM_AIRBASE_DISABLED:
+            case FM_REFRESH_CAMPMAP:
+            case FM_REBUILD_WP_LIST:
+            case FM_SQUADRON_REBASED:
+            case FM_SQUADRON_RECALLED:
+            case FM_TACREF_BUTTON_HANDLER:
+            {
+                static int s_noFwd = -1;
+                if (s_noFwd < 0) s_noFwd = getenv("FF_NO_FM_FORWARD") ? 1 : 0;
+                if ( not s_noFwd)
+                {
+                    extern LRESULT CALLBACK FalconMessageHandler(HWND, UINT, WPARAM, LPARAM);
+                    if (getenv("FF_DEBUG_MPCOMMS"))
+                        fprintf(stderr, "[FM] forwarding message %u to FalconMessageHandler\n", (unsigned)msg.message);
+                    FalconMessageHandler(NULL, msg.message, msg.wParam, msg.lParam);
+                }
+                break;
+            }
             default:
                 // Message not handled - that's okay for many messages
                 break;
