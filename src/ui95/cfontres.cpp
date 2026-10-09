@@ -94,6 +94,53 @@ void C_Fontmgr::Setup(long ID, char *fontfile)
     }
 
     fclose(fp);
+#ifdef FF_LINUX
+    /* FF-TEXT-2: OCR-A has no ae/AE. The game's OCR-A files (the chat font) were built on Windows, which stored a
+       copy of a/A, or an a squeezed into the a's own cell, in those slots, so the chat (ocrabt12) showed
+       "hej_\xe6r\xf8" as "hej_ar\xf8". A glyph no wider than its first letter cannot show two letters, so build
+       it: the first letter, then the second sharing one column. FF_NO_FONTFIX=1 keeps the files' glyphs. */
+    if (fontTable_ and fontData_ and bytesperline_ > 0 and bytesperline_ <= 16 and not getenv("FF_NO_FONTFIX"))
+    {
+        static const unsigned char lig[][3] = { {0xE6, 'a', 'e'}, {0xC6, 'A', 'E'} };
+        const long per = bytesperline_ * height_;
+
+        for (const auto &L : lig)
+        {
+            if (L[0] > last_ or L[1] < first_ or L[2] < first_ or (L[0] - first_ + 1) * per > dSize_)
+                continue;
+
+            CharStr &c = fontTable_[L[0] - first_];
+            const CharStr &a = fontTable_[L[1] - first_], &e = fontTable_[L[2] - first_];
+            const int w = a.w + e.w - 1;
+
+            if (c.w > a.w or a.w == 0 or e.w == 0 or w > bytesperline_ * 8)
+                continue;
+
+            unsigned char *dc = (unsigned char *)fontData_ + (L[0] - first_) * per;
+            const unsigned char *da = (unsigned char *)fontData_ + (L[1] - first_) * per;
+            const unsigned char *de = (unsigned char *)fontData_ + (L[2] - first_) * per;
+
+            for (long r = 0; r < height_; r++)
+            {
+                unsigned char row[16] = {0};
+                const unsigned char *ra = da + r * bytesperline_, *re = de + r * bytesperline_;
+
+                for (int j = 0; j < a.w; j++)
+                    if (ra[j >> 3] & (1 << (j & 7))) row[j >> 3] |= (unsigned char)(1 << (j & 7));
+
+                for (int j = 0; j < e.w; j++)
+                    if (re[j >> 3] & (1 << (j & 7))) { int k = a.w - 1 + j; row[k >> 3] |= (unsigned char)(1 << (k & 7)); }
+
+                memcpy(dc + r * bytesperline_, row, bytesperline_);
+            }
+
+            c.w = (unsigned char)w;
+            c.lead = a.lead;
+            c.trail = e.trail;
+            fprintf(stderr, "[font] %.32s: built the %c%c ligature at 0x%02X (width %d)\n", name_, L[1], L[2], L[0], w);
+        }
+    }
+#endif
 }
 
 void C_Fontmgr::Save(char *filename)

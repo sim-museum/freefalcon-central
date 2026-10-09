@@ -22902,3 +22902,13 @@ intact; the chat windows show é, ü, ø. ⚠️ The chat font draws æ like a p
 Then through the REAL SDL_TEXTINPUT handler (FF_UI_TYPE now pushes SDL text events; Enter as its own entry, since
 the hook's key posts overtake the SDL queue): "Grüße_Zürich" intact both ways; "zażółć" -> "zaó" -- letters outside
 Latin-1 (Polish ż ł ć, Greek, Cyrillic) are dropped, as designed: the game's text is 8-bit (fftext_r3).
+
+## FF-TEXT-2 (2026-10-09) -- æ/Æ draw as real ligatures in the OCR-A fonts (chat, logbook fields)
+Cause: data, not code. The game's OCR-A .bft files (built on Windows; OCR-A has no æ/Æ) hold a copy of "a" (ocrabt10)
+or an a squeezed into the a's own cell (ocrabt12, the chat font: 7 px advance = 143 px for 21 chars in fftext_r1) at
+0xE6, and a squeezed A at 0xC6. Census of all 22 fonts: Arial, Zurich, Bank Gothic and Haettenschweiler hold real
+glyphs. Fix (cfontres.cpp, FF_LINUX): at load, a ligature no wider than its first letter is rebuilt as that letter
+plus the second, sharing one column; `FF_NO_FONTFIX=1` keeps the files' glyphs. Check (`~/ff-gates/fftext2_r1`,
+1 run): nine `[font]` lines, exactly the predicted fonts and widths (7,7,9,9,11,13,17,17,41; ocrbld16 is never
+loaded); "hej_ærø_ÆØ" typed into the logbook PILOT field shows æ and Æ as ligatures. Remaining, minor: × is a copy
+of x in ocrabt10/12/24, Ê is blank in ocrabt14/16 (not fixed).
