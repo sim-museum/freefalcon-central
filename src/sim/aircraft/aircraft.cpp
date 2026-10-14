@@ -1546,6 +1546,19 @@ int AircraftClass::Exec(void)
             fprintf(stderr, "[mpexec] player id=%08x local=%d pos=(%.0f,%.0f,%.0f) pct=%.2f dyingTimer=%.2f exploding=%d dead=%d draw=%p\n",
                     (unsigned)Id().num_, IsLocal() ? 1 : 0, XPos(), YPos(), ZPos(), pctStrength, dyingTimer,
                     IsExploding() ? 1 : 0, IsDead() ? 1 : 0, (void*)drawPointer);
+
+            // and every remote player's jet as THIS machine sees it (a copy frozen at spawn is the PO's 10-13 ACMI)
+            VuSessionsIterator sit(FalconLocalGame);
+
+            for (FalconSessionEntity* s = (FalconSessionEntity*)sit.GetFirst(); s; s = (FalconSessionEntity*)sit.GetNext())
+            {
+                FalconEntity* pe = (s == FalconLocalSession) ? NULL : (FalconEntity*)s->GetPlayerEntity();
+
+                if (pe)
+                    fprintf(stderr, "[mpexec] remote id=%08x local=%d pos=(%.0f,%.0f,%.0f) upd=%u ago\n",
+                            (unsigned)pe->Id().num_, pe->IsLocal() ? 1 : 0, pe->XPos(), pe->YPos(), pe->ZPos(),
+                            (unsigned)(SimLibElapsedTime - pe->LastUpdateTime()));
+            }
         }
     }
 

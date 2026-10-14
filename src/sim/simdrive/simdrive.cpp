@@ -874,6 +874,7 @@ void SimulationDriver::Cycle()
     }
 
 #ifdef FF_LINUX
+    extern short NumWeaponTypes;
     /* MP-DMG-1 harness: FF_TEST_MPDMG=<sec>[:<strength>] -- <sec> seconds after this machine's player
        aircraft exists, send ONE FalconDamageMessage (ProximityDamage) at the first REMOTE player's
        aircraft, built and addressed exactly as SimWeaponClass::ApplyProximityDamage builds a missile
@@ -948,6 +949,37 @@ void SimulationDriver::Cycle()
                     m->dataBlock.fPilotID = ((SimMoverClass*)playerEntity)->pilotSlot;
                     m->dataBlock.fIndex = playerEntity->Type();
                     m->dataBlock.fWeaponID = s_msl ? s_msl->Type() : 0;
+
+                    /* MP-DMG-2: ':M' with no live missile -- attribute the hit to the first AIM weapon on our own
+                       rails, so ApplyDamage scores it from that weapon's class data (fWeaponID is a class index). */
+                    if ( not s_msl and strchr(getenv("FF_TEST_MPDMG"), 'M') and ((SimVehicleClass*)playerEntity)->GetSMS())
+                    {
+                        SMSBaseClass* sms = ((SimVehicleClass*)playerEntity)->GetSMS();
+
+                        for (int h = 1; h < sms->NumHardpoints() and not m->dataBlock.fWeaponID; h++)
+                        {
+                            BasicWeaponStation* hp = sms->hardPoint[h];
+                            int wid = hp ? hp->weaponId : 0;
+
+                            fprintf(stderr, "[mpdmg] TEST rail %d weaponId=%d name='%s'\n", h, wid, wid > 0 ? WeaponDataTable[wid].Name : "");
+
+                            if (wid > 0 and strcasestr(WeaponDataTable[wid].Name, "AIM"))
+                            {
+                                m->dataBlock.fWeaponID = WeaponDataTable[wid].Index + VU_LAST_ENTITY_TYPE;
+                                fprintf(stderr, "[mpdmg] TEST hit attributed to rail weapon %s (class %d, strength %d)\n",
+                                        WeaponDataTable[wid].Name, (int)WeaponDataTable[wid].Index, (int)WeaponDataTable[wid].Strength);
+                            }
+                        }
+
+                        // rails empty (the harness host flies clean): take the AIM-9 class from the weapon table itself
+                        for (int w = 1; w < NumWeaponTypes and not m->dataBlock.fWeaponID; w++)
+                            if (strcasestr(WeaponDataTable[w].Name, "AIM-9"))
+                            {
+                                m->dataBlock.fWeaponID = WeaponDataTable[w].Index + VU_LAST_ENTITY_TYPE;
+                                fprintf(stderr, "[mpdmg] TEST hit attributed to table weapon %s (class %d, strength %d)\n",
+                                        WeaponDataTable[w].Name, (int)WeaponDataTable[w].Index, (int)WeaponDataTable[w].Strength);
+                            }
+                    }
                     m->dataBlock.fWeaponUID = s_msl ? s_msl->Id() : FalconNullId;
                     m->dataBlock.dEntityID = victim->Id();
                     m->dataBlock.dCampID = victim->GetCampID();
@@ -961,7 +993,7 @@ void SimulationDriver::Cycle()
                     m->dataBlock.damageType = FalconDamageType::ProximityDamage;
                     /* MP-DMG-2: ':mM' sends what a real missile hit sends -- MissileDamage, scored from the live
                        missile's own weapon data (needs 'm', so fWeaponID is a real weapon type). */
-                    if (s_msl and strchr(getenv("FF_TEST_MPDMG"), 'M'))
+                    if (m->dataBlock.fWeaponID and strchr(getenv("FF_TEST_MPDMG"), 'M'))
                         m->dataBlock.damageType = FalconDamageType::MissileDamage;
                     m->dataBlock.damageStrength = s_str;
                     m->dataBlock.damageRandomFact = 1.0f;
