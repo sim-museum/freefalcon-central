@@ -959,6 +959,10 @@ void SimulationDriver::Cycle()
                        (fWeaponID 0 indexes before the table -- SIGSEGV, found by this hook's first run).
                        Proximity damage is pre-computed from damageStrength, as a missile's blast is. */
                     m->dataBlock.damageType = FalconDamageType::ProximityDamage;
+                    /* MP-DMG-2: ':mM' sends what a real missile hit sends -- MissileDamage, scored from the live
+                       missile's own weapon data (needs 'm', so fWeaponID is a real weapon type). */
+                    if (s_msl and strchr(getenv("FF_TEST_MPDMG"), 'M'))
+                        m->dataBlock.damageType = FalconDamageType::MissileDamage;
                     m->dataBlock.damageStrength = s_str;
                     m->dataBlock.damageRandomFact = 1.0f;
                     m->RequestOutOfBandTransmit();

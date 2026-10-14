@@ -1535,6 +1535,20 @@ int AircraftClass::Exec(void)
     bool EvenFrame = true;
     StaticTurbulence.x = StaticTurbulence.y = StaticTurbulence.z = 0.0f;
 
+    // FF_LINUX (MP-DMG-2): is the player's own jet executed, and where does its death path stall?
+    if (this == SimDriver.GetPlayerEntity() and getenv("FF_DEBUG_MPMSG"))
+    {
+        static VU_TIME s_next = 0;
+
+        if (SimLibElapsedTime >= s_next)
+        {
+            s_next = SimLibElapsedTime + 5000;
+            fprintf(stderr, "[mpexec] player id=%08x local=%d pos=(%.0f,%.0f,%.0f) pct=%.2f dyingTimer=%.2f exploding=%d dead=%d draw=%p\n",
+                    (unsigned)Id().num_, IsLocal() ? 1 : 0, XPos(), YPos(), ZPos(), pctStrength, dyingTimer,
+                    IsExploding() ? 1 : 0, IsDead() ? 1 : 0, (void*)drawPointer);
+        }
+    }
+
     if (this == SimDriver.GetPlayerEntity())
     {
         if (EvenFrame)
