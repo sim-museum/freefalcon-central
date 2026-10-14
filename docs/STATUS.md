@@ -22939,3 +22939,10 @@ and freeze the positions. What answers it: both sides run with `FF_DEBUG_MPMSG=1
 the host's `[mpexec] remote ... pos=` lines show whether the guest's jet moves there, the guest's
 `[mpdmg] PROC/APPLY` lines show whether the host's hits arrive. The traces must ship in the next
 AppImage (261013 predates them).
+**S4 (2026-10-14): two "machines" on one box -- still no reproduction.** `scripts/qa/mp-dogfight-ns.sh` runs the
+dogfight with the host in its own network namespace (10.9.0.1) and the joiner in a nested one (10.9.0.2), joined by
+a veth pair (rootless `unshare -rn`); both use UDP 2934 as on the PO's PCs and every packet crosses an interface.
+Result (`~/ff-gates/mpns/r1`): joined, the host's `[mpexec] remote` copy tracks the joiner (and its respawn), the
+hit kills it (pct -7.33, FalconDeathMessage sent). So two-host addressing works; what is left is specific to the
+PO's machines (Wi-Fi, the host's firewall, the exact UI path). Parked for the two-PC log; the 261014 AppImage
+carries the traces (checked in the shipped binary).
