@@ -22912,3 +22912,30 @@ plus the second, sharing one column; `FF_NO_FONTFIX=1` keeps the files' glyphs. 
 1 run): nine `[font]` lines, exactly the predicted fonts and widths (7,7,9,9,11,13,17,17,41; ocrbld16 is never
 loaded); "hej_ærø_ÆØ" typed into the logbook PILOT field shows æ and Æ as ligatures. Remaining, minor: × is a copy
 of x in ocrabt10/12/24, Ê is blank in ocrabt14/16 (not fixed).
+
+
+## MP-DMG-2 (Opus 5.5, 2026-10-14) -- PO 10-13 two-PC test: "ff guest in dogfight is invulnerable - hit by multiple missiles, no effect". Does not reproduce on one box; parked for a two-PC log
+
+**Evidence from the PO's session (guest = this PC, pilot "guest", AppImage 261013).** The guest's
+ACMI (`acmibin/TAPE0003.txt.acmi`) holds the host's jet, the guest's jet and two host AIM-9X. The
+recorder writes the LOCAL player once (both tapes on this box do), so the guest's own track is only
+its spawn point -- but missile 212 ends **2.6 m from that spawn point 196 s into the flight**, and
+the host's track circles within ~5 km of it throughout: on the host, the guest's jet most likely sat
+at spawn. The guest's video: level at 16,000 ft; three minutes in, the HUD is gone and a
+glareshield caution light is lit (damage?), no death. The guest's `guest.pop` == `Viper.pop`
+(invulnerability off).
+
+**One box, 9 runs (`scripts/qa/mp-dogfight.sh`), all paths work:** joiner jet local + executed
+(`[mpexec] player`), host's copy tracks it (`[mpexec] remote`, loopback AND joining via the LAN
+address 192.168.254.57); `FF_TEST_MPDMG=80` (ProximityDamage) -> pct -7.33, FalconDeathMessage,
+regeneration; `FF_TEST_MPDMG=80:400:M` (MissileDamage scored from the AIM-9P class) -> pct 0.00
+(the first-missile clamp), bleeds -0.23, -0.73, death message, regeneration. The harness host flies
+with empty rails (weaponId=0 on all 9 hardpoints) -- why `D`+pickle launched nothing.
+
+**Leading hypothesis (untested, needs two PCs):** guest->host traffic between two machines -- the
+host never received the guest's position updates (frozen copy at spawn). Each peer uses two UDP
+ports (2934/2935); a firewall on the host passing one and not the other would let the join succeed
+and freeze the positions. What answers it: both sides run with `FF_DEBUG_MPMSG=1` and send logs --
+the host's `[mpexec] remote ... pos=` lines show whether the guest's jet moves there, the guest's
+`[mpdmg] PROC/APPLY` lines show whether the host's hits arrive. The traces must ship in the next
+AppImage (261013 predates them).
