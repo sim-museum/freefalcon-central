@@ -22968,3 +22968,4 @@ near (39,63,41), sky unchanged. `FF_SEASON=<n>` still forces a season; `FF_PILOT
 * Verified (~/ff-gates/headtrack, TE 02 Takeoff, virtual pit, scripted sender): pose 60/0/0 turns the view off the
   nose (mean pixel diff 56 vs no pose); 20/-10/0 turns the cockpit with the head. Axis directions need the PO's
   tracker (opentrack's per-axis invert, or FF_HEADTRACK_SIGNS).
+* Sign defaults -1,-1,1 so all three sims agree (verified: pose 20/-10/0 looks right and down in ff, ma and bob).

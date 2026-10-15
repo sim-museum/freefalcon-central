@@ -292,7 +292,7 @@ NPRESULT __stdcall NP_RequestData(unsigned short wDataReq)
    the NPClient units the rest of this file expects (+-16383 = +-180 deg yaw/pitch; Poll() maps roll +-16383 to
    +-90 deg; position +-16383 = +-FF_HEADTRACK_RANGE_CM, default 30), so Poll(), the 2-D pit map and vcock.cpp's
    head translation run unchanged. Env: FF_HEADTRACK=0 off, FF_HEADTRACK_PORT (4242), FF_HEADTRACK_SIGNS
-   "yaw,pitch,roll" (+1/-1 each, default 1,1,1), FF_TRACE_HEADTRACK=1 one line per second. */
+   "yaw,pitch,roll" (+1/-1 each, default -1,-1,1 so +yaw looks right and +pitch looks up, as in ma and bob), FF_TRACE_HEADTRACK=1 one line per second. */
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -306,7 +306,7 @@ static int   g_htSock = -1;
 static bool  g_htHave = false;
 static unsigned short g_htSig = 0;
 static float g_htNP[6];        // roll, pitch, yaw, x, y, z in NPClient units
-static float g_htSign[3] = { 1.f, 1.f, 1.f };
+static float g_htSign[3] = { -1.f, -1.f, 1.f };   // same view directions as ma/bob: +yaw looks right, +pitch looks up
 static float g_htRangeCm = 30.f;
 
 static float ht_clamp(float v) { return v > 16383.f ? 16383.f : (v < -16383.f ? -16383.f : v); }
