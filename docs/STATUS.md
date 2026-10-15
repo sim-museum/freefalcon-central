@@ -22946,3 +22946,12 @@ Result (`~/ff-gates/mpns/r1`): joined, the host's `[mpexec] remote` copy tracks 
 hit kills it (pct -7.33, FalconDeathMessage sent). So two-host addressing works; what is left is specific to the
 PO's machines (Wi-Fi, the host's firewall, the exact UI path). Parked for the two-PC log; the 261014 AppImage
 carries the traces (checked in the shipped binary).
+
+
+## FF-SEASON-1 (Opus 5.5, 2026-10-14) -- PO: "set landscape rendering for summer -- part is summer, part is autumn, a seam in the middle". FIXED
+The pilots on this box (Viper.pop, guest.pop) carry `Season=1` (autumn; config .pop int at byte 48). The autumn shift
+moves the far DDS band (FarTexDB::SeasonShiftDXT1) much more than the near palette tiles: measured on one IA scene
+(`~/ff-gates/season`, orbit view at 70 s), autumn far band (34,43,31) brown vs near (40,61,39) green -- the seam.
+`ff_season()` (fartex.cpp, terrtex.cpp) now falls back to SUMMER instead of the pilot's option: far band (30,50,37),
+near (39,63,41), sky unchanged. `FF_SEASON=<n>` still forces a season; `FF_PILOT_SEASON=1` honours the Setup choice
+(the Setup "Season" control otherwise has no effect).

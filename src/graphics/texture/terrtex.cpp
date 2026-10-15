@@ -34,7 +34,11 @@ static int ff_season(void)
 {
     static int s = -2;
     if (s == -2) { const char* e = getenv("FF_SEASON"); s = e ? atoi(e) : -1; }
-    return s >= 0 ? s : PlayerOptions.Season;
+    /* FF-SEASON-1 (PO 2026-10-14): render the landscape as SUMMER. The pilots here carry Season=1 (autumn), and the
+       autumn tint is applied differently to the near (palette) and far (DDS) terrain, leaving a seam mid-landscape.
+       Summer applies no tint on either path. FF_PILOT_SEASON=1 honours the pilot's Setup choice again. */
+    static int pilot = -1; if (pilot < 0) pilot = getenv("FF_PILOT_SEASON") ? 1 : 0;
+    return s >= 0 ? s : (pilot ? PlayerOptions.Season : 0);
 }
 #ifdef FF_LINUX
 extern "C" void FF_SurfaceGLInfo(IDirectDrawSurface7 *s, unsigned *glTex, int *dirty);   /* TERRAIN-1 S5 bind probe (d3d_gl.cpp) */
