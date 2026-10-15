@@ -37,6 +37,7 @@ extern "C" void ff_dump_campaign_units(void);
 #include "f4find.h"
 #include "f4vu.h"
 #include "classtbl.h"
+#include "trackir.h"
 #include "camplib.h"
 #include "threadmgr.h"
 #include "sim/include/simloop.h"
@@ -1970,6 +1971,14 @@ static bool init_game_core(void) {
     fprintf(stderr, "  Starting sound system...\n");
     F4SoundStart();
     fprintf(stderr, "  [main_linux] F4SoundStart() returned\n");
+
+    // HEADTRACK-1: winmain's SystemLevelInit starts TrackIR; this path never did, so head tracking was dead.
+    // On Linux InitTrackIR listens for opentrack (sim/siminput/trackir.cpp) and leaves the views alone until
+    // poses arrive.
+    {
+        extern TrackIR theTrackIRObject;
+        theTrackIRObject.InitTrackIR(FalconDisplay.appWin);
+    }
 
     // Start simulation loop
     fprintf(stderr, "  Starting simulation loop...\n");

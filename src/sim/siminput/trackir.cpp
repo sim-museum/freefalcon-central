@@ -285,6 +285,111 @@ NPRESULT __stdcall NP_RequestData(unsigned short wDataReq)
 } // NP_RequestData()
 
 
+#ifdef FF_LINUX
+/* HEADTRACK-1 (PO 2026-10-15): head tracking on Linux comes from opentrack's "UDP over network" output --
+   TrackIR, Delanclip and webcams all reach opentrack -- instead of NaturalPoint's Windows NPClient DLL.
+   Each datagram is six little-endian doubles: x, y, z (cm), yaw, pitch, roll (degrees). They are scaled here to
+   the NPClient units the rest of this file expects (+-16383 = +-180 deg yaw/pitch; Poll() maps roll +-16383 to
+   +-90 deg; position +-16383 = +-FF_HEADTRACK_RANGE_CM, default 30), so Poll(), the 2-D pit map and vcock.cpp's
+   head translation run unchanged. Env: FF_HEADTRACK=0 off, FF_HEADTRACK_PORT (4242), FF_HEADTRACK_SIGNS
+   "yaw,pitch,roll" (+1/-1 each, default 1,1,1), FF_TRACE_HEADTRACK=1 one line per second. */
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+static int   g_htSock = -1;
+static bool  g_htHave = false;
+static unsigned short g_htSig = 0;
+static float g_htNP[6];        // roll, pitch, yaw, x, y, z in NPClient units
+static float g_htSign[3] = { 1.f, 1.f, 1.f };
+static float g_htRangeCm = 30.f;
+
+static float ht_clamp(float v) { return v > 16383.f ? 16383.f : (v < -16383.f ? -16383.f : v); }
+
+static bool ht_open()
+{
+    const char* off = getenv("FF_HEADTRACK");
+    if (off and off[0] == '0')
+        return false;
+    int port = getenv("FF_HEADTRACK_PORT") ? atoi(getenv("FF_HEADTRACK_PORT")) : 4242;
+    if (const char* s = getenv("FF_HEADTRACK_SIGNS"))
+        sscanf(s, "%f,%f,%f", &g_htSign[0], &g_htSign[1], &g_htSign[2]);
+    if (getenv("FF_HEADTRACK_RANGE_CM"))
+        g_htRangeCm = (float)atof(getenv("FF_HEADTRACK_RANGE_CM"));
+    int s = socket(AF_INET, SOCK_DGRAM, 0);
+    if (s < 0)
+        return false;
+    sockaddr_in a;
+    memset(&a, 0, sizeof a);
+    a.sin_family = AF_INET;
+    a.sin_port = htons((unsigned short)port);
+    a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);   // opentrack runs on the same PC
+    if (bind(s, (sockaddr*)&a, sizeof a) < 0)
+    {
+        fprintf(stderr, "[headtrack] UDP 127.0.0.1:%d busy -- head tracking off\n", port);
+        close(s);
+        return false;
+    }
+    fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK);
+    g_htSock = s;
+    fprintf(stderr, "[headtrack] listening for opentrack on UDP 127.0.0.1:%d\n", port);
+    return true;
+}
+
+NPRESULT __stdcall NP_GetData(LPTRACKIRDATA pTID)
+{
+    if (g_htSock < 0)
+        return NP_ERR_DLL_NOT_FOUND;
+    double d[6];
+    bool fresh = false;
+    for (;;)   // drain: keep only the newest pose
+    {
+        ssize_t n = recv(g_htSock, d, sizeof d, 0);
+        if (n < 0)
+            break;
+        if (n != (ssize_t)sizeof d)
+            continue;
+        g_htNP[0] = ht_clamp((float)(g_htSign[2] * d[5] / 90.0 * 16383.0));
+        g_htNP[1] = ht_clamp((float)(g_htSign[1] * d[4] / 180.0 * 16383.0));
+        g_htNP[2] = ht_clamp((float)(g_htSign[0] * d[3] / 180.0 * 16383.0));
+        for (int i = 0; i < 3; i++)
+            g_htNP[3 + i] = ht_clamp((float)(d[i] / g_htRangeCm * 16383.0));
+        fresh = true;
+    }
+    if (fresh)
+    {
+        g_htHave = true;
+        g_htSig++;
+        if (getenv("FF_TRACE_HEADTRACK"))
+        {
+            static unsigned last = 0;
+            unsigned now = GetTickCount();
+            if (now - last >= 1000)
+            {
+                last = now;
+                fprintf(stderr, "[headtrack] pose yaw=%.0f pitch=%.0f roll=%.0f x=%.0f y=%.0f z=%.0f (NP units)\n",
+                        g_htNP[2], g_htNP[1], g_htNP[0], g_htNP[3], g_htNP[4], g_htNP[5]);
+            }
+        }
+    }
+    if (not g_htHave)
+        return NP_ERR_NO_DATA;
+    memset(pTID, 0, sizeof *pTID);
+    pTID->wPFrameSignature = g_htSig;   // unchanged signature = no new packet; Poll() lets go after 100 polls
+    pTID->fNPRoll = g_htNP[0];
+    pTID->fNPPitch = g_htNP[1];
+    pTID->fNPYaw = g_htNP[2];
+    pTID->fNPX = g_htNP[3];
+    pTID->fNPY = g_htNP[4];
+    pTID->fNPZ = g_htNP[5];
+    return NP_OK;
+}
+#else
 NPRESULT __stdcall NP_GetData(LPTRACKIRDATA pTID)
 {
     NPRESULT result = NP_ERR_DLL_NOT_FOUND;
@@ -294,6 +399,7 @@ NPRESULT __stdcall NP_GetData(LPTRACKIRDATA pTID)
 
     return result;
 } // NP_GetData()
+#endif
 
 
 NPRESULT __stdcall NP_StartCursor()
@@ -645,6 +751,16 @@ char* GetDllLocation(char* loc)
 //*********************************************************************/
 void TrackIR::InitTrackIR(HWND application_window)
 {
+#ifdef FF_LINUX
+    /* HEADTRACK-1: listen for opentrack (see NP_GetData). Head tracking only takes the view once poses arrive
+       (Poll() calls SetHeadTracking(TRUE) on the first new frame), so without opentrack the views are unchanged. */
+    (void)application_window;
+    g_bEnableTrackIR = ht_open();   // lets the Setup -> Controls "3D TrackIR" / "2D TrackIR" buttons toggle
+    g_bTrackIRon = g_bEnableTrackIR;
+    isActive = false;
+    OTWDriver.SetHeadTracking(FALSE);
+    return;
+#endif
     unsigned short wNPClientVer;
     unsigned int DataFields;
     int TIRVersionMajor = -1, TIRVersionMinor = -1; // not used anyway
@@ -752,6 +868,10 @@ void TrackIR::InitTrackIR(HWND application_window)
 //*********************************************************************/
 void TrackIR::ExitTrackIR()
 {
+#ifdef FF_LINUX
+    if (g_htSock >= 0) { close(g_htSock); g_htSock = -1; }
+    return;
+#endif
     NP_StopDataTransmission();
     NP_StartCursor();
     NP_UnregisterWindowHandle();

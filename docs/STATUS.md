@@ -22955,3 +22955,16 @@ moves the far DDS band (FarTexDB::SeasonShiftDXT1) much more than the near palet
 `ff_season()` (fartex.cpp, terrtex.cpp) now falls back to SUMMER instead of the pilot's option: far band (30,50,37),
 near (39,63,41), sky unchanged. `FF_SEASON=<n>` still forces a season; `FF_PILOT_SEASON=1` honours the Setup choice
 (the Setup "Season" control otherwise has no effect).
+
+## HEADTRACK-1 (2026-10-15) -- TrackIR / Delanclip head tracking via opentrack
+* Before: dead on Linux three ways -- the NPClient DLL loader is a NULL stub; main_linux.cpp never called
+  InitTrackIR (winmain's SystemLevelInit did); and head tracking is polled at the end of GetJoystickInput, which
+  returns early when no stick is attached.
+* Now: NP_GetData reads opentrack's "UDP over network" output (127.0.0.1:4242, six doubles x y z cm, yaw pitch roll
+  deg) and hands Falcon's own TrackIR code NPClient units, so the 3-D pit, 2-D pit panning and head translation
+  work as on Windows. Views are untouched until poses arrive; poses stopping hands the view back after 100 polls.
+  Setup -> Controls "3D TrackIR" turns it on (the button now toggles). Env: FF_HEADTRACK=0, FF_HEADTRACK_PORT,
+  FF_HEADTRACK_SIGNS=yaw,pitch,roll (+-1), FF_HEADTRACK_RANGE_CM (30), FF_TRACE_HEADTRACK=1, test hook FF_HEADTRACK_3D=1.
+* Verified (~/ff-gates/headtrack, TE 02 Takeoff, virtual pit, scripted sender): pose 60/0/0 turns the view off the
+  nose (mean pixel diff 56 vs no pose); 20/-10/0 turns the cockpit with the head. Axis directions need the PO's
+  tracker (opentrack's per-axis invert, or FF_HEADTRACK_SIGNS).

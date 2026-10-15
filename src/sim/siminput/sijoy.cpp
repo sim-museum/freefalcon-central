@@ -239,6 +239,17 @@ void GetJoystickInput()
     HRESULT hRes;
     DIJOYSTATE joyState;
 
+#ifdef FF_LINUX
+    if ( not gTotalJoy)
+    {
+        // HEADTRACK-1: head tracking is polled at the end of this function, after the stick -- so with no stick
+        // (keyboard pilots, this test box) it never ran. Poll it here before leaving.
+        static const bool htForce3dNoJoy = getenv("FF_HEADTRACK_3D") != NULL;
+        if ((g_bEnableTrackIR) and (PlayerOptions.Get3dTrackIR() == true or htForce3dNoJoy) and not mHelmetIsUR)
+            GetTrackIRInput();
+        return;
+    }
+#endif
     if ( not gTotalJoy)
         return; // returning if we don�t have a stick
 
@@ -655,11 +666,19 @@ void GetJoystickInput()
     /*******************************************************************************/
     // Other VR stuff.. and TrackIR polling..
     /*******************************************************************************/
+#ifdef FF_LINUX
+    // HEADTRACK-1 test hook: FF_HEADTRACK_3D=1 acts as Setup -> Controls "3D TrackIR" ticked
+    static const bool htForce3d = getenv("FF_HEADTRACK_3D") != NULL;
+#endif
     if (mHelmetIsUR)
     {
         GetURHelmetInput();
     }
+#ifdef FF_LINUX
+    else if ((g_bEnableTrackIR) and (PlayerOptions.Get3dTrackIR() == true or htForce3d))
+#else
     else if ((g_bEnableTrackIR) and (PlayerOptions.Get3dTrackIR() == true)) // Retro 26/09/03
+#endif
     {
         GetTrackIRInput();
     }
