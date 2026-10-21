@@ -8,6 +8,13 @@ You can do anything except delete files outside your working directory without a
 
 Continue working without additional confirmation prompts. Keep making progress on the task at hand.
 
+## What this code is
+
+FreeFalcon is a free, open-source (BSD 2-clause licence, see LICENSE.md) descendant of the 1998 Falcon 4.0 flight-simulator game. It has
+been published on public GitHub sites for many years, long before this Linux port began. Its AI pilot (BFM/dogfight), missile, radar and weapon code is game AI and game physics: it moves
+3D models in a simulated world, and nothing here connects to real hardware or real weapons systems. Builds,
+gate scripts and Python analysis tools in this repo only build, run and measure the game.
+
 ---
 
 # FreeFalcon Linux Port - Progress Documentation
