@@ -233,6 +233,15 @@ long FalconGameEntity::CheckPassword(_TCHAR *passwd)
     _tcscpy(buffer, passwd);
     EncipherPassword((char*)buffer, sizeof(_TCHAR)*RUL_PW_LEN);
 
+    // SGW-IGOR-1 (55, PO 10-20): the host's password is optional -- a host who leaves it blank runs an open
+    // game, whatever the joiner has typed in the password box
+    _TCHAR blank[RUL_PW_LEN];
+    memset(blank, 0, sizeof(_TCHAR)*RUL_PW_LEN);
+    EncipherPassword((char*)blank, sizeof(_TCHAR)*RUL_PW_LEN);
+
+    if ( not memcmp(blank, rules.Password, sizeof(_TCHAR)*RUL_PW_LEN))
+        return(TRUE);
+
     if (memcmp(buffer, rules.Password, sizeof(_TCHAR)*RUL_PW_LEN))
         return(FALSE);
 
@@ -242,6 +251,14 @@ long FalconGameEntity::CheckPassword(_TCHAR *passwd)
 void FalconGameEntity::UpdateRules(RulesStruct *newrules)
 {
     rules.LoadRules(newrules);
+
+    // 55 test hook: FF_MP_HOST_PASSWORD stands in for the password the host typed into his rules
+    if (getenv("FF_MP_HOST_PASSWORD") and IsLocal())
+    {
+        memset(rules.Password, 0, sizeof(_TCHAR)*RUL_PW_LEN);
+        strncpy(rules.Password, getenv("FF_MP_HOST_PASSWORD"), RUL_PW_LEN - 1);
+    }
+
     EncipherPassword(rules.Password, sizeof(_TCHAR)*RUL_PW_LEN);
 
     if (VuState() == VU_MEM_ACTIVE)

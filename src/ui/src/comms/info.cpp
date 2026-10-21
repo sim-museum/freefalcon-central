@@ -749,7 +749,14 @@ void ComplyCB(long ID, short hittype, C_Base *control)
 
         if (game and OkCB)
         {
-            if ( not game->CheckPassword(ebox->GetText()))
+            // 55 test hook: FF_MP_PASSWORD stands in for the text typed into the password box
+            _TCHAR *typed = getenv("FF_MP_PASSWORD") ? (_TCHAR*)getenv("FF_MP_PASSWORD") : ebox->GetText();
+            const long pwok = game->CheckPassword(typed);
+
+            if (getenv("FF_DEBUG_MPCOMMS"))
+                fprintf(stderr, "[mp] join password check: %s\n", pwok ? "accepted" : "refused (wrong password box)");
+
+            if ( not pwok)
             {
                 AreYouSure(TXT_ERROR, TXT_WRONGPASSWORD, NULL, CloseWindowCB);
                 return;
