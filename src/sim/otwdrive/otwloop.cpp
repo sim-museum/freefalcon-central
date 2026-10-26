@@ -3573,6 +3573,10 @@ void OTWDriverClass::RunNew2DTrackIR(float pan, float tilt)
         lastpan = pan;
         lasttilt = tilt;
         pCockpitManager->Set2DPanelDirection(pan, tilt);
+#ifdef FF_LINUX
+        if (getenv("FF_TRACE_HEADTRACK"))
+            fprintf(stderr, "[headtrack] 2-D pit: panel direction pan=%.0f tilt=%.0f deg\n", pan / DTR, tilt / DTR);
+#endif
     }
 }
 
@@ -3611,7 +3615,13 @@ void OTWDriverClass::SetInternalCameraPosition(float dT)
     // Adjust for head angle (if enabled)
     if (GetOTWDisplayMode() == Mode2DCockpit)
     {
+#ifdef FF_LINUX
+        // FF-HEADTRACK-2D test hook: FF_HEADTRACK_2D=1 acts as Setup -> Controls "2D TrackIR" ticked
+        static const bool htForce2d = getenv("FF_HEADTRACK_2D") != NULL;
+        if ((g_bEnableTrackIR) and (PlayerOptions.Get2dTrackIR() == true or htForce2d) and not GetHybridPitMode())
+#else
         if ((g_bEnableTrackIR) and (PlayerOptions.Get2dTrackIR() == true) and not GetHybridPitMode()) // Retro 27/09/03  //Wombat778 11-18-04 Dont run the 2d trackir code in hybrid mode
+#endif
         {
 #ifdef DEBUG_TRACKIR_STUFF
             FILE* fp = fopen("TIR_Debug_2.txt", "at");
