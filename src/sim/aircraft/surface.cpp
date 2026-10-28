@@ -1337,7 +1337,9 @@ void AircraftClass::MoveSurfaces(void)
 
 
     // this could be optimized
-    if (gACMIRec.IsRecording())
+    // FF-ACMI-CRASH-1 (PO 10-27): the port starts the ACMI tape by default, so this runs for every aircraft; one hit
+    // by a second Sidewinder had no drawable (drawPointer NULL) and GetNumSwitches() faulted. No model, nothing to record.
+    if (gACMIRec.IsRecording() and drawPointer)
     {
         acmiTimer -= SimLibMajorFrameTime;
 
